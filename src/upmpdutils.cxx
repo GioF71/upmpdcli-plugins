@@ -139,7 +139,7 @@ diffmaps(const unordered_map<string, string>& old,
         ss << "<" #TAG ">" << SoapHelp::xmlQuote(DEF) << "</" #TAG ">"; \
     }
 
-static void printResource(ostringstream& ss, const UpSong::Res& res) {
+static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
     ss << "<res";
     if (res.duration_secs) {
         ss << " duration=\"" << upnpduration(res.duration_secs * 1000) << "\"";
@@ -200,7 +200,10 @@ string UpSong::didl() const
         UPNPXMLD(upnpClass, upnp:class, "object.item.audioItem.musicTrack");
 	UPNPXML(album, upnp:album);
 	UPNPXML(tracknum, upnp:originalTrackNumber);
-        printResource(ss, rsrc);
+        didlPrintResource(ss, rsrc);
+        for (const auto& res : resources) {
+            didlPrintResource(ss, res);
+        }
     }
     UPNPXML(genre, upnp:genre);
     UPNPXML(artist, dc:creator);

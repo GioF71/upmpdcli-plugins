@@ -337,6 +337,36 @@ static void catstring(string& dest, const string& s2)
     }
 }
 
+static void decodeResource(const Json::Value entry, UpSong::Res &res)
+{
+    res.uri = entry.get("uri", "").asString();
+    res.mime = entry.get("res:mime", "").asString();
+    string ss = entry.get("duration", "").asString();
+    if (!ss.empty()) {
+        res.duration_secs = atoi(ss.c_str());
+    }
+    ss = entry.get("res:size", "").asString();
+    if (!ss.empty()) {
+        res.size = atoll(ss.c_str());
+    }
+    ss = entry.get("res:bitrate", "").asString();
+    if (!ss.empty()) {
+        res.bitrate = atoi(ss.c_str());
+    }
+    ss = entry.get("res:samplefreq", "").asString();
+    if (!ss.empty()) {
+        res.samplefreq = atoi(ss.c_str());
+    }
+    ss = entry.get("res:bitsPerSample", "").asString();
+    if (!ss.empty()) {
+        res.bitsPerSample = atoi(ss.c_str());
+    }
+    ss = entry.get("res:channels", "").asString();
+    if (!ss.empty()) {
+        res.channels = atoi(ss.c_str());
+    }
+}
+
 static int resultToEntries(const string& encoded, int stidx, int cnt,
                            vector<UpSong>& entries)
 {
@@ -372,36 +402,20 @@ static int resultToEntries(const string& encoded, int stidx, int cnt,
             }
         } else  if (!stp.compare("it")) {
             song.iscontainer = false;
-            JSONTOUPS(rsrc.uri, uri);
             JSONTOUPS(artist, dc:creator);
             JSONTOUPS(genre, upnp:genre);
             JSONTOUPS(album, upnp:album);
             JSONTOUPS(tracknum, upnp:originalTrackNumber);
-            JSONTOUPS(rsrc.mime, res:mime);
-
-            string ss = decoded[i].get("duration", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.duration_secs = atoi(ss.c_str());
-            }
-            ss = decoded[i].get("res:size", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.size = atoll(ss.c_str());
-            }
-            ss = decoded[i].get("res:bitrate", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.bitrate = atoi(ss.c_str());
-            }
-            ss = decoded[i].get("res:samplefreq", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.samplefreq = atoi(ss.c_str());
-            }
-            ss = decoded[i].get("res:bitsPerSample", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.bitsPerSample = atoi(ss.c_str());
-            }
-            ss = decoded[i].get("res:channels", "").asString();
-            if (!ss.empty()) {
-                song.rsrc.channels = atoi(ss.c_str());
+            // Decode resource data in base record
+            decodeResource(decoded[i], song.rsrc);
+            // Possibly add resources from resource array if present
+            const Json::Value &resources = decoded[i]["resources"];
+            LOGDEB("decoded['resources'] is type " << resources.type() << endl);
+            if (resources.isArray()) {
+                for (unsigned int i = 0; i < resources.size(); i++) {
+                    song.resources.push_back(UpSong::Res());
+                    decodeResource(resources[i], song.resources.back());
+                }
             }
         } else {
             LOGERR("PlgWithSlave::result: bad type in entry: " << stp <<
