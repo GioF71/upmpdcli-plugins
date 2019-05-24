@@ -32,8 +32,10 @@ if token:
         print("Authentication failed");
         sys.exit(1)
     else:
-        print("Authentication ok. Please move %s to the file named " \
-              "/var/cache/upmpdcli/spotify/token" % cachepath)
+        print(
+"Authentication ok. Please move %s to a file named\n"
+"/var/cache/upmpdcli/spotify/token on the upmpdcli host, or, if you changed\n"
+"the value of the cachedir parameter, <cachedir>/spotify/token" % cachepath)
         # print("%s"% json.dumps(data,indent=True))
         sys.exit(0)
 else:

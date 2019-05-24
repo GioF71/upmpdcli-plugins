@@ -49,7 +49,8 @@ class SpotifyClientCredentials(object):
         if not client_secret:
             raise SpotifyOauthError('No client secret')
 
-        #deb("SpotifyClientCredentials: client_id %s client_secret %s" % (client_id, client_secret))
+        #deb("SpotifyClientCredentials: client_id %s client_secret %s" %
+        #(client_id, client_secret))
         self.client_id = client_id
         self.client_secret = client_secret
         self.token_info = None
@@ -62,7 +63,7 @@ class SpotifyClientCredentials(object):
         """
         #deb("SpotifyClientCredentials: get_access_token")
         if self.token_info and not self.is_token_expired(self.token_info):
-            #deb("SpotifyClientCredentials: get_access_token: current token valid")
+            #deb("SpotifyClientCredentials: get_access_token: cur token valid")
             return self.token_info['access_token']
 
         token_info = self._request_access_token()
@@ -145,12 +146,12 @@ class SpotifyOAuth(object):
                     return None
 
                 if self.is_token_expired(token_info):
-                    deb("SpotifyOAuth::get_cached_token: expired: refreshing")
+                    #deb("SpotifyOAuth::get_cached_token: expired: refreshing")
                     token_info = self.refresh_access_token(token_info['refresh_token'])
 
             except IOError:
                 deb("SpotifyOAuth::get_cached_token: COULD NOT OPEN/READ %s" %
-					self.cache_path)
+                    self.cache_path)
                 pass
         return token_info
 

@@ -1133,7 +1133,8 @@ browser. You will need to execute the following steps to set things up:
 - The script will then store the authorization token in a file named
   '/tmp/spotipy-<username>-token', which you will need to copy to the host
   where upmpdcli run, and move it to a file named
-  '/var/cache/upmpdcli/spotify/token'
+  '/var/cache/upmpdcli/spotify/token', or, if you changed the value of the
+  +cachedir+ parameter, to '[cachedir]/spotify/token'.
 
 
 [[SC2MPD-INSTALL]]
