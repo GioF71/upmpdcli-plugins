@@ -118,7 +118,7 @@ diffmaps(const unordered_map<string, string>& old,
     unordered_map<string, string>  out;
 
     for (unordered_map<string, string>::const_iterator it = newer.begin();
-            it != newer.end(); it++) {
+         it != newer.end(); it++) {
         unordered_map<string, string>::const_iterator ito = old.find(it->first);
         if (ito == old.end() || ito->second.compare(it->second)) {
             out[it->first] = it->second;
@@ -170,9 +170,9 @@ string UpSong::didl() const
     ostringstream ss;
     string typetag;
     if (iscontainer) {
-	typetag = "container";
+        typetag = "container";
     } else {
-	typetag = "item";
+        typetag = "item";
     }
     ss << "<" << typetag;
     if (!id.empty()) {
@@ -182,8 +182,8 @@ string UpSong::didl() const
         ss << "\" parentID=\"" << parentid << "\"";
     }
     ss << " restricted=\"1\" searchable=\"" <<
-	(searchable ? string("1") : string("0")) << "\">" <<
-	"<dc:title>" << SoapHelp::xmlQuote(title) << "</dc:title>";
+        (searchable ? string("1") : string("0")) << "\">" <<
+        "<dc:title>" << SoapHelp::xmlQuote(title) << "</dc:title>";
 
     if (id.empty()) {
         ss << "<orig>mpd</orig>";
@@ -194,12 +194,12 @@ string UpSong::didl() const
         // tracknum is reused for annotations for containers
         ss << (tracknum.empty() ? string() :
                string("<upnp:userAnnotation>" + SoapHelp::xmlQuote(tracknum) +
-		    "</upnp:userAnnotation>"));
-	    
+                      "</upnp:userAnnotation>"));
+        
     } else {
         UPNPXMLD(upnpClass, upnp:class, "object.item.audioItem.musicTrack");
-	UPNPXML(album, upnp:album);
-	UPNPXML(tracknum, upnp:originalTrackNumber);
+        UPNPXML(album, upnp:album);
+        UPNPXML(tracknum, upnp:originalTrackNumber);
         didlPrintResource(ss, rsrc);
         for (const auto& res : resources) {
             didlPrintResource(ss, res);
@@ -218,11 +218,11 @@ string UpSong::didl() const
 const string& headDIDL()
 {
     static const string head(
-	"<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-	"<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
-	"xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
-	"xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" "
-	"xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">");
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
+        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
+        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" "
+        "xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">");
     return head;
 }
 
@@ -327,7 +327,7 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
                         gid_t gid)
 {
     LOGDEB1("ensureconfreadable: fn " << fn << " user " << user << " uid " <<
-           uid << " gid " << gid << endl);
+            uid << " gid " << gid << endl);
 
     struct stat st;
     if (stat(fn, &st) < 0) {

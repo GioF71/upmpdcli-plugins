@@ -290,8 +290,9 @@ bool MPDCli::updStatus()
         // For radios, we don't get the didl resource info from the
         // media server, so fill in the details from mpd data if we
         // can.
-        m_stat.currentsong.rsrc.samplefreq = m_stat.sample_rate;
         m_stat.currentsong.rsrc.bitrate = m_stat.kbrate * 1000;
+        m_stat.currentsong.rsrc.samplefreq = m_stat.sample_rate;
+        m_stat.currentsong.rsrc.bitsPerSample = m_stat.bitdepth;
         m_stat.currentsong.rsrc.channels = m_stat.channels;
 
         LOGDEB1("MPD AUDIO FORMAT: " <<  int(maf->sample_rate) << " samps/S " <<
