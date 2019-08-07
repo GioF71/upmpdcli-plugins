@@ -276,6 +276,9 @@ bool MPDCli::updStatus()
             m_stat.detailscounter = 0;
         }
         statSong(m_stat.nextsong, m_stat.songpos + 1);
+    } else {
+        m_stat.currentsong.clear();
+        m_stat.nextsong.clear();
     }
 
     m_stat.songelapsedms = mpd_status_get_elapsed_ms(mpds);
