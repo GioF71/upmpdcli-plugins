@@ -17,6 +17,8 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
+
 #ifdef _WIN32
 // needed for localtime_r under mingw?
 #define _POSIX_THREAD_SAFE_FUNCTIONS
@@ -437,6 +439,31 @@ void stringToTokens(const string& str, vector<string>& tokens,
             tokens.push_back(str.substr(startPos, pos - startPos));
             startPos = ++pos;
         }
+    }
+}
+
+void stringSplitString(const string& str, vector<string>& tokens,
+                       const string& sep)
+{
+    if (str.empty() || sep.empty())
+        return;
+
+    string::size_type startPos = 0, pos;
+
+    while (startPos < str.size()) {
+        // Find next delimiter or end of string (end of token)
+        pos = str.find(sep, startPos);
+        // Add token to the vector and adjust start
+        if (pos == string::npos) {
+            tokens.push_back(str.substr(startPos));
+            break;
+        } else if (pos == startPos) {
+            // Initial or consecutive separators
+            tokens.push_back(string());
+        } else {
+            tokens.push_back(str.substr(startPos, pos - startPos));
+        }
+        startPos = pos + sep.size();
     }
 }
 

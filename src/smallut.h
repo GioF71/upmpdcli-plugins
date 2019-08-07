@@ -136,6 +136,11 @@ extern void stringToTokens(const std::string& s,
                            const std::string& delims = " \t",
                            bool skipinit = true);
 
+/** Like toTokens but with multichar separator */
+extern void stringSplitString(const std::string& str,
+                              std::vector<std::string>& tokens,
+                              const std::string& sep);
+
 /** Convert string to boolean */
 extern bool stringToBool(const std::string& s);
 
