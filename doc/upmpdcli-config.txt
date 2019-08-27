@@ -307,12 +307,15 @@ msfriendlyname:: Friendly name for the
 Media Server (if enabled). The default is to append
 "-mediaserver" to the friendlyname value.
 
+[[plgmicrohttphost]]
+plgmicrohttphost:: Hostname/IP address used in proxy URLs. The default is to use the same host/address as the UPnP
+server. Using localhost/127.0.0.1 instead loses the ability to stream to
+a remote renderer, but allows for portable playlists.
+
 [[plgmicrohttpport]]
-plgmicrohttpport:: IP
-port for the tidal/qobuz/gmusic local HTTP service. The
-URLs for tracks streamed from these services point to a local microhttpd
-server running on this port (it uses redirection to the actual service
-URL when actually streaming). The default is 49149.
+plgmicrohttpport:: IP port for the tidal/qobuz/gmusic local HTTP service. The URLs for tracks streamed from these services point to a local
+microhttpd server running on this port (it uses redirection to the actual
+service URL when actually streaming). The default is 49149.
 
 [[plgproxymethod]]
 plgproxymethod:: Decide if we proxy (copy: fetch/serve), or redirect the streaming

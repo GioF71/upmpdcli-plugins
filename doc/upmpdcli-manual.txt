@@ -1117,8 +1117,8 @@ browser. You will need to execute the following steps to set things up:
 - Unzip the file on any Linux machine with a web browser. This will create
   a 'upmpdcli-spotify-authinit' directory. The chosen machine can be the
   host where upmpdcli runs, or not: any Linux machine with a browser will do.
-- Check that the python-requests package is available on the chosen host, or
-  install it (or python3-requests for newer upmpdcli versions).
+- Check that the python3-requests package is available on the chosen host, or
+  install it.
 - Run the helper script inside the unzipped directory. Replace 'username'
   with your Spotify user id.
   
@@ -1135,7 +1135,9 @@ browser. You will need to execute the following steps to set things up:
   where upmpdcli run, and move it to a file named
   '/var/cache/upmpdcli/spotify/token', or, if you changed the value of the
   +cachedir+ parameter, to '[cachedir]/spotify/token'.
+- Make sure that /var/cache/upmpdcli and its contents belong to upmpdcli:
 
+    sudo chown -R upmpdcli /var/cache/upmpdcli/spotify
 
 [[SC2MPD-INSTALL]]
 == Annex: Songcast installation walkthrough
