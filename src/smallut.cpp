@@ -1283,7 +1283,7 @@ bool SimpleRegexp::simpleMatch(const string& val) const
 {
     if (!ok())
         return false;
-    return regex_match(val, m->res, m->expr);
+    return regex_search(val, m->res, m->expr);
 }
 
 string SimpleRegexp::getMatch(const string& val, int i) const
