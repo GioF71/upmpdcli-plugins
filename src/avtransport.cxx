@@ -270,8 +270,12 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     const string& uri = mpds.currentsong.rsrc.uri;
 
     // MPD may have switched to the next track, or may be playing
-    // something else altogether if some other client told it to
-    if (m_dev->radioPlaying()) {
+    // something else altogether if some other client told it to. 
+    // Also the current metadata may come from mpd, or be the bogus
+    // unknown entry (will have <orig>mpd</orig> in both cases because
+    // null id in the song). In these cases, build meta from the mpd song.
+    if (m_dev->radioPlaying() ||
+        m_curMetadata.find("<orig>mpd</orig>") != string::npos) {
         m_curMetadata = didlmake(mpds.currentsong);
     } else {
         if (!uri.compare(m_nextUri)) {
