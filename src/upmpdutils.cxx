@@ -268,6 +268,30 @@ void noMetaUpSong(UpSong *ups)
     return;
 }
 
+bool metaDumbSameTitle(const string& meta1, const string& meta2)
+{
+    auto poss1 = meta1.find("<dc:title>");
+    auto poss2 = meta2.find("<dc:title>");
+    auto pose1 = meta1.find("</dc:title>");
+    auto pose2 = meta2.find("</dc:title>");
+
+    if (poss1 == string::npos && poss2 == string::npos) {
+        return true;
+    }
+    if ((poss1 == string::npos) != (poss2 == string::npos)) {
+        return false;
+    }
+    string::size_type len1 = pose1 == string::npos ? string::npos :
+        pose1 - poss1;
+    string::size_type len2 = pose2 == string::npos ? string::npos :
+        pose2 - poss2;
+
+    if (meta1.substr(poss1, len1).compare(meta2.substr(poss2, len2))) {
+        return false;
+    }
+    return true;
+}
+
 bool uMetaToUpSong(const string& metadata, UpSong *ups)
 {
     if (ups == 0) {

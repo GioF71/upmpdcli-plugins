@@ -257,8 +257,8 @@ static string mpdsToTState(const MpdStatus &mpds)
 bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
 {
     const MpdStatus &mpds =  m_dev->getMpdStatus();
-    //DEBOUT << "UpMpdAVTransport::tpstateMToU: curpos: " << mpds.songpos <<
-    //   " qlen " << mpds.qlen << endl;
+    LOGDEB2("UpMpdAVTransport::tpstateMToU: curpos: " << mpds.songpos <<
+            " qlen " << mpds.qlen << endl);
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
     
@@ -274,7 +274,8 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     // Also the current metadata may come from mpd, or be the bogus
     // unknown entry (will have <orig>mpd</orig> in both cases because
     // null id in the song). In these cases, build meta from the mpd song.
-    if (m_dev->radioPlaying() ||
+    LOGDEB2("UpMpdAVTransport: curmeta: " << m_curMetadata << endl);
+    if (m_dev->radioPlaying() || m_curMetadata.empty() ||
         m_curMetadata.find("<orig>mpd</orig>") != string::npos) {
         m_curMetadata = didlmake(mpds.currentsong);
     } else {
