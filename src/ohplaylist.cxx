@@ -166,9 +166,17 @@ bool OHPlaylist::makeIdArray(string& out)
         // course...
         if (mpds.songid != -1) {
             auto it = m_metacache.find(mpds.currentsong.rsrc.uri);
-            if (it != m_metacache.end() && 
-                it->second.find("<orig>mpd</orig>") != string::npos) {
-                m_metacache[mpds.currentsong.rsrc.uri] = didlmake(mpds.currentsong);
+            // "not found" should not happen: queue should have been saved. 
+            if (it != m_metacache.end()) {
+                string nmeta = didlmake(mpds.currentsong);
+                if (nmeta != it->second) {
+                    // Metadata changed under us for the same id. This
+                    // must actually be a radio stream. Force the CP
+                    // to flush its metadata by emitting an empty idarray
+                    LOGDEB("OHPLaylist:makeIdArray: meta for Id changed\n");
+                    out = translateIdArray(vector<UpSong>());
+                    it->second = nmeta;
+                }
             }
         }
         return true;
