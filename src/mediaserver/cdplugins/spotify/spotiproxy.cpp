@@ -26,6 +26,10 @@
 #include "libupnpp/log.h"
 #include "smallut.h"
 
+// Included to get access to g_config
+#include "main.hxx"
+#include "conftree.h"
+
 using namespace std;
 using namespace std::placeholders;
 
@@ -101,6 +105,12 @@ typedef struct sp_session_callbacks {
     void *ph14;
 } sp_session_callbacks;
 
+typedef enum {
+    spotify_bitrate160 = 0,
+    spotify_bitrate320 = 1,
+    spotify_bitrate96 = 2
+} spotify_bitrate;
+
 typedef struct sp_session_config {
     int api_version;
     const char *cache_location;
@@ -140,6 +150,7 @@ struct SpotifyAPI {
     sp_error (*sp_session_player_unload)(sp_session *session);
     sp_error (*sp_session_process_events)(sp_session *session, int *next_timeo);
     sp_error (*sp_session_set_cache_size)(sp_session *session, size_t size);
+    sp_error (*sp_session_preferred_bitrate)(sp_session *, spotify_bitrate);
     sp_error (*sp_link_add_ref)(sp_link *link);
     int (*sp_track_duration)(sp_track *track);
     sp_error (*sp_track_add_ref)(sp_track *track);
@@ -179,6 +190,20 @@ public:
     Internal(const string& u, const string& p,
              const string& cd, const string& sd)
         : user(u), pass(p), cachedir(cd), confdir(sd) {
+
+        spotify_bitrate bitrateidx = spotify_bitrate160;
+        {
+            string sbitrate;
+            if (g_config->get("spotifybitrate", sbitrate)) {
+                switch (atoi(sbitrate.c_str())) {
+                case 160: bitrateidx = spotify_bitrate160; break;
+                case 320: bitrateidx = spotify_bitrate320; break;
+                case 96: bitrateidx = spotify_bitrate96; break;
+                default: bitrateidx = spotify_bitrate160; break;
+                }
+            }
+        }
+        
         theSPP = this;
         session_callbacks.logged_in = login_cb;
         session_callbacks.log_message = log_message;
@@ -215,6 +240,9 @@ public:
         }
         // Max cache size 50 MB
         api.sp_session_set_cache_size(sp, 50);
+        if (bitrateidx != spotify_bitrate160) {
+            api.sp_session_preferred_bitrate(sp, bitrateidx);
+        }
     }
 
     // Wait for a state change, tested by a function parameter.
@@ -352,6 +380,8 @@ bool SpotiProxy::Internal::init_spotify_api()
                                                      int *next_timeout)));
     NMTOPTR(sp_session_set_cache_size, (sp_error (*)(sp_session *session,
                                                      size_t size)));
+    NMTOPTR(sp_session_preferred_bitrate, (sp_error (*)(sp_session *,
+                                                        spotify_bitrate)));
     NMTOPTR(sp_link_add_ref, (sp_error (*)(sp_link *link)));
     NMTOPTR(sp_track_duration, (int (*)(sp_track *track)));
     NMTOPTR(sp_track_add_ref, (sp_error (*)(sp_track *track)));

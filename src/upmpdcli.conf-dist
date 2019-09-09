@@ -397,6 +397,10 @@
 # <var name="spotifypass" type="string"><brief>Spotify password.</brief>
 # <descr>The password for your Spotify account.</descr></var>
 #spotifypass = agoodpassword
+# <var name="spotifybitrate" type="int">
+# <brief>Spotify preferred bitrate: 160 (default), 320 or 96.</brief>
+# <descr>Unverified.</descr></var>
+#spotifybitrate = 160
 
 # <grouptitle>Local Media Server parameters</grouptitle>
 
