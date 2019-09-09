@@ -152,7 +152,15 @@ class ConfSimple(object):
             for nm,value in mp.items():
                 f.write(nm + b'=' + value + b'\n')
         f.close()
-        os.rename(tname, self.confname)
+        try:
+            # os.replace works on Windows even if dst exists, but py3 only
+            os.replace(tname, self.confname)
+        except:
+            try:
+                os.rename(tname, self.confname)
+            except:
+                import shutil
+                shutil.move(tname, self.confname)
 
     def setbin(self, nm, value, sk = b''):
         if self.readonly:
@@ -263,6 +271,7 @@ class ConfStack(object):
 def stringToStrings(s, quotes = '"', escape = '\\', escapedquotes = '"',
                     whitespace = None):
     lex = shlex.shlex(s, posix=True)
+    lex.whitespace_split = True
     if quotes is not None:
         lex.quotes = quotes
     if escape is not None:
