@@ -1467,7 +1467,7 @@ cd openssl
 git checkout -b origin/OpenSSL_1_1_0-stable
 ./config
 make
-cc -o upmpdcli-openssl apps/*.o  libssl.a libcrypto.a -ldl -lpthread
+cc -o upmpdcli-openssl apps/*.o  apps/libapps.a libssl.a libcrypto.a -ldl -lpthread
 sudo cp upmpdcli-openssl /usr/bin
 ----
 
