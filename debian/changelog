@@ -1,3 +1,13 @@
+upmpdcli (1.4.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Allow setting Spotify preferred bitrate
+  * Improvement in radio stream title detection
+  * experimental uprcl: bundle bottle.py with the package as the generally
+    distributed 0.12 is not recent enough. Other improvements.
+  * Misc small fixes
+    
+ -- Jean-Francois Dockes <jf@dockes.org>  Fri, 13 Sep 2019 16:35:00 +0200
+
 upmpdcli (1.4.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Small bug fixes
