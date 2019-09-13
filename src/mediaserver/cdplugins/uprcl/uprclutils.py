@@ -29,7 +29,6 @@ import locale
 import mutagen
 import os
 import re
-import subprocess
 import traceback
 
 from upmplgutils import uplog
@@ -400,26 +399,6 @@ def _cmpentries_func(e1, e2):
         return 0
 
 cmpentries=functools.cmp_to_key(_cmpentries_func)
-
-
-# Find first non loopback ip. This is surprisingly
-# difficult. Executing "ip addr" actually seems to be the simplest
-# approach, only works on Linux though (maybe bsd too ?)
-def findmyip():
-    data = subprocess.check_output(["ip", "addr"])
-    if PY3:
-        data = data.decode('utf-8')
-    l = data.split()
-    ips = []
-    chosenip = ""
-    for i in range(len(l)):
-        k = l[i]
-        if k == 'inet':
-            ipmask = l[i+1]
-            if ipmask.find('127.') == 0:
-                continue
-            return ipmask.split('/')[0]
-    return '127.0.0.1'
 
 
 # Open embedded image. Returns mtype, size, f

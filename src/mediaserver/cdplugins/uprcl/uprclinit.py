@@ -32,8 +32,7 @@ import uprclindex
 from uprclhttp import runbottle
 import minimconfig
 
-from upmplgutils import uplog
-from uprclutils import findmyip
+from upmplgutils import uplog, findmyip
 from conftree import stringToStrings
 
 # Once initialization (not on imports)
@@ -147,7 +146,7 @@ def _uprcl_init_worker():
 
     pthstr = g_upconfig.get("uprclpaths")
     if pthstr is None:
-        uplog("uprclpaths not in config")
+        uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
         pthlist = stringToStrings(g_rcltopdirs)
         pthstr = ""
         for p in pthlist:

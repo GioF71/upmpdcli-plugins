@@ -63,6 +63,7 @@ def _maybeinitconfdir(confdir, topdirs):
     f.write(b"nomd5types = rclaudio rclimg\n")
     f.write(b"testmodifusemtime = 1\n")
     f.write(b"idxmetastoredlen = 20000\n")
+    f.write(b"indexStoreDocText = 0\n")
     f.write(b"audiotagfixerscript = %b\n" %
             os.path.join(datadir, "minimtagfixer.py").encode('utf-8'))
     if exclpats:
