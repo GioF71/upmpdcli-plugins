@@ -107,7 +107,7 @@ public:
 };
 
 // Stupdid string comparison of the dc:title part
-bool metaDumbSameTitle(const std::string& meta1, const std::string& meta2);
+bool metaSameTitle(const std::string& meta1, const std::string& meta2);
 
 // Convert between db value to percent values (Get/Set Volume and VolumeDb)
 extern int percentodbvalue(int value);

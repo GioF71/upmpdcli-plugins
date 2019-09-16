@@ -158,25 +158,26 @@ bool OHPlaylist::makeIdArray(string& out)
 
     if (mpds.qvers == m_mpdqvers) {
         out = m_idArrayCached;
-        // Mpd queue did not change: no need to look at the metadata cache
-        //LOGDEB("OHPlaylist::makeIdArray: mpd queue did not change" << endl);
-        // Update the current song anyway: if it's an internet radio,
-        // the title may have changed with no indication from the
-        // queue. Only do this if the metadata originated from mpd of
-        // course...
+        // Mpd queue did not change, but check the current song
+        // anyway: if we are playing a radio stream, the title may
+        // have changed with no indication from the queue.
         if (mpds.songid != -1) {
             auto it = m_metacache.find(mpds.currentsong.rsrc.uri);
-            // "not found" should not happen: queue should have been saved. 
-            if (it != m_metacache.end()) {
+            // "not found" should not happen: queue should have been
+            // saved. Only do something if the metadata originated
+            // from mpd (the <orig> tag is inserted by UpSong::didl() if
+            // there is no UPnP Id).
+            if (it != m_metacache.end() &&
+                it->second.find("<orig>mpd</orig>") != string::npos) {
                 string nmeta = didlmake(mpds.currentsong);
-                // We just compare the title part because of possible
-                // non-semantic changes in the XML
-                if (!metaDumbSameTitle(nmeta, it->second)) {
-                    // Metadata changed under us for the same id. This
-                    // must actually be a radio stream. Force the CP
-                    // to flush its metadata by emitting an empty idarray
-                    LOGINF("OHPLaylist:makeIdArray: meta change-under. OLD\n" <<
-                           it->second << "NEW\n" << nmeta << endl);
+                if (!metaSameTitle(nmeta, it->second)) {
+                    // Metadata changed under us for the same id.
+                    // Force the CP to flush its metadata by emitting
+                    // an empty idarray. On the next event, with no
+                    // title change, we will emit the real idarray,
+                    // and the CP will update.
+                    LOGDEB2("OHPLaylist:makeIdArray: meta change-under. OLD\n"
+                            << it->second << "NEW\n" << nmeta << endl);
                     out = translateIdArray(vector<UpSong>());
                     it->second = nmeta;
                 }

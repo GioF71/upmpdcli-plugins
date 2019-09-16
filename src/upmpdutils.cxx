@@ -268,27 +268,25 @@ void noMetaUpSong(UpSong *ups)
     return;
 }
 
-bool metaDumbSameTitle(const string& meta1, const string& meta2)
+bool metaSameTitle(const string& meta1, const string& meta2)
 {
-    auto poss1 = meta1.find("<dc:title>");
-    auto poss2 = meta2.find("<dc:title>");
-    auto pose1 = meta1.find("</dc:title>");
-    auto pose2 = meta2.find("</dc:title>");
-
-    if (poss1 == string::npos && poss2 == string::npos) {
-        return true;
-    }
-    if ((poss1 == string::npos) != (poss2 == string::npos)) {
+    UPnPDirContent dirc1, dirc2;
+    if (!dirc1.parse(meta1) || dirc1.m_items.size() == 0) {
+        LOGDEB0("metaSameTitle: could not parse meta1 [" << meta1 << "]\n");
         return false;
     }
-    string::size_type len1 = pose1 == string::npos ? string::npos :
-        pose1 - poss1;
-    string::size_type len2 = pose2 == string::npos ? string::npos :
-        pose2 - poss2;
-
-    if (meta1.substr(poss1, len1).compare(meta2.substr(poss2, len2))) {
+    if (!dirc2.parse(meta2) || dirc2.m_items.size() == 0) {
+        LOGDEB0("metaSameTitle: could not parse meta2 [" << meta2 << "]\n");
         return false;
     }
+    const string& tit1(dirc1.m_items[0].m_title);
+    const string& tit2(dirc2.m_items[0].m_title);
+    if (tit1.compare(tit2)) {
+        LOGDEB0("metaSameTitle: not same title [" << tit1 << "] [" <<
+                tit2 << "]\n");
+        return false;
+    }
+    LOGDEB2("metaSameTitle: same\n");
     return true;
 }
 
