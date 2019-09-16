@@ -377,6 +377,9 @@ spotifyuser:: Spotify user name. Your Spotify login name.
 [[spotifypass]]
 spotifypass:: Spotify password. The password for your Spotify account.
 
+[[spotifybitrate]]
+spotifybitrate:: Spotify preferred bitrate: 160 (default), 320 or 96. Unverified.
+
 === Local Media Server parameters 
 
 [[uprcluser]]

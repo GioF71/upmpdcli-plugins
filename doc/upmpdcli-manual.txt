@@ -834,6 +834,9 @@ now. I'd love feedback about what is missing most.
 Installation and configuration: have a look at the
 xref:uprcluser[configuration variables]
 
+NOTE: uprcl needs Python 3.5. This means that it does not work on Debian
+Jessie (8.x)
+
 NOTE: 'python-mutagen' which is optional for default Recoll installations is
 required for uprcl (this is for the case where you install by hand, the
 package takes care of it).
