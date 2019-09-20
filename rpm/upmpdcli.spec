@@ -1,6 +1,6 @@
 Summary:        UPnP Media Renderer front-end to MPD, the Music Player Daemon
 Name:           upmpdcli
-Version:        1.4.1
+Version:        1.4.4
 Release:        1%{?dist}
 Group:          Applications/Multimedia
 License:        GPLv2+
@@ -19,6 +19,8 @@ BuildRequires:  jsoncpp-devel
 BuildRequires:  expat-devel
 BuildRequires:  systemd-units
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+%global __python %{__python3}
 
 %description
 Upmpdcli turns MPD, the Music Player Daemon into an UPnP Media Renderer,
