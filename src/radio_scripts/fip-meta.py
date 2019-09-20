@@ -28,7 +28,7 @@ if len(sys.argv) > 1:
     except:
         stationid = ''
 
-r = requests.get('https://www.fip.fr/livemeta/' + stationid)
+r = requests.get('https://www.fip.fr/livemeta/pull/' + stationid)
 r.raise_for_status()
 newjsd = r.json()
 
