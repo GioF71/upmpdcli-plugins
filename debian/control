@@ -4,6 +4,8 @@ Priority: extra
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
+# The dep on libupnp6-dev is only because of the error code (UPNP_E_...) as
+# far as I can see.
 Build-Depends: debhelper (>= 9.0.0), dh-python, dh-systemd, dh-autoreconf,
                autotools-dev, python-all, python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev,
@@ -75,9 +77,7 @@ Description: upmpdcli Spotify plugin
 Package: upmpdcli-uprcl
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, python3-recoll,
+Depends: upmpdcli, python3 (>= 3.5), python3-requests, python3-recoll,
   python3-waitress, python3-mutagen, ${python:Depends}, ${misc:Depends}
 Description: upmpdcli local Media Server plugin
  upmpdcli-uprcl enables a Recoll-based local media server.
-
-
