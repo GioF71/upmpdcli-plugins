@@ -69,10 +69,14 @@ class Session(object):
         if not self.api:
             uplog("Not logged in")
             return []
-        data = self.api.current_user_saved_albums()
+        data = self.api.current_user_saved_albums(limit=50)
+        albums = data['items']
+        while data['next']:
+            data = self.api.next(data)
+            albums.extend(data['items'])
         #self.dmpdata('favourite_albums', data)
         results = []
-        for item in data['items']:
+        for item in albums:
             album = _parse_album(item['album'])
             if album:
                 results.append(album)
@@ -106,9 +110,13 @@ class Session(object):
         if not self.api:
             uplog("Not logged in")
             return []
-        data = self.api.current_user_followed_artists()
+        data = self.api.current_user_followed_artists(limit=50)
+        artists = data['artists']['items']
+        while data['artists']['next']:
+            data['artists'] = self.api.next(data['artists'])
+            artists.extend(data['artists']['items'])
         #self.dmpdata('favourite_artists', data)
-        return [_parse_artist(item) for item in data['artists']['items']]
+        return [_parse_artist(item) for item in artists]
 
     def get_categories(self):
         data = self.api.categories(limit=50)
