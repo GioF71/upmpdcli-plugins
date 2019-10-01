@@ -21,6 +21,7 @@ import json
 import datetime
 import time
 import os
+import traceback
 
 import spotipy
 import spotipy.util as spotutil
@@ -70,12 +71,12 @@ class Session(object):
             return []
         data = self.api.current_user_saved_albums()
         #self.dmpdata('favourite_albums', data)
-        try:
-            return [_parse_album(item['album']) for item in data['items']]
-        except:
-            uplog("favourite_albums: _parse_albums failed")
-            pass
-        return []
+        results = []
+        for item in data['items']:
+            album = _parse_album(item['album'])
+            if album:
+                results.append(album)
+        return results
 
     def my_playlists(self):
         if not self.api:
@@ -87,8 +88,7 @@ class Session(object):
             return [_parse_playlist(item) for item in data['items']]
         except:
             uplog("my_playlists: _parse_playlist failed")
-            pass
-        return []
+            return []
 
     def featured_playlists(self):
         if not self.api:
@@ -100,8 +100,7 @@ class Session(object):
             return [_parse_playlist(item) for item in data['playlists']['items']]
         except:
             uplog("featured_playlists: _parse_playlist failed")
-            pass
-        return []
+            return []
 
     def favourite_artists(self):
         if not self.api:
@@ -124,8 +123,16 @@ class Session(object):
     
     def get_artist_albums(self, id):
         data = self.api.artist_albums(id, limit=50)
-        #self.dmpdata('get_artist_albums', data)
-        return [_parse_album(item) for item in data['items']]
+        albums = data['items']
+        while data['next']:
+            data = self.api.next(data)
+            albums.extend(data['items'])
+        results = []
+        for item in albums:
+            result = _parse_album(item)
+            if result:
+                results.append(result)
+        return results
         
     def new_releases(self):
         if not self.api:
@@ -133,17 +140,25 @@ class Session(object):
             return []
         data = self.api.new_releases()
         #self.dmpdata('new_releases', data)
-        try:
-            return [_parse_album(alb) for alb in data['albums']['items']]
-        except:
-            uplog("new_releases: _parse_albums failed")
-            pass
-        return []
+        results = []
+        for data in data['albums']['items']:
+            album = _parse_album(data)
+            if album:
+                results.append(album)
+        return results
 
     def get_album_tracks(self, albid):
         data = self.api.album(album_id = albid)
         album = _parse_album(data)
-        return [_parse_track(t, album) for t in data['tracks']['items']]
+        if not album:
+            return []
+        track_data = self.api.album_tracks(album_id = albid, limit=50)
+        tracks = track_data['items']
+        while track_data['next']:
+            track_data = self.api.next(track_data)
+            tracks.extend(track_data['items'])
+        return [_parse_track(t, album) for t in tracks]
+
 
     def user_playlist_tracks(self, userid, plid):
         data = self.api.user_playlist_tracks(userid, plid)
@@ -176,7 +191,7 @@ class Session(object):
                 elif tp == 'album':
                     ncnt = len(data['albums']['items'])
                     ndata = [_parse_album(i) for i in data['albums']['items']]
-                    ndata = [alb for alb in ndata if alb.available]
+                    ndata = [alb for alb in ndata if (alb and alb.available)]
                 elif tp == 'playlist':
                     #uplog("PLAYLISTS: %s" % json.dumps(data, indent=4))
                     ncnt = len(data['playlists']['items'])
@@ -186,7 +201,7 @@ class Session(object):
                     ncnt = len(data['tracks']['items'])
                     ndata = [_parse_track(i) for i in data['tracks']['items']]
             except Exception as err:
-                uplog("_search1: exception while parsing result: %s" % err)
+                uplog("_search1: exception while parsing result for %s: %s" % (tp, err))
                 break
             all.extend(ndata)
             #uplog("Got %d more (slice %d)" % (ncnt, slice))
@@ -241,32 +256,38 @@ def _parse_playlist(data, artist=None, artists=None):
     return Playlist(**kwargs)
 
 def _parse_album(data, artist=None, artists=None):
-    #uplog("_parse_album: %s" % data)
-    if artist is None and 'artists' in data:
-        artist = _parse_artist(data['artists'][0])
-    available = True
-    #if not available:
-    #    uplog("Album not streamable: %s " % data['title'])
-    kwargs = {
-        'id': data['id'],
-        'name': data['name'],
-        #'num_tracks': data.get('tracks_count'),
-        #'duration': data.get('duration'),
-        'artist': artist,
-        'available': available,
-        #'artists': artists,
-    }
-
-    if 'images' in data:
-        kwargs['image'] = data['images'][0]['url']
+    try:
+        #uplog("_parse_album: %s" % data)
+        if artist is None and 'artists' in data:
+            artist = _parse_artist(data['artists'][0])
+        available = True
+        #if not available:
+        #    uplog("Album not streamable: %s " % data['title'])
+        kwargs = {
+            'id': data['id'],
+            'name': data['name'],
+            #'num_tracks': data.get('tracks_count'),
+            #'duration': data.get('duration'),
+            'artist': artist,
+            'available': available,
+            #'artists': artists,
+        }
         
-    if 'releaseDate' in data:
-        try:
-            # Keep this as a string else we fail to json-reserialize it later
-            kwargs['release_date'] = data['releaseDate']
-        except ValueError:
-            pass
-    return Album(**kwargs)
+        if 'images' in data and data['images']:
+            kwargs['image'] = data['images'][0]['url']
+        
+        if 'releaseDate' in data:
+            try:
+                # Keep this as a string else we fail to json-reserialize it later
+                kwargs['release_date'] = data['releaseDate']
+            except ValueError:
+                pass
+        return Album(**kwargs)
+    except Exception as err:
+        uplog("parse_album: [%s]" % err)
+        traceback.print_exc()
+        uplog("parse_album: %s" % json.dumps(data, indent=4))
+        return False
 
 def _parse_track(data, albumarg = None):
     artist = Artist()
