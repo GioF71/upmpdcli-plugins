@@ -364,6 +364,7 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
     size_t totalmatches = 0;
     if (!in_ObjectID.compare("0")) {
         // Root directory: we do this ourselves
+        // TBD: should handle the BFMeta case, but no CP seems to ever use it.
         totalmatches = readroot(in_StartingIndex, in_RequestedCount, entries);
     } else {
         // Pass off request to appropriate app, defined by 1st elt in id
