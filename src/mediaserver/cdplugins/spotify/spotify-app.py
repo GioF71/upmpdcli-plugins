@@ -297,7 +297,7 @@ def search(a):
         # playlists. So if we want these to be findable, need to send
         # them with the albums
         if objkind == 'album':
-            searchresults = session.search(value, 'playlists')
+            searchresults = session.search(value, 'playlist')
             objkind = 'playlist'
             # Fallthrough to view playlists
     if objkind is None or objkind == 'playlist':
