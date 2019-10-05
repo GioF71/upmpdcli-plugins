@@ -75,6 +75,9 @@ bool UpMpd::readLibFile(const string& name, string& contents)
     }
     contents = regsub1("@UUID@", contents, getDeviceId());
     contents = regsub1("@FRIENDLYNAME@", contents, m_friendlyname);
+    string versionstring = string("upmpdcli version ") +
+        g_upmpdcli_package_version + " " + LibUPnP::versionString();
+    contents = regsub1("@UPMPDCLIVERSION@", contents, versionstring);
     string reason, path;
     if (!m_allopts.iconpath.empty()) {
         string icondata;

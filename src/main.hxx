@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_set>
 
+extern const std::string g_upmpdcli_package_version;
 extern std::string g_configfilename;
 extern std::string g_datadir;
 extern std::string g_cachedir;

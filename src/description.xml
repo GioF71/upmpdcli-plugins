@@ -4,6 +4,6 @@
     <manufacturerURL>https://opensourceprojects.eu/u/medoc/profile/</manufacturerURL>
     <modelDescription>UPnP front-end to MPD</modelDescription>
     <modelName>UpMPD</modelName>
-    <modelNumber>1.0</modelNumber>
+    <modelNumber>42</modelNumber>
     <modelURL>https://opensourceprojects.eu/p/upmpdcli/code/</modelURL>
-    <serialNumber>42</serialNumber>
+    <serialNumber>@UPMPDCLIVERSION@</serialNumber>

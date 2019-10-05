@@ -50,6 +50,9 @@
 using namespace std;
 using namespace UPnPP;
 
+// Can't remember why it's static in config.h and don't want to try change
+const string g_upmpdcli_package_version{UPMPDCLI_PACKAGE_VERSION};
+
 static char *thisprog;
 
 static int op_flags;
