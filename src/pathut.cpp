@@ -735,52 +735,15 @@ bool path_readable(const string& path)
     return ACCESS(syspath, R_OK) == 0;
 }
 
-// Allowed punctuation in the path part of an URI according to RFC2396
-// -_.!~*'():@&=+$,
-/*
-21 !
-    22 "
-    23 #
-24 $
-    25 %
-26 &
-27 '
-28 (
-29 )
-2A *
-2B +
-2C ,
-2D -
-2E .
-2F /
-30 0
-...
-39 9
-3A :
-    3B ;
-    3C <
-3D =
-    3E >
-    3F ?
-40 @
-41 A
-...
-5A Z
-    5B [
-    5C \
-    5D ]
-    5E ^
-5F _
-    60 `
-61 a
-...
-7A z
-    7B {
-    7C |
-    7D }
-7E ~
-    7F DEL
-*/
+/* There is a lot of vagueness about what should be percent-encoded or
+ * not in a file:// url. The constraint that we have is that we may use
+ * the encoded URL to compute (MD5) a thumbnail path according to the
+ * freedesktop.org thumbnail spec, which itself does not define what
+ * should be escaped. We choose to exactly escape what gio does, as
+ * implemented in glib/gconvert.c:g_escape_uri_string(uri, UNSAFE_PATH). 
+ * Hopefully, the other desktops have the same set of escaped chars. 
+ * Note that $ is not encoded, so the value is not shell-safe.
+ */
 string url_encode(const string& url, string::size_type offs)
 {
     string out = url.substr(0, offs);
