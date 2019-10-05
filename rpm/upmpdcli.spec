@@ -6,6 +6,7 @@ Group:          Applications/Multimedia
 License:        GPLv2+
 URL:            http://www.lesbonscomptes.com/updmpdcli
 Source0:        http://www.lesbonscomptes.com/upmpdcli/downloads/upmpdcli-%{version}.tar.gz
+Patch0:         configure_cxxflags_pic.patch
 Requires(pre):  shadow-utils
 Requires(post): systemd
 Requires(preun): systemd
@@ -30,6 +31,7 @@ on Android tablets or phones.
 
 %prep
 %setup -q
+%patch0 -p1
 
 %build
 %configure
