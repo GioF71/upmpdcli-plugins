@@ -1,5 +1,13 @@
 = Upmpdcli release notes
 
+== 2019-09-16 upmpdcli 1.4.4
+
+- Add plgmicrohttphost variable to allow setting the host used in proxy
+  urls. This allows using localhost, which will only work with the local
+  renderer, but allows for portable playlists.
+- Fix a number of small issues in the gmusic plugin.
+- Better updates for radio stream metadata, esp. when not using OHRadio.
+
 == 2019-03-28 upmpdcli 1.4.2
 
 - Restore capability to run without UPnP-AV support at all.
