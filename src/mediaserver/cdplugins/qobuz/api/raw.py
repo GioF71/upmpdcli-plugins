@@ -10,17 +10,12 @@
     :license: GPLv3, see LICENSE for more details.
 '''
 import sys
-PY3 = sys.version > '3'
 import pprint
 from time import time
 import math
 import hashlib
 import socket
 import binascii
-if PY3:
-    itzip = zip
-else:
-    from itertools import izip as itzip
 from itertools import cycle
 import requests
 
@@ -31,8 +26,9 @@ socket.timeout = 5
 
 class RawApi(object):
 
-    def __init__(self):
-        self.appid = '285473059'  # XBMC
+    def __init__(self, appid, configvalue):
+        self.appid = appid
+        self.configvalue = configvalue.encode('ASCII')
         self.bappid = self.appid.encode('ASCII')
         self.version = '0.2'
         self.baseUrl = 'http://www.qobuz.com/api.json/'
@@ -80,16 +76,19 @@ class RawApi(object):
         General Terms and Conditions
         (http://www.qobuz.com/apps/api/QobuzAPI-TermsofUse.pdf)
         '''
-        s3b = b'Bg8HAA5XAFBYV15UAlVVBAZYCw0MVwcKUVRaVlpWUQ8='
+        s3b = self.configvalue
         s3s = binascii.a2b_base64(s3b)
-        a = cycle(self.appid)
-        b = itzip(s3s, cycle(self.bappid))
-        if PY3:
-            self.s4 = b''.join((x ^ y).to_bytes(1, byteorder='big')
-                               for (x, y) in itzip(s3s, cycle(self.bappid)))
-        else:
-            self.s4 = b''.join(chr(ord(x) ^ ord(y))
-                               for (x, y) in itzip(s3s, cycle(self.bappid)))
+        a = cycle(self.bappid)
+        b = zip(s3s, a)
+        self.s4 = b''.join((x ^ y).to_bytes(1, byteorder='big') for (x, y) in b)
+        print("S4: %s"% self.s4.decode('ASCII'), file=sys.stderr)
+        
+    def __unset_s4(self, id, sec):
+        a = cycle(id)
+        b = zip(sec, a)
+        bs4 = b''.join((x ^ y).to_bytes(1, byteorder='big') for (x, y) in b)
+        value = binascii.b2a_base64(bs4)
+        return value
 
     def _api_request(self, params, uri, **opt):
         '''Qobuz API HTTP get request

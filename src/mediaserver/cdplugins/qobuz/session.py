@@ -20,8 +20,8 @@ class Session(object):
         self.api = None
         self.user = None
 
-    def login(self, username, password):
-        self.api = raw.RawApi()
+    def login(self, username, password, appid, cfvalue):
+        self.api = raw.RawApi(appid, cfvalue)
         data = self.api.user_login(username = username, password = password)
         if data:
             self.user = User(self, self.api.user_id)

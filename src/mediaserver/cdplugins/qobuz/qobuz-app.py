@@ -70,6 +70,12 @@ def maybelogin(a={}):
 
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     formatid = upconfig.get('qobuzformatid')
+    appid = upconfig.get('qobuzappid')
+    if not appid:
+        appid = '285473059'
+    cfvalue = upconfig.get('qobuzcfvalue')
+    if not cfvalue:
+        cfvalue = 'Bg8HAA5XAFBYV15UAlVVBAZYCw0MVwcKUVRaVlpWUQ8='
     if 'user' in a:
         username = a['user']
         password = a['password']
@@ -89,7 +95,7 @@ def maybelogin(a={}):
     if not username or not password:
         raise Exception("qobuzuser and/or qobuzpass not set in configuration")
 
-    _g_loginok = session.login(username, password)
+    _g_loginok = session.login(username, password, appid, cfvalue)
 
 
 # This is not used by the media server. It's for use by the OpenHome
