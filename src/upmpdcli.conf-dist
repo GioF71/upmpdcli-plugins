@@ -352,7 +352,7 @@
 # <brief>Tidal stream quality.</brief> <descr>'low' and 'high' are aac
 # streams. 'lossless' is FLAC and will only work if your subscription
 # allows it.</descr></var>
-#tidalquality = low/high/lossless
+#tidalquality = low
 
 # <grouptitle>Qobuz streaming service parameters</grouptitle>
 
@@ -397,7 +397,7 @@
 # <var name="spotifypass" type="string"><brief>Spotify password.</brief>
 # <descr>The password for your Spotify account.</descr></var>
 #spotifypass = agoodpassword
-# <var name="spotifybitrate" type="int">
+# <var name="spotifybitrate" type="int" values="96 320 160">
 # <brief>Spotify preferred bitrate: 160 (default), 320 or 96.</brief>
 # <descr>Unverified.</descr></var>
 #spotifybitrate = 160
@@ -565,8 +565,9 @@
 # documentation page.</descr></var>
 #scripts_dir = /usr/share/upmpdcli/src_scripts
 
-# <var name="scscriptgracesecs" type="int"><brief>Grace period to wait for
-# a script process to exit before it is forcely killed.</brief>
+# <var name="scscriptgracesecs" type="int" values="1 1000 2">
+# <brief>Grace period to wait for a script process to exit before it is
+# forcely killed.</brief>
 # <descr>In seconds. Default 2 S.</descr></var>
 #scscriptgracesecs = 2
 

@@ -92,7 +92,6 @@ void ConfTabsW::hideButtons()
 
 void ConfTabsW::acceptChanges()
 {
-    cerr << "ConfTabsW::acceptChanges()\n";
     for (auto& entry : m_panels) {
         entry->storeValues();
     }
@@ -106,7 +105,6 @@ void ConfTabsW::acceptChanges()
 
 void ConfTabsW::rejectChanges()
 {
-    cerr << "ConfTabsW::rejectChanges()\n";
     reloadPanels();
     if (!buttonBox->isHidden())
         close();
@@ -145,6 +143,30 @@ void ConfTabsW::setCurrentIndex(int idx)
     if (tabWidget) {
         tabWidget->setCurrentIndex(idx);
     }
+}
+
+QWidget *ConfTabsW::addBlurb(int tabindex, const QString& txt)
+{
+    ConfPanelW *panel = (ConfPanelW*)tabWidget->widget(tabindex);
+    if (panel == 0) {
+        return 0;
+    }
+
+    QFrame *line = new QFrame(panel);
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    panel->addWidget(line);
+
+    QLabel *explain = new QLabel(panel);
+    explain->setWordWrap(true);
+    explain->setText(txt);
+    panel->addWidget(explain);
+
+    line = new QFrame(panel);
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    panel->addWidget(line);
+    return explain;
 }
 
 ConfParamW *ConfTabsW::addParam(
@@ -190,37 +212,29 @@ ConfParamW *ConfTabsW::addParam(
         cp = new ConfParamCSLW(varname, this, lnk, label, tooltip, *sl);
         break;
     }
-    panel->addWidget(cp);
-    m_params.push_back(cp);
+    panel->addParam(cp);
     return cp;
 }
 
 ConfParamW *ConfTabsW::findParamW(const QString& varname)
 {
-    for (vector<ConfParamW *>::iterator it = m_params.begin();
-            it != m_params.end(); it++) {
-        if (!varname.compare((*it)->getVarName())) {
-            return *it;
-        }
+    for (const auto& panel : m_panels) {
+        ConfParamW *w = panel->findParamW(varname);
+        if (w)
+            return w;
     }
-    return 0;
+    return nullptr;
 }
 void ConfTabsW::endOfList(int tabindex)
 {
     ConfPanelW *panel = (ConfPanelW*)tabWidget->widget(tabindex);
-    if (panel == 0) 
+    if (nullptr == panel) 
         return;
     panel->endOfList();
 }
 
 bool ConfTabsW::enableLink(ConfParamW* boolw, ConfParamW* otherw, bool revert)
 {
-    if (std::find(m_params.begin(), m_params.end(), boolw) == m_params.end() ||
-            std::find(m_params.begin(), m_params.end(), otherw) ==
-        m_params.end()) {
-        cerr << "ConfTabsW::enableLink: param not found\n";
-        return false;
-    }
     ConfParamBoolW *bw = dynamic_cast<ConfParamBoolW*>(boolw);
     if (bw == 0) {
         cerr << "ConfTabsW::enableLink: not a boolw\n";
@@ -246,10 +260,25 @@ ConfPanelW::ConfPanelW(QWidget *parent)
     m_vboxlayout->setContentsMargins(margin);
 }
 
+void ConfPanelW::addParam(ConfParamW *w)
+{
+    m_vboxlayout->addWidget(w);
+    m_params.push_back(w);
+}
+
 void ConfPanelW::addWidget(QWidget *w)
 {
     m_vboxlayout->addWidget(w);
-    m_widgets.push_back(w);
+}
+
+ConfParamW *ConfPanelW::findParamW(const QString& varname)
+{
+    for (const auto& param : m_params) {
+        if (!varname.compare(param->getVarName())) {
+            return param;
+        }
+    }
+    return nullptr;
 }
 
 void ConfPanelW::endOfList()
@@ -259,21 +288,18 @@ void ConfPanelW::endOfList()
 
 void ConfPanelW::storeValues()
 {
-    for (vector<QWidget *>::iterator it = m_widgets.begin();
-            it != m_widgets.end(); it++) {
-        ConfParamW *p = (ConfParamW*)*it;
-        p->storeValue();
+    for (auto& widgetp : m_params) {
+        widgetp->storeValue();
     }
 }
 
 void ConfPanelW::loadValues()
 {
-    for (vector<QWidget *>::iterator it = m_widgets.begin();
-            it != m_widgets.end(); it++) {
-        ConfParamW *p = (ConfParamW*)*it;
-        p->loadValue();
+    for (auto& widgetp : m_params) {
+        widgetp->loadValue();
     }
 }
+
 static QString myGetFileName(bool isdir, QString caption = QString(),
                              bool filenosave = false);
 
@@ -401,6 +427,12 @@ void ConfParamIntW::loadValue()
     }
 }
 
+void ConfParamIntW::setImmediate()
+{
+    connect(m_sb, SIGNAL(valueChanged(int)), 
+            this, SLOT(setValue(int)));
+}
+
 ConfParamStrW::ConfParamStrW(
     const QString& varnm, QWidget *parent, ConfLink cflink,
     const QString& lbltxt, const QString& tltptxt)
@@ -434,6 +466,12 @@ void ConfParamStrW::loadValue()
     } else {
         m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
     }
+}
+
+void ConfParamStrW::setImmediate()
+{
+    connect(m_le, SIGNAL(textChanged(const QString&)), 
+            this, SLOT(setValue(const QString&)));
 }
 
 ConfParamCStrW::ConfParamCStrW(
@@ -486,7 +524,13 @@ void ConfParamCStrW::loadValue()
             break;
         }
     }
-    m_origvalue = m_cmb->currentText();
+    m_origvalue = cs;
+}
+
+void ConfParamCStrW::setImmediate()
+{
+    connect(m_cmb, SIGNAL(activated(const QString&)), 
+            this, SLOT(setValue(const QString&)));
 }
 
 ConfParamBoolW::ConfParamBoolW(
@@ -527,6 +571,12 @@ void ConfParamBoolW::loadValue()
         m_origvalue = stringToBool(s);
     }
     m_cb->setChecked(m_origvalue);
+}
+
+
+void ConfParamBoolW::setImmediate()
+{
+    connect(m_cb, SIGNAL(toggled(bool)), this, SLOT(setValue(bool)));
 }
 
 ConfParamFNW::ConfParamFNW(
@@ -580,6 +630,12 @@ void ConfParamFNW::showBrowserDialog()
     }
 }
 
+void ConfParamFNW::setImmediate()
+{
+    connect(m_le, SIGNAL(textChanged(const QString&)), 
+            this, SLOT(setValue(const QString&)));
+}
+
 class SmallerListWidget: public QListWidget {
 public:
     SmallerListWidget(QWidget *parent)
@@ -615,34 +671,59 @@ ConfParamSLW::ConfParamSLW(
     QPushButton *pbA = new QPushButton(this);
     QString text = tr("+");
     pbA->setText(text);
+    pbA->setToolTip(tr("Add entry"));
     int width = pbA->fontMetrics().boundingRect(text).width() + 15;
     pbA->setMaximumWidth(width);
     setSzPol(pbA, QSizePolicy::Minimum, QSizePolicy::Fixed, 0, 0);
     hl1->addWidget(pbA);
+    QObject::connect(pbA, SIGNAL(clicked()), this, SLOT(showInputDialog()));
 
     QPushButton *pbD = new QPushButton(this);
     text = tr("-");
     pbD->setText(text);
+    pbD->setToolTip(tr("Delete selected entries"));
     width = pbD->fontMetrics().boundingRect(text).width() + 15;
     pbD->setMaximumWidth(width);
     setSzPol(pbD, QSizePolicy::Minimum, QSizePolicy::Fixed, 0, 0);
     hl1->addWidget(pbD);
+    QObject::connect(pbD, SIGNAL(clicked()), this, SLOT(deleteSelected()));
 
+    m_pbE = new QPushButton(this);
+    text = tr("~");
+    m_pbE->setText(text);
+    m_pbE->setToolTip(tr("Edit selected entries"));
+    width = m_pbE->fontMetrics().boundingRect(text).width() + 15;
+    m_pbE->setMaximumWidth(width);
+    setSzPol(m_pbE, QSizePolicy::Minimum, QSizePolicy::Fixed, 0, 0);
+    hl1->addWidget(m_pbE);
+    QObject::connect(m_pbE, SIGNAL(clicked()), this, SLOT(editSelected()));
+    m_pbE->hide();
+    
     vl1->addLayout(hl1);
     m_hl->addLayout(vl1);
 
     m_lb = new SmallerListWidget(this);
     m_lb->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    connect(m_lb, SIGNAL(currentTextChanged(const QString&)),
+            this, SIGNAL(currentTextChanged(const QString&)));
+
     setSzPol(m_lb, QSizePolicy::Preferred, QSizePolicy::Preferred, 1, 1);
     m_hl->addWidget(m_lb);
 
     setSzPol(this, QSizePolicy::Preferred, QSizePolicy::Preferred, 1, 1);
     loadValue();
-    QObject::connect(pbA, SIGNAL(clicked()), this, SLOT(showInputDialog()));
-    QObject::connect(pbD, SIGNAL(clicked()), this, SLOT(deleteSelected()));
 }
 
-void ConfParamSLW::storeValue()
+void ConfParamSLW::setEditable(bool onoff)
+{
+    if (onoff) {
+        m_pbE->show();
+    } else {
+        m_pbE->hide();
+    }
+}
+
+string ConfParamSLW::listToString()
 {
     vector<string> ls;
     for (int i = 0; i < m_lb->count(); i++) {
@@ -658,6 +739,12 @@ void ConfParamSLW::storeValue()
     }
     string s;
     stringsToString(ls, s);
+    return s;
+}
+
+void ConfParamSLW::storeValue()
+{
+    string s = listToString();
     if (s.compare(m_origvalue)) {
         m_cflink->set(s);
     }
@@ -670,11 +757,11 @@ void ConfParamSLW::loadValue()
     vector<string> ls;
     stringToStrings(m_origvalue, ls);
     QStringList qls;
-    for (vector<string>::const_iterator it = ls.begin(); it != ls.end(); it++) {
+    for (const auto& str : ls) {
         if (m_fsencoding) {
-            qls.push_back(QString::fromLocal8Bit(it->c_str()));
+            qls.push_back(QString::fromLocal8Bit(str.c_str()));
         } else {
-            qls.push_back(QString::fromUtf8(it->c_str()));
+            qls.push_back(QString::fromUtf8(str.c_str()));
         }
     }
     m_lb->clear();
@@ -684,20 +771,34 @@ void ConfParamSLW::loadValue()
 void ConfParamSLW::showInputDialog()
 {
     bool ok;
-    QString s = QInputDialog::getText(this,
-                                      "", // title
-                                      "", // label,
-                                      QLineEdit::Normal, // EchoMode mode
-                                      "", // const QString & text
-                                      &ok);
+    QString s = QInputDialog::getText(this, "", "", QLineEdit::Normal, "", &ok);
+    if (!ok || s.isEmpty()) {
+        return;
+    }
 
-    if (ok && !s.isEmpty()) {
-        QList<QListWidgetItem *>items =
-            m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
-        if (items.empty()) {
-            m_lb->insertItem(0, s);
-            m_lb->sortItems();
-        }
+    performInsert(s);
+}
+
+void ConfParamSLW::performInsert(const QString& s)
+{
+    QList<QListWidgetItem *> existing =
+        m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
+    if (!existing.empty()) {
+        m_lb->setCurrentItem(existing[0]);
+        return;
+    }
+    m_lb->insertItem(0, s);
+    m_lb->sortItems();
+    existing = m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
+    if (existing.empty()) {
+        cerr << "Item not found after insertion!" << endl;
+        return;
+    }
+    m_lb->setCurrentItem(existing[0], QItemSelectionModel::ClearAndSelect);
+    
+    if (m_immediate) {
+        string nv = listToString();
+        m_cflink->set(nv);
     }
 }
 
@@ -720,10 +821,35 @@ void ConfParamSLW::deleteSelected()
         }
     }
     for (vector<int>::reverse_iterator it = idxes.rbegin();
-            it != idxes.rend(); it++) {
+         it != idxes.rend(); it++) {
         QListWidgetItem *item = m_lb->takeItem(*it);
         emit entryDeleted(item->text());
         delete item;
+    }
+    if (m_immediate) {
+        string nv = listToString();
+        m_cflink->set(nv);
+    }
+    if (m_lb->count()) {
+        m_lb->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+    }
+}
+
+void ConfParamSLW::editSelected()
+{
+    for (int i = 0; i < m_lb->count(); i++) {
+        if (m_lb->item(i)->isSelected()) {
+            bool ok;
+            QString s = QInputDialog::getText(
+                this, "", "", QLineEdit::Normal, m_lb->item(i)->text(), &ok);
+            if (ok && !s.isEmpty()) {
+                m_lb->item(i)->setText(s);
+                if (m_immediate) {
+                    string nv = listToString();
+                    m_cflink->set(nv);
+                }
+            }
+        }
     }
 }
 
@@ -731,44 +857,22 @@ void ConfParamSLW::deleteSelected()
 void ConfParamDNLW::showInputDialog()
 {
     QString s = myGetFileName(true);
-    if (!s.isEmpty()) {
-        QList<QListWidgetItem *>items =
-            m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
-        if (items.empty()) {
-            m_lb->insertItem(0, s);
-            m_lb->sortItems();
-            QList<QListWidgetItem *>items =
-                m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
-            if (m_lb->selectionMode() == QAbstractItemView::SingleSelection &&
-                    !items.empty()) {
-                m_lb->setCurrentItem(*items.begin());
-            }
-        }
+    if (s.isEmpty()) {
+        return;
     }
+    performInsert(s);
 }
 
 // "Add entry" dialog for a constrained string list
 void ConfParamCSLW::showInputDialog()
 {
     bool ok;
-    QString s = QInputDialog::getItem(this,  // parent
-                                      "", // title
-                                      "", // label,
-                                      m_sl, // items,
-                                      0, // current = 0
-                                      false, // editable = true,
-                                      &ok);
-
-    if (ok && !s.isEmpty()) {
-        QList<QListWidgetItem *>items =
-            m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
-        if (items.empty()) {
-            m_lb->insertItem(0, s);
-            m_lb->sortItems();
-        }
+    QString s = QInputDialog::getItem(this, "", "", m_sl, 0, false, &ok);
+    if (!ok || s.isEmpty()) {
+        return;
     }
+    performInsert(s);
 }
-
 
 
 #ifdef ENABLE_XMLCONF
@@ -947,7 +1051,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
                 string nvarname = looksLikeAssign(data);
                 if (!nvarname.empty() && nvarname.compare(m_curvar)) {
                     cerr << "Var assigned [" << nvarname << "] mismatch "
-                         "with current variable [" << m_curvar << "]\n";
+                        "with current variable [" << m_curvar << "]\n";
                 }
                 m_toptext += data;
             }

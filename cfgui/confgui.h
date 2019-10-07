@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2018 J.F.Dockes
+/* Copyright (C) 2007-2019 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -17,33 +17,48 @@
 #ifndef _confgui_h_included_
 #define _confgui_h_included_
 /**
- * This file defines a number of simple classes (virtual base: ConfParamW)
- * which let the user input configuration parameters.
+ * Utilities for a configuration/preferences settings user interface.
+ * 
+ * This file declares a number of data input Qt widgets (virtual base:
+ * ConfParamW), with a well defined virtual interface to configuration storage,
+ * which may be QSettings or something else (e.g. conftree).
  *
- * Subclasses are defined for entering different kind of data, ie a string,
+ * Subclasses are defined for entering different kind of data, e.g. a string,
  * a file name, an integer, etc.
  *
- * Each configuration gui object is linked to the configuration data through
+ * Each GUI object is linked to the configuration data through
  * a "link" object which knows the details of interacting with the actual
- * configuration data, like the parameter name, the actual config object,
- * the method to call etc.
+ * configuration data, like the parameter name, the actual
+ * configuration interface, etc.
  *
  * The link object is set when the input widget is created and cannot be
  * changed.
  *
- * The widgets are typically linked to a temporary configuration object, which
- * is then copied to the actual configuration if the data is accepted, or
- * destroyed and recreated as a copy if Cancel is pressed (you have to
- * delete/recreate the widgets in this case as the links are no longer valid).
+ * The link object get() methods are called for reading the initial data.
  *
- * The set() methods of the link objects are only called if the
- * current value() differs from the value obtained by get() when the
- * object was initialized. This can be used to avoid cluttering the
- * output with values which are unmodified from the defaults.
+ * The set() methods for all the objects are normally called when the
+ * user clicks "Accept", only if the current value() differs from the
+ * value obtained by get() when the object was initialized. This can
+ * be used to avoid cluttering the output with values which are
+ * unmodified from the defaults.
+ *
+ * The setImmediate() method can be called on the individial controls
+ * to ensure that set() is inconditionnaly called whenever the user
+ * changes the related value. This can be especially useful if the
+ * configuration state can't be fully represented in the GUI (for
+ * example if the same parameter name can exist in different sections
+ * depending on the value of another parameter). It allows using local
+ * storage for the values, and flushing, for example, when
+ * sig_prefsChanged() is emitted after the user clicks accept.
  *
  * The file also defines a multi-tabbed dialog container for the
- * parameter objects, with simple interface methods to create/add
- * panels and elements.
+ * parameter objects, with simple interface methods to add tabs and add
+ * configuration elements to them.
+ *
+ * Some of the tab widgets can be defined as "foreign", with specific internals.
+ * They just need to implement a loadValues() to be called at
+ * initialisation and a storeValues(), called when the user commits
+ * the changes.
  */
 
 #include <string>
@@ -57,7 +72,6 @@
 #include <QWidget>
 #include <QDialog>
 
-class ConfNull;
 class QCheckBox;
 class QComboBox;
 class QDialogButtonBox;
@@ -80,13 +94,26 @@ public:
 };
 typedef std::shared_ptr<ConfLinkRep> ConfLink;
 
-/** Link maker class */
+// May be used to store/manage data which has no direct representation
+// in the stored configuration.
+class ConfLinkNullRep : public ConfLinkRep {
+public:
+    virtual ~ConfLinkNullRep() {}
+    virtual bool set(const std::string&) {
+        return true;
+    }
+    virtual bool get(std::string& val) {val = ""; return true;}
+};
+
+/** Link maker class. Will be called back by addParam() to create the link */
 class ConfLinkFact {
 public:
     virtual ~ConfLinkFact() {}
     virtual ConfLink operator()(const QString& nm) = 0;
 };
 
+/** Interface for "foreign" panels. The object must also be a QWidget, which
+ * we don't express by inheriting here to avoid qt issues */
 class ConfPanelWIF {
 public:
     virtual ~ConfPanelWIF() {}
@@ -105,8 +132,10 @@ class ConfTabsW : public QDialog {
 public:
     ConfTabsW(QWidget *parent, const QString& title, ConfLinkFact *linkfact);
 
-    enum ParamType {CFPT_BOOL, CFPT_INT, CFPT_STR, CFPT_CSTR, CFPT_FN,
-                    CFPT_STRL, CFPT_DNL, CFPT_CSTRL
+    enum ParamType {CFPT_BOOL, CFPT_INT, CFPT_STR,
+                    CFPT_CSTR, // Constrained string: from list
+                    CFPT_FN, // File/directory
+                    CFPT_STRL, CFPT_DNL, CFPT_CSTRL // lists of the same
     };
 
     /** Add tab and return its identifier / index */
@@ -117,11 +146,22 @@ public:
     int addForeignPanel(ConfPanelWIF* w, const QString& title);
 
     /** Add parameter setter to specified tab */
-    ConfParamW *addParam(int tabindex, ParamType tp,
-                         const QString& varname, const QString& label,
-                         const QString& tooltip, int isdirorminval = 0,
-                         int maxval = 0, const QStringList* sl = 0);
+    ConfParamW *addParam(
+        int tabindex, ParamType tp, const QString& varname, const QString& label,
+        const QString& tooltip,
+        int isdirorminval = 0, /* Dep. on type: directory flag or min value */
+        int maxval = 0, const QStringList* sl = 0);
+
+    /** Add explanatory text between 2 horizontal lines */
+    QWidget *addBlurb(int tabindex, const QString& txt);
+    
+    /** Enable link between bool value and another parameter: the control will
+     * be enabled depending on the boolean value (with possible inversion). Can
+     * be called multiple times for the same bool to enable/disable
+     * several controls */
     bool enableLink(ConfParamW* boolw, ConfParamW* otherw, bool revert = false);
+
+    /** Call this when you are done filling up a tab */
     void endOfList(int tabindex);
 
     /** Find param widget associated with given variable name */
@@ -142,11 +182,12 @@ signals:
 
 private:
     ConfLinkFact *m_makelink{nullptr};
+    // All ConfPanelW managed panels. Each has a load/store interface
+    // and an internal list of controls
     std::vector<ConfPanelW *> m_panels;
-    // "Foreign" panels
+    // "Foreign" panels. Just implement load/store
     std::vector<ConfPanelWIF *> m_widgets;
-    // All params
-    std::vector<ConfParamW *> m_params;
+
     QTabWidget       *tabWidget{nullptr};
     QDialogButtonBox *buttonBox{nullptr};
 };
@@ -161,13 +202,16 @@ class ConfPanelW : public QWidget {
     Q_OBJECT
 public:
     ConfPanelW(QWidget *parent);
+    void addParam(ConfParamW *w);
     void addWidget(QWidget *w);
     void storeValues();
     void loadValues();
     void endOfList();
+    /** Find param widget associated with given variable name */
+    ConfParamW *findParamW(const QString& varname);
 private:
     QVBoxLayout *m_vboxlayout;
-    std::vector<QWidget *> m_widgets;
+    std::vector<ConfParamW *> m_params;
 };
 
 /** Config panel element: manages one configuration
@@ -181,6 +225,10 @@ public:
           m_cflink(cflink), m_fsencoding(false) {
     }
     virtual void loadValue() = 0;
+
+    // Call setValue() each time the control changes, instead of on accept.
+    virtual void setImmediate() = 0;
+    
     virtual void setFsEncoding(bool onoff) {
         m_fsencoding = onoff;
     }
@@ -191,6 +239,11 @@ public slots:
     virtual void setEnabled(bool) = 0;
     virtual void storeValue() = 0;
 
+protected slots:
+    void setValue(const QString& newvalue);
+    void setValue(int newvalue);
+    void setValue(bool newvalue);
+
 protected:
     QString      m_varname;
     ConfLink     m_cflink;
@@ -199,9 +252,6 @@ protected:
     // are encoded as utf-8
     bool         m_fsencoding;
     virtual bool createCommon(const QString& lbltxt, const QString& tltptxt);
-    void setValue(const QString& newvalue);
-    void setValue(int newvalue);
-    void setValue(bool newvalue);
 };
 
 //////// Widgets for setting the different types of configuration parameters:
@@ -215,6 +265,7 @@ public:
                    const QString& tltptxt, bool deflt = false);
     virtual void loadValue();
     virtual void storeValue();
+    virtual void setImmediate();
 public slots:
     virtual void setEnabled(bool i) {
         if (m_cb) {
@@ -241,6 +292,7 @@ public:
                   int defaultvalue = 0);
     virtual void loadValue();
     virtual void storeValue();
+    virtual void setImmediate();
 public slots:
     virtual void setEnabled(bool i) {
         if (m_sb) {
@@ -262,6 +314,7 @@ public:
                   const QString& tltptxt);
     virtual void loadValue();
     virtual void storeValue();
+    virtual void setImmediate();
 public slots:
     virtual void setEnabled(bool i) {
         if (m_le) {
@@ -283,6 +336,7 @@ public:
     virtual void loadValue();
     virtual void storeValue();
     virtual void setList(const QStringList& sl);
+    virtual void setImmediate();
 public slots:
     virtual void setEnabled(bool i) {
         if (m_cmb) {
@@ -303,6 +357,7 @@ public:
                  const QString& tltptxt, bool isdir = false);
     virtual void loadValue();
     virtual void storeValue();
+    virtual void setImmediate();
 protected slots:
     void showBrowserDialog();
 public slots:
@@ -333,6 +388,10 @@ public:
     QListWidget *getListBox() {
         return m_lb;
     }
+    virtual void setEditable(bool onoff);
+    virtual void setImmediate() {
+        m_immediate = true;
+    }
 
 public slots:
     virtual void setEnabled(bool i) {
@@ -343,12 +402,17 @@ public slots:
 protected slots:
     virtual void showInputDialog();
     void deleteSelected();
+    void editSelected();
+    void performInsert(const QString&);
 signals:
     void entryDeleted(QString);
+    void currentTextChanged(const QString&);
 protected:
     QListWidget *m_lb;
-    void listToConf();
+    std::string listToString();
     std::string m_origvalue;
+    QPushButton *m_pbE;
+    bool m_immediate{false};
 };
 
 // Dir name list
@@ -380,6 +444,10 @@ protected slots:
 protected:
     const QStringList m_sl;
 };
+
+extern void setSzPol(QWidget *w, QSizePolicy::Policy hpol,
+                     QSizePolicy::Policy vpol,
+                     int hstretch, int vstretch);
 
 #ifdef ENABLE_XMLCONF
 /**
