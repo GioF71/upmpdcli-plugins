@@ -283,8 +283,8 @@ public:
         track_playing = false;
         track_duration = 0;
         if (sp && curtrack) {
-            api.sp_track_release(curtrack);
             api.sp_session_player_unload(sp);
+            api.sp_track_release(curtrack);
         }
         curtrack = nullptr;
         spcv.notify_all();
@@ -801,8 +801,15 @@ public:
     ~Internal() {
         LOGDEB("SpotiFetch::~SpotiFetch: clen " << _contentlen <<
                " total sent " << _totalsent << endl);
-        if (spp) {
+        // If the lib is currently outputting to our queue, make sure to
+        // stop it before deleting the queue. Else don't stop another transfer!
+        if (spp && current == p) {
+            LOGDEB1("SpotiFetch::~SpotiFetch: stopping transfer\n");
             spp->stop();
+            spp->waitForEndOfPlay();
+            current = nullptr;
+        } else {
+            LOGDEB1("SpotiFetch::~SpotiFetch: not stopping other transfer\n");
         }
     }
     
@@ -944,6 +951,8 @@ public:
     SpotiProxy *spp{nullptr};
     SpotiProxy::AudioSink _sink;
 
+    static SpotiFetch *current;
+
     bool _dryrun{false};
     bool _streamneedinit{true};
     int _initseekmsecs{0};
@@ -960,6 +969,8 @@ public:
     condition_variable _dryruncv;
     mutex _mutex;
 };
+
+SpotiFetch *SpotiFetch::Internal::current;
 
 bool SpotiFetch::reset()
 {
@@ -979,7 +990,7 @@ SpotiFetch::~SpotiFetch() {}
 bool SpotiFetch::start(BufXChange<ABuffer*> *queue, uint64_t offset)
 {
     LOGDEB("SpotiFetch::start: Offset: " << offset << " queue " <<
-           (queue? queue->getname() : "null") << endl);
+           (queue? queue->getname() : "null") << " curqueue " << outqueue<<endl);
 
     // Flush current queue if any
     if (outqueue) {
@@ -988,7 +999,7 @@ bool SpotiFetch::start(BufXChange<ABuffer*> *queue, uint64_t offset)
     outqueue = queue;
 
     reset();
-    
+    m->current = this;
     uint64_t v = 0;
     if (offset) {
         m->dodryrun(_url);

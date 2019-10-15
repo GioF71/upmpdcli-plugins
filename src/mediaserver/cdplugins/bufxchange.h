@@ -23,6 +23,7 @@
 #include <list>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 
 #ifdef MDU_INCLUDE_LOG
 #include MDU_INCLUDE_LOG
@@ -42,11 +43,13 @@
  * T has to be a pointer type.
  * BufXChange will delete excess recycled objects, and any remaining on the 
  * queues at delete time.
+ * Terminology: the client is upstream and puts buffers on the
+ * queue for the worker downstream to take.
  */
 template <class T> class BufXChange {
 public:
 
-    /** Create a BufXChange. Terminology: client is upstream, worker downstream
+    /** Create a BufXChange. 
      * @param name for message printing
      * @param hi number of tasks on queue before upstream blocks. Default 0
      *   meaning no limit.
@@ -69,6 +72,15 @@ public:
             delete t;
         }
     }
+    void set_take_timeout(std::chrono::milliseconds millis) {
+        m_take_timeout = millis;
+    }
+    void set_put_timeout(std::chrono::milliseconds millis) {
+        m_put_timeout = millis;
+    }
+    void set_timeout(std::chrono::milliseconds millis) {
+        m_put_timeout = m_take_timeout = millis;
+    }
 
     /** Add item to work queue, called from client.
      *
@@ -79,7 +91,14 @@ public:
 
         while (ok() && m_high > 0 && m_queue.size() >= m_high) {
             m_clients_waiting++;
-            m_ccond.wait(lock);
+            if (m_put_timeout == std::chrono::milliseconds::zero()) {
+                m_ccond.wait(lock);
+            } else {
+                if (m_ccond.wait_for(lock, m_put_timeout) ==
+                    std::cv_status::timeout) {
+                    return false;
+                }
+            }
             m_clients_waiting--;
         }
         if (!ok()) {
@@ -147,7 +166,14 @@ public:
         // idle.
         while (ok() && (m_queue.size() > 0)) {
             m_clients_waiting++;
-            m_ccond.wait(lock);
+            if (m_put_timeout == std::chrono::milliseconds::zero()) {
+                m_ccond.wait(lock);
+            } else {
+                if (m_ccond.wait_for(lock, m_put_timeout) ==
+                    std::cv_status::timeout) {
+                    return false;
+                }
+            }
             m_clients_waiting--;
         }
         return ok();
@@ -178,7 +204,14 @@ public:
                 m_ccond.notify_all();
             }
             m_workers_waiting++;
-            m_wcond.wait(lock);
+            if (m_take_timeout == std::chrono::milliseconds::zero()) {
+                m_wcond.wait(lock);
+            } else {
+                if (m_wcond.wait_for(lock, m_take_timeout) ==
+                    std::cv_status::timeout) {
+                    return false;
+                }
+            }
             m_workers_waiting--;
         }
 
@@ -222,7 +255,14 @@ public:
                 m_ccond.notify_all();
             }
             m_workers_waiting++;
-            m_wcond.wait(lock);
+            if (m_take_timeout == std::chrono::milliseconds::zero()) {
+                m_wcond.wait(lock);
+            } else {
+                if (m_wcond.wait_for(lock, m_take_timeout) ==
+                    std::cv_status::timeout) {
+                    return false;
+                }
+            }
             m_workers_waiting--;
             if (!ok()) {
                 return false;
@@ -295,6 +335,8 @@ private:
     std::condition_variable m_ccond;
     std::condition_variable m_wcond;
     std::mutex m_mutex;
+    std::chrono::milliseconds m_take_timeout;
+    std::chrono::milliseconds m_put_timeout;
 };
 
 #endif /* _BUFFERXCHANGE_H_INCLUDED_ */

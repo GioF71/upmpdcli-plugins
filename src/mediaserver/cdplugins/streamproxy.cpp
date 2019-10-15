@@ -39,6 +39,15 @@ public:
     ContentReader(std::unique_ptr<NetFetch> ftchr, int cfd)
         : fetcher(std::move(ftchr)), connfd(cfd) {
         
+        // Set a timeout on the client side, so that connections can
+        // be cleaned-up in a timely fashion if we stop providing
+        // data. This is mostly for the versions of mpd which read the
+        // top of the file then restart: the first connection would
+        // never be cleaned up because it was waiting on the queue
+        // which was not sending data (at least in the spotify case)
+        // because the proxy was used for the second request.
+        queue.set_take_timeout(
+            std::chrono::milliseconds(std::chrono::seconds(10)));
     }
 
     ~ContentReader() {
@@ -131,6 +140,14 @@ static ssize_t content_reader_cb(void *cls, uint64_t pos, char *buf, size_t max)
     }
 }
 
+void content_reader_free_callback(void *cls)
+{
+    LOGDEB("content_reader_free_callback\n");
+    if (cls) {
+        ContentReader *reader = static_cast<ContentReader*>(cls);
+        delete reader;
+    }
+}
 
 class StreamProxy::Internal {
 public:
@@ -267,8 +284,12 @@ static bool processRange(struct MHD_Connection *mhdconn, uint64_t& offset)
 {
     const char* rangeh =
         MHD_lookup_connection_value(mhdconn, MHD_HEADER_KIND, "range");
+    if (!rangeh) {
+        LOGDEB1("NO RANGE\n");
+        return true;
+    }
     vector<pair<int64_t, int64_t> > ranges;
-    if (rangeh && parseRanges(rangeh, ranges) && ranges.size()) {
+    if (parseRanges(rangeh, ranges) && ranges.size()) {
         if (ranges[0].second != -1 || ranges.size() > 1) {
             LOGERR("AProxy::mhdAnswerConn: unsupported range: " <<
                    rangeh << "\n");
@@ -348,7 +369,7 @@ int StreamProxy::Internal::answerConn(
             cfd = cinf->connect_fd;
         }
 
-        // Create/Start the fetch transaction, and wait for the headers.
+        // Create/Start the fetch transaction.
         LOGDEB0("StreamProxy::answerConn: starting fetch for " << url << endl);
         auto reader = new ContentReader(std::move(fetcher), cfd);
         if (killafterms > 0) {
@@ -363,9 +384,7 @@ int StreamProxy::Internal::answerConn(
         // End first call
     }
 
-    // Second call for this request. We know that the fetch request has
-    // proceeded past the headers (else, we would have failed during
-    // the first call). Check for an error or http 404 or similar
+    // Second call for this request (*con_cls is set)
     ContentReader *reader = (ContentReader*)*con_cls;
     
     if (!reader->fetcher->waitForHeaders()) {
@@ -393,7 +412,8 @@ int StreamProxy::Internal::answerConn(
     // Any random value would probably work the same
     struct MHD_Response *response = 
         MHD_create_response_from_callback(size, 4096,
-                                          content_reader_cb, reader, nullptr);
+                                          content_reader_cb, reader,
+                                          content_reader_free_callback);
     if (response == NULL) {
         LOGERR("mhdAnswerConn: answer: could not create response" << endl);
         return MHD_NO;
@@ -454,11 +474,9 @@ void StreamProxy::Internal::requestCompleted(
     void **con_cls, enum MHD_RequestTerminationCode toe)
 {
     LOGDEB("StreamProxy::requestCompleted: status " <<
-           valToString(completionStatus, toe) << endl);
-    if (*con_cls) {
-        ContentReader *reader = static_cast<ContentReader*>(*con_cls);
-        delete reader;
-    }
+           valToString(completionStatus, toe) << " *con_cls "<<*con_cls << endl);
+    // The content reader was supposedly deleted by the content_reader_free
+    // callback...
 }
 
 bool StreamProxy::Internal::startMHD()

@@ -23,23 +23,26 @@
 /// curoffs field to keep track. curoffs is private to the
 /// consumer (nornally set to zero when getting the buffer).
 struct ABuffer {
+    /// Initialize by allocating a memory buffer
     ABuffer(size_t bufsize)
-        : buf((char*)malloc(bufsize)), allocbytes(bufsize),
-          bytes(0), curoffs(0) { }
+        : buf((char*)malloc(bufsize)), allocbytes(bufsize), bytes(0) {
+    }
 
-    // @param buf is is a malloced buffer, and we take ownership. The
-    //   caller MUST NOT free it.
-    // @param bufsize buffer allocated size in bytes.
-    // @param bytes data contents size. 
+    /// Initialize by taking ownership of an existing buffer
+    /// @param buf is is a malloced buffer, and we take ownership. The
+    ///   caller MUST NOT free it.
+    /// @param bufsize buffer allocated size in bytes.
+    /// @param bytes data contents size. 
     ABuffer(char *buf, size_t bufsize, size_t bytes)
-        : buf(buf), allocbytes(bufsize), bytes(bytes), curoffs(0) { }
+        : buf(buf), allocbytes(bufsize), bytes(bytes) {
+    }
 
     ~ABuffer() {
         if (buf)
             free(buf);
     }
 
-    bool setminalloc(size_t minbytes) {
+    bool reserve(size_t minbytes) {
         if (allocbytes >= minbytes) {
             return true;
         }
@@ -55,7 +58,7 @@ struct ABuffer {
     // is only used to buffer a bit of data at the beginning of the
     // stream for header forensics.
     bool append(const char *data, int cnt) {
-        if (!setminalloc(2*(cnt+bytes))) {
+        if (!reserve(2*(cnt+bytes))) {
             return false;
         }
         memcpy(buf + bytes, data, cnt);
@@ -63,6 +66,7 @@ struct ABuffer {
         return true;
     }
     
+    /// Create a full copy
     ABuffer *dup() {
         ABuffer *n = new ABuffer(bytes);
         if (nullptr == n || nullptr == n->buf) {
@@ -76,7 +80,7 @@ struct ABuffer {
     char *buf;
     unsigned int allocbytes; // buffer size
     unsigned int bytes; // Useful bytes, set by producer.
-    unsigned int curoffs; // Current offset in data, used by the consumer
+    unsigned int curoffs{0}; // Current offset in data, used by the consumer
 };
 
 #endif /* _ABUFFER_H_INCLUDED_ */

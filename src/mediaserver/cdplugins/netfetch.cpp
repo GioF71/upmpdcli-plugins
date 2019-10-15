@@ -31,10 +31,14 @@ using namespace std;
 size_t NetFetch::databufToQ(const void *contents, size_t bcnt)
 {
     LOGDEB1("NetFetch::dataBufToQ. bcnt " << bcnt << endl);
+    if (!outqueue) {
+        LOGERR("NetFetch::dataBufToQ: outqueue not set\n");
+        return 0;
+    }
     
     ABuffer *buf = nullptr;
     // Try to recover an empty buffer from the queue, else allocate one.
-    if (outqueue && outqueue->take_recycled(&buf)) {
+    if (outqueue->take_recycled(&buf)) {
         if (buf->allocbytes < bcnt) {
             delete buf;
             buf = nullptr;
@@ -44,7 +48,7 @@ size_t NetFetch::databufToQ(const void *contents, size_t bcnt)
         buf = new ABuffer(MAX(4096, bcnt));
     }
     if (buf == nullptr) {
-        LOGERR("CurlFetch::dataBufToQ: can't get buffer for " << bcnt <<
+        LOGERR("NetFetch::dataBufToQ: can't get buffer for " << bcnt <<
                " bytes\n");
         return 0;
     }
@@ -52,11 +56,10 @@ size_t NetFetch::databufToQ(const void *contents, size_t bcnt)
     buf->bytes = bcnt;
     buf->curoffs = 0;
 
-    LOGDEB1("NetFetch::calling put on " <<
-            (outqueue ? outqueue->getname() : "null") << endl);
+    LOGDEB1("NetFetch::calling put on " << outqueue->getname() << endl);
     
     if (!outqueue->put(buf)) {
-        LOGDEB1("CurlFetch::dataBufToQ. queue put failed\n");
+        LOGDEB1("NetFetch::dataBufToQ. queue put failed\n");
         delete buf;
         return -1;
     }
@@ -65,6 +68,6 @@ size_t NetFetch::databufToQ(const void *contents, size_t bcnt)
     if (fbcb) {
         fbcb(fetch_data_count);
     }
-    LOGDEB1("CurlFetch::dataBufToQ. returning " << bcnt << endl);
+    LOGDEB1("NetFetch::dataBufToQ. returning " << bcnt << endl);
     return bcnt;
 }
