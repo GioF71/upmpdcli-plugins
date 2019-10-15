@@ -491,7 +491,9 @@ void trimstring(string& s, const char *ws)
 void rtrimstring(string& s, const char *ws)
 {
     string::size_type pos = s.find_last_not_of(ws);
-    if (pos != string::npos && pos != s.length() - 1) {
+    if (pos == string::npos) {
+        s.clear();
+    } else if (pos != s.length() - 1) {
         s.replace(pos + 1, string::npos, string());
     }
 }
