@@ -1,3 +1,10 @@
+upmpdcli (1.4.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fixed some memory leaks in the spotify plugin
+  * Move the qobuz app_key/secret from the code to the configuration.
+    
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 15 Oct 2019 18:04:00 +0200
+
 upmpdcli (1.4.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix the "Improvement in radio stream title detection": it broke OHPlaylist
