@@ -101,7 +101,7 @@ def maybelogin(a={}):
         raise Exception("spotifyuser not set in configuration")
 
     is_logged_in = session.login(username, os.path.join(cachedir, "token"))
-    setMimeAndSamplerate("audio/mpeg", "44100")
+    setMimeAndSamplerate("audio/wav", "44100")
     
     if not is_logged_in:
         raise Exception("spotify login failed")
@@ -116,8 +116,8 @@ def trackuri(a):
     msgproc.log("trackuri: [%s]" % a)
     # we use the trackid as "url". The spotify proxy module will manage
     media_url = trackid_from_urlpath(pathprefix, a)
-    mime = "application/flac"
-    kbs = "1410"
+    mime = "audio/wav"
+    kbs = "1411"
     return {'media_url' : media_url, 'mimetype' : mime, 'kbs' : kbs}
 
 
