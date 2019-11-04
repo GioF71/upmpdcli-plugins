@@ -516,7 +516,7 @@ additional external sources. See the Songcast Sender support
 documentation page.
 
 [[scscriptgracesecs]]
-scscriptgracesecs:: Grace period to wait for
-a script process to exit before it is forcely killed. In seconds. Default 2 S.
+scscriptgracesecs:: Grace period to wait for a script process to exit before it is
+forcely killed. In seconds. Default 2 S.
 
 

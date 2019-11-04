@@ -1,5 +1,12 @@
 = Upmpdcli release notes
 
+== 2019-10-15 upmpdcli 1.4.5
+
+- Plug some of the memory leaks in the Spotify interface.
+- Extracted the Qobuz app_key/secret from the code. Get it from the
+  configuration instead. This should make it easy for an integrator to
+  store it securely.
+
 == 2019-09-16 upmpdcli 1.4.4
 
 - Add plgmicrohttphost variable to allow setting the host used in proxy
