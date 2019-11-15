@@ -62,6 +62,7 @@
 #include <istream>
 #include <ostream>
 #endif
+#include <iostream>
 
 #include "pathut.h"
 
@@ -390,9 +391,8 @@ public:
     ConfStack(const std::string& nm, const std::vector<std::string>& dirs,
               bool ro = true) {
         std::vector<std::string> fns;
-        for (std::vector<std::string>::const_iterator it = dirs.begin();
-                it != dirs.end(); it++) {
-            fns.push_back(path_cat(*it, nm));
+        for (const auto& dir : dirs) {
+            fns.push_back(path_cat(dir, nm));
         }
         ConfStack::construct(fns, ro);
     }
@@ -419,9 +419,8 @@ public:
     }
 
      virtual bool sourceChanged() const override {
-        typename std::vector<T*>::const_iterator it;
-        for (it = m_confs.begin(); it != m_confs.end(); it++) {
-            if ((*it)->sourceChanged()) {
+        for (const auto& conf : m_confs) {
+            if (conf->sourceChanged()) {
                 return true;
             }
         }
@@ -447,9 +446,8 @@ public:
     }
 
     virtual bool hasNameAnywhere(const std::string& nm) const override {
-        typename std::vector<T*>::const_iterator it;
-        for (it = m_confs.begin(); it != m_confs.end(); it++) {
-            if ((*it)->hasNameAnywhere(nm)) {
+        for (const auto& conf : m_confs) {
+            if (conf->hasNameAnywhere(nm)) {
                 return true;
             }
         }
@@ -466,7 +464,7 @@ public:
         // Avoid adding unneeded entries: if the new value matches the
         // one out from the deeper configs, erase or dont add it
         // from/to the topmost file
-        typename std::vector<T*>::iterator it = m_confs.begin();
+        auto it = m_confs.begin();
         it++;
         while (it != m_confs.end()) {
             std::string value;
@@ -509,12 +507,11 @@ public:
     virtual std::vector<std::string> getNames1(
         const std::string& sk, const char *pattern, bool shallow) const {
         std::vector<std::string> nms;
-        typename std::vector<T*>::const_iterator it;
         bool skfound = false;
-        for (it = m_confs.begin(); it != m_confs.end(); it++) {
-            if ((*it)->hasSubKey(sk)) {
+        for (const auto& conf : m_confs) {
+            if (conf->hasSubKey(sk)) {
                 skfound = true;
-                std::vector<std::string> lst = (*it)->getNames(sk, pattern);
+                std::vector<std::string> lst = conf->getNames(sk, pattern);
                 nms.insert(nms.end(), lst.begin(), lst.end());
             }
             if (shallow && skfound) {
@@ -532,10 +529,9 @@ public:
     }
     virtual std::vector<std::string> getSubKeys(bool shallow) const override {
         std::vector<std::string> sks;
-        typename std::vector<T*>::const_iterator it;
-        for (it = m_confs.begin(); it != m_confs.end(); it++) {
+        for (const auto& conf : m_confs) {
             std::vector<std::string> lst;
-            lst = (*it)->getSubKeys();
+            lst = conf->getSubKeys();
             sks.insert(sks.end(), lst.begin(), lst.end());
             if (shallow) {
                 break;
@@ -557,9 +553,8 @@ private:
 
     /// Reset to pristine
     void clear() {
-        typename std::vector<T*>::iterator it;
-        for (it = m_confs.begin(); it != m_confs.end(); it++) {
-            delete(*it);
+        for (auto& conf : m_confs) {
+            delete(conf);
         }
         m_confs.clear();
     }
@@ -567,34 +562,35 @@ private:
     /// Common code to initialize from existing object
     void init_from(const ConfStack& rhs) {
         if ((m_ok = rhs.m_ok)) {
-            typename std::vector<T*>::const_iterator it;
-            for (it = rhs.m_confs.begin(); it != rhs.m_confs.end(); it++) {
-                m_confs.push_back(new T(**it));
+            for (const auto& conf : rhs.m_confs) {
+                m_confs.push_back(new T(*conf));
             }
         }
     }
 
-    /// Common construct from file names code
+    /// Common construct from file names code. We used to be ok even
+    /// if some files were not readable/parsable. Now fail if any
+    /// fails.
     void construct(const std::vector<std::string>& fns, bool ro) {
-        std::vector<std::string>::const_iterator it;
-        bool lastok = false;
-        for (it = fns.begin(); it != fns.end(); it++) {
-            T* p = new T(it->c_str(), ro);
+        bool ok{true};
+        bool first{true};
+        for (const auto& fn : fns) {
+            T* p = new T(fn.c_str(), ro);
             if (p && p->ok()) {
                 m_confs.push_back(p);
-                lastok = true;
             } else {
                 delete p;
-                lastok = false;
-                if (!ro) {
-                    // For rw acccess, the topmost file needs to be ok
-                    // (ro is set to true after the first file)
-                    break;
+                // In ro mode, we accept a non-existing topmost file
+                // and treat it as an empty one.
+                if (!(ro && first && !path_exists(fn))) {
+                    ok = false;
                 }
             }
+            // Only the first file is opened rw
             ro = true;
+            first = false;
         }
-        m_ok = lastok;
+        m_ok = ok;
     }
 };
 

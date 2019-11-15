@@ -266,7 +266,7 @@ private:
  *  - Other program state: application-dependant. Any external cleanup
  *    (temp files etc.) must be performed by the application. ReExec()
  *    duplicates the atexit() function to make this easier, but the
- *    ReExec().atexit() calls must be done explicitely, this is not automatic
+ *    ReExec().atexit() calls must be done explicitly, this is not automatic
  *
  * In short, this is usable in reasonably controlled situations and if there
  * are no security issues involved, but this does not perform miracles.
