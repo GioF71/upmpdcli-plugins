@@ -609,9 +609,7 @@ url =  http://opml.radiotime.com/Tune.ashx?id=s122120
 artUrl = http://small.linncdn.com/website/responsive/images/logo-black-chunky.png
 
 [radio FIP (Paris)]
-#url = http://direct.fipradio.fr/live/fip-midfi.mp3
-url = https://chai5she.cdn.dvmr.fr/fip-midfi.mp3?ID=radiofrance
-artUrl = https://www.fip.fr/sites/default/files/fip-quadri-filet.png
+url = https://stream.radiofrance.fr/fip/fip.m3u8?id=radiofrance
 metaScript = fip-meta.py 7
 preferScript = 1
 
