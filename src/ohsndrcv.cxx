@@ -47,13 +47,8 @@ public:
         : dev(dv), makeisendercmd(starterpath), mpdport(port) {
         // Stream volume control ? This decides if the aux mpd has
         // mixer "software" or "none"
-        string value;
-        if (g_config->get("scstreamscaled", value)) {
-            scalestream = atoi(value.c_str()) != 0;
-        }
-        if (g_config->get("scscriptgracesecs", value)) {
-            graceperiodms = atoi(value.c_str()) * 1000;
-        }
+        scalestream = g_config->getBool("scstreamscaled", true);
+        graceperiodms = g_config->getInt("scscriptgracesecs", 0) * 1000;
         g_config->get("scstreamcodec", streamcodec);
     }
     ~Internal() {

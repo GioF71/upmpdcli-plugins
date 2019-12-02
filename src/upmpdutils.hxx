@@ -152,8 +152,5 @@ diffmaps(const std::unordered_map<std::string, std::string>& old,
 
 extern bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
                                gid_t gid);
-class ConfSimple;
-extern bool configBool(ConfSimple *conf, const std::string& nm,
-                       bool dflt = false);
 
 #endif /* _UPMPDUTILS_H_X_INCLUDED_ */

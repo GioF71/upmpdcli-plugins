@@ -365,12 +365,7 @@ public:
     //// This could be a private part if we were not all friends here /////
     
     bool doingsavetofile() {
-        bool saveohcredentials = true;
-        string val;
-        if (g_config && g_config->get("saveohcredentials", val)) {
-            saveohcredentials = stringToBool(val);
-        }
-        return saveohcredentials;
+        return g_config->getBool("saveohcredentials", true);
     }        
 
     void saveToConfTree(ConfSimple& credsconf) {

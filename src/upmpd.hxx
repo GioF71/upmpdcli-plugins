@@ -77,21 +77,19 @@ public:
         upmpdNoSongcastSource = 128,
     };
     struct Options {
-        Options() : options(upmpdNone), ohmetasleep(0), schttpport(0),
-            sendermpdport(0) {}
-        unsigned int options;
+        unsigned int options{upmpdNone};
         std::string  cachedir;
         std::string  cachefn;
         std::string  radioconf;
         std::string  iconpath;
         std::string  presentationhtml;
-        unsigned int ohmetasleep;
-        int schttpport;
+        unsigned int ohmetasleep{0};
+        int schttpport{0};
         std::string scplaymethod;
         std::string sc2mpdpath;
         std::string screceiverstatefile;
         std::string senderpath;
-        int sendermpdport;
+        int sendermpdport{0};
     };
     UpMpd(const std::string& deviceid, const std::string& friendlyname,
           ohProductDesc_t& ohProductDesc,

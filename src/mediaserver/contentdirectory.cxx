@@ -278,8 +278,7 @@ void ContentDirectory::Internal::maybeStartSomePlugins(bool enabled)
     
     for (auto& entry : rootdir) {
         string app = appForId(entry.id);
-        string sas;
-        if (g_config->get(app + "autostart", sas) && stringToBool(sas)) {
+        if (g_config->getBool(app + "autostart", false)) {
             LOGDEB0("ContentDirectory::Internal::maybeStartSomePlugins: "
                     "starting " << app << endl);
             CDPlugin *p = pluginForApp(app);
@@ -556,10 +555,5 @@ string ContentDirectory::microhttphost()
 // Static for use needed by ohcredentials
 int CDPluginServices::microhttpport()
 {
-    int port = 49149;
-    string sport;
-    if (g_config && g_config->get("plgmicrohttpport", sport)) {
-        port = atoi(sport.c_str());
-    }
-    return port;
+    return g_config->getInt("plgmicrohttpport", 49149);
 }

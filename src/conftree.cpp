@@ -57,6 +57,47 @@ using namespace std;
 #define CONFDEB LOGDEB2
 #endif
 
+
+long long ConfNull::getInt(const std::string& name, long long dflt,
+                           const std::string& sk)
+{
+    string val;
+    if (!get(name, val, sk)) {
+        return dflt;
+    }
+    char *endptr;
+    long long ret = strtoll(val.c_str(), &endptr, 0);
+    if (endptr == val.c_str()) {
+        return dflt;
+    }
+    return ret;
+}
+
+double ConfNull::getFloat(const std::string& name, double dflt,
+                          const std::string& sk)
+{
+    string val;
+    if (!get(name, val, sk)) {
+        return dflt;
+    }
+    char *endptr;
+    double ret = strtod(val.c_str(), &endptr);
+    if (endptr == val.c_str()) {
+        return dflt;
+    }
+    return ret;
+}
+
+bool ConfNull::getBool(const std::string& name, bool dflt,
+                       const std::string& sk)
+{
+    string val;
+    if (!get(name, val, sk)) {
+        return dflt;
+    }
+    return stringToBool(val);
+}
+
 static const SimpleRegexp varcomment_rx("[ \t]*#[ \t]*([a-zA-Z0-9]+)[ \t]*=",
                                         0, 1);
 
@@ -275,27 +316,17 @@ int ConfSimple::get(const string& nm, string& value, const string& sk) const
     }
 
     // Find submap
-    map<string, map<string, string> >::const_iterator ss;
-    if ((ss = m_submaps.find(sk)) == m_submaps.end()) {
+    const auto ss = m_submaps.find(sk);
+    if (ss == m_submaps.end()) {
         return 0;
     }
 
     // Find named value
-    map<string, string>::const_iterator s;
-    if ((s = ss->second.find(nm)) == ss->second.end()) {
+    const auto s = ss->second.find(nm);
+    if (s == ss->second.end()) {
         return 0;
     }
     value = s->second;
-    return 1;
-}
-
-int ConfSimple::get(const string& nm, int *value, const string& sk) const
-{
-    string sval;
-    if (!get(nm, sval, sk)) {
-        return 0;
-    }
-    *value = atoi(sval.c_str());
     return 1;
 }
 
@@ -314,7 +345,7 @@ int ConfSimple::get(const string& nm, int *value, const string& sk) const
 // the file data (when read back by conftree), only its ease of
 // editing with a normal editor.
 static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
-        const string& value)
+                                         const string& value)
 {
     ostream& output = *((ostream *)f);
     if (nm.empty()) {
@@ -332,7 +363,7 @@ static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
                 // Break at whitespace if line too long and "a lot" of
                 // remaining data
                 if (ll > 50 && (value.length() - pos) > 10 &&
-                        (c == ' ' || c == '\t')) {
+                    (c == ' ' || c == '\t')) {
                     ll = 0;
                     output << "\\\n";
                 }
@@ -356,12 +387,12 @@ int ConfSimple::set(const std::string& nm, const std::string& value,
     }
     return write();
 }
+
 int ConfSimple::set(const string& nm, long long val,
                     const string& sk)
 {
     return this->set(nm, lltodecstr(val), sk);
 }
-
 
 // Internal set variable: no rw checking or file rewriting. If init is
 // set, we're doing initial parsing, else we are changing a parsed
@@ -377,9 +408,9 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         return 0;
     }
     bool existing = false;
-    map<string, map<string, string> >::iterator ss;
+    auto ss = m_submaps.find(sk);
     // Test if submap already exists, else create it, and insert variable:
-    if ((ss = m_submaps.find(sk)) == m_submaps.end()) {
+    if (ss == m_submaps.end()) {
         CONFDEB("ConfSimple::i_set: new submap\n");
         map<string, string> submap;
         submap[nm] = value;
@@ -397,8 +428,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         }
     } else {
         // Insert or update variable in existing map.
-        map<string, string>::iterator it;
-        it = ss->second.find(nm);
+        auto it = ss->second.find(nm);
         if (it == ss->second.end()) {
             ss->second.insert(pair<string, string>(nm, value));
         } else {
@@ -438,7 +468,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
             // This is not logically possible. The subkey must
             // exist. We're doomed
             std::cerr << "Logical failure during configuration variable "
-                      "insertion" << endl;
+                "insertion" << endl;
             abort();
         }
     }
@@ -486,8 +516,8 @@ int ConfSimple::erase(const string& nm, const string& sk)
         return 0;
     }
 
-    map<string, map<string, string> >::iterator ss;
-    if ((ss = m_submaps.find(sk)) == m_submaps.end()) {
+    auto ss = m_submaps.find(sk);
+    if (ss == m_submaps.end()) {
         return 0;
     }
 
@@ -501,8 +531,8 @@ int ConfSimple::erase(const string& nm, const string& sk)
 int ConfSimple::eraseKey(const string& sk)
 {
     vector<string> nms = getNames(sk);
-    for (vector<string>::iterator it = nms.begin(); it != nms.end(); it++) {
-        erase(*it, sk);
+    for (const auto& nm : nms) {
+        erase(nm, sk);
     }
     return write();
 }
@@ -523,21 +553,16 @@ ConfSimple::sortwalk(WalkerCode(*walker)(void *, const string&, const string&),
         return WALK_STOP;
     }
     // For all submaps:
-    for (map<string, map<string, string> >::const_iterator sit =
-                m_submaps.begin();
-            sit != m_submaps.end(); sit++) {
-
+    for (const auto& submap : m_submaps) {
         // Possibly emit submap name:
-        if (!sit->first.empty() && walker(clidata, string(), sit->first.c_str())
-                == WALK_STOP) {
+        if (!submap.first.empty() &&
+            walker(clidata, string(), submap.first.c_str()) == WALK_STOP) {
             return WALK_STOP;
         }
 
         // Walk submap
-        const map<string, string>& sm = sit->second;
-        for (map<string, string>::const_iterator it = sm.begin(); it != sm.end();
-                it++) {
-            if (walker(clidata, it->first, it->second) == WALK_STOP) {
+        for (const auto& item : submap.second) {
+            if (walker(clidata, item.first, item.second) == WALK_STOP) {
                 return WALK_STOP;
             }
         }
@@ -579,30 +604,29 @@ bool ConfSimple::write(ostream& out) const
         return false;
     }
     string sk;
-    for (vector<ConfLine>::const_iterator it = m_order.begin();
-            it != m_order.end(); it++) {
-        switch (it->m_kind) {
+    for (const auto& confline : m_order) {
+        switch (confline.m_kind) {
         case ConfLine::CFL_COMMENT:
         case ConfLine::CFL_VARCOMMENT:
-            out << it->m_data << endl;
+            out << confline.m_data << endl;
             if (!out.good()) {
                 return false;
             }
             break;
         case ConfLine::CFL_SK:
-            sk = it->m_data;
+            sk = confline.m_data;
             CONFDEB("ConfSimple::write: SK ["  << sk << "]\n");
             // Check that the submap still exists, and only output it if it
             // does
             if (m_submaps.find(sk) != m_submaps.end()) {
-                out << "[" << it->m_data << "]" << endl;
+                out << "[" << confline.m_data << "]" << endl;
                 if (!out.good()) {
                     return false;
                 }
             }
             break;
         case ConfLine::CFL_VAR:
-            string nm = it->m_data;
+            string nm = confline.m_data;
             CONFDEB("ConfSimple::write: VAR [" << nm << "], sk [" <<sk<< "]\n");
             // As erase() doesnt update m_order we can find unexisting
             // variables, and must not output anything for them. Have
@@ -617,7 +641,7 @@ bool ConfSimple::write(ostream& out) const
                 }
                 break;
             }
-            CONFDEB("ConfSimple::write: no value: nm["<<nm<<"] sk["<<sk<< "]\n");
+            CONFDEB("ConfSimple::write: no value: nm["<<nm<<"] sk["<<sk<<"]\n");
             break;
         }
     }
@@ -638,17 +662,16 @@ vector<string> ConfSimple::getNames(const string& sk, const char *pattern) const
     if (!ok()) {
         return mylist;
     }
-    map<string, map<string, string> >::const_iterator ss;
-    if ((ss = m_submaps.find(sk)) == m_submaps.end()) {
+    const auto ss = m_submaps.find(sk);
+    if (ss == m_submaps.end()) {
         return mylist;
     }
     mylist.reserve(ss->second.size());
-    map<string, string>::const_iterator it;
-    for (it = ss->second.begin(); it != ss->second.end(); it++) {
-        if (pattern && 0 != fnmatch(pattern, it->first.c_str(), 0)) {
+    for (const auto& item : ss->second) {
+        if (pattern && 0 != fnmatch(pattern, item.first.c_str(), 0)) {
             continue;
         }
-        mylist.push_back(it->first);
+        mylist.push_back(item.first);
     }
     return mylist;
 }
@@ -660,9 +683,8 @@ vector<string> ConfSimple::getSubKeys() const
         return mylist;
     }
     mylist.reserve(m_submaps.size());
-    map<string, map<string, string> >::const_iterator ss;
-    for (ss = m_submaps.begin(); ss != m_submaps.end(); ss++) {
-        mylist.push_back(ss->first);
+    for (const auto& submap : m_submaps) {
+        mylist.push_back(submap.first);
     }
     return mylist;
 }
@@ -670,10 +692,9 @@ vector<string> ConfSimple::getSubKeys() const
 bool ConfSimple::hasNameAnywhere(const string& nm) const
 {
     vector<string>keys = getSubKeys();
-    for (vector<string>::const_iterator it = keys.begin();
-            it != keys.end(); it++) {
+    for (const auto& key : keys) {
         string val;
-        if (get(nm, val, *it)) {
+        if (get(nm, val, key)) {
             return true;
         }
     }
@@ -687,24 +708,23 @@ bool ConfSimple::commentsAsXML(ostream& out)
     out << "<confcomments>\n";
     
     string sk;
-    for (vector<ConfLine>::const_iterator it = lines.begin();
-         it != lines.end(); it++) {
-        switch (it->m_kind) {
+    for (const auto& line : lines) {
+        switch (line.m_kind) {
         case ConfLine::CFL_COMMENT:
         case ConfLine::CFL_VARCOMMENT:
         {
-            string::size_type pos = it->m_data.find_first_not_of("# ");
+            string::size_type pos = line.m_data.find_first_not_of("# ");
             if (pos != string::npos) {
-                out << it->m_data.substr(pos) << endl;
+                out << line.m_data.substr(pos) << endl;
             }
             break;
         }
         case ConfLine::CFL_SK:
-            out << "<subkey>" << it->m_data << "</subkey>" << endl;
+            out << "<subkey>" << line.m_data << "</subkey>" << endl;
             break;
         case ConfLine::CFL_VAR:
-            out << "<varsetting>" << it->m_data << " = " <<
-                it->m_value << "</varsetting>" << endl;
+            out << "<varsetting>" << line.m_data << " = " <<
+                line.m_value << "</varsetting>" << endl;
             break;
         default:
             break;
@@ -721,7 +741,7 @@ bool ConfSimple::commentsAsXML(ostream& out)
 // //////////////////////////////////////////////////////////////////////////
 
 int ConfTree::get(const std::string& name, string& value, const string& sk)
-const
+    const
 {
     if (sk.empty() || !path_isabsolute(sk)) {
         LOGDEB2("ConfTree::get: looking in global space for ["  <<
@@ -757,4 +777,3 @@ const
     }
     return 0;
 }
-

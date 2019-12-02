@@ -57,12 +57,8 @@ MPDCli::MPDCli(const string& host, int port, const string& pass)
     stringToStrings(scratch,  m_onvolumechange);
     g_config->get("getexternalvolume", scratch);
     stringToStrings(scratch, m_getexternalvolume);
-    if (g_config->get("mpdtimeoutms", scratch)) {
-        m_timeoutms = atoi(scratch.c_str());
-    }
-    if (g_config->get("externalvolumecontrol", scratch)) {
-        m_externalvolumecontrol = atoi(scratch.c_str()) != 0;
-    }
+    m_timeoutms = g_config->getInt("mpdtimeoutms", 2000);
+    m_externalvolumecontrol = g_config->getBool("externalvolumecontrol", false);
     updStatus();
 }
 

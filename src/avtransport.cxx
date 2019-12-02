@@ -102,10 +102,7 @@ UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
     // of track, not STOP.
 //    m_dev->m_mpdcli->single(true);
 #endif
-    string scratch;
-    if (g_config->get("avtautoplay", scratch)) {
-        m_autoplay = stringToBool(scratch);
-    }
+    m_autoplay = g_config->getBool("avtautoplay", false);
 }
 
 // AVTransport Errors
@@ -555,7 +552,8 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
 int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    //LOGDEB("UpMpdAVTransport::getPositionInfo. State: " << mpds.state <<endl);
+    LOGDEB1("UpMpdAVTransport::getPositionInfo. State: " <<
+            mpdsToTState(mpds) << " (" << mpds.state << ")\n");
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -568,8 +566,11 @@ int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data
 
     if (is_song) {
         data.addarg("TrackDuration", upnpduration(mpds.songlenms));
+        LOGDEB1("UpMpdAVTransport::getPositionInfo: trackduration " <<
+                upnpduration(mpds.songlenms) << endl);
     } else {
         data.addarg("TrackDuration", "00:00:00");
+        LOGDEB1("UpMpdAVTransport::getPositionInfo: trackduration 00:00:00\n");
     }
 
     if (is_song) {
@@ -608,7 +609,8 @@ int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data
 int UpMpdAVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    //LOGDEB("UpMpdAVTransport::getTransportInfo. State: " << mpds.state<<endl);
+    LOGDEB1("UpMpdAVTransport::getTransportInfo. State: " <<
+            mpdsToTState(mpds) << endl);
 
     data.addarg("CurrentTransportState", mpdsToTState(mpds));
     data.addarg("CurrentTransportStatus", m_dev->m_mpdcli->ok() ? "OK" : 

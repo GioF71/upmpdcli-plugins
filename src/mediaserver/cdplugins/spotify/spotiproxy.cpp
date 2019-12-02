@@ -193,14 +193,12 @@ public:
 
         spotify_bitrate bitrateidx = spotify_bitrate160;
         {
-            string sbitrate;
-            if (g_config->get("spotifybitrate", sbitrate)) {
-                switch (atoi(sbitrate.c_str())) {
-                case 160: bitrateidx = spotify_bitrate160; break;
-                case 320: bitrateidx = spotify_bitrate320; break;
-                case 96: bitrateidx = spotify_bitrate96; break;
-                default: bitrateidx = spotify_bitrate160; break;
-                }
+            int cfbitrate = g_config->getInt("spotifybitrate", 160);
+            switch (cfbitrate) {
+            case 160: bitrateidx = spotify_bitrate160; break;
+            case 320: bitrateidx = spotify_bitrate320; break;
+            case 96: bitrateidx = spotify_bitrate96; break;
+            default: bitrateidx = spotify_bitrate160; break;
             }
         }
         

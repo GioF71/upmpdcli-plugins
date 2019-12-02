@@ -344,34 +344,27 @@ int main(int argc, char *argv[])
             g_config->get("logfilename", logfilename);
         if (!(op_flags & OPT_f))
             g_config->get("friendlyname", friendlyname);
-        if (!(op_flags & OPT_l) && g_config->get("loglevel", value))
-            loglevel = atoi(value.c_str());
-        if (!(op_flags & OPT_h))
+        if (!(op_flags & OPT_l)) {
+            loglevel = g_config->getInt("loglevel", Logger::LLINF);
+        }
+        if (!(op_flags & OPT_h)) {
             g_config->get("mpdhost", mpdhost);
-        if (!(op_flags & OPT_p) && g_config->get("mpdport", value)) {
-            mpdport = atoi(value.c_str());
+        }
+        if (!(op_flags & OPT_p)) {
+            mpdport =  g_config->getInt("mpdport", 6600);
         }
         g_config->get("mpdpassword", mpdpassword);
-        if (!(op_flags & OPT_q) && g_config->get("ownqueue", value)) {
-            ownqueue = atoi(value.c_str()) != 0;
+        if (!(op_flags & OPT_q)) {
+            ownqueue = g_config->getBool("ownqueue", true);
         }
-        if (g_config->get("openhome", value)) {
-            enableOH = atoi(value.c_str()) != 0;
-        }
-        if (g_config->get("upnpav", value)) {
-            enableAV = atoi(value.c_str()) != 0;
-        }
+        enableOH = g_config->getBool("openhome", true);
+        enableAV = g_config->getBool("upnpav", true);
 
-        if (g_config->get("checkcontentformat", value)) {
+        if (!g_config->getBool("checkcontentformat", true)) {
             // If option is specified and 0, set nocheck flag
-            if (atoi(value.c_str()) == 0) {
-                opts.options |= UpMpd::upmpdNoContentFormatCheck;
-            }
+            opts.options |= UpMpd::upmpdNoContentFormatCheck;
         }
-        
-        if (g_config->get("ohmetapersist", value)) {
-            ohmetapersist = atoi(value.c_str()) != 0;
-        }
+        ohmetapersist = g_config->getBool("ohmetapersist", true);
         if (g_config->get("pkgdatadir", g_datadir)) {
             path_catslash(g_datadir);
             iconpath = path_cat(g_datadir, "icon.png");
@@ -390,22 +383,18 @@ int main(int argc, char *argv[])
                 g_config->get("upnpip", upnpip);
             }
         }
-        if (!(op_flags & OPT_P) && g_config->get("upnpport", value)) {
-            upport = atoi(value.c_str());
+        if (!(op_flags & OPT_P)) {
+            upport = g_config->getInt("upnpport", 0);
         }
-        if (g_config->get("schttpport", value))
-            opts.schttpport = atoi(value.c_str());
+        opts.schttpport = g_config->getInt("schttpport", 0);
         g_config->get("scplaymethod", opts.scplaymethod);
         g_config->get("sc2mpd", sc2mpdpath);
         g_config->get("screceiverstatefile", screceiverstatefile);
-        if (g_config->get("scnosongcastsource", value)) {
+        if (g_config->getBool("scnosongcastsource", false)) {
             // If option is specified and 1, set nocheck flag
-            if (atoi(value.c_str()) == 1) {
-                opts.options |= UpMpd::upmpdNoSongcastSource;
-            }
+            opts.options |= UpMpd::upmpdNoSongcastSource;
         }
-        if (g_config->get("ohmetasleep", value))
-            opts.ohmetasleep = atoi(value.c_str());
+        opts.ohmetasleep = g_config->getInt("ohmetasleep", 0);
         g_config->get("ohmanufacturername", ohProductDesc.manufacturer.name);
         g_config->get("ohmanufacturerinfo", ohProductDesc.manufacturer.info);
         g_config->get("ohmanufacturerurl", ohProductDesc.manufacturer.url);
@@ -432,7 +421,7 @@ int main(int argc, char *argv[])
         if (g_config->get("scsendermpdport", value))
             sendermpdport = atoi(value.c_str());
 
-        g_lumincompat = configBool(g_config, "lumincompat", false);
+        g_lumincompat = g_config->getBool("lumincompat", false);
     } else {
         // g_configfilename is empty. Create an empty config anyway
         g_config = new ConfSimple(string(), 1, true);
