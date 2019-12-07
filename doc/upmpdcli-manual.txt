@@ -159,7 +159,7 @@ help from the closely related *sc2mpd* package, for processing the audio
 streams).
 
 - Upmpdcli provides a Media Server interface, currently used for accessing
-external streaming services (Qobuz, Tidal, Google Music). A local Media
+external streaming services (Tidal, Google Music, Spotify). A local Media
 Server is in development, the motivation being that I see none which is
 both open-source and really satisfying (MinimServer is great but not
 open-source).
@@ -543,7 +543,7 @@ the Receivers can be out of sync by several seconds.
 
 === Streaming Services and UPnP
 
-Streaming services like Qobuz or Tidal give access to a huge catalog of
+Streaming services like Tidal or Spotify give access to a huge catalog of
 music through a WEB programming interface which is also usable by programs
 other than their own applications.
 
@@ -591,8 +591,9 @@ framework, and knowing which way you are using will avoid confusion:
 === Accessing Streaming Services through the upmpdcli Media Server
   
 The Media Server function in Upmpdcli (1.2.0 and later) gives access to
-external streaming services: Qobuz, Tidal, and Google Music at the
-moment. Spotify has been added in release 1.3.0.
+external streaming services: Tidal, and Google Music and Spotify at the
+moment. Qobuz used to work too, but they now forbid access through
+non-authorized apps, and revoked all the known access keys.
 
 You will need a valid account on any service that you want to use (for
 Spotify, this means a premium account, the free ones will not work).
@@ -611,9 +612,9 @@ Two conditions must be true for the Media Server to appear with an entry
 for a streaming service:
 
  - The code for the service plugin must be installed. This comes generally
-   in a separate package (e.g _upmpdcli-qobuz_).
+   in a separate package (e.g _upmpdcli-tidal_).
  - The user variable for the service must be present in the configuration
-   file (e.g +qobuzuser+).
+   file (e.g +tidaluser+).
 
 Some other parameters (e.g. a password) may be needed for the access to
 work, depending on the specific service. See the service-specific notes below.
@@ -634,10 +635,10 @@ of them, and you are using it under your own responsibility.
 [[UPMPDCLI-MS-STR-CRED]]
 === Accessing the streaming services with OpenHome from Kazoo
 
-This only works for Qobuz and Tidal, and only with upmpdcli versions 1.3.0
-and later. The corresponding media server module must be installed
-(upmpdcli-qobuz and/or upmpdcli-tidal), but no other configuration should
-be necessary on the renderer.
+This only works for Tidal (used to work with Qobuz), and only with upmpdcli
+versions 1.3.0 and later. The corresponding media server module must be
+installed (upmpdcli-tidal), but no other configuration should be necessary
+on the renderer.
 
 This should also work with Lumin, but it does not currently, the reason is
 unknown. When feature is active, it actually prevents Lumin from
@@ -702,6 +703,9 @@ The configuration parameters are described in the
 
 [[upmpdcli.qobuznotes]]
 === Using Qobuz through the Upmpdcli Media Server
+
+upmpdcli Qobuz access does not work any more, so this is just kept as a
+historical note...
 
 This is based on the service API from the
 link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
@@ -1458,7 +1462,7 @@ are installed and the standard command is left undisturbed, so that there
 is no risk of damaging the system.
 
 Note that I am making no claims about the security of the encryption
-provided by this method. This should be fairly sufficient for a Qobuz
+provided by this method. This should be fairly sufficient for a Tidal
 password going around your local network though (except maybe if you think
 that the NSA is interested in your playlists).
 
