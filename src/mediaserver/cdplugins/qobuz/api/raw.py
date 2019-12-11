@@ -10,7 +10,6 @@
     :license: GPLv3, see LICENSE for more details.
 '''
 import sys
-import pprint
 from time import time
 import math
 import hashlib
@@ -28,6 +27,7 @@ class RawApi(object):
 
     def __init__(self, appid, configvalue):
         self.appid = appid
+        #print("app_id: %s"% self.appid, file=sys.stderr)
         self.configvalue = configvalue.encode('ASCII')
         self.bappid = self.appid.encode('ASCII')
         self.version = '0.2'
@@ -81,7 +81,7 @@ class RawApi(object):
         a = cycle(self.bappid)
         b = zip(s3s, a)
         self.s4 = b''.join((x ^ y).to_bytes(1, byteorder='big') for (x, y) in b)
-        print("S4: %s"% self.s4.decode('ASCII'), file=sys.stderr)
+        #print("S4: %s"% self.s4.decode('ASCII'), file=sys.stderr)
         
     def __unset_s4(self, id, sec):
         a = cycle(id)
@@ -108,7 +108,7 @@ class RawApi(object):
                 ret = api._api_request({'username':'foo',
                                   'password':'bar'},
                                  'user/login', noToken=True)
-                print 'Error: %s [%s]' % (api.error, api.status_code)
+                print('Error: %s [%s]' % (api.error, api.status_code))
 
             This should produce something like:
             Error: [200]
@@ -225,8 +225,7 @@ class RawApi(object):
                       + 'track_id' \
                       + str(ka['track_id']) \
                       + str(ka['request_ts'])
-        if PY3:
-            stringvalue = stringvalue.encode('ASCII')
+        stringvalue = stringvalue.encode('ASCII')
         stringvalue  += self.s4
         params = {'format_id': str(ka['format_id']),
                   'intent': intent,
