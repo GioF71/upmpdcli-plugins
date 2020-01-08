@@ -12,6 +12,9 @@ Requires(post): systemd
 Requires(preun): systemd
 Requires(postun): systemd
 Requires: python-requests
+# Because of the configure.ac/Makefile.am patch, needs autotools
+BuildRequires:  autoconf
+BuildRequires:  automake
 BuildRequires:  libupnpp
 BuildRequires:  libupnp-devel
 BuildRequires:  libmpdclient-devel
@@ -32,6 +35,7 @@ on Android tablets or phones.
 %prep
 %setup -q
 %patch0 -p1
+sh autogen.sh
 
 %build
 %configure
