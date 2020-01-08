@@ -63,7 +63,12 @@ def _maybeinitconfdir(confdir, topdirs):
     f.write(b"nomd5types = rclaudio rclimg\n")
     f.write(b"testmodifusemtime = 1\n")
     f.write(b"idxmetastoredlen = 20000\n")
-    f.write(b"indexStoreDocText = 0\n")
+    # We'd like to set this to zero, but this triggers the creation of
+    # a chert index through a stub file, and, for some reason, this
+    # does not seem to work any more with Debian Xapian 1.4.3, I get a
+    # chert backend disabled, even if XAPIAN_HAS_CHERT_BACKEND is set
+    # in version.h
+    f.write(b"indexStoreDocText = 1\n")
     f.write(b"audiotagfixerscript = %b\n" %
             os.path.join(datadir, "minimtagfixer.py").encode('utf-8'))
     if exclpats:
