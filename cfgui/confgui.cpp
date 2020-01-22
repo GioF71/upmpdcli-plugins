@@ -336,7 +336,11 @@ static QString myGetFileName(bool isdir, QString caption, bool filenosave)
 void ConfParamW::setValue(const QString& value)
 {
     if (m_fsencoding) {
+#ifdef _WIN32
+        m_cflink->set(string((const char *)value.toUtf8()));
+#else
         m_cflink->set(string((const char *)value.toLocal8Bit()));
+#endif
     } else {
         m_cflink->set(string((const char *)value.toUtf8()));
     }
@@ -462,7 +466,11 @@ void ConfParamStrW::loadValue()
     string s;
     m_cflink->get(s);
     if (m_fsencoding) {
+#ifdef _WIN32
+        m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
+#else
         m_le->setText(m_origvalue = QString::fromLocal8Bit(s.c_str()));
+#endif
     } else {
         m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
     }
@@ -513,7 +521,11 @@ void ConfParamCStrW::loadValue()
     m_cflink->get(s);
     QString cs;
     if (m_fsencoding) {
+#ifdef _WIN32
+        cs = QString::fromUtf8(s.c_str());
+#else
         cs = QString::fromLocal8Bit(s.c_str());
+#endif        
     } else {
         cs = QString::fromUtf8(s.c_str());
     }
@@ -619,7 +631,11 @@ void ConfParamFNW::loadValue()
 {
     string s;
     m_cflink->get(s);
+#ifdef _WIN32
+    m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
+#else
     m_le->setText(m_origvalue = QString::fromLocal8Bit(s.c_str()));
+#endif
 }
 
 void ConfParamFNW::showBrowserDialog()
@@ -727,12 +743,18 @@ string ConfParamSLW::listToString()
 {
     vector<string> ls;
     for (int i = 0; i < m_lb->count(); i++) {
-        // General parameters are encoded as utf-8. File names as
-        // local8bit There is no hope for 8bit file names anyway
-        // except for luck: the original encoding is unknown.
+        // General parameters are encoded as utf-8.
+        // Linux file names as local8bit There is no hope for 8bit
+        // file names anyway except for luck: the original encoding is
+        // unknown. In most modern configs, local8Bits will be UTF-8.
+        // Except on Windows: we store file names as UTF-8
         QString text = m_lb->item(i)->text();
         if (m_fsencoding) {
+#ifdef _WIN32
+            ls.push_back((const char *)(text.toUtf8()));
+#else
             ls.push_back((const char *)(text.toLocal8Bit()));
+#endif
         } else {
             ls.push_back((const char *)(text.toUtf8()));
         }
@@ -759,7 +781,11 @@ void ConfParamSLW::loadValue()
     QStringList qls;
     for (const auto& str : ls) {
         if (m_fsencoding) {
+#ifdef _WIN32
+            qls.push_back(QString::fromUtf8(str.c_str()));
+#else
             qls.push_back(QString::fromLocal8Bit(str.c_str()));
+#endif
         } else {
             qls.push_back(QString::fromUtf8(str.c_str()));
         }
