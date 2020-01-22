@@ -102,7 +102,7 @@ extern std::string path_PATHsep();
 #endif
 
 /// Dump directory
-extern bool readdir(const std::string& dir, std::string& reason,
+extern bool listdir(const std::string& dir, std::string& reason,
                     std::set<std::string>& entries);
 
 /** A small wrapper around statfs et al, to return percentage of disk

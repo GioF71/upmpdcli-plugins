@@ -61,6 +61,11 @@
 #define LSTAT _wstati64
 #define STATBUF _stati64
 #define ACCESS _waccess
+#define OPENDIR _wopendir
+#define CLOSEDIR _wclosedir
+#define READDIR _wreaddir
+#define DIRENT _wdirent
+#define DIRHDL _WDIR
 
 #else // Not windows ->
 #include <fcntl.h>
@@ -76,6 +81,11 @@
 #define LSTAT lstat
 #define STATBUF stat
 #define ACCESS access
+#define OPENDIR opendir
+#define CLOSEDIR closedir
+#define READDIR readdir
+#define DIRENT dirent
+#define DIRHDL DIR
 #endif
 
 #include <cstdlib>
@@ -996,43 +1006,55 @@ ParsedUri::ParsedUri(std::string uri)
     }
 }
 
-bool readdir(const string& dir, string& reason, set<string>& entries)
+bool listdir(const string& dir, string& reason, set<string>& entries)
 {
-    struct stat st;
+    struct STATBUF st;
     int statret;
     ostringstream msg;
-    DIR *d = 0;
-    statret = lstat(dir.c_str(), &st);
+    DIRHDL *d = 0;
+
+    SYSPATH(dir, sysdir);
+
+    statret = LSTAT(sysdir, &st);
     if (statret == -1) {
-        msg << "readdir: cant stat " << dir << " errno " <<  errno;
+        msg << "listdir: cant stat " << dir << " errno " <<  errno;
         goto out;
     }
     if (!S_ISDIR(st.st_mode)) {
-        msg << "readdir: " << dir <<  " not a directory";
+        msg << "listdir: " << dir <<  " not a directory";
         goto out;
     }
-    if (access(dir.c_str(), R_OK) < 0) {
-        msg << "readdir: no read access to " << dir;
+    if (ACCESS(sysdir, R_OK) < 0) {
+        msg << "listdir: no read access to " << dir;
         goto out;
     }
 
-    d = opendir(dir.c_str());
+    d = OPENDIR(sysdir);
     if (d == 0) {
-        msg << "readdir: cant opendir " << dir << ", errno " << errno;
+        msg << "listdir: cant opendir " << dir << ", errno " << errno;
         goto out;
     }
 
-    struct dirent *ent;
-    while ((ent = readdir(d)) != 0) {
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
+    struct DIRENT *ent;
+    while ((ent = READDIR(d)) != 0) {
+#ifdef _WIN32
+        string sdname;
+        if (!wchartoutf8(ent->d_name, sdname)) {
             continue;
         }
-        entries.insert(ent->d_name);
+        const char *dname = sdname.c_str();
+#else
+        const char *dname = ent->d_name;
+#endif
+        if (!strcmp(dname, ".") || !strcmp(dname, "..")) {
+            continue;
+        }
+        entries.insert(dname);
     }
 
 out:
     if (d) {
-        closedir(d);
+        CLOSEDIR(d);
     }
     reason = msg.str();
     if (reason.empty()) {
