@@ -115,7 +115,7 @@ string stringtoupper(const string& i)
 extern int stringisuffcmp(const string& s1, const string& s2)
 {
     string::const_reverse_iterator r1 = s1.rbegin(), re1 = s1.rend(),
-                                   r2 = s2.rbegin(), re2 = s2.rend();
+        r2 = s2.rbegin(), re2 = s2.rend();
     while (r1 != re1 && r2 != re2) {
         char c1 = ::toupper(*r1);
         char c2 = ::toupper(*r2);
@@ -326,18 +326,18 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
 }
 
 template bool stringToStrings<list<string> >(const string&,
-        list<string>&, const string&);
+                                             list<string>&, const string&);
 template bool stringToStrings<vector<string> >(const string&,
-        vector<string>&, const string&);
+                                               vector<string>&, const string&);
 template bool stringToStrings<set<string> >(const string&,
-        set<string>&, const string&);
+                                            set<string>&, const string&);
 template bool stringToStrings<std::unordered_set<string> >
 (const string&, std::unordered_set<string>&, const string&);
 
 template <class T> void stringsToString(const T& tokens, string& s)
 {
     for (typename T::const_iterator it = tokens.begin();
-            it != tokens.end(); it++) {
+         it != tokens.end(); it++) {
         bool hasblanks = false;
         if (it->find_first_of(" \t\n") != string::npos) {
             hasblanks = true;
@@ -382,10 +382,10 @@ template <class T> void stringsToCSV(const T& tokens, string& s,
 {
     s.erase();
     for (typename T::const_iterator it = tokens.begin();
-            it != tokens.end(); it++) {
+         it != tokens.end(); it++) {
         bool needquotes = false;
         if (it->empty() ||
-                it->find_first_of(string(1, sep) + "\"\n") != string::npos) {
+            it->find_first_of(string(1, sep) + "\"\n") != string::npos) {
             needquotes = true;
         }
         if (it != tokens.begin()) {
@@ -409,7 +409,7 @@ template <class T> void stringsToCSV(const T& tokens, string& s,
 }
 template void stringsToCSV<list<string> >(const list<string>&, string&, char);
 template void stringsToCSV<vector<string> >(const vector<string>&, string&,
-        char);
+                                            char);
 
 void stringToTokens(const string& str, vector<string>& tokens,
                     const string& delims, bool skipinit)
@@ -418,7 +418,7 @@ void stringToTokens(const string& str, vector<string>& tokens,
 
     // Skip initial delims, return empty if this eats all.
     if (skipinit &&
-            (startPos = str.find_first_not_of(delims, 0)) == string::npos) {
+        (startPos = str.find_first_not_of(delims, 0)) == string::npos) {
         return;
     }
     while (startPos < str.size()) {
@@ -569,13 +569,13 @@ string escapeHtml(const string& in)
 {
     string out;
     for (string::size_type pos = 0; pos < in.length(); pos++) {
-	switch(in.at(pos)) {
-	case '<': out += "&lt;"; break;
-	case '>': out += "&gt;"; break;
-	case '&': out += "&amp;"; break;
-	case '"': out += "&quot;"; break;
-	default: out += in.at(pos); break;
-	}
+        switch(in.at(pos)) {
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
+        case '&': out += "&amp;"; break;
+        case '"': out += "&quot;"; break;
+        default: out += in.at(pos); break;
+        }
     }
     return out;
 }
@@ -711,25 +711,6 @@ bool pcSubst(const string& in, string& out, const map<string, string>& subs)
     }
     return true;
 }
-inline static int ulltorbuf(uint64_t val, char *rbuf)
-{
-    int idx;
-    for (idx = 0; val; idx++) {
-        rbuf[idx] = '0' + val % 10;
-        val /= 10;
-    }
-    while (val);
-    rbuf[idx] = 0;
-    return idx;
-}
-
-inline static void ullcopyreverse(const char *rbuf, string& buf, int idx)
-{
-    buf.reserve(idx + 1);
-    for (int i = idx - 1; i >= 0; i--) {
-        buf.push_back(rbuf[i]);
-    }
-}
 
 void ulltodecstr(uint64_t val, string& buf)
 {
@@ -740,9 +721,14 @@ void ulltodecstr(uint64_t val, string& buf)
     }
 
     char rbuf[30];
-    int idx = ulltorbuf(val, rbuf);
+    int idx=29;
+    rbuf[idx--] = 0;
+    do {
+        rbuf[idx--] = '0' + val % 10;
+        val /= 10;
+    } while (val);
 
-    ullcopyreverse(rbuf, buf, idx);
+    buf.assign(&rbuf[idx+1]);
     return;
 }
 
@@ -760,14 +746,16 @@ void lltodecstr(int64_t val, string& buf)
     }
 
     char rbuf[30];
-    int idx = ulltorbuf(val, rbuf);
-
+    int idx=29;
+    rbuf[idx--] = 0;
+    do {
+        rbuf[idx--] = '0' + val % 10;
+        val /= 10;
+    } while (val);
     if (neg) {
-        rbuf[idx++] = '-';
+        rbuf[idx--] = '-';
     }
-    rbuf[idx] = 0;
-
-    ullcopyreverse(rbuf, buf, idx);
+    buf.assign(&rbuf[idx+1]);
     return;
 }
 
@@ -850,7 +838,7 @@ static bool parsedate(vector<string>::const_iterator& it,
 {
     dip->y1 = dip->m1 = dip->d1 = dip->y2 = dip->m2 = dip->d2 = 0;
     if (it->length() > 4 || !it->length() ||
-            it->find_first_not_of("0123456789") != string::npos) {
+        it->find_first_not_of("0123456789") != string::npos) {
         return false;
     }
     if (it == end || sscanf(it++->c_str(), "%d", &dip->y1) != 1) {
@@ -864,7 +852,7 @@ static bool parsedate(vector<string>::const_iterator& it,
     }
 
     if (it->length() > 2 || !it->length() ||
-            it->find_first_not_of("0123456789") != string::npos) {
+        it->find_first_not_of("0123456789") != string::npos) {
         return false;
     }
     if (it == end || sscanf(it++->c_str(), "%d", &dip->m1) != 1) {
@@ -878,7 +866,7 @@ static bool parsedate(vector<string>::const_iterator& it,
     }
 
     if (it->length() > 2 || !it->length() ||
-            it->find_first_not_of("0123456789") != string::npos) {
+        it->find_first_not_of("0123456789") != string::npos) {
         return false;
     }
     if (it == end || sscanf(it++->c_str(), "%d", &dip->d1) != 1) {
@@ -1001,7 +989,7 @@ static bool addperiod(DateInterval *dp, DateInterval *pp)
 int monthdays(int mon, int year)
 {
     switch (mon) {
-    // We are returning a few too many 29 days februaries, no problem
+        // We are returning a few too many 29 days februaries, no problem
     case 2:
         return (year % 4) == 0 ? 29 : 28;
     case 1:
@@ -1023,7 +1011,7 @@ bool parsedateinterval(const string& s, DateInterval *dip)
     DateInterval p1, p2, d1, d2;
     p1 = p2 = d1 = d2 = *dip;
     bool hasp1 = false, hasp2 = false, hasd1 = false, hasd2 = false,
-         hasslash = false;
+        hasslash = false;
 
     if (!stringToStrings(s, vs, "PYMDpymd-/")) {
         return false;
@@ -1164,6 +1152,16 @@ secondelt:
     return true;
 }
 
+// We'd like these static, but then, as only one is used, this
+// triggers a 'defined but not used' warning.
+char *_check_strerror_r(int, char *errbuf)
+{
+    return errbuf;
+}
+char *_check_strerror_r(char *cp, char *)
+{
+    return cp;
+}
 
 void catstrerror(string *reason, const char *what, int _errno)
 {
@@ -1186,8 +1184,6 @@ void catstrerror(string *reason, const char *what, int _errno)
     // Note: sun strerror is noted mt-safe ??
     reason->append(strerror(_errno));
 #else
-#define ERRBUFSZ 200
-    char errbuf[ERRBUFSZ];
     // There are 2 versions of strerror_r.
     // - The GNU one returns a pointer to the message (maybe
     //   static storage or supplied buffer).
@@ -1198,13 +1194,15 @@ void catstrerror(string *reason, const char *what, int _errno)
     //   were returned a pointer...
     // Also couldn't find an easy way to disable the gnu version without
     // changing the cxxflags globally, so forget it. Recent gnu lib versions
-    // normally default to the posix version.
-    // At worse we get no message at all here.
+    // normally default to the posix version. (not !)
+    // The feature defines tests are too complicated and seem unreliable.
+    // In short it's a mess, but thanks to c++ function overloading and smart 
+    // people, we have a solution:
+    // https://www.zverovich.net/2015/03/13/reliable-detection-of-strerror-variants.html
+    char errbuf[200];
     errbuf[0] = 0;
-    // We don't use ret, it's there to silence a cc warning
-    auto ret = strerror_r(_errno, errbuf, ERRBUFSZ);
-    (void)ret;
-    reason->append(errbuf);
+    reason->append(_check_strerror_r(
+                       strerror_r(_errno, errbuf, sizeof(errbuf)), errbuf));
 #endif
 }
 
@@ -1232,7 +1230,7 @@ static std::unordered_map<string, string> lang_to_code {
     {"th", "iso-8859-11"},
     {"tr", "iso-8859-9"},
     {"uk", "koi8-u"},
-};
+        };
 static const string cstr_cp1252("CP1252");
 
 string langtocode(const string& lang)
@@ -1252,7 +1250,7 @@ string localelang()
     const char *lang = getenv("LANG");
 
     if (lang == 0 || *lang == 0 || !strcmp(lang, "C") ||
-            !strcmp(lang, "POSIX")) {
+        !strcmp(lang, "POSIX")) {
         return "en";
     }
     string locale(lang);

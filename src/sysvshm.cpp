@@ -32,23 +32,6 @@
 
 using namespace std;
 
-#ifndef LOGSYSERR
-#include <string.h>
-#if (_POSIX_C_SOURCE >= 200112L) && !  _GNU_SOURCE
-#define LOGSYSERR(who, what, arg) {                                     \
-        char buf[200]; buf[0] = 0; strerror_r(errno, buf, 200);         \
-        LOGERR(who << ": " << what << "("  << arg << "): errno " << errno << \
-               ": " << buf << std::endl);                               \
-    }
-#else
-#define LOGSYSERR(who, what, arg) {                                     \
-        char buf[200]; buf[0] = 0;                                      \
-        LOGERR(who << ": " << what << "("  << arg << "): errno " << errno << \
-               ": " << strerror_r(errno, buf, 200) << std::endl);       \
-    }
-#endif
-#endif
-
 class ShmSeg::Internal {
     friend class LockableShmSeg;
 public:
