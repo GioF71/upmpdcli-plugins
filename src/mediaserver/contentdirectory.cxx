@@ -19,8 +19,6 @@
 
 #include "contentdirectory.hxx"
 
-#include <upnp/upnp.h>
-
 #include <functional>
 #include <iostream>
 #include <map>
@@ -172,7 +170,7 @@ static bool makerootdir()
     string pathplg = path_cat(g_datadir, "cdplugins");
     string reason;
     set<string> entries;
-    if (!readdir(pathplg, reason, entries)) {
+    if (!listdir(pathplg, reason, entries)) {
         LOGERR("ContentDirectory::makerootdir: can't read " << pathplg <<
                " : " << reason << endl);
         return false;

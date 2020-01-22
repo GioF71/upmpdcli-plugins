@@ -19,8 +19,6 @@
 
 #include "ohvolume.hxx"
 
-#include <upnp/upnp.h>
-
 #include <functional>
 #include <iostream>
 #include <string>

@@ -35,3 +35,17 @@ static const char *UPMPDCLI_PACKAGE_VERSION = PACKAGE_VERSION;
 #undef PACKAGE_TARNAME
 #undef PACKAGE_URL
 #undef PACKAGE_VERSION
+
+
+// Newer versions of libupnpp export the UPNP_E_XXX error codes from
+// the base upnp lib. In consequence, all inclusions of upnp.h, the
+// sole reason of which were the errcodes, have been removed. Ensure
+// that we still build with older libupnpp versions by defining the
+// few codes we actually return. The exact values have no real
+// importance anyway, except for success==0/error==negative.
+#ifndef UPNP_E_SUCCESS
+#define UPNP_E_SUCCESS			0
+#define UPNP_E_INVALID_PARAM		-101
+#define UPNP_E_INTERNAL_ERROR		-911
+#endif
+

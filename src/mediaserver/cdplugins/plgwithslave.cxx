@@ -26,7 +26,6 @@
 
 #include <string.h>
 #include <fcntl.h>
-#include <upnp/upnp.h>
 #include <json/json.h>
 #include <libupnpp/log.hxx>
 

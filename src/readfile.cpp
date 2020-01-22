@@ -229,7 +229,10 @@ public:
         while (m_stream.avail_in != 0) {
             m_stream.next_out = (Bytef*)m_obuf;
             m_stream.avail_out = m_obs;
-            if ((error = inflate(&m_stream, Z_SYNC_FLUSH)) < Z_OK) {
+            if ((error = inflate(&m_stream, Z_SYNC_FLUSH)) != Z_OK) {
+				// Note that Z_STREAM_END is also an error here,
+				// because we still have data: something is wrong with
+				// the file.
                 LOGERR("inflate error: " << error << endl);
                 if (reason) {
                     *reason += " Zlib inflate failed";

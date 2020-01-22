@@ -19,8 +19,6 @@
 
 #include "avtransport.hxx"
 
-#include <upnp/upnp.h>
-
 #include <functional>
 #include <iostream>
 #include <map>

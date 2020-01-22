@@ -20,7 +20,6 @@
 
 #include "ohcredentials.hxx"
 
-#include <upnp/upnp.h>
 #include <sys/stat.h>
 
 #include <functional>

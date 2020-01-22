@@ -21,8 +21,6 @@
 
 #include <stdlib.h>
 
-#include <upnp/upnp.h>
-
 #include <functional>
 #include <iostream>
 #include <sstream>

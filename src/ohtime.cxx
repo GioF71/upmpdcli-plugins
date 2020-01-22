@@ -19,8 +19,6 @@
 
 #include "ohtime.hxx"
 
-#include <upnp/upnp.h>                  // for UPNP_E_SUCCESS
-
 #include <functional>                   // for _Bind, bind, _1, _2
 #include <iostream>                     // for endl
 #include <string>                       // for string

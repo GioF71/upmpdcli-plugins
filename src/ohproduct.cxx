@@ -18,8 +18,6 @@
 
 #include "ohproduct.hxx"
 
-#include <upnp/upnp.h>                  // for UPNP_E_SUCCESS, etc
-
 #include <functional>                   // for _Bind, bind, _1, _2
 #include <iostream>                     // for endl, etc
 #include <map>                          // for _Rb_tree_const_iterator, etc

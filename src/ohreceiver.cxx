@@ -21,8 +21,6 @@
 
 #include <stdlib.h>                     // for atoi
 
-#include <upnp/upnp.h>                  // for UPNP_E_SUCCESS, etc
-
 #include <functional>                   // for _Bind, bind, _1, _2
 #include <iostream>                     // for endl, etc
 #include <string>                       // for string, allocator, etc
