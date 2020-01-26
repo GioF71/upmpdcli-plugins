@@ -4,5 +4,5 @@
 # there has to be an example of a simple artScript (outputs cover art
 # url), as opposed to metaScript (outputs full metadata json).
 
-curl -s http://radioparadise.com/xml/now.xml | grep '<coverart>' | sed -e 's/<coverart>//' -e 's!</coverart>!!'
+curl -L -s http://radioparadise.com/xml/now.xml | grep '<coverart>' | sed -e 's/<coverart>//' -e 's!</coverart>!!'
  

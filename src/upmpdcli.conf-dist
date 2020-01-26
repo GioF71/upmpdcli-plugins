@@ -235,35 +235,20 @@
 # name.</descr></var>
 #ohproductroom = Main Room
 
-# <var name="radiolist" type="fn"><brief>Path to an external file with radio
-# definitions.</brief><descr>Radio stations can be defined at the end of
-# the main file, or in an external file (or both). Using an external file
-# can ease distribution to multiple machines. Either way, each radio
-# station is defined as a section with a name beginning with 'radio',
-# containing a mandatory URL parameter, and optional values. The part of
-# the name after 'radio' will be the displayed radio name (as album title).
+# <var name="radiolist" type="fn">
+# <brief>Path to an external file with radio definitions.</brief>
 #
-# - artUrl: an optional static radio icon URL.
-# - artScript: an optional script to retrieve an image for the current title
-# - metaScript: an optional script to retrieve metadata for the current
-#   title.
-# - preferScript: decide if values from script should override icy metadata
-# 
-# See the xref:radio-definitions[section about radio station definitions]
-# for details about the scripts.
+# <descr>Radio stations can be defined in this file (main
+# configuration file), or in an external file (or both). Using an external
+# file can ease distribution to multiple machines, makes things clearer and
+# is now the default.  See the distributed file (name below) for
+# information on how to define a radio station. In case you want to define
+# radios in the main configuration file, they MUST occur at the end of the
+# file (because they are defined as subsections, the last of which extends
+# to the end of the file).</descr>
 #
-# Example:
-#
-# ----
-#     [radio My Radio]
-#     url = http://some.host/some/path.pls
-#     artUrl = http://some.host/icon/path.png
-#     artScript = /path/to/script/dynamic-art-getter
-#     metaScript = /path/to/script/metadata-getter
-#     preferScript = 1
-# ----
-# </descr></var>
-#radiolist = /path/to/my/radio/list
+# </var>
+radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 
 # <var name="ohmanufacturername" type="string"><brief>Manufacturer
 # name. </brief></var>
@@ -571,51 +556,3 @@
 # <descr>In seconds. Default 2 S.</descr></var>
 #scscriptgracesecs = 2
 
-# Initial / default List of radios borrowed from misc sources. Edit to taste
-# See 'radiolist' above for a description of the entries.
-#
-# The section markers are the radio names. The definitions must be at the
-# end of the file because a section definition extends to the EOF and would
-# hide any parameters found inside which is not one of the radio
-# attributes. See the radio definitions section in the manual for details,
-# esp. about the scripts which can be used to fetch cover art and metadata
-# about the current song.
-
-[radio Radio Paradise (lossy)]
-# There are many different urls and data formats for radio paradise. See
-# the details here:
-# http://www.radioparadise.com/rp_2.php#name=Listen&file=links
-url = http://stream-uk1.radioparadise.com/aac-128
-artUrl = https://www.radioparadise.com/graphics/fb_logo.png
-artScript = radio-paradise-get-art.sh
-
-[radio Radio Paradise (flac)]
-artUrl = https://www.radioparadise.com/graphics/fb_logo.png
-metaScript = radio-paradise-get-flac.py
-
-[radio Naim Radio]
-url =  http://37.130.228.60:8090/listen.pls
-artUrl = https://www.naimaudio.com/sites/all/themes/naim/images/naim_records_logo.png
-
-[radio Linn Radio (Variety)]
-url =  http://opml.radiotime.com/Tune.ashx?id=s122119
-artUrl = http://small.linncdn.com/website/responsive/images/logo-black-chunky.png
-[radio Linn Classical (Classical)]
-url =  http://opml.radiotime.com/Tune.ashx?id=s122116
-artUrl = http://small.linncdn.com/website/responsive/images/logo-black-chunky.png
-
-[radio Linn Jazz (Jazz)]
-url =  http://opml.radiotime.com/Tune.ashx?id=s122120
-artUrl = http://small.linncdn.com/website/responsive/images/logo-black-chunky.png
-
-[radio FIP (Paris)]
-url = https://stream.radiofrance.fr/fip/fip.m3u8?id=radiofrance
-metaScript = fip-meta.py 7
-preferScript = 1
-
-[radio FIP autour du rock]
-#url = https://direct.fipradio.fr/live/fip-webradio1.mp3?ID=radiofrance
-url = https://chai5she.cdn.dvmr.fr/fip-webradio1.mp3?ID=radiofrance
-artUrl = https://www.fip.fr/sites/default/files/fip-quadri-filet.png
-metaScript = fip-meta.py 64
-preferScript = 1
