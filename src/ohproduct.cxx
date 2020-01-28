@@ -1,34 +1,34 @@
 /* Copyright (C) 2014 J.F.Dockes
- *	 This program is free software; you can redistribute it and/or modify
- *	 it under the terms of the GNU Lesser General Public License as published by
- *	 the Free Software Foundation; either version 2.1 of the License, or
- *	 (at your option) any later version.
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU Lesser General Public License as published by
+ *   the Free Software Foundation; either version 2.1 of the License, or
+ *   (at your option) any later version.
  *
- *	 This program is distributed in the hope that it will be useful,
- *	 but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	 GNU Lesser General Public License for more details.
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Lesser General Public License for more details.
  *
- *	 You should have received a copy of the GNU Lesser General Public License
- *	 along with this program; if not, write to the
- *	 Free Software Foundation, Inc.,
- *	 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   You should have received a copy of the GNU Lesser General Public License
+ *   along with this program; if not, write to the
+ *   Free Software Foundation, Inc.,
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include "config.h"
 
 #include "ohproduct.hxx"
 
-#include <functional>                   // for _Bind, bind, _1, _2
-#include <iostream>                     // for endl, etc
-#include <map>                          // for _Rb_tree_const_iterator, etc
-#include <string>                       // for string, operator<<, etc
-#include <utility>                      // for pair
-#include <vector>                       // for vector
+#include <functional>
+#include <iostream>
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
 #include <utility>
 
-#include "libupnpp/device/device.hxx"   // for UpnpService
-#include "libupnpp/log.hxx"             // for LOGDEB
-#include "libupnpp/soaphelp.hxx"        // for SoapOutgoing, SoapIncoming
+#include "libupnpp/device/device.hxx"
+#include "libupnpp/log.hxx"
+#include "libupnpp/soaphelp.hxx"
 
 #include "upmpd.hxx"
 #include "upmpdutils.hxx"
@@ -159,10 +159,8 @@ OHProduct::OHProduct(UpMpd *dev, ohProductDesc_t& ohProductDesc, int version)
         if (!g_state->get(cstr_stsrcnmkey, savedsrc)) {
             savedsrc = "Playlist";
         }
-        if (savedsrc.compare("Playlist")) {
-            if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
-                g_state->set(cstr_stsrcnmkey, "Playlist");
-            }
+        if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
+            g_state->set(cstr_stsrcnmkey, "Playlist");
         }
     }
 }
@@ -292,9 +290,11 @@ int OHProduct::iSetSourceIndex(int sindex)
         LOGERR("OHProduct::setSourceIndex: bad index: " << sindex << endl);
         return UPNP_E_INVALID_PARAM;
     }
-    if (m_sourceIndex == sindex) {
-        return UPNP_E_SUCCESS;
-    }
+
+    // Do it even if old and new are the same. For example this
+    // provides necessary initialization when we were playing radio
+    // and restarting as playlist (because we probably have a bug
+    // saving the source state).
 
     m_dev->m_ohif->setMetatext("");
 
