@@ -12,28 +12,63 @@ import sys
 import os
 import time
 
-channelid = ''
-if len(sys.argv) > 1:
-    channelid = sys.argv[1]
-    # Make sure this not one of the upmpdcli param names, but a number
+def elemText(objT, elemT):
+    if elemT in objT:
+        return objT[elemT]
+    return ''
+
+def elemNumber(objN, elemN):
+    if elemN in objN:
+        return objN[elemN]
+    return 0
+
+try:
+    if len(sys.argv) > 1:
+        channelid = int(sys.argv[1])
+    else:
+        channelid = int(sys.argv)
+except:
+    sys.exit(1)
+
+else:
     try:
-        bogus = int(channelid)
+        r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' + str(channelid))
+        r.raise_for_status()
     except:
-        channelid = ''
+        sys.exit(1)
 
-r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' + channelid)
-r.raise_for_status()
+    else:
+        try:
+            song = r.json()
+        except:
+            sys.exit(1)
+        else:
+            now = time.time()
+            time = int(elemNumber(song, 'time'))
 
-song = r.json()
-now = time.time()
+            if time > 0 :
+                title   = elemText(song, 'title')
+                artist  = elemText(song, 'artist')
+                album   = elemText(song, 'album')
+                artUrl  = elemText(song, 'cover')
 
-if song['time'] > 0 :
-        # For radio streams Linn's Kazoo app displays artist as title,
-        # in order to display artist as well, join 'title' and 'artist'
-	title = song['artist'] + ' – ' + song['title']
-	metadata = {'title'  : title,
-                    'artist' : song['artist'],
-                    'album'  : song['album'],
-                    'artUrl' : song['cover'],
-                    'reload' : int(song['time'] + 1)}
-	print("%s"% json.dumps(metadata))
+                # For radio streams Linn's Kazoo app displays artist as title,
+                # in order to display artist as well, join 'title' and 'artist'
+                if title and artist and album:
+                    display_title = artist + ' – ' + title + ' (from the album: ' + album + ')'
+
+                elif title and artist and not album:
+                    display_title = artist + ' – ' + title
+
+                elif title and album and not artist:
+                    display_title = title + ' (from the album: ' + album + ')'
+
+                else:
+                    display_title = title
+
+                metadata_out = {'title'  : display_title,
+                                'artist' : artist,
+                                'album'  : album,
+                                'artUrl' : artUrl,
+                                'reload' : time + 1}
+                print("%s"% json.dumps(metadata_out))
