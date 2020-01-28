@@ -216,30 +216,14 @@ physically linked must always share the same ProductRoom
 name.
 
 [[radiolist]]
-radiolist:: Path to an external file with radio
-definitions. Radio stations can be defined at the end of
-the main file, or in an external file (or both). Using an external file
-can ease distribution to multiple machines. Either way, each radio
-station is defined as a section with a name beginning with 'radio',
-containing a mandatory URL parameter, and optional values. The part of
-the name after 'radio' will be the displayed radio name (as album title).
-- artUrl: an optional static radio icon URL.
-- artScript: an optional script to retrieve an image for the current title
-- metaScript: an optional script to retrieve metadata for the current
-title.
-- preferScript: decide if values from script should override icy metadata
-See the xref:radio-definitions[section about radio station definitions]
-for details about the scripts.
-Example:
-----
-[radio My Radio]
-url = http://some.host/some/path.pls
-artUrl = http://some.host/icon/path.png
-artScript = /path/to/script/dynamic-art-getter
-metaScript = /path/to/script/metadata-getter
-preferScript = 1
-----
-
+radiolist:: Path to an external file with radio definitions. Radio stations can be defined in this file (main
+configuration file), or in an external file (or both). Using an external
+file can ease distribution to multiple machines, makes things clearer and
+is now the default.  See the distributed file (name below) for
+information on how to define a radio station. In case you want to define
+radios in the main configuration file, they MUST occur at the end of the
+file (because they are defined as subsections, the last of which extends
+to the end of the file).
 
 [[ohmanufacturername]]
 ohmanufacturername:: Manufacturer

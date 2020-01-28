@@ -687,6 +687,8 @@ issues for me (YMMV...):
     buffer_before_play "20%"
 ====================================
 
+You will need to install the upmpdcli-tidal module.
+
 The Tidal module code is is based on the
 link:https://github.com/tamland/kodi-tidal[Kodi Tidal add-on] and the
 link:https://github.com/tamland/python-tidal[Tidal API], by Thomas Amland
@@ -728,6 +730,8 @@ The configuration parameters are described in the
 [[upmpdcli.googlemusicnotes]]
 === Using Google Music through the Upmpdcli Media Server
 
+You will need to install the upmpdcli-gmusic module.
+
 This is based on the
 link:https://github.com/simon-weber/gmusicapi[gmusicapi] Python package by
 Simon Weber, with upper-level code from the Tidal Kodi add-on. As for the
@@ -761,6 +765,8 @@ The configuration parameters are described in the
 [[upmpdcli.spotifynotes]]
 === Using Spotify through the Upmpdcli Media Server
 
+You will need to install the upmpdcli-spotify module.
+
 You will need a premium account, the free ones do not work for this.
 
 Spotify is the only service which does not use regular (short-lived) HTTP
@@ -793,6 +799,8 @@ authorization annex>>.
 
 [[UPRCL]]
 == Upmpdcli local Media Server: uprcl
+
+You will need to install the upmpdcli-uprcl module.
 
 The current (2019-04) upmpdcli code base includes a Media Server function
 for local music files, analog to MinimServer or ReadyMedia/MiniDLNA. The
