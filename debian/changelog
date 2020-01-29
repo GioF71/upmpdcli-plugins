@@ -1,3 +1,10 @@
+upmpdcli (1.4.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Depend on libupnpp6. Would still build and run with libupnpp5
+  * Misc small improvements (esp in radio scripts and radio source).
+    
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 29 Jan 2019 09:21:00 +0100
+
 upmpdcli (1.4.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fixed some memory leaks in the spotify plugin

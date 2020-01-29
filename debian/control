@@ -9,7 +9,7 @@ Maintainer: Jean-Francois Dockes <jf@dockes.org>
 Build-Depends: debhelper (>= 9.0.0), dh-python, dh-systemd, dh-autoreconf,
                autotools-dev, python-all, python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev,
-               libupnpp5-dev, libupnp6-dev, libjsoncpp-dev,
+               libupnpp6-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl-dev,
                qt5-default, qt5-qmake, qtbase5-dev
 Standards-Version: 3.9.8
