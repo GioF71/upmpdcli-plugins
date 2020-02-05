@@ -16,7 +16,6 @@ Requires: python-requests
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  libupnpp
-BuildRequires:  libupnp-devel
 BuildRequires:  libmpdclient-devel
 BuildRequires:  libmicrohttpd-devel
 BuildRequires:  jsoncpp-devel
