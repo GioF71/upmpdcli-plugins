@@ -1,5 +1,31 @@
 = Upmpdcli release notes
 
+== 2020-02-07 upmpdcli 1.4.6
+
+- Multiple small fixes, some in the radio scripts, most regarding the build
+  system.
+- Avoid mpd remaining in 'single' mode after switching back from the Radio
+  Source.
+- Remove the libupnp dependancy from the packages. We only depend on
+  libupnpp (which in turns depends on libnpupnp).
+
+== 2020-02-07 libupnpp 0.18.0
+
+- Switch to using libnpupnp. The slightly different API means that we are
+  not compatible any more with libupnp, but we get rid of the libixml
+  dependance and the libupnp history of bugs so this is a big win.
+
+== 2020-02-07 linpupnp 2.0.1
+
+- Initial release.
+- The 2.0.0 API is not compatible with the pupnp/libupnp API, this was
+  necessary to get rid of libixml and the weirdness of passing DOM trees
+  across the API.
+- There is a 1.0.0 version in the git history which marks the last point
+  where libnpupnp preserves the libupnp API. Most of the other changes
+  (switching to C++ internally, relying on expat, libcurl and
+  libmicrohttpd) had already be done at this point.
+  
 == 2019-10-15 upmpdcli 1.4.5
 
 - Plug some of the memory leaks in the Spotify interface.

@@ -1,4 +1,5 @@
 = Upmpdcli
+:stylesheet: adoc-colony.css
 
 == Introduction
 
@@ -196,11 +197,11 @@ directly linked with the controls used to modify the parameters.
 == Upmpdcli Media Renderer
 
 
-//////////////////////////////////////
+////
 // Note about configuration section refs: only the first parameter in a
 // subsection can be referenced, and it references the whole
 // subsection. Hence refs like <<mpdhost,+mpdport+>>, which are not typos
-/////////////////////////////////////
+////
 
 
 This section goes in a little more detail about miscellaneous aspects of
@@ -675,7 +676,7 @@ Upmpdcli Media Server.
 === Using Tidal through the Upmpdcli Media Server
 
 [NOTE]
-===================================
+====
 There seems to sometimes be problems when streaming Tidal lossless/FLAC
 streams, with the default MPD configuration. A preliminary and rather
 superficial enquiry seems to indicate that this is caused by too much
@@ -685,7 +686,8 @@ issues for me (YMMV...):
 
     audio_buffer_size "2048"
     buffer_before_play "20%"
-====================================
+
+====
 
 You will need to install the upmpdcli-tidal module.
 
@@ -919,11 +921,11 @@ common distributions (Debian, Raspbian, Ubuntu, Fedora) and architectures
 [[UPMPDCLI-BUILDING]]
 == Building from source
 
-=== Building libupnpp and upmpdcli on Linux
+=== Building upmpdcli on Linux
 
 For building from source, you will need a C\++ compiler with full
-C++11 support, and the development packages for *libupnp* version 1.6,
-*libcurl*, *libmpdclient*, and *libexpat*.
+C++11 support, and the development packages for the supporting libraries:
+*libcurl*, *libmicrohttpd*, *libmpdclient*, and *libexpat*.
 
 Also the Python modules for streaming service support use the
 *python-requests* package, so you may need to install it (it is only needed
@@ -933,18 +935,18 @@ If you are using the source from the git repository, you will also need the
 *autoconf*, *automake*, *libtool* trio. Use the +autogen.sh+ script to set
 things up.
 
-The *libupnpp* library, which used to be part of *upmpdcli*, has been
-separated, and you need to build it first.
+So you need to either clone 3 git repositories:
 
-So you need to either clone two git repositories:
-https://opensourceprojects.eu/p/libupnpp/code and
-https://opensourceprojects.eu/p/upmpdcli/code
+- https://opensourceprojects.eu/p/npupnp/code
+- https://opensourceprojects.eu/p/libupnpp/code
+- https://opensourceprojects.eu/p/upmpdcli/code
+
 or download the release tar files from the the
 link:https://www.lesbonscomptes.com/upmpdcli/downloads.html[upmpdcli
 download page]
 
-Two specific configure options are defined. Each needs the installation of
-additional dependancies:
+For upmpdcli, there are two specific configure options. Each needs the
+installation of additional dependancies:
 
 - --enable-confgui: build the configuration editor GUI. This will need
 the Qt development packages
@@ -957,7 +959,8 @@ the Qt development packages
   from the link:https://github.com/mopidy/libspotify-deb[Mopidy
   repository].
   
-Once the source is extracted, the procedure is standard:
+Once the source is extracted, the procedure is standard for each of the
+three packages:
 
     # Only for git source
     sh autogen.sh 
@@ -966,7 +969,8 @@ Once the source is extracted, the procedure is standard:
     make
     sudo make install
 
-Which you should apply first to the *libupnpp* source, then to *upmpdcli*.
+Which you should apply first to the *libnpupnp* source, then to *libupnpp*,
+then to *upmpdcli*.
 
 If you omit the `--sysconfdir=/etc` part, `upmpdcli.conf` will end up in
 `/usr/etc/`, which is ok, but confusing, as package installers put it in
@@ -1391,7 +1395,8 @@ customisation at all.
 |Verbosity level (0-4)|-l loglevel||loglevel
 |UPnP network interface|-i iface|$UPMPD_UPNPIFACE|upnpiface
 |UPnP port|-P port|$UPMPD_UPNPPORT|upnpport
-|===========================    
+|========================
+
 
 [[UPMPDCLI-CONFIG-GUI]]
 == Annex: the upmpdcli-config GUI configuration editor.
