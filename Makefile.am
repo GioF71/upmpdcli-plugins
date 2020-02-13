@@ -131,7 +131,7 @@ dist_pkgdata_DATA = src/description.xml src/AVTransport.xml \
                   src/OHRadio.xml src/mediaserver/ContentDirectory.xml \
                   src/mediaserver/MS-description.xml \
                   src/protocolinfo.txt src/presentation.html \
-                  src/upmpdcli.conf-dist 
+                  src/upmpdcli.conf-dist
 
 radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
@@ -223,6 +223,7 @@ EXTRA_DIST = \
     autogen.sh \
     src/mediaserver/cdplugins/spotify/spotiproxy.cpp \
     src/mediaserver/cdplugins/spotify/spotiproxy.h \
+    src/upmpdcli.conf-xml \
     systemd/upmpdcli.service \
     uprclbottle.tar.gz \
     web.tar.gz
