@@ -159,9 +159,11 @@ OHProduct::OHProduct(UpMpd *dev, ohProductDesc_t& ohProductDesc, int version)
         if (!g_state->get(cstr_stsrcnmkey, savedsrc)) {
             savedsrc = "Playlist";
         }
-        if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
-            g_state->set(cstr_stsrcnmkey, "Playlist");
-        }
+		if (savedsrc.compare("Playlist")) {
+			if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
+				g_state->set(cstr_stsrcnmkey, "Playlist");
+			}
+		}
     }
 }
 
@@ -291,10 +293,9 @@ int OHProduct::iSetSourceIndex(int sindex)
         return UPNP_E_INVALID_PARAM;
     }
 
-    // Do it even if old and new are the same. For example this
-    // provides necessary initialization when we were playing radio
-    // and restarting as playlist (because we probably have a bug
-    // saving the source state).
+    if (m_sourceIndex == sindex) {
+        return UPNP_E_SUCCESS;
+    }
 
     m_dev->m_ohif->setMetatext("");
 

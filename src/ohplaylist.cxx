@@ -529,6 +529,8 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
             return UPNP_E_INTERNAL_ERROR;
         }
     }
+    m_dev->m_mpdcli->consume(false);
+    m_dev->m_mpdcli->single(false);
     bool ok = m_dev->m_mpdcli->playId(id);
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -547,6 +549,8 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
     int pos;
     bool ok = sc.get("Value", &pos);
     if (ok) {
+		m_dev->m_mpdcli->consume(false);
+		m_dev->m_mpdcli->single(false);
         ok = m_dev->m_mpdcli->play(pos);
         maybeWakeUp(ok);
     }
