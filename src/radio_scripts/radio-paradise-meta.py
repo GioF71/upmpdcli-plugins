@@ -6,69 +6,121 @@ from __future__ import print_function
 #
 # 'channelid' is first parameter (set in config file)
 
-import requests
 import json
+import requests
 import sys
-import os
 import time
 
-def elemText(objT, elemT):
-    if elemT in objT:
-        return objT[elemT]
-    return ''
-
 def elemNumber(objN, elemN):
-    if elemN in objN:
-        return objN[elemN]
-    return 0
+  if elemN in objN:
+      r = int(objN[elemN])
+      if r >= 0:
+        return r
+      return False
+  return False
+
+def elemText(objT, elemT):
+  if elemT in objT:
+    return str(objT[elemT])
+  return None
+
+def return_metadata(title, artist, album, year, artUrl, reload):
+  metadata = {'title'  : display_title,
+              'artist' : artist,
+              'album'  : album,
+              'year'   : year,
+              'artUrl' : artUrl,
+              'reload' : reload}
+  print("%s"% json.dumps(metadata))
+  return
+
+def return_no_metadata(reload):
+  metadata = {'title'  : None,
+              'artist' : None,
+              'album'  : None,
+              'year'   : None,
+              'artUrl' : None,
+              'reload' : reload}
+  print("%s"% json.dumps(metadata))
+  return
+
+def disp_title(artist, title, year, album):
+  ab = ''
+  yr = ''
+  dt = ''
+
+  if year:
+    yr += ' (' + str(year) + ')'
+
+  if album:
+    ab += ' [' + album + ']'
+
+  if   title and artist and year:
+    dt = artist + ' – ' + title + yr + ab
+
+  elif title and artist:
+    dt = artist + ' – ' + title + ab
+
+  elif title and year:
+    dt = title + yr + ab
+
+  elif title:
+    dt = title + ab
+
+  elif artist and album:
+    dt = artist + + ' – Album: ' + ab + yr
+
+  elif artist:
+    dt = artist + yr
+
+  elif album:
+    dt = 'Album: ' + ab + yr
+  return dt
 
 try:
-    if len(sys.argv) > 1:
-        channelid = int(sys.argv[1])
-    else:
-        channelid = int(sys.argv)
+  if len(sys.argv) > 1:
+    channelid = int(sys.argv[1])
+
+  else:
+    channelid = int(sys.argv)
+
 except:
-    sys.exit(1)
+  return_no_metadata(99999999)
 
 else:
+  try:
+    r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' + str(channelid))
+    r.raise_for_status()
+
+  except:
+    return_no_metadata(99999999)
+
+  else:
     try:
-        r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' + str(channelid))
-        r.raise_for_status()
+      song = r.json()
+
     except:
-        sys.exit(1)
+      return_no_metadata(120)
 
     else:
-        try:
-            song = r.json()
-        except:
-            sys.exit(1)
+      now  = int(time.time())
+      time = elemNumber(song, 'time')
+      print('now', now, 'time' ,'time')
+      if time:
+        if time > 2 :
+          title   = elemText(song, 'title')
+          artist  = elemText(song, 'artist')
+          album   = elemText(song, 'album')
+          year    = elemText(song, 'year')
+          artUrl  = elemText(song, 'cover')
+
+          # For radio streams title is displayed twice (in both artist and title fields),
+          # in order to display artist as well, join 'title' and 'artist'
+          display_title = disp_title(artist, title, year, album)
+          return_metadata(display_title, artist, album, year, artUrl, time + 1)
+
         else:
-            now = time.time()
-            time = int(elemNumber(song, 'time'))
+          return_no_metadata(time + 1)
 
-            if time > 0 :
-                title   = elemText(song, 'title')
-                artist  = elemText(song, 'artist')
-                album   = elemText(song, 'album')
-                artUrl  = elemText(song, 'cover')
-
-                # For radio streams Linn's Kazoo app displays artist as title,
-                # in order to display artist as well, join 'title' and 'artist'
-                if title and artist and album:
-                    display_title = artist + ' – ' + title + ' (from the album: ' + album + ')'
-
-                elif title and artist and not album:
-                    display_title = artist + ' – ' + title
-
-                elif title and album and not artist:
-                    display_title = title + ' (from the album: ' + album + ')'
-
-                else:
-                    display_title = title
-
-                metadata_out = {'title'  : display_title,
-                                'artist' : artist,
-                                'album'  : album,
-                                'artUrl' : artUrl,
-                                'reload' : time + 1}
-                print("%s"% json.dumps(metadata_out))
+      else:
+        return_no_metadata(10)
