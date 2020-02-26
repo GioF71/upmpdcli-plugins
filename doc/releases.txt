@@ -1,5 +1,14 @@
 = Upmpdcli release notes
 
+== 2020-02-26 upmpdcli 1.4.7
+
+- Fix 1.4.6 issues with Kazoo.
+
+== 2020-02-25 libnpupnp 2.1.1
+
+- Fix different issues in network configuration code, including an outright
+  crash.
+
 == 2020-02-07 upmpdcli 1.4.6
 
 - Multiple small fixes, some in the radio scripts, most regarding the build
@@ -15,7 +24,7 @@
   not compatible any more with libupnp, but we get rid of the libixml
   dependance and the libupnp history of bugs so this is a big win.
 
-== 2020-02-07 linpupnp 2.0.1
+== 2020-02-07 libnpupnp 2.0.1
 
 - Initial release.
 - The 2.0.0 API is not compatible with the pupnp/libupnp API, this was
