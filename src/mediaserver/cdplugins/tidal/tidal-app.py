@@ -370,10 +370,11 @@ def favourite_artists():
     xbmcplugin.setContent(plugin.handle, 'artists')
     try:
         items = session.user.favorites.artists()
+        if len(items):
+            msgproc.log("First artist name %s"% items[0].name)
     except Exception as err:
         msgproc.log("session.user.favorite.artists failed: %s" % err)
-        return
-    msgproc.log("First artist name %s"% items[0].name)
+        items = []
     view(items, urls_from_id(artist_view, items))
 
 
