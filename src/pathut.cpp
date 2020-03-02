@@ -285,7 +285,7 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
     ULARGE_INTEGER freebytesavail;
     ULARGE_INTEGER totalbytes;
     if (!GetDiskFreeSpaceExA(path.c_str(), &freebytesavail,
-							 &totalbytes, NULL)) {
+                             &totalbytes, NULL)) {
         return false;
     }
     if (pc) {
@@ -315,11 +315,11 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
         *avmbs = 0;
         if (buf.f_bsize > 0) {
             int ratio = buf.f_frsize > FSOCC_MB ? buf.f_frsize / FSOCC_MB :
-                        FSOCC_MB / buf.f_frsize;
+                FSOCC_MB / buf.f_frsize;
 
             *avmbs = buf.f_frsize > FSOCC_MB ?
-                     ((long long)buf.f_bavail) * ratio :
-                     ((long long)buf.f_bavail) / ratio;
+                ((long long)buf.f_bavail) * ratio :
+                ((long long)buf.f_bavail) / ratio;
         }
     }
     return true;
@@ -527,7 +527,7 @@ bool path_isroot(const string& path)
     }
 #ifdef _WIN32
     if (path.size() == 3 && isalpha(path[0]) && path[1] == ':' &&
-            (path[2] == '/' || path[2] == '\\')) {
+        (path[2] == '/' || path[2] == '\\')) {
         return true;
     }
 #endif
@@ -563,7 +563,7 @@ bool path_isabsolute(const string& path)
 #ifdef _WIN32
                           || path_isdriveabs(path)
 #endif
-                         )) {
+            )) {
         return true;
     }
     return false;
@@ -576,7 +576,7 @@ string path_absolute(const string& is)
     }
     string s = is;
 #ifdef _WIN32
-        path_slashize(s);
+    path_slashize(s);
 #endif
     if (!path_isabsolute(s)) {
         char buf[MAXPATHLEN];
@@ -621,7 +621,7 @@ string path_canon(const string& is, const string* cwd)
     stringToTokens(s, elems, "/");
     vector<string> cleaned;
     for (vector<string>::const_iterator it = elems.begin();
-            it != elems.end(); it++) {
+         it != elems.end(); it++) {
         if (*it == "..") {
             if (!cleaned.empty()) {
                 cleaned.pop_back();
@@ -634,7 +634,7 @@ string path_canon(const string& is, const string* cwd)
     string ret;
     if (!cleaned.empty()) {
         for (vector<string>::const_iterator it = cleaned.begin();
-                it != cleaned.end(); it++) {
+             it != cleaned.end(); it++) {
             ret += "/";
 #ifdef _WIN32
             if (it == cleaned.begin() && path_strlookslikedrive(*it)) {
@@ -763,22 +763,22 @@ string url_encode(const string& url, string::size_type offs)
         const char *h = "0123456789ABCDEF";
         c = cp[i];
         if (c <= 0x20 ||
-                c >= 0x7f ||
-                c == '"' ||
-                c == '#' ||
-                c == '%' ||
-                c == ';' ||
-                c == '<' ||
-                c == '>' ||
-                c == '?' ||
-                c == '[' ||
-                c == '\\' ||
-                c == ']' ||
-                c == '^' ||
-                c == '`' ||
-                c == '{' ||
-                c == '|' ||
-                c == '}') {
+            c >= 0x7f ||
+            c == '"' ||
+            c == '#' ||
+            c == '%' ||
+            c == ';' ||
+            c == '<' ||
+            c == '>' ||
+            c == '?' ||
+            c == '[' ||
+            c == '\\' ||
+            c == ']' ||
+            c == '^' ||
+            c == '`' ||
+            c == '{' ||
+            c == '|' ||
+            c == '}') {
             out += '%';
             out += h[(c >> 4) & 0xf];
             out += h[c & 0xf];
@@ -794,6 +794,8 @@ static inline int h2d(int c) {
         return c - '0';
     else if ('A' <= c && c <= 'F')
         return 10 + c - 'A';
+    else if ('a' <= c && c <= 'f')
+        return 10 + c - 'a';
     else 
         return -1;
 }
@@ -807,7 +809,7 @@ string url_decode(const string &in)
     const char *cp = in.c_str();
     string::size_type i = 0;
     for (; i < in.size() - 2; i++) {
-	if (cp[i] == '%') {
+        if (cp[i] == '%') {
             int d1 = h2d(cp[i+1]);
             int d2 = h2d(cp[i+2]);
             if (d1 != -1 && d2 != -1) {
@@ -818,7 +820,7 @@ string url_decode(const string &in)
                 out += cp[i+2];
             }
             i += 2;
-	} else {
+        } else {
             out += cp[i];
         }
     }
@@ -861,7 +863,7 @@ string url_parentfolder(const string& url)
         parenturl = url_gpath(url);
     }
     return isfileurl ? string("file://") + parenturl :
-           string("http://") + parenturl;
+        string("http://") + parenturl;
 }
 
 
@@ -1112,8 +1114,8 @@ int Pidfile::flopen()
     if (fcntl(m_fd, F_SETLK,  &lockdata) != 0) {
         int serrno = errno;
         this->close()
-        errno = serrno;
-         m_reason = "fcntl lock failed";
+            errno = serrno;
+        m_reason = "fcntl lock failed";
         return -1;
     }
 #else

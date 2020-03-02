@@ -169,6 +169,18 @@ private:
 
 #if defined(READFILE_ENABLE_ZLIB)
 #include <zlib.h>
+#include <vector>
+static const vector<CharFlags> inflateErrors{
+    CHARFLAGENTRY(Z_OK),
+    CHARFLAGENTRY(Z_STREAM_END),
+    CHARFLAGENTRY(Z_NEED_DICT),
+    CHARFLAGENTRY(Z_ERRNO),
+    CHARFLAGENTRY(Z_STREAM_ERROR),
+    CHARFLAGENTRY(Z_DATA_ERROR),
+    CHARFLAGENTRY(Z_MEM_ERROR),
+    CHARFLAGENTRY(Z_BUF_ERROR),
+    CHARFLAGENTRY(Z_VERSION_ERROR),
+};
 
 class GzFilter : public FileScanFilter {
 public:
@@ -229,11 +241,13 @@ public:
         while (m_stream.avail_in != 0) {
             m_stream.next_out = (Bytef*)m_obuf;
             m_stream.avail_out = m_obs;
-            if ((error = inflate(&m_stream, Z_SYNC_FLUSH)) != Z_OK) {
-				// Note that Z_STREAM_END is also an error here,
-				// because we still have data: something is wrong with
-				// the file.
-                LOGERR("inflate error: " << error << endl);
+            error = inflate(&m_stream, Z_SYNC_FLUSH);
+            if (error != Z_OK && 
+                !(error == Z_STREAM_END && m_stream.avail_in == 0)) {
+                // Note that Z_STREAM_END with avail_in!=0 is an error,
+                // we still have data: something is wrong with the file.
+                LOGERR("inflate error: " << valToString(inflateErrors, error)
+                       << " remaining bytes: " << m_stream.avail_in << endl);
                 if (reason) {
                     *reason += " Zlib inflate failed";
                     if (m_stream.msg && *m_stream.msg) {
@@ -271,19 +285,19 @@ public:
     FileScanMd5(string& d) : digest(d) {}
     virtual bool init(int64_t size, string *reason) override {
         LOGDEB1("FileScanMd5: init\n");
-	MD5Init(&ctx);
+        MD5Init(&ctx);
         if (out()) {
             return out()->init(size, reason);
         }
-	return true;
+        return true;
     }
     virtual bool data(const char *buf, int cnt, string *reason) override {
         LOGDEB1("FileScanMd5: data. cnt " << cnt << endl);
-	MD5Update(&ctx, (const unsigned char*)buf, cnt);
+        MD5Update(&ctx, (const unsigned char*)buf, cnt);
         if (out() && !out()->data(buf, cnt, reason)) {
             return false;
         }
-	return true;
+        return true;
     }
     bool finish() {
         LOGDEB1("FileScanMd5: finish\n");
@@ -305,7 +319,7 @@ public:
 
     virtual bool scan() {
         LOGDEB1("FileScanSourceFile: reading " << m_fn << " offs " <<
-               m_startoffs<< " cnt " << m_cnttoread << " out " << out() << endl);
+                m_startoffs<< " cnt " << m_cnttoread << " out " << out() << endl);
         const int RDBUFSZ = 8192;
         bool ret = false;
         bool noclosing = true;
@@ -502,12 +516,12 @@ bool file_scan(const std::string& filename, const std::string& membername,
     if (membername.empty()) {
         return file_scan(filename, doer, 0, -1, reason
 #ifdef READFILE_ENABLE_MD5
-, nullptr
+                         , nullptr
 #endif
             );
     } else {
-            FileScanSourceZip source(doer, filename, membername, reason);
-            return source.scan();
+        FileScanSourceZip source(doer, filename, membername, reason);
+        return source.scan();
     }
 }
 
@@ -517,7 +531,7 @@ bool string_scan(const char *data, size_t cnt, const std::string& membername,
     if (membername.empty()) {
         return string_scan(data, cnt, doer, reason
 #ifdef READFILE_ENABLE_MD5
-, nullptr
+                           , nullptr
 #endif
             );                           
     } else {
@@ -581,7 +595,7 @@ bool file_scan(const string& fn, FileScanDo* doer, string *reason)
 {
     return file_scan(fn, doer, 0, -1, reason
 #ifdef READFILE_ENABLE_MD5
-, nullptr
+                     , nullptr
 #endif
         );                           
 }

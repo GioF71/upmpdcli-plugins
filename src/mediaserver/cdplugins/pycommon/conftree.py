@@ -195,22 +195,22 @@ class ConfTree(ConfSimple):
             raise TypeError("getbin: parameters must be binary not unicode")
         #_debug("ConfTree::getbin: nm [%s] sk [%s]" % (nm, sk))
         
-        if sk == b'' or sk[0] != b'/'[0]:
+        # Note the test for root. There does not seem to be a direct
+        # way to do this in os.path
+        if not sk:
             return ConfSimple.getbin(self, nm, sk)
 
-        if sk[len(sk)-1] == b'/'[0]:
-             sk = sk[:len(sk)-1]
-
         # Try all sk ancestors as submaps (/a/b/c-> /a/b/c, /a/b, /a, b'')
-        while sk:
+        while True:
             if sk in self.submaps:
                 return ConfSimple.getbin(self, nm, sk)
             if sk + b'/' in self.submaps:
-                return ConfSimple.getbin(self, nm, sk+b'/')
-            i = sk.rfind(b'/')
-            if i == -1:
-                break
-            sk = sk[:i]
+                return ConfSimple.getbin(self, nm, sk + b'/')
+            nsk = os.path.dirname(sk)
+            if nsk == sk:
+                # sk was already root, we're done. 
+                break;
+            sk = nsk
 
         return ConfSimple.getbin(self, nm)
 
