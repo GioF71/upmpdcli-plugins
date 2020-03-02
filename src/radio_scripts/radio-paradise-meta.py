@@ -16,8 +16,7 @@ def elemNumber(objN, elemN):
       r = int(objN[elemN])
       if r >= 0:
         return r
-      return False
-  return False
+  return 0
 
 def elemText(objT, elemT):
   if elemT in objT:
@@ -57,70 +56,54 @@ def disp_title(artist, title, year, album):
 
   if   title and artist and year:
     dt = artist + ' – ' + title + yr + ab
-
   elif title and artist:
     dt = artist + ' – ' + title + ab
-
   elif title and year:
     dt = title + yr + ab
-
   elif title:
     dt = title + ab
-
   elif artist and album:
     dt = artist + + ' – Album: ' + ab + yr
-
   elif artist:
     dt = artist + yr
-
   elif album:
     dt = 'Album: ' + ab + yr
   return dt
 
-try:
-  if len(sys.argv) > 1:
-    channelid = int(sys.argv[1])
 
-  else:
-    channelid = int(sys.argv)
 
-except:
-  return_no_metadata(99999999)
-
+if len(sys.argv) > 1:
+  channelid = int(sys.argv[1])
 else:
-  try:
-    r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' + str(channelid))
-    r.raise_for_status()
+  sys.exit(1)
 
-  except:
-    return_no_metadata(99999999)
+try:
+  r = requests.get('https://api.radioparadise.com/api/now_playing?chan=' +
+                   str(channelid))
+  r.raise_for_status()
+except:
+  return_no_metadata(10)
 
-  else:
-    try:
-      song = r.json()
+try:
+  song = r.json()
+except:
+  return_no_metadata(120)
 
-    except:
-      return_no_metadata(120)
 
-    else:
-      now  = int(time.time())
-      time = elemNumber(song, 'time')
-      print('now', now, 'time' ,'time')
-      if time:
-        if time > 2 :
-          title   = elemText(song, 'title')
-          artist  = elemText(song, 'artist')
-          album   = elemText(song, 'album')
-          year    = elemText(song, 'year')
-          artUrl  = elemText(song, 'cover')
+now  = int(time.time())
+time = elemNumber(song, 'time')
+#print('now %d time %d' % (now, time))
+if time > 2 :
+  title   = elemText(song, 'title')
+  artist  = elemText(song, 'artist')
+  album   = elemText(song, 'album')
+  year    = elemText(song, 'year')
+  artUrl  = elemText(song, 'cover')
 
-          # For radio streams title is displayed twice (in both artist and title fields),
-          # in order to display artist as well, join 'title' and 'artist'
-          display_title = disp_title(artist, title, year, album)
-          return_metadata(display_title, artist, album, year, artUrl, time + 1)
-
-        else:
-          return_no_metadata(time + 1)
-
-      else:
-        return_no_metadata(10)
+  # For radio streams title is displayed twice (in both artist
+  # and title fields),
+  # in order to display artist as well, join 'title' and 'artist'
+  display_title = disp_title(artist, title, year, album)
+  return_metadata(display_title, artist, album, year, artUrl, time + 1)
+else:
+  return_no_metadata(time + 1)
