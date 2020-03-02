@@ -92,7 +92,7 @@ except:
 
 now  = int(time.time())
 time = elemNumber(song, 'time')
-#print('now %d time %d' % (now, time))
+#print('now %d time %d' % (now, time), file=sys.stderr)
 if time > 2 :
   title   = elemText(song, 'title')
   artist  = elemText(song, 'artist')
