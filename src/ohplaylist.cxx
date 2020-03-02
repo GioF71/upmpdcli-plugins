@@ -49,6 +49,11 @@ using namespace std::placeholders;
 static const string sTpProduct("urn:av-openhome-org:service:Playlist:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Playlist");
 
+// This is an undocumented configuration variable for people who
+// really want to keep the mpd playlist 'consume' attribute under
+// mpc/mpd control. If set we don't touch it.
+static bool keepconsume;
+
 // Playlist is the default oh service, so it's active when starting up
 OHPlaylist::OHPlaylist(UpMpd *dev, unsigned int cssleep)
     : OHService(sTpProduct, sIdProduct, "OHPlaylist.xml", dev),
@@ -111,6 +116,7 @@ OHPlaylist::OHPlaylist(UpMpd *dev, unsigned int cssleep)
             LOGDEB("ohPlaylist: cache restore done" << endl);
         }
     }
+    keepconsume = g_config->getBool("keepconsume", false);
 }
 
 static const int tracksmax = 16384;
@@ -323,7 +329,8 @@ void OHPlaylist::setActive(bool onoff)
     if (onoff) {
         m_dev->m_mpdcli->clearQueue();
         m_dev->m_mpdcli->restoreState(m_mpdsavedstate);
-        m_dev->m_mpdcli->consume(false);
+        if (!keepconsume)
+            m_dev->m_mpdcli->consume(false);
         m_dev->m_mpdcli->single(false);
         refreshState();
         maybeWakeUp(true);
@@ -343,7 +350,8 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
     if (!m_active && m_dev->m_ohpr) {
         m_dev->m_ohpr->iSetSourceIndexByName("Playlist");
     }
-    m_dev->m_mpdcli->consume(false);
+    if (!keepconsume)
+        m_dev->m_mpdcli->consume(false);
     m_dev->m_mpdcli->single(false);
     bool ok = m_dev->m_mpdcli->play();
     maybeWakeUp(ok);
@@ -530,7 +538,8 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
             return UPNP_E_INTERNAL_ERROR;
         }
     }
-    m_dev->m_mpdcli->consume(false);
+    if (!keepconsume)
+        m_dev->m_mpdcli->consume(false);
     m_dev->m_mpdcli->single(false);
     bool ok = m_dev->m_mpdcli->playId(id);
     maybeWakeUp(ok);
@@ -550,7 +559,8 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
     int pos;
     bool ok = sc.get("Value", &pos);
     if (ok) {
-		m_dev->m_mpdcli->consume(false);
+        if (!keepconsume)
+            m_dev->m_mpdcli->consume(false);
 		m_dev->m_mpdcli->single(false);
         ok = m_dev->m_mpdcli->play(pos);
         maybeWakeUp(ok);

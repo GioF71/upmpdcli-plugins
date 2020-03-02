@@ -53,6 +53,7 @@ static const string sTpProduct("urn:av-openhome-org:service:Radio:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Radio");
 
 static const string cstr_sturlkey("ohradio.url");
+static bool keepconsume;
 
 static string find_script(const string& icmd)
 {
@@ -175,6 +176,7 @@ OHRadio::OHRadio(UpMpd *dev)
                           bind(&OHRadio::stop, this, _1, _2));
     dev->addActionMapping(this, "TransportState",
                           bind(&OHRadio::transportState, this, _1, _2));
+    keepconsume = g_config->getBool("keepconsume", false);
 }
 
 static void getRadiosFromConf(ConfSimple* conf)
@@ -322,7 +324,8 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
             LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri <<
                     endl);
             m_dev->m_mpdcli->single(false);
-            m_dev->m_mpdcli->consume(true);
+            if (!keepconsume)
+                m_dev->m_mpdcli->consume(true);
             if (m_dev->m_mpdcli->insert(audioUri, -1, song) < 0) {
                 LOGERR("OHRadio::mkstate: mpd insert failed."<< " pos " <<
                        mpds.songpos << " uri " << audioUri << endl);

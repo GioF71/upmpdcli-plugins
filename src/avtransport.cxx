@@ -45,6 +45,7 @@ static const string sIdTransport("urn:upnp-org:serviceId:AVTransport");
 static const string sTpTransport("urn:schemas-upnp-org:service:AVTransport:1");
 
 static bool m_autoplay{false};
+static bool keepconsume(false);
 
 UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
     : UpnpService(sTpTransport, sIdTransport, "AVTransport.xml", dev, noev),
@@ -103,6 +104,7 @@ UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
 //    m_dev->m_mpdcli->single(true);
 #endif
     m_autoplay = g_config->getBool("avtautoplay", false);
+    keepconsume = g_config->getBool("keepconsume", false);
 }
 
 // AVTransport Errors
@@ -460,7 +462,8 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
     m_dev->m_mpdcli->random(false);
     // See comment about single in init
     m_dev->m_mpdcli->single(false);
-    m_dev->m_mpdcli->consume(false);
+    if (!keepconsume)
+        m_dev->m_mpdcli->consume(false);
     
     // curpos == -1 means that the playlist was cleared or we just started. A
     // play will use position 0, so it's actually equivalent to curpos == 0
