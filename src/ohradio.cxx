@@ -57,7 +57,7 @@ static const string cstr_sturlkey("ohradio.url");
 static string find_script(const string& icmd)
 {
     if (path_isabsolute(icmd))
-	return icmd;
+        return icmd;
 
     // Append the radio scripts dir to the PATH. Put at the end so
     // that the user can easily override a script by putting the
@@ -319,7 +319,8 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
             UpSong song;
             song.album = radio.title;
             song.rsrc.uri = audioUri;
-            LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri << endl);
+            LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri <<
+                    endl);
             m_dev->m_mpdcli->single(false);
             m_dev->m_mpdcli->consume(true);
             if (m_dev->m_mpdcli->insert(audioUri, -1, song) < 0) {
@@ -348,56 +349,63 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     st["ChannelsMax"] = SoapHelp::i2s(o_radios.size());
     st["Id"] = SoapHelp::i2s(m_id);
     makeIdArray(st["IdArray"]);
-
-    if (m_active && m_id >= 0 && m_id < o_radios.size()) {
-        if (mpds.currentsong.album.empty()) {
-            mpds.currentsong.album = o_radios[m_id].title;
-        }
-
-        RadioMeta& radio = o_radios[m_id];
-
-        // Some radios do not insert icy metadata in the stream, but rather
-        // provide a script to retrieve it.
-        bool nompddata = mpds.currentsong.title.empty() &&
-            mpds.currentsong.artist.empty();
-        if ((m_playpending || mpds.state == MpdStatus::MPDS_PLAY) &&
-            (radio.preferScript || nompddata) && radio.metaScript.size()) {
-            maybeExecMetaScript(radio, mpds);
-            mpds.currentsong.title = radio.dynTitle;
-            mpds.currentsong.artist = radio.dynArtist;
-        }
-
-        // Some radios provide a url to the art for the current song. 
-        // Execute script to retrieve it if the current title+artist changed
-        if (radio.artScript.size()) {
-            string nsong(mpds.currentsong.title + mpds.currentsong.artist);
-            if (nsong.compare(m_currentsong)) {
-                m_currentsong = nsong;
-                string uri;
-                radio.dynArtUri.clear();
-                if (ExecCmd::backtick(radio.artScript, uri)) {
-                    trimstring(uri, " \t\r\n");
-                    LOGDEB0("OHRadio::makestate: artScript got: [" << uri <<
-                            "]\n");
-                    radio.dynArtUri = uri;
-                }
-            }
-        }
-        mpds.currentsong.artUri = radio.dynArtUri.empty() ? radio.artUri :
-            radio.dynArtUri;
-
-        string meta = didlmake(mpds.currentsong);
-        st["Metadata"] =  meta;
-        m_dev->m_ohif->setMetatext(meta);
-    } else {
-        if (m_active) 
-            LOGDEB("OHRadio::makestate: bad m_id " << m_id << endl);
-        st["Metadata"] =  "";
-        m_dev->m_ohif->setMetatext("");
-    }
     st["ProtocolInfo"] = Protocolinfo::the()->gettext();
     st["TransportState"] =  mpdstatusToTransportState(mpds.state);
     st["Uri"] = mpds.currentsong.rsrc.uri;
+
+    st["Metadata"] =  "";
+
+    if (!m_active) {
+        st["TransportState"] =  "Stopped";
+        st["Uri"] = "";
+        return true;
+    }
+
+    if (m_id < 0 || m_id >= o_radios.size()) {
+        // ??
+        LOGDEB("OHRadio::makestate: bad m_id " << m_id << endl);
+        return true;
+    }
+        
+    if (mpds.currentsong.album.empty()) {
+        mpds.currentsong.album = o_radios[m_id].title;
+    }
+
+    RadioMeta& radio = o_radios[m_id];
+
+    // Some radios do not insert icy metadata in the stream, but rather
+    // provide a script to retrieve it.
+    bool nompddata = mpds.currentsong.title.empty() &&
+        mpds.currentsong.artist.empty();
+    if ((m_playpending || mpds.state == MpdStatus::MPDS_PLAY) &&
+        (radio.preferScript || nompddata) && radio.metaScript.size()) {
+        maybeExecMetaScript(radio, mpds);
+        mpds.currentsong.title = radio.dynTitle;
+        mpds.currentsong.artist = radio.dynArtist;
+    }
+
+    // Some radios provide a url to the art for the current song. 
+    // Execute script to retrieve it if the current title+artist changed
+    if (radio.artScript.size()) {
+        string nsong(mpds.currentsong.title + mpds.currentsong.artist);
+        if (nsong.compare(m_currentsong)) {
+            m_currentsong = nsong;
+            string uri;
+            radio.dynArtUri.clear();
+            if (ExecCmd::backtick(radio.artScript, uri)) {
+                trimstring(uri, " \t\r\n");
+                LOGDEB0("OHRadio::makestate: artScript got: [" << uri <<
+                        "]\n");
+                radio.dynArtUri = uri;
+            }
+        }
+    }
+    mpds.currentsong.artUri = radio.dynArtUri.empty() ? radio.artUri :
+        radio.dynArtUri;
+
+    string meta = didlmake(mpds.currentsong);
+    st["Metadata"] =  meta;
+    m_dev->m_ohif->setMetatext(meta);
     return true;
 }
 
@@ -475,7 +483,9 @@ int OHRadio::setPlaying()
     return UPNP_E_SUCCESS;
 }
 
-void OHRadio::setActive(bool onoff) {
+void OHRadio::setActive(bool onoff)
+{
+    LOGDEB0("OHRadio::setActive: " << onoff << endl);
     m_active = onoff;
     if (m_active) {
         if (m_id) {
@@ -739,7 +749,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
     if (ok) {
         const MpdStatus& mpds =  m_dev->getMpdStatusNoUpdate();
         bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) ||
-                       (mpds.state == MpdStatus::MPDS_PAUSE);
+            (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
             seconds += mpds.songelapsedms / 1000;
             ok = m_dev->m_mpdcli->seek(seconds);

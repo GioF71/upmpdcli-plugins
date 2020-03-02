@@ -299,6 +299,7 @@ bool OHPlaylist::makestate(unordered_map<string, string> &st)
         makeIdArray(st["IdArray"]);
     } else {
         st = m_upnpstate;
+        st["TransportState"] =  "Stopped";
     }
 
     return true;
