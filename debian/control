@@ -7,7 +7,7 @@ Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # The dep on libupnp6-dev is only because of the error code (UPNP_E_...) as
 # far as I can see.
 Build-Depends: debhelper (>= 9.0.0), dh-python, dh-systemd, dh-autoreconf,
-               autotools-dev, python-all, python3, pkg-config,
+               autotools-dev, python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev,
                libupnpp6-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl-dev,

@@ -16,7 +16,7 @@ override_dh_autoreconf:
 	dh_autoreconf ./autogen.sh
 
 %:
-	dh $@  --with autoreconf,autotools-dev,python2,python3,systemd --parallel
+	dh $@  --with autoreconf,python3,systemd --parallel
 
 
 override_dh_auto_configure:
