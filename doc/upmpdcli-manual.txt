@@ -1,5 +1,5 @@
 = Upmpdcli
-:stylesheet: adoc-colony.css
+:toc: left
 
 == Introduction
 
