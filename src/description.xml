@@ -1,9 +1,9 @@
     <deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType>
     <friendlyName>@FRIENDLYNAME@</friendlyName>
     <manufacturer>JF Light Industries</manufacturer>
-    <manufacturerURL>https://opensourceprojects.eu/u/medoc/profile/</manufacturerURL>
+    <manufacturerURL>https://framagit.org/medoc92</manufacturerURL>
     <modelDescription>UPnP front-end to MPD</modelDescription>
     <modelName>UpMPD</modelName>
     <modelNumber>42</modelNumber>
-    <modelURL>https://opensourceprojects.eu/p/upmpdcli/code/</modelURL>
+    <modelURL>https://framagit.org/medoc92/upmpdcli/code/</modelURL>
     <serialNumber>@UPMPDCLIVERSION@</serialNumber>

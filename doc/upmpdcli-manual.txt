@@ -937,9 +937,9 @@ things up.
 
 So you need to either clone 3 git repositories:
 
-- https://opensourceprojects.eu/p/npupnp/code
-- https://opensourceprojects.eu/p/libupnpp/code
-- https://opensourceprojects.eu/p/upmpdcli/code
+- https://framagit.org/medoc92/npupnp
+- https://framagit.org/medoc92/libupnpp
+- https://framagit.org/medoc92/upmpdcli
 
 or download the release tar files from the the
 link:https://www.lesbonscomptes.com/upmpdcli/downloads.html[upmpdcli
@@ -1029,7 +1029,7 @@ There are two parts in building *sc2mpd*:
 First download a
 link:http://www.lesbonscomptes.com/upmpdcli/downloads.html[*sc2mpd*
 release] or clone the *sc2mpd*
-https://opensourceprojects.eu/p/sc2mpd/[Git repository]. 
+https://framagit.org/medoc92/sc2mpd[Git repository].
 
 
 ==== Building the OpenHome libraries

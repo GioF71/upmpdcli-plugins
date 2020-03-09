@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: upmpdcli
-Source: https://opensourceprojects.eu/p/upmpdcli/
+Source: https://framagit.org/medoc92/upmpdcli/
 
 Files: *
 Copyright: 2005-2019, Jean-Francois Dockes <jf@dockes.org>
