@@ -1,5 +1,4 @@
 = libnpupnp : replacing the venerable pupnp/libupnp
-:stylesheet: adoc-colony.css
 
 The libupnpp library, which provides the C++ interface for upmpdcli and
 upplay, used to rely on the venerable
