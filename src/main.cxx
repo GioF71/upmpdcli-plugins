@@ -702,9 +702,6 @@ int main(int argc, char *argv[])
             loglevel = atoi(cp1);
         }
         loglevel = loglevel < 0 ? 0: loglevel;
-        loglevel = loglevel > int(LibUPnP::LogLevelDebug) ? 
-            int(LibUPnP::LogLevelDebug) : loglevel;
-
         if (loglevel != LibUPnP::LogLevelNone) {
             mylib->setLogFileName(cp, LibUPnP::LogLevel(loglevel));
         }
