@@ -1,5 +1,7 @@
 = libnpupnp : replacing the venerable pupnp/libupnp
 
+== Rationale
+
 The libupnpp library, which provides the C++ interface for upmpdcli and
 upplay, used to rely on the venerable
 link:https://github.com/pupnp/pupnp[libupnp library] (a.k.a pupnp: Portable
@@ -9,7 +11,7 @@ Pupnp is very old and has suffered for a number of years from indifferent
 maintenance resulting in buggy releases being shipped by the Linux
 distributions (and endless trouble for me). For a few years now, I had to
 ship a patched version of an older release of the library with upmpdcli and
-upplay.
+upplay to work around the problem.
 
 I did make an effort to help with a situation, and contributed a number of
 significant bug fixes to the package. See
@@ -34,22 +36,63 @@ changes:
 
 The current implementation has a C++ interface, because of the use of STL
 containers to replace XML DOM trees in a couple of entry points. It would
-be reasonably easy to add a pure C interface if someone saw a point to it.
+be reasonably easy to add a pure C interface if someone saw a point to
+it. See the next section for a more detailed description of the changes.
 
 Of course there is no chance that the new library is free of bugs, but I
 think that they will be easier to find and fix than previously.
-
-The Web server function inside the new library is not really fit to be used
-as a general purpose Web server (even less than the equivalent in pupnp). I
-do think that it's better to use a separate microhttpd instance to serve
-media, but I am still hesitating between completing the web server function
-or just trimming it down even a bit more to only serve the UPnP XML
-files. Don't hesitate to contact me if you think of using the lib and
-something is lacking.
 
 In practise, the libupnpp layer has isolated the applications from these
 changes, and upmpdcli and upplay can still be built with libupnpp 0.17.x and
 libupnp. But the default is now to build the packages with libupnpp 0.18.x
 and libnpupnp.
 
-Bye bye pupnp, hello npupnp...
+
+== Porting from PUPNP to NPUPNP
+
+When creating the new library, the goal was to keep the API intact, as much
+as feasible.
+
+However the complete suppression of libixml has forced changes where ixml
+elements were present in the interfaces (e.g. DOM trees). These elements
+have been replaced with C++ data elements.
+
+There are relatively few changes, and the new code for interfacing NPUPNP
+is usually simpler than the old one (e.g. pass either an XML string or a
+C++ vector in place of a DOM tree).
+
+Details follow.
+
+=== Upnp_Action_Request.
+
+struct Upnp_Action_Request (or its equivalent in libupnp 1.8) is used in
+the device interface to communicate an action request to the client code
+and retrieve the result. In libupnp, this structure has two IXML DOM tree
+members to transport the request and the response arguments. libnpupnp
+replaces these elements with vector<pair<string,string>>. The original XML
+request is also present in the structure, in case there are things in there
+which don't make it into the args vector, and the client code can set an
+XML string in place of setting the response argument vector.
+
+=== File_Info
+
+The libupnp struct File_Info has a dynamically allocated ixml DOMString
+member for the content type value. In libupnp, this is replaced by an
+std::string.
+
+libupnp has had a variety of ways for the client to set HTTP headers in the
+struct File_Info, so that the libupnp web server sets them in the HTTP
+response. libnpupnp uses request_headers and response_headers map and vector
+fields in the File_Info structure to communicate the request and response
+headers.
+
+=== GENA methods
+
+libupnp has an UpnpAcceptSubscriptionEx() call, which takes an IXML DOM
+tree as an argument to return the initial Property Set. libnpupnp replaces
+this with UpnpAcceptSubscriptionXML() which takes an XML std::string
+instead.
+
+Same change for the UpnpNotifyEx() -> UpnpNotifyXML() calls which are used
+to dispatch state change events.
+
