@@ -201,7 +201,9 @@ class CmdTalk:
 
 
 # Common main routine for testing: either run the normal protocol
-# engine or a local loop.
+# engine or a local loop. This means that you can call
+# cmdtalk.main(proto,processor) instead of proto.mainloop(processor)
+# from your module, and get the benefits of command line testing
 def main(proto, processor):
     if len(sys.argv) == 1:
         proto.mainloop(processor)
@@ -220,7 +222,7 @@ def main(proto, processor):
     if len(args) == 0 or len(args) % 2 != 0:
         usage()
     params = dict()
-    for i in range(len(args)/2):
+    for i in range(int(len(args)/2)):
         params[args[2*i]] = args[2*i+1]
     res = processor.process(params)
 
