@@ -1,24 +1,23 @@
 Source: upmpdcli
 Section: contrib/sound
-Priority: extra
+Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
 # The dep on libupnp6-dev is only because of the error code (UPNP_E_...) as
 # far as I can see.
-Build-Depends: debhelper (>= 9.0.0), dh-python, dh-systemd, dh-autoreconf,
+Build-Depends: debhelper (>= 9.20160709),
                autotools-dev, python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev,
                libupnpp6-dev, libjsoncpp-dev,
-               libexpat1-dev, libcurl-dev,
-               qt5-default, qt5-qmake, qtbase5-dev
+               libexpat1-dev, libcurl4-gnutls-dev,
+               qt5-qmake, qtbase5-dev
 Standards-Version: 3.9.8
 Homepage: http://www.lesbonscomptes.com/upmpdcli
 
 Package: upmpdcli
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, python3,
-         ${python:Depends}, python3-requests
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, python3, python3-requests
 Section: contrib/sound
 Description: UPnP Media Renderer front-end to MPD, the Music Player Daemon
  upmpdcli acts as an UPnP Media Renderer on the front-end so that you can
@@ -33,18 +32,19 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Section: contrib/sound
 Description: GUI configuration editor for upmpdcli.
+ upmpdcli-config is a qt-based GUI for editing an upmpdcli configuration file.
 
 Package: scweb
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, ${misc:Depends}, ${python:Depends}
+Depends: upmpdcli, python3, ${misc:Depends}
 Description: web interface for controlling multiple Songcast Receivers
  scweb is a web front-end to the scctl songcast receiver control command.
 
 Package: upmpdcli-qobuz
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${python:Depends}, ${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Qobuz plugin
  upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
  streaming service.
@@ -52,7 +52,7 @@ Description: upmpdcli Qobuz plugin
 Package: upmpdcli-tidal
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${python:Depends}, ${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Tidal plugin
  upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
  streaming service.
@@ -60,7 +60,7 @@ Description: upmpdcli Tidal plugin
 Package: upmpdcli-gmusic
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${python:Depends}, ${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Google Play Music plugin
  upmpdcli-gmusic allows upmpdcli to proxy access to the Google Play Music
  streaming service.
@@ -68,8 +68,7 @@ Description: upmpdcli Google Play Music plugin
 Package: upmpdcli-spotify
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, libspotify12, ${python:Depends},
-   ${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, libspotify12, ${misc:Depends}
 Description: upmpdcli Spotify plugin
  upmpdcli-spotify allows upmpdcli to proxy access to the Spotify
  streaming service.
@@ -78,6 +77,6 @@ Package: upmpdcli-uprcl
 Architecture: all
 Section: contrib/sound
 Depends: upmpdcli, python3 (>= 3.5), python3-requests, python3-recoll,
-  python3-waitress, python3-mutagen, ${python:Depends}, ${misc:Depends}
+  python3-waitress, python3-mutagen, ${misc:Depends}
 Description: upmpdcli local Media Server plugin
  upmpdcli-uprcl enables a Recoll-based local media server.

@@ -16,8 +16,12 @@ override_dh_autoreconf:
 	dh_autoreconf ./autogen.sh
 
 %:
-	dh $@  --with autoreconf,python3,systemd --parallel
+	dh $@  --with autoreconf,systemd --parallel
 
 
 override_dh_auto_configure:
 	dh_auto_configure -- --enable-confgui --enable-spotify
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -rf $(CURDIR)/debian/tmp/usr/share/upmpdcli/rdpl2stream/lib/__pycache__
