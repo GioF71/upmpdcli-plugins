@@ -264,6 +264,7 @@ install-data-hook: web.tar.gz rdpl2stream.tar.gz uprclbottle.tar.gz
 	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *)
+	(cd $(DESTDIR)/$(radioscriptsdir);chmod a-x radiolist.conf)
         
 dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
 
