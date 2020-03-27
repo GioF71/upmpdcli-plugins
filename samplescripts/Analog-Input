@@ -1,4 +1,4 @@
-#!/usr/bin//python
+#!/usr/bin/python3
 
 from __future__ import print_function
 
@@ -190,4 +190,3 @@ while True:
 
 time.sleep(1)
 cleanup(0)
-
