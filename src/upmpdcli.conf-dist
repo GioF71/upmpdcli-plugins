@@ -206,6 +206,8 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #scalsadevice = default
 # sc2mpd resampling method.
 #sccvttype = SRC_SINC_FASTEST
+# Scale songcast stream based on mpd volume value
+#scusempdvolume = 0
 # Path to sc2mpd.
 #sc2mpd =
 # Path to a screceiver state file.

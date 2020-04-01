@@ -458,6 +458,11 @@ a couple % for the conversion in fact. NONE will turn resampling off:
 minimum CPU and best quality, but guaranteed glitches from time
 to time, depending on the clocks skew.
 
+[[scusempdvolume]]
+scusempdvolume:: Scale songcast stream based on mpd volume value Allow controlling the volume from the Control Point by scaling the
+stream according to the mpd volume value. Only works when scplaymethod is
+'alsa'.
+
 [[sc2mpd]]
 sc2mpd:: Path to
 sc2mpd. Only useful if it is not in /usr/bin and the

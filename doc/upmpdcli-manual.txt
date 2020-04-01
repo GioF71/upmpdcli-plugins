@@ -411,15 +411,27 @@ The following steps are taken for establishing a Songcast connection:
 - If the _`mpd`_ method is in use, *upmpdcli* instructs *mpd* to play the
   URL for the *sc2mpd* output.
 
-WARNING: There is *no software volume control* for the *upmpdcli* Songcast
-Receivers for now: use either a local mixer or the little round things on
-the pre-amps. Set the volume low when experimenting !
-
 NOTE: Songcast can use IP multicast for lower load on the network when
 playing on several hosts. Unfortunately, multicast and WIFI don't mix well
 in many cases. If you have wireless Receivers experiencing sound drop
 issues, try selecting unicast in the Songcast advanced configuration panel
 on the desktop.
+
+[[UPMPDCLI-RECEIVER-VOLUME]]
+=== Songcast Receiver Volume control
+
+By default, the *upmpdcli* Songcast Receivers implement no software volume
+control and you need to use either a local mixer or the little round
+things on the pre-amps. Set the volume low when experimenting !
+
+*sc2mpd* versions 1.1.6 and later can scale the audio stream according to
+the local *mpd* volume setting. This means that you can adjust the volume
+from a control point connected to the corresponding *upmpdcli*
+instance. The volume control goes from the control point to *upmpdcli*,
+which sets it in *mpd*, from which *sc2mpd* retrieves it to set the scale
+factor. This is not active by default, you can enable it by setting the
+<<sclogfilename, `scusempdvolume`>> variable to 1 in the local
+`upmpdcli.conf`. This only works if if `scplaymethod` is _alsa_.
 
 [[UPMPDCLI-SENDER]]
 === Upmpdcli Songcast Sender

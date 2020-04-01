@@ -503,6 +503,13 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # to time, depending on the clocks skew.</descr></var>
 #sccvttype = SRC_SINC_FASTEST
 
+# <var name="scusempdvolume" type="bool">
+# <brief>Scale songcast stream based on mpd volume value</brief>
+# <descr>Allow controlling the volume from the Control Point by scaling the
+# stream according to the mpd volume value. Only works when scplaymethod is
+# 'alsa'.</descr></var>
+#scusempdvolume = 0
+
 # <var name="sc2mpd" type="string"><brief>Path to
 # sc2mpd.</brief><descr>Only useful if it is not in /usr/bin and the
 # location is not in the $PATH for the init scripts.</descr></var>
