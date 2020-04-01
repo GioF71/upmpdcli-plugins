@@ -420,18 +420,29 @@ on the desktop.
 [[UPMPDCLI-RECEIVER-VOLUME]]
 === Songcast Receiver Volume control
 
-By default, the *upmpdcli* Songcast Receivers implement no software volume
-control and you need to use either a local mixer or the little round
-things on the pre-amps. Set the volume low when experimenting !
+This section used to claim that the *upmpdcli* Songcast Receivers
+implemented no software volume control and that you needed to use either a
+local mixer or the little round things on the pre-amps.
 
-*sc2mpd* versions 1.1.6 and later can scale the audio stream according to
-the local *mpd* volume setting. This means that you can adjust the volume
-from a control point connected to the corresponding *upmpdcli*
-instance. The volume control goes from the control point to *upmpdcli*,
-which sets it in *mpd*, from which *sc2mpd* retrieves it to set the scale
-factor. This is not active by default, you can enable it by setting the
-<<sclogfilename, `scusempdvolume`>> variable to 1 in the local
-`upmpdcli.conf`. This only works if if `scplaymethod` is _alsa_.
+Actually, as of *sc2mpd* version 1.1.6, there are two possible ways to
+control the volume on an upmpdcli Songcast receiver, one of which has
+existed for a long time. Both approaches are based on the fact that a
+control point connected to the upmpdcli instance can set the volume level
+using the normal UPnP/OpenHome interfaces.
+
+The first method, which has been available for a long time is to use the
+<<onstart,`externalvolumecontrol`>> feature, and set up the corresponding
+scripts to set and retrieve the volume from the audio mixer (e.g. using
+amixer or such). This will adjust the volume without any change to the
+Songcast stream.
+
+The second method, available for *sc2mpd* versions 1.1.6 and later can
+scale the audio stream according to the local *mpd* volume setting.  The
+volume control goes from the control point to *upmpdcli*, which sets it in
+*mpd*, from which *sc2mpd* retrieves it to set the scale factor. This is
+not active by default, you can enable it by setting the <<sclogfilename,
+`scusempdvolume`>> variable to 1 in the local `upmpdcli.conf`. This only
+works if if `scplaymethod` is _alsa_.
 
 [[UPMPDCLI-SENDER]]
 === Upmpdcli Songcast Sender
