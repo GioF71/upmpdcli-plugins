@@ -131,7 +131,7 @@ dist_pkgdata_DATA = src/description.xml src/AVTransport.xml \
                   src/OHRadio.xml src/mediaserver/ContentDirectory.xml \
                   src/mediaserver/MS-description.xml \
                   src/protocolinfo.txt src/presentation.html \
-                  src/upmpdcli.conf-dist
+                  src/upmpdcli.conf-dist src/upmpdcli.conf-xml
 
 radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \

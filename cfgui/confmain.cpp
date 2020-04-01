@@ -240,6 +240,10 @@ static char *thisprog;
 void Usage()
 {
     cerr << "Usage: " << thisprog << " [configfile]\n";
+    cerr << " The configuration file parameter will first be used as input,\n"
+        "for initializing the current non-default values, and it is also the\n"
+        "default output. Use 'Save As' if you can't write to it. \n"
+        "If no parameter is given, the initial values will all be defaults.\n";
     exit(1);
 }
 
@@ -255,6 +259,8 @@ int main(int argc, char **argv)
     if (argc > 1)
         Usage();
     if (argc) {
+        if (*argv[0] == '-')
+            Usage();
         g_outfile = *argv++;argc--;
     }
 
@@ -279,11 +285,10 @@ int main(int argc, char **argv)
     // Configuration file from the distribution, with the
     // XML-formatted comments, used to create the appropriate data
     // input objects, and supply them with initial values.
-    string reffile(path_cat(g_datadir, "upmpdcli.conf-dist"));
+    string reffile(path_cat(g_datadir, "upmpdcli.conf-xml"));
     ConfSimple sconf(reffile.c_str(), 1);
     if (!sconf.ok()) {
-        cerr << "Could not parse reference configuration: " <<
-            reffile << "\n";
+        cerr << "Could not parse reference configuration: " << reffile << "\n";
         exit(1);
     }
     stringstream stream;
