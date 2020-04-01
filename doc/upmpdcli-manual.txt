@@ -1429,7 +1429,7 @@ upmpdcli configuration file. It presents different tabs with controls,
 directly matching the organisation of the parameters in the documentation.
 Both the tool and the manual are generated from data in the reference
 configuration distributed with the package (typically
-'/usr/share/upmpdcli/upmpdcli.conf-dist').
+'/usr/share/upmpdcli/upmpdcli.conf-xml').
 
 You can use the tool to create a configuration from scratch (just tweak
 what you want, then save the file), or for editing an existing
