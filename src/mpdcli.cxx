@@ -177,136 +177,136 @@ bool MPDCli::showError(const string& who)
 
 bool MPDCli::updStatus()
 {
-if (!ok() && !openconn()) {
-    LOGERR("MPDCli::updStatus: no connection" << endl);
-    return false;
-}
-
-    mpd_status *mpds = 0;
-mpds = mpd_run_status(m_conn);
-if (mpds == 0) {
-    if (!openconn()) {
-        LOGERR("MPDCli::updStatus: connection failed\n");
+    if (!ok() && !openconn()) {
+        LOGERR("MPDCli::updStatus: no connection" << endl);
         return false;
     }
+
+    mpd_status *mpds = 0;
     mpds = mpd_run_status(m_conn);
     if (mpds == 0) {
-        LOGERR("MPDCli::updStatus: can't get status" << endl);
-        showError("MPDCli::updStatus");
+        if (!openconn()) {
+            LOGERR("MPDCli::updStatus: connection failed\n");
+            return false;
+        }
+        mpds = mpd_run_status(m_conn);
+        if (mpds == 0) {
+            LOGERR("MPDCli::updStatus: can't get status" << endl);
+            showError("MPDCli::updStatus");
+        }
+        return false;
     }
-    return false;
-}
 
-if (m_externalvolumecontrol && !m_getexternalvolume.empty()) {
-    string result;
-    if (ExecCmd::backtick(m_getexternalvolume, result)) {
-        //LOGDEB("MPDCli::volume retrieved: " << result << endl);
-        m_stat.volume = atoi(result.c_str());
+    if (m_externalvolumecontrol && !m_getexternalvolume.empty()) {
+        string result;
+        if (ExecCmd::backtick(m_getexternalvolume, result)) {
+            //LOGDEB("MPDCli::volume retrieved: " << result << endl);
+            m_stat.volume = atoi(result.c_str());
+        } else {
+            LOGERR("MPDCli::updStatus: error retrieving volume: " <<
+                   m_getexternalvolume[0] << " failed\n");
+        }
     } else {
-        LOGERR("MPDCli::updStatus: error retrieving volume: " <<
-               m_getexternalvolume[0] << " failed\n");
+        m_stat.volume = mpd_status_get_volume(mpds);
     }
-} else {
-    m_stat.volume = mpd_status_get_volume(mpds);
-}
-if (m_stat.volume >= 0) {
-    m_cachedvolume = m_stat.volume;
-} else {
-    m_stat.volume = m_cachedvolume;
-}
+    if (m_stat.volume >= 0) {
+        m_cachedvolume = m_stat.volume;
+    } else {
+        m_stat.volume = m_cachedvolume;
+    }
 
-m_stat.rept = mpd_status_get_repeat(mpds);
-m_stat.random = mpd_status_get_random(mpds);
-m_stat.single = mpd_status_get_single(mpds);
-m_stat.consume = mpd_status_get_consume(mpds);
-m_stat.qlen = mpd_status_get_queue_length(mpds);
-m_stat.qvers = mpd_status_get_queue_version(mpds);
+    m_stat.rept = mpd_status_get_repeat(mpds);
+    m_stat.random = mpd_status_get_random(mpds);
+    m_stat.single = mpd_status_get_single(mpds);
+    m_stat.consume = mpd_status_get_consume(mpds);
+    m_stat.qlen = mpd_status_get_queue_length(mpds);
+    m_stat.qvers = mpd_status_get_queue_version(mpds);
 
-switch (mpd_status_get_state(mpds)) {
-case MPD_STATE_STOP:
-    // Only execute onstop command if mpd was playing or paused
-    if (!m_onstop.empty() && (m_stat.state == MpdStatus::MPDS_PLAY ||
-                              m_stat.state == MpdStatus::MPDS_PAUSE)) {
-        if (system(m_onstop.c_str())) {
-            LOGERR("MPDCli::updStatus: " << m_onstop << " failed "<< endl);
+    switch (mpd_status_get_state(mpds)) {
+    case MPD_STATE_STOP:
+        // Only execute onstop command if mpd was playing or paused
+        if (!m_onstop.empty() && (m_stat.state == MpdStatus::MPDS_PLAY ||
+                                  m_stat.state == MpdStatus::MPDS_PAUSE)) {
+            if (system(m_onstop.c_str())) {
+                LOGERR("MPDCli::updStatus: " << m_onstop << " failed "<< endl);
+            }
         }
-    }
-    m_stat.state = MpdStatus::MPDS_STOP;
-    break;
-case MPD_STATE_PLAY:
-    // Only execute onplay command if mpd was stopped or paused
-    if (!m_onplay.empty() && (m_stat.state == MpdStatus::MPDS_UNK ||
-                              m_stat.state == MpdStatus::MPDS_STOP ||
-                              m_stat.state == MpdStatus::MPDS_PAUSE)) {
-        if (system(m_onplay.c_str())) {
-            LOGERR("MPDCli::updStatus: " << m_onplay << " failed "<< endl);
+        m_stat.state = MpdStatus::MPDS_STOP;
+        break;
+    case MPD_STATE_PLAY:
+        // Only execute onplay command if mpd was stopped or paused
+        if (!m_onplay.empty() && (m_stat.state == MpdStatus::MPDS_UNK ||
+                                  m_stat.state == MpdStatus::MPDS_STOP ||
+                                  m_stat.state == MpdStatus::MPDS_PAUSE)) {
+            if (system(m_onplay.c_str())) {
+                LOGERR("MPDCli::updStatus: " << m_onplay << " failed "<< endl);
+            }
         }
+        m_stat.state = MpdStatus::MPDS_PLAY;
+        break;
+    case MPD_STATE_PAUSE:
+        // Only execute onpause command if mpd was playing
+        if (!m_onpause.empty() && (m_stat.state == MpdStatus::MPDS_PLAY)) {
+            if (system(m_onpause.c_str())) {
+                LOGERR("MPDCli::updStatus: " << m_onpause << " failed "<< endl);
+            }
+        } 
+        m_stat.state = MpdStatus::MPDS_PAUSE;
+        break;
+    case MPD_STATE_UNKNOWN: 
+    default:
+        m_stat.state = MpdStatus::MPDS_UNK;
+        break;
     }
-    m_stat.state = MpdStatus::MPDS_PLAY;
-    break;
-case MPD_STATE_PAUSE:
-    // Only execute onpause command if mpd was playing
-    if (!m_onpause.empty() && (m_stat.state == MpdStatus::MPDS_PLAY)) {
-        if (system(m_onpause.c_str())) {
-            LOGERR("MPDCli::updStatus: " << m_onpause << " failed "<< endl);
+
+    m_stat.crossfade = mpd_status_get_crossfade(mpds);
+    m_stat.mixrampdb = mpd_status_get_mixrampdb(mpds);
+    m_stat.mixrampdelay = mpd_status_get_mixrampdelay(mpds);
+    m_stat.songpos = mpd_status_get_song_pos(mpds);
+    m_stat.songid = mpd_status_get_song_id(mpds);
+    if (m_stat.songpos >= 0) {
+        string prevuri = m_stat.currentsong.rsrc.uri;
+        statSong(m_stat.currentsong);
+        if (m_stat.currentsong.rsrc.uri.compare(prevuri)) {
+            m_stat.trackcounter++;
+            m_stat.detailscounter = 0;
         }
-    } 
-    m_stat.state = MpdStatus::MPDS_PAUSE;
-    break;
-case MPD_STATE_UNKNOWN: 
-default:
-    m_stat.state = MpdStatus::MPDS_UNK;
-    break;
-}
-
-m_stat.crossfade = mpd_status_get_crossfade(mpds);
-m_stat.mixrampdb = mpd_status_get_mixrampdb(mpds);
-m_stat.mixrampdelay = mpd_status_get_mixrampdelay(mpds);
-m_stat.songpos = mpd_status_get_song_pos(mpds);
-m_stat.songid = mpd_status_get_song_id(mpds);
-if (m_stat.songpos >= 0) {
-    string prevuri = m_stat.currentsong.rsrc.uri;
-    statSong(m_stat.currentsong);
-    if (m_stat.currentsong.rsrc.uri.compare(prevuri)) {
-        m_stat.trackcounter++;
-        m_stat.detailscounter = 0;
+        statSong(m_stat.nextsong, m_stat.songpos + 1);
+    } else {
+        m_stat.currentsong.clear();
+        m_stat.nextsong.clear();
     }
-    statSong(m_stat.nextsong, m_stat.songpos + 1);
-} else {
-    m_stat.currentsong.clear();
-    m_stat.nextsong.clear();
-}
 
-m_stat.songelapsedms = mpd_status_get_elapsed_ms(mpds);
-m_stat.songlenms = mpd_status_get_total_time(mpds) * 1000;
-m_stat.kbrate = mpd_status_get_kbit_rate(mpds);
-const struct mpd_audio_format *maf = 
-                                            mpd_status_get_audio_format(mpds);
-if (maf) {
-    m_stat.bitdepth = maf->bits;
-    m_stat.sample_rate = maf->sample_rate;
-    m_stat.channels = maf->channels;
-    // For radios, we don't get the didl resource info from the
-    // media server, so fill in the details from mpd data if we
-    // can.
-    m_stat.currentsong.rsrc.bitrate = m_stat.kbrate * 1000;
-    m_stat.currentsong.rsrc.samplefreq = m_stat.sample_rate;
-    m_stat.currentsong.rsrc.bitsPerSample = m_stat.bitdepth;
-    m_stat.currentsong.rsrc.channels = m_stat.channels;
+    m_stat.songelapsedms = mpd_status_get_elapsed_ms(mpds);
+    m_stat.songlenms = mpd_status_get_total_time(mpds) * 1000;
+    m_stat.kbrate = mpd_status_get_kbit_rate(mpds);
+    const struct mpd_audio_format *maf = 
+        mpd_status_get_audio_format(mpds);
+    if (maf) {
+        m_stat.bitdepth = maf->bits;
+        m_stat.sample_rate = maf->sample_rate;
+        m_stat.channels = maf->channels;
+        // For radios, we don't get the didl resource info from the
+        // media server, so fill in the details from mpd data if we
+        // can.
+        m_stat.currentsong.rsrc.bitrate = m_stat.kbrate * 1000;
+        m_stat.currentsong.rsrc.samplefreq = m_stat.sample_rate;
+        m_stat.currentsong.rsrc.bitsPerSample = m_stat.bitdepth;
+        m_stat.currentsong.rsrc.channels = m_stat.channels;
 
-    LOGDEB1("MPD AUDIO FORMAT: " <<  int(maf->sample_rate) << " samps/S " <<
-            m_stat.kbrate << " kbits/S " << int(maf->bits) << " bits " <<
-            int(maf->channels) << " channels\n");
-} else {
-    m_stat.bitdepth = m_stat.channels = m_stat.sample_rate = 0;
-}
+        LOGDEB1("MPD AUDIO FORMAT: " <<  int(maf->sample_rate) << " samps/S " <<
+                m_stat.kbrate << " kbits/S " << int(maf->bits) << " bits " <<
+                int(maf->channels) << " channels\n");
+    } else {
+        m_stat.bitdepth = m_stat.channels = m_stat.sample_rate = 0;
+    }
 
-const char *err = mpd_status_get_error(mpds);
-if (err != 0)
-    m_stat.errormessage.assign(err);
+    const char *err = mpd_status_get_error(mpds);
+    if (err != 0)
+        m_stat.errormessage.assign(err);
 
-mpd_status_free(mpds);
-return true;
+    mpd_status_free(mpds);
+    return true;
 }
 
 bool MPDCli::checkForCommand(const string& cmdname)
