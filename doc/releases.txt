@@ -1,5 +1,14 @@
 = Upmpdcli release notes
 
+== 2020-03-06 libnpupnp 2.2.1
+
+- Improve interface to ease experimental port of Gerbera.
+- Make reuseaddr and ipv6 support configure defaults.
+
+== 2020-03-06 libnpupnp 2.1.2
+
+- Fix GENA-related crash
+
 == 2020-02-26 upmpdcli 1.4.7
 
 - Fix 1.4.6 issues with Kazoo.
@@ -42,6 +51,11 @@
   configuration instead. This should make it easy for an integrator to
   store it securely.
 
+== 2019-09-27 libupnpp 0.17.2
+
+- API cleanup: remove upnp.h  and config.h from public interfaces.
+- Fix crash with newer libstdc++ (buster).
+
 == 2019-09-16 upmpdcli 1.4.4
 
 - Add plgmicrohttphost variable to allow setting the host used in proxy
@@ -49,6 +63,11 @@
   renderer, but allows for portable playlists.
 - Fix a number of small issues in the gmusic plugin.
 - Better updates for radio stream metadata, esp. when not using OHRadio.
+
+
+== 2019-03-28 libupnpp 0.17.1
+
+- Pupnp 1.8 compatibility
 
 == 2019-03-28 upmpdcli 1.4.2
 
