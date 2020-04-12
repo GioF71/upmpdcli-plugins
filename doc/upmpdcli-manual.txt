@@ -731,8 +731,9 @@ The configuration parameters are described in the
 [[upmpdcli.qobuznotes]]
 === Using Qobuz through the Upmpdcli Media Server
 
-upmpdcli Qobuz access does not work any more, so this is just kept as a
-historical note...
+upmpdcli Qobuz access does not work any more, because Qobuz revoked the
+access key, so this is just kept as a historical note... Also, if you are
+lucky enough to have a valid app key, you can use it with the module.
 
 This is based on the service API from the
 link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
