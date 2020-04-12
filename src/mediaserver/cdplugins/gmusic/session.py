@@ -17,16 +17,18 @@
 from __future__ import print_function
 
 import sys
+import os
 import json
 import datetime
 import time
 from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
      Category, Genre, sortmodellist
-from gmusicapi import Mobileclient
+import gmusicapi
 from upmplgutils import uplog
 
 class Session(object):
-    def __init__(self):
+    def __init__(self, cachedir):
+        self.cachedir = cachedir
         self.api = None
         self.user = None
         self.lib_albums = {}
@@ -52,23 +54,33 @@ class Session(object):
         return None
     
     def login(self, username, password, deviceid=None):
-        self.api = Mobileclient(debug_logging=False)
+        self.api = gmusicapi.Mobileclient(debug_logging=False)
 
-        if deviceid is None:
-            logged_in = self.api.login(username, password,
-                                       Mobileclient.FROM_MAC_ADDRESS)
-            if logged_in:
-                # Try to re-login with a valid deviceid
-                data = self.api.get_registered_devices()
-                #self.dmpdata("registered devices", data)
-                deviceid = self.find_device_id(data)
-                if deviceid:
-                    logged_in = self.login(username, password, deviceid)
+        creds = os.path.join(self.cachedir, 'gmusic-mobile.cred')
+        if os.path.exists(creds):
+            try:
+                logged_in = self.api.oauth_login('', oauth_credentials=creds)
+            except gmusicapi.exceptions.InvalidDeviceId as ex:
+                deviceids = ex.valid_device_ids
+                if len(deviceids) != 0:
+                    logged_in = self.api.oauth_login(deviceids[0],
+                                                     oauth_credentials=creds)
         else:
-            logged_in = self.api.login(username, password, deviceid)
+            if deviceid is None:
+                logged_in = self.api.login(username, password,
+                                           Mobileclient.FROM_MAC_ADDRESS)
+                if logged_in:
+                    # Try to re-login with a valid deviceid
+                    data = self.api.get_registered_devices()
+                    #self.dmpdata("registered devices", data)
+                    deviceid = self.find_device_id(data)
+                    if deviceid:
+                        logged_in = self.login(username, password, deviceid)
+                else:
+                    logged_in = self.api.login(username, password, deviceid)
 
         isauth = self.api.is_authenticated()
-        #uplog("login: Logged in: %s. Auth ok: %s" % (logged_in, isauth))
+        uplog("login: Logged in: %s. Auth ok: %s" % (logged_in, isauth))
         return logged_in
 
     def _get_user_library(self):

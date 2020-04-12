@@ -28,6 +28,7 @@ import re
 import conftree
 import cmdtalkplugin
 from upmplgutils import *
+import upmplgutils
 
 # Using kodi plugin routing plugin: lets use reuse a lot of code from
 # the addon. And much convenient in general
@@ -42,8 +43,6 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
-session = Session()
-
 is_logged_in = False
 
 def maybelogin():
@@ -51,6 +50,7 @@ def maybelogin():
     global httphp
     global pathprefix
     global is_logged_in
+    global session
     
     if is_logged_in:
         return True
@@ -64,7 +64,11 @@ def maybelogin():
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-    
+
+    cachedir = upmplgutils.getcachedir(upconfig, "gmusic")
+
+    session = Session(cachedir)
+
     username = upconfig.get('gmusicuser')
     password = upconfig.get('gmusicpass')
     quality = upconfig.get('gmusicquality')
@@ -74,9 +78,7 @@ def maybelogin():
     if not deviceid:
         deviceid = None
 
-    if not username or not password:
-        raise Exception("gmusicuser and/or gmusicpass not set in configuration")
-
+    # Note that, if using oauth username can be bogus and password None
     is_logged_in = session.login(username, password, deviceid)
     
     if not is_logged_in:

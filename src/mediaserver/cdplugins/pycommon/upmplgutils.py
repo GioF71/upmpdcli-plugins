@@ -30,7 +30,10 @@ from __future__ import print_function, unicode_literals
 import posixpath
 import re
 import sys
+import os
 import subprocess
+import pwd
+import errno
 
 PY3 = sys.version > '3'
 import conftree
@@ -193,6 +196,25 @@ def uplog(s):
         sys.stderr.write(s + b'\n')
     sys.stderr.flush()
 
+
+def getcachedir(config, servicename):
+    cachedir = config.get('cachedir')
+    if not cachedir:
+        me = pwd.getpwuid(os.getuid()).pw_name
+        uplog("getcachedir: me: %s" % me)
+        if me == 'upmpdcli':
+            cachedir = '/var/cache/upmpdcli/'
+        else:
+            cachedir = os.path.expanduser('~/.cache/upmpdcli/')
+    cachedir = os.path.join(cachedir, servicename)
+    try:
+        os.makedirs(cachedir)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(cachedir):
+            pass
+        else:
+            raise
+    return cachedir
 
 # Find first non loopback ip. This is surprisingly
 # difficult. Executing "ip addr" actually seems to be the simplest

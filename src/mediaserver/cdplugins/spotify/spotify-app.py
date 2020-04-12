@@ -24,12 +24,11 @@ import sys
 import os
 import json
 import re
-import pwd
-import errno
 
 import conftree
 import cmdtalkplugin
 from upmplgutils import *
+import upmplgutils
 
 from session import Session
 session = Session()
@@ -75,23 +74,8 @@ def maybelogin(a={}):
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
 
     global cachedir
-    cachedir = upconfig.get('cachedir')
-    if not cachedir:
-        me = pwd.getpwuid(os.getuid()).pw_name
-        uplog("me: %s"%me)
-        if me == 'upmpdcli':
-            cachedir = '/var/cache/upmpdcli/'
-        else:
-            cachedir = os.path.expanduser('~/.cache/upmpdcli/')
-    cachedir = os.path.join(cachedir, servicename)
-    try:
-        os.makedirs(cachedir)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(cachedir):
-            pass
-        else:
-            raise
-    uplog("cachedir: %s"%cachedir)
+    cachedir = upmplgutils.getcachedir(upconfig, 'spotify')
+    uplog("cachedir: %s " %cachedir)
 
     if 'user' in a:
         username = a['user']
