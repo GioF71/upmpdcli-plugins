@@ -756,22 +756,48 @@ The configuration parameters are described in the
 [[upmpdcli.googlemusicnotes]]
 === Using Google Music through the Upmpdcli Media Server
 
-You will need to install the upmpdcli-gmusic module.
+You will need to install the upmpdcli-gmusic module and the external
+*gmusicapi* Python package.
+link:http://unofficial-google-music-api.readthedocs.io/en/latest/usage.html#usage[See
+the installation notes here].
 
-This is based on the
+The upmpdcli module is based on the Mobileclient interface from the
 link:https://github.com/simon-weber/gmusicapi[gmusicapi] Python package by
 Simon Weber, with upper-level code from the Tidal Kodi add-on. As for the
 other services, the API used is not officially supported and may stop to
 work one day. 
 
-This requires the installation of the external *gmusicapi* Python
-package. 
-link:http://unofficial-google-music-api.readthedocs.io/en/latest/usage.html#usage[See the installation notes here].
-
-NOTE: gmusicapi needs Python 2.7.9 or better (e.g. the standard Python
-version on Ubuntu Trusty is too old). Older Python versions *will* crash.
-
 You will need a valid subscription for most functions.
+
+As of version 1.4.8, upmpdcli supports the oauth method for signing in to
+your gmusic account, and this is the recommended method, as it avoids
+storing your password on the upmpdcli machine.
+
+Before you can log in with oauth, you will need to manually generate and
+install the credentials file (this will need to be done only once).
+
+- Go to the `/usr/share/upmpdcli/cdplugins/gmusic` directory.
+- Execute the oauth credentials creation script. This will request that you
+  log in to your google account in a browser, and paste some value back
+  into the script:
+----
+ python3 gmusic-init-oauth.py /tmp/gmusic-mobile.cred
+----
+- Create the upmpdcli gmusic cache directory if it does not
+  exist yet, and install the credentials there. 
+----
+sudo mkdir -p /var/cache/upmpdcli/gmusic
+sudo mv /tmp/gmusic-mobile.cred /var/cache/upmpdcli/gmusic
+sudo chown -R upmpdcli /var/cache/upmpdcli
+----
+
+You will still need to have a `gmusicuser` in the upmpdcli configuration
+file, but the value can be bogus (e.g. `oauth`), and no password is needed.
+
+The configuration parameters are described in the
+<<gmusicuser,configuration section>>
+
+.Other gmusic login methods
 
 I'm a little lost in the different google authentication/sign-in methods,
 but anyway:
@@ -783,9 +809,6 @@ and use an app password].
   to fetch audio streams (but not to browse). The software will try to get
   one from the list of registered devices, but if this does not work, you
   may have to set it explicitely in the configuration.
-
-The configuration parameters are described in the
-<<gmusicuser,configuration section>>
 
 
 [[upmpdcli.spotifynotes]]

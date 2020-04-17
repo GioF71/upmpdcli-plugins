@@ -1,5 +1,12 @@
 = Upmpdcli release notes
 
+== 2020-04-16 upmpdcli 1.4.8
+
+Small improvements to the mediaserver modules.
+
+- Support the oauth connection method in upmpdcli-gmusic.
+- Small bug fix in the upmpdcli-tidal module
+
 == 2020-03-06 libnpupnp 2.2.1
 
 - Improve interface to ease experimental port of Gerbera.
