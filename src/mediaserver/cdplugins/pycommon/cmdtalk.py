@@ -46,10 +46,10 @@ else:
 
 
 ############################################
-# CmdTalk implements the
-# communication protocol with the master process. It calls an external
-# method to use the args and produce return data.
-class CmdTalk:
+# CmdTalk implements the communication protocol with the master
+# process. It calls an external method to use the args and produce
+# return data.
+class CmdTalk(object):
 
     def __init__(self, outfile=sys.stdout, infile=sys.stdin, exitfunc=None):
         try:
@@ -66,7 +66,15 @@ class CmdTalk:
             import msvcrt
             msvcrt.setmode(self.outfile.fileno(), os.O_BINARY)
             msvcrt.setmode(self.infile.fileno(), os.O_BINARY)
-        self.debugfile = None
+        
+        try:
+            self.debugfile
+        except:
+            self.debugfile = None
+        try:
+            self.nodecodeinput
+        except:
+            self.nodecodeinput = False
         if self.debugfile:
             self.errfout = open(self.debugfile, "a")
         else:
@@ -131,7 +139,7 @@ class CmdTalk:
                       (paramsize, len(paramdata)), 1, 1)
         else:
             paramdata = b''
-        if PY3:
+        if PY3 and not self.nodecodeinput:
             paramdata = paramdata.decode('utf-8')
     
         #self.log("paramname [%s] paramsize %d value [%s]" %

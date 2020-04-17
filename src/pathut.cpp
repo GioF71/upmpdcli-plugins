@@ -49,8 +49,10 @@
 #include <math.h>
 #include <errno.h>
 #include <dirent.h>
+#include <fstream>
 
 #ifdef _WIN32
+
 #include "safefcntl.h"
 #include "safeunistd.h"
 #include "safewindows.h"
@@ -66,8 +68,12 @@
 #define READDIR _wreaddir
 #define DIRENT _wdirent
 #define DIRHDL _WDIR
+#define MKDIR(a,b) _wmkdir(a)
+#define OPEN ::_wopen
+#define UNLINK _wunlink
 
-#else // Not windows ->
+#else /* !_WIN32 -> */
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -86,7 +92,12 @@
 #define READDIR readdir
 #define DIRENT dirent
 #define DIRHDL DIR
-#endif
+#define MKDIR(a,b) mkdir(a,b)
+#define O_BINARY 0
+#define OPEN ::open
+#define UNLINK unlink
+
+#endif /* !_WIN32 */
 
 #include <cstdlib>
 #include <cstring>
@@ -99,10 +110,16 @@
 
 #include "pathut.h"
 #include "smallut.h"
+#ifdef MDU_INCLUDE_LOG
+#include MDU_INCLUDE_LOG
+#else
+#include "log.h"
+#endif
 
 using namespace std;
 
 #ifdef _WIN32
+#include <shlobj_core.h>
 /// Convert \ separators to /
 void path_slashize(string& s)
 {
@@ -276,7 +293,25 @@ flock (int fd, int operation)
     return 0;
 }
 
-#endif // Win32 only section
+std::string path_shortpath(const std::string& path)
+{
+    SYSPATH(path, syspath);
+    wchar_t wspath[MAX_PATH];
+    int ret = GetShortPathNameW(syspath, wspath, MAX_PATH);
+    if (ret == 0) {
+        LOGERR("GetShortPathNameW failed for [" << path << "]\n");
+        return path;
+    } else if (ret >= MAX_PATH) {
+        LOGERR("GetShortPathNameW [" << path << "] too long " <<
+               path.size() << " MAX_PATH " << MAX_PATH << "\n");
+        return path;
+    }
+    string shortpath;
+    wchartoutf8(wspath, shortpath);
+    return shortpath;
+}
+
+#endif /* _WIN32 */
 
 bool fsocc(const string& path, int *pc, long long *avmbs)
 {
@@ -284,8 +319,8 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
 #ifdef _WIN32
     ULARGE_INTEGER freebytesavail;
     ULARGE_INTEGER totalbytes;
-    if (!GetDiskFreeSpaceExA(path.c_str(), &freebytesavail,
-                             &totalbytes, NULL)) {
+    SYSPATH(path, syspath);
+    if (!GetDiskFreeSpaceExW(syspath, &freebytesavail, &totalbytes, NULL)) {
         return false;
     }
     if (pc) {
@@ -295,7 +330,7 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
         *avmbs = int(totalbytes.QuadPart / FSOCC_MB);
     }
     return true;
-#else // not windows ->
+#else /* !_WIN32 */
 
     struct statvfs buf;
     if (statvfs(path.c_str(), &buf) != 0) {
@@ -323,7 +358,7 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
         }
     }
     return true;
-#endif
+#endif /* !_WIN32 */
 }
 
 
@@ -433,21 +468,30 @@ string path_home()
 {
 #ifdef _WIN32
     string dir;
-    const char *cp = getenv("USERPROFILE");
+    // Using wgetenv does not work well, depending on the
+    // environment I get wrong values for the accented chars (works
+    // with recollindex started from msys command window, does not
+    // work when started from recoll. SHGet... fixes this
+    //const wchar_t *cp = _wgetenv(L"USERPROFILE");
+    wchar_t *cp;
+    SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &cp);
     if (cp != 0) {
-        dir = cp;
+        wchartoutf8(cp, dir);
     }
     if (dir.empty()) {
-        cp = getenv("HOMEDRIVE");
+        cp = _wgetenv(L"HOMEDRIVE");
+        wchartoutf8(cp, dir);
         if (cp != 0) {
-            const char *cp1 = getenv("HOMEPATH");
+            string dir1;
+            const wchar_t *cp1 = _wgetenv(L"HOMEPATH");
+            wchartoutf8(cp1, dir1);
             if (cp1 != 0) {
-                dir = string(cp) + string(cp1);
+                dir = path_cat(dir, dir1);
             }
         }
     }
     if (dir.empty()) {
-        dir = "C:\\";
+        dir = "C:/";
     }
     dir = path_canon(dir);
     path_catslash(dir);
@@ -475,12 +519,15 @@ string path_home()
 string path_homedata()
 {
 #ifdef _WIN32
-    const char *cp = getenv("LOCALAPPDATA");
+    wchar_t *cp;
+    SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &cp);
     string dir;
     if (cp != 0) {
-        dir = path_canon(cp);
+        wchartoutf8(cp, dir);
     }
-    if (dir.empty()) {
+    if (!dir.empty()) {
+        dir = path_canon(dir);
+    } else {
         dir = path_cat(path_home(), "AppData/Local/");
     }
     return dir;
@@ -666,6 +713,7 @@ bool path_makepath(const string& ipath, int mode)
     path = "/";
     for (const auto& elem : elems) {
 #ifdef _WIN32
+        PRETEND_USE(mode);
         if (path == "/" && path_strlookslikedrive(elem)) {
             path = "";
         }
@@ -673,8 +721,11 @@ bool path_makepath(const string& ipath, int mode)
         path += elem;
         // Not using path_isdir() here, because this cant grok symlinks
         // If we hit an existing file, no worry, mkdir will just fail.
-        if (access(path.c_str(), 0) != 0) {
-            if (mkdir(path.c_str(), mode) != 0)  {
+        LOGDEB1("path_makepath: testing existence: ["  << path << "]\n");
+        if (!path_exists(path)) {
+            LOGDEB1("path_makepath: creating directory ["  << path << "]\n");
+            SYSPATH(path, syspath);
+            if (MKDIR(syspath, mode) != 0)  {
                 //cerr << "mkdir " << path << " failed, errno " << errno << endl;
                 return false;
             }
@@ -684,14 +735,47 @@ bool path_makepath(const string& ipath, int mode)
     return true;
 }
 
-bool path_isdir(const string& path)
+std::fstream path_open(const std::string& path, int mode)
+{
+#if defined(_WIN32) && defined (_MSC_VER)
+    // MSC STL has support for using wide chars in fstream
+    // constructor. We need this if, e.g. the user name/home directory
+    // is not ASCII. Actually don't know how to do this with gcc
+    wchar_t wpath[MAX_PATH + 1];
+    utf8towchar(path, wpath, MAX_PATH);
+    std::fstream ret(wpath, std::ios_base::openmode(mode));
+    if (!ret.is_open()) {
+        LOGERR("path_open("<< path << ", "<< mode <<") errno " << errno <<"\n");
+    }
+    return ret;
+#else
+    return std::fstream(path, std::ios_base::openmode(mode));
+#endif
+}
+
+bool path_isdir(const string& path, bool follow)
 {
     struct STATBUF st;
     SYSPATH(path, syspath);
-    if (LSTAT(syspath, &st) < 0) {
+    int ret = follow ? STAT(syspath, &st) : LSTAT(syspath, &st);
+    if (ret < 0) {
         return false;
     }
     if (S_ISDIR(st.st_mode)) {
+        return true;
+    }
+    return false;
+}
+
+bool path_isfile(const string& path, bool follow)
+{
+    struct STATBUF st;
+    SYSPATH(path, syspath);
+    int ret = follow ? STAT(syspath, &st) : LSTAT(syspath, &st);
+    if (ret < 0) {
+        return false;
+    }
+    if (S_ISREG(st.st_mode)) {
         return true;
     }
     return false;
@@ -707,30 +791,36 @@ long long path_filesize(const string& path)
     return (long long)st.st_size;
 }
 
-int path_fileprops(const std::string path, struct stat *stp, bool follow)
+int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
 {
-    if (!stp) {
+    if (nullptr == stp) {
         return -1;
     }
-    memset(stp, 0, sizeof(struct stat));
+    memset(stp, 0, sizeof(struct PathStat));
     struct STATBUF mst;
     SYSPATH(path, syspath);
     int ret = follow ? STAT(syspath, &mst) : LSTAT(syspath, &mst);
     if (ret != 0) {
         return ret;
     }
-    stp->st_size = mst.st_size;
-    stp->st_mode = mst.st_mode;
-    stp->st_mtime = mst.st_mtime;
+    stp->pst_size = mst.st_size;
+    stp->pst_mode = mst.st_mode;
+    stp->pst_mtime = mst.st_mtime;
 #ifdef _WIN32
-    stp->st_ctime = mst.st_mtime;
+    stp->pst_ctime = mst.st_mtime;
 #else
-    stp->st_ino = mst.st_ino;
-    stp->st_dev = mst.st_dev;
-    stp->st_ctime = mst.st_ctime;
-    stp->st_blocks = mst.st_blocks;
-    stp->st_blksize = mst.st_blksize;
+    stp->pst_ino = mst.st_ino;
+    stp->pst_dev = mst.st_dev;
+    stp->pst_ctime = mst.st_ctime;
+    stp->pst_blocks = mst.st_blocks;
+    stp->pst_blksize = mst.st_blksize;
 #endif
+    switch (mst.st_mode & S_IFMT) {
+    case S_IFDIR: stp->pst_type = PathStat::PST_DIR;break;
+    case S_IFLNK:  stp->pst_type = PathStat::PST_SYMLINK;break;
+    case S_IFREG: stp->pst_type = PathStat::PST_REGULAR;break;
+    default: stp->pst_type = PathStat::PST_OTHER;break;
+    }
     return 0;
 }
 
@@ -1075,32 +1165,33 @@ Pidfile::~Pidfile()
     this->close();
 }
 
-pid_t Pidfile::read_pid()
+int Pidfile::read_pid()
 {
-    int fd = ::open(m_path.c_str(), O_RDONLY);
+    SYSPATH(m_path, syspath);
+    int fd = OPEN(syspath, O_RDONLY);
     if (fd == -1) {
-        return (pid_t) -1;
+        return -1;
     }
 
     char buf[16];
     int i = read(fd, buf, sizeof(buf) - 1);
     ::close(fd);
     if (i <= 0) {
-        return (pid_t) -1;
+        return -1;
     }
     buf[i] = '\0';
     char *endptr;
-    pid_t pid = strtol(buf, &endptr, 10);
+    int pid = strtol(buf, &endptr, 10);
     if (endptr != &buf[i]) {
-        return (pid_t) - 1;
+        return - 1;
     }
     return pid;
 }
 
 int Pidfile::flopen()
 {
-    const char *path = m_path.c_str();
-    if ((m_fd = ::open(path, O_RDWR | O_CREAT, 0644)) == -1) {
+    SYSPATH(m_path, syspath);
+    if ((m_fd = OPEN(syspath, O_RDWR | O_CREAT, 0644)) == -1) {
         m_reason = "Open failed: [" + m_path + "]: " + strerror(errno);
         return -1;
     }
@@ -1140,12 +1231,12 @@ int Pidfile::flopen()
     return 0;
 }
 
-pid_t Pidfile::open()
+int Pidfile::open()
 {
     if (flopen() < 0) {
         return read_pid();
     }
-    return (pid_t)0;
+    return 0;
 }
 
 int Pidfile::write_pid()
@@ -1177,7 +1268,8 @@ int Pidfile::close()
 
 int Pidfile::remove()
 {
-    return unlink(m_path.c_str());
+    SYSPATH(m_path, syspath);
+    return UNLINK(syspath);
 }
 
 // Call funcs that need static init (not initially reentrant)

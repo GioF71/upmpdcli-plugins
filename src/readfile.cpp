@@ -18,6 +18,9 @@
 #include "autoconfig.h"
 #else
 #include "config.h"
+#ifndef PRETEND_USE
+#define PRETEND_USE(expr) ((void)(expr))
+#endif
 #endif
 
 #include "readfile.h"
@@ -68,9 +71,9 @@ public:
     // usage almost by 2 on both linux i586 and macosx (compared to
     // just append()) Also tried a version with mmap, but it's
     // actually slower on the mac and not faster on linux.
-    virtual bool init(int64_t size, string *reason) {
+    virtual bool init(int64_t size, string *) {
         if (size > 0) {
-            m_data.reserve(size);
+            m_data.reserve((size_t)size);
         }
         return true;
     }
@@ -264,10 +267,10 @@ public:
         return true;
     }
     
-    static voidpf alloc_func(voidpf opaque, uInt items, uInt size) {
+    static voidpf alloc_func(voidpf, uInt items, uInt size) {
         return malloc(items * size);
     }
-    static void free_func(voidpf opaque, voidpf address) {
+    static void free_func(voidpf, voidpf address) {
         free(address);
     }
 
@@ -372,7 +375,7 @@ public:
             }
 
             if (m_cnttoread != -1) {
-                toread = MIN(toread, (uint64_t)(m_cnttoread - totread));
+                toread = (size_t)MIN(toread, (uint64_t)(m_cnttoread - totread));
             }
             ssize_t n = static_cast<ssize_t>(read(fd, buf, toread));
             if (n < 0) {
@@ -491,6 +494,7 @@ public:
     static size_t write_cb(void *pOpaque, mz_uint64 file_ofs,
                            const void *pBuf, size_t n) {
         const char *cp = (const char*)pBuf;
+        PRETEND_USE(file_ofs);
         LOGDEB1("write_cb: ofs " << file_ofs << " cnt " << n << " data: " <<
                 string(cp, n) << endl);
         FileScanSourceZip *ths = (FileScanSourceZip *)pOpaque;

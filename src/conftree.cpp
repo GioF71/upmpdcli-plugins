@@ -16,6 +16,7 @@
  */
 #ifdef BUILDING_RECOLL
 #include "autoconfig.h"
+#include "transcode.h"
 #else
 #include "config.h"
 #endif
@@ -235,31 +236,27 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
       m_fmtime(0), m_holdWrites(false)
 {
     status = readonly ? STATUS_RO : STATUS_RW;
+    int mode = readonly ? ios::in : ios::in | ios::out;
+    if (!readonly && !path_exists(fname)) {
+        mode |= ios::trunc;
+    }
+    fstream input = path_open(fname, mode);
+    if (!input.is_open()) {
+        LOGDEB("ConfSimple::ConfSimple: fstream(w)("<<fname<<", "<< mode <<
+               ") errno " << errno << "\n");
+    }
 
-    ifstream input;
-    if (readonly) {
-        input.open(fname, ios::in);
-    } else {
-        ios::openmode mode = ios::in | ios::out;
-        // It seems that there is no separate 'create if not exists'
-        // open flag. Have to truncate to create, but dont want to do
-        // this to an existing file !
-        if (!path_exists(fname)) {
-            mode |= ios::trunc;
-        }
-        input.open(fname, mode);
-        if (input.is_open()) {
-            status = STATUS_RW;
-        } else {
-            input.clear();
-            input.open(fname, ios::in);
-            if (input.is_open()) {
-                status = STATUS_RO;
-            }
-        }
+    if (!readonly && !input.is_open()) {
+        // reset errors
+        input.clear();
+        status = STATUS_RO;
+        // open readonly
+        input = path_open(fname, ios::in);
     }
 
     if (!input.is_open()) {
+        LOGERR("ConfSimple::ConfSimple: fstream("<<fname<<", "<<ios::in<<
+               ") errno" << errno << "\n");
         status = STATUS_ERROR;
         return;
     }
@@ -581,7 +578,16 @@ bool ConfSimple::write()
         return true;
     }
     if (m_filename.length()) {
-        ofstream output(m_filename.c_str(), ios::out | ios::trunc);
+        fstream output;
+#if (defined(BUILDING_RECOLL) && defined(_MSC_VER))
+        // msc has support for using wide chars for opening files. We may
+        // need this if, e.g. the user name/home directory is not ascii
+        wchar_t wfname[MAX_PATH + 1];
+        utf8towchar(m_filename, wfname, MAX_PATH);
+        output = fstream(wfname, ios::out | ios::trunc);
+#else
+        output = fstream(m_filename, ios::out | ios::trunc);
+#endif
         if (!output.is_open()) {
             return 0;
         }

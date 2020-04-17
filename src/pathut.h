@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <cstdint>
+#include <fstream>
 
 // Must be called in main thread before starting other threads
 extern void pathut_init_mt();
@@ -66,7 +68,9 @@ extern std::string url_parentfolder(const std::string& url);
 extern std::string url_gpath(const std::string& url);
 
 /// Stat parameter and check if it's a directory
-extern bool path_isdir(const std::string& path);
+extern bool path_isdir(const std::string& path, bool follow = false);
+/// Stat parameter and check if it's a regular file
+extern bool path_isfile(const std::string& path, bool follow = false);
 
 /// Retrieve file size
 extern long long path_filesize(const std::string& path);
@@ -79,8 +83,19 @@ extern long long path_filesize(const std::string& path);
 /// all systems. st_dev and st_ino are set for special posix usage.
 /// The rest is zeroed.
 /// @ret 0 for success
-struct stat;
-extern int path_fileprops(const std::string path, struct stat *stp,
+struct PathStat {
+    enum PstType {PST_REGULAR, PST_SYMLINK, PST_DIR, PST_OTHER};
+    PstType pst_type;
+    int64_t pst_size;
+    uint64_t pst_mode;
+    int64_t pst_mtime;
+    int64_t pst_ctime;
+    uint64_t pst_ino;
+    uint64_t pst_dev;
+    uint64_t pst_blocks;
+    uint64_t pst_blksize;
+};
+extern int path_fileprops(const std::string path, struct PathStat *stp,
                           bool follow = true);
 
 /// Check that path is traversable and last element exists
@@ -114,6 +129,22 @@ bool fsocc(const std::string& path, int *pc, long long *avmbs = 0);
 
 /// mkdir -p
 extern bool path_makepath(const std::string& path, int mode);
+
+/* Open file, trying to do the right thing with non-ASCII paths on
+ * Windows, where it only works with MSVC at the moment if the path is
+ * not ASCII, because it uses fstream(wchar_t*), which is an MSVC
+ * extension. On other OSes, just builds the fstream.  We'd need to
+ * find a way to make this work with g++. It would be easier in this
+ * case to use a FILE (_openw(), then fdopen()), but conftree really
+ * depends on std::iostream. One possible workaround for g++ would be
+ * to use shortpaths (which we already use to pass file names to
+ * xapian and aspell). Most of the problems are caused by the home
+ * directory name being non-ASCII, so returning a short path in
+ * path_home() would probably solve everything (but not pretty).
+ *
+ * @param path an utf-8 file path.
+ * @param mode is an std::fstream mode (ios::in etc.) */
+extern std::fstream path_open(const std::string& path, int mode);
 
 /// Where we create the user data subdirs
 extern std::string path_homedata();
@@ -150,9 +181,9 @@ public:
 /// Convert \ separators to /
 void path_slashize(std::string& s);
 void path_backslashize(std::string& s);
-#include "safeunistd.h"
+extern std::string path_shortpath(const std::string& path);
 #else
-#include <unistd.h>
+#define path_shortpath(path) (path)
 #endif
 
 /// Lock/pid file class. This is quite close to the pidfile_xxx
@@ -164,7 +195,7 @@ public:
     ~Pidfile();
     /// Open/create the pid file.
     /// @return 0 if ok, > 0 for pid of existing process, -1 for other error.
-    pid_t open();
+    int open();
     /// Write pid into the pid file
     /// @return 0 ok, -1 error
     int write_pid();
@@ -179,7 +210,7 @@ private:
     std::string m_path;
     int    m_fd;
     std::string m_reason;
-    pid_t read_pid();
+    int read_pid();
     int flopen();
 };
 

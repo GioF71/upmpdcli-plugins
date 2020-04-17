@@ -39,7 +39,7 @@ public:
     Canceler(int tmsecs) 
         : m_timeosecs(tmsecs) {}
 
-    virtual void newData(int cnt) {
+    virtual void newData(int) {
         if (m_starttime && (time(0) - m_starttime) > m_timeosecs) {
             throw TimeoutExcept();
         }
@@ -55,17 +55,17 @@ public:
 class CmdTalk::Internal {
 public:
     Internal(int timeosecs)
-	: m_cancel(timeosecs) {}
+        : m_cancel(timeosecs) {}
 
     ~Internal() {
-	delete cmd;
+        delete cmd;
     }
 
     bool readDataElement(string& name, string &data);
 
     bool talk(const pair<string, string>& arg0,
-	      const unordered_map<string, string>& args,
-	      unordered_map<string, string>& rep);
+              const unordered_map<string, string>& args,
+              unordered_map<string, string>& rep);
 
     ExecCmd *cmd{0};
     Canceler m_cancel;
@@ -82,31 +82,31 @@ CmdTalk::~CmdTalk()
 }
 
 bool CmdTalk::startCmd(const string& cmdname,
-		       const vector<string>& args,
-		       const vector<string>& env,
-		       const vector<string>& path)
+                       const vector<string>& args,
+                       const vector<string>& env,
+                       const vector<string>& path)
 {
-    LOGDEB("CmdTalk::startCmd\n" );
+    LOGDEB("CmdTalk::startCmd\n");
 
     delete m->cmd;
     m->cmd = new ExecCmd;
     m->cmd->setAdvise(&m->m_cancel);
 
     for (const auto& it : env) {
-	m->cmd->putenv(it);
+        m->cmd->putenv(it);
     }
 
     string acmdname(cmdname);
     if (!path.empty()) {
-	string colonpath;
-	for (const auto& it: path) {
-	    colonpath += it + ":";
-	}
-	if (!colonpath.empty()) {
-	    colonpath.erase(colonpath.size()-1);
-	}
-	LOGDEB("CmdTalk::startCmd: PATH: [" << colonpath << "]\n");
-	ExecCmd::which(cmdname, acmdname, colonpath.c_str());
+        string colonpath;
+        for (const auto& it: path) {
+            colonpath += it + ":";
+        }
+        if (!colonpath.empty()) {
+            colonpath.erase(colonpath.size()-1);
+        }
+        LOGDEB("CmdTalk::startCmd: PATH: [" << colonpath << "]\n");
+        ExecCmd::which(cmdname, acmdname, colonpath.c_str());
     }
 
     if (m->cmd->startExec(acmdname, args, 1, 1) < 0) {
@@ -128,7 +128,7 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
     try {
         // Read name and length
         if (cmd->getline(ibuf) <= 0) {
-            LOGERR("CmdTalk: getline error\n" );
+            LOGERR("CmdTalk: getline error\n");
             return false;
         }
     } catch (TimeoutExcept) {
@@ -137,11 +137,11 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
         return false;
     }
     
-    LOGDEB1("CmdTalk:rde: line ["  << (ibuf) << "]\n" );
+    LOGDEB1("CmdTalk:rde: line [" << ibuf << "]\n");
 
     // Empty line (end of message) ?
     if (!ibuf.compare("\n")) {
-        LOGDEB("CmdTalk: Got empty line\n" );
+        LOGDEB1("CmdTalk: Got empty line\n");
         return true;
     }
 
@@ -149,7 +149,7 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
     vector<string> tokens;
     stringToTokens(ibuf, tokens);
     if (tokens.size() != 2) {
-        LOGERR("CmdTalk: bad line in filter output: ["  << (ibuf) << "]\n" );
+        LOGERR("CmdTalk: bad line in filter output: [" << ibuf << "]\n");
         return false;
     }
     vector<string>::iterator it = tokens.begin();
@@ -157,7 +157,7 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
     string& slen = *it;
     int len;
     if (sscanf(slen.c_str(), "%d", &len) != 1) {
-        LOGERR("CmdTalk: bad line in filter output: ["  << (ibuf) << "]\n" );
+        LOGERR("CmdTalk: bad line in filter output: [" << ibuf << "]\n");
         return false;
     }
 
@@ -165,21 +165,21 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
     data.erase();
     if (len > 0 && cmd->receive(data, len) != len) {
         LOGERR("CmdTalk: expected " << len << " bytes of data, got " <<
-	       data.length() << "\n");
+               data.length() << "\n");
         return false;
     }
     LOGDEB1("CmdTalk:rde: got: name [" << name << "] len " << len <<"value ["<<
-	    (data.size() > 100 ? (data.substr(0, 100) + " ...") : data)<< endl);
+            (data.size() > 100 ? (data.substr(0, 100) + " ...") : data)<< endl);
     return true;
 }
 
 bool CmdTalk::Internal::talk(const pair<string, string>& arg0,
-			     const unordered_map<string, string>& args,
-			     unordered_map<string, string>& rep)
+                             const unordered_map<string, string>& args,
+                             unordered_map<string, string>& rep)
 {
     std::unique_lock<std::mutex> lock(mmutex);
     if (cmd->getChildPid() <= 0) {
-	LOGERR("CmdTalk::talk: no process\n");
+        LOGERR("CmdTalk::talk: no process\n");
         return false;
     }
 
@@ -194,30 +194,30 @@ bool CmdTalk::Internal::talk(const pair<string, string>& arg0,
 
     if (cmd->send(obuf.str()) < 0) {
         cmd->zapChild();
-        LOGERR("CmdTalk: send error\n" );
+        LOGERR("CmdTalk: send error\n");
         return false;
     }
 
     // Read answer (multiple elements)
-    LOGDEB1("CmdTalk: reading answer\n" );
+    LOGDEB1("CmdTalk: reading answer\n");
     for (;;) {
         string name, data;
-	if (!readDataElement(name, data)) {
-	    cmd->zapChild();
-	    return false;
-	}
+        if (!readDataElement(name, data)) {
+            cmd->zapChild();
+            return false;
+        }
         if (name.empty()) {
             break;
-	}
-	trimstring(name, ":");
-	LOGDEB1("CmdTalk: got [" << name << "] -> [" << data << "]\n");
-	rep[name] = data;
+        }
+        trimstring(name, ":");
+        LOGDEB1("CmdTalk: got [" << name << "] -> [" << data << "]\n");
+        rep[name] = data;
     }
 
     if (rep.find("cmdtalkstatus") != rep.end()) {
-	return false;
+        return false;
     } else {
-	return true;
+        return true;
     }
 }
 
@@ -227,15 +227,15 @@ bool CmdTalk::running()
 }
 
 bool CmdTalk::talk(const unordered_map<string, string>& args,
-		   unordered_map<string, string>& rep)
+                   unordered_map<string, string>& rep)
 {
     return m->talk({"",""}, args, rep);
 }
 
 bool CmdTalk::callproc(
-	const string& proc,
-	const unordered_map<std::string, std::string>& args,
-	unordered_map<std::string, std::string>& rep)
+    const string& proc,
+    const unordered_map<std::string, std::string>& args,
+    unordered_map<std::string, std::string>& rep)
 {
     return m->talk({"cmdtalk:proc", proc}, args, rep);
 }

@@ -22,6 +22,10 @@
 #include <stack>
 #include <sys/types.h>
 
+#ifdef _MSC_VER
+typedef int pid_t;
+#endif
+
 /**
  * Callback function object to advise of new data arrival, or just periodic
  * heartbeat if cnt is 0.

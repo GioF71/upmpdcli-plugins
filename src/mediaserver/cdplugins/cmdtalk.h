@@ -74,6 +74,10 @@ class CmdTalk {
     // @param env each entry should be of the form name=value. They
     //   augment the subprocess environnement.
     // @param path replaces the PATH variable when looking for the command.
+    // 
+    // Note that cmdtalk.py:main() method is a test routine which
+    // expects data pairs on the command line. If actual parameters
+    // need to be passed, it can't be used by the processor.
     virtual bool startCmd(const std::string& cmdname,
 			  const std::vector<std::string>& args =
 			  std::vector<std::string>(),

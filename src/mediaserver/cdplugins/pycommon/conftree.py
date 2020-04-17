@@ -49,6 +49,7 @@ class ConfSimple(object):
             return
 
         self._parseinput(f)
+        f.close()
         
     def _parseinput(self, f):
         appending = False
