@@ -242,8 +242,8 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
     }
     fstream input = path_open(fname, mode);
     if (!input.is_open()) {
-        LOGDEB("ConfSimple::ConfSimple: fstream(w)("<<fname<<", "<< mode <<
-               ") errno " << errno << "\n");
+        LOGDEB0("ConfSimple::ConfSimple: fstream(w)(" << fname << ", " << mode <<
+				") errno " << errno << "\n");
     }
 
     if (!readonly && !input.is_open()) {
@@ -255,8 +255,13 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
     }
 
     if (!input.is_open()) {
-        LOGERR("ConfSimple::ConfSimple: fstream("<<fname<<", "<<ios::in<<
-               ") errno" << errno << "\n");
+		// Don't log ENOENT, this is common with some recoll config files
+		string reason;
+		catstrerror(&reason, nullptr, errno);
+		if (errno != 2) {
+			LOGERR("ConfSimple::ConfSimple: fstream(" << fname << ", " <<
+				   ios::in << ") " << reason << "\n");
+		}
         status = STATUS_ERROR;
         return;
     }
@@ -578,16 +583,7 @@ bool ConfSimple::write()
         return true;
     }
     if (m_filename.length()) {
-        fstream output;
-#if (defined(BUILDING_RECOLL) && defined(_MSC_VER))
-        // msc has support for using wide chars for opening files. We may
-        // need this if, e.g. the user name/home directory is not ascii
-        wchar_t wfname[MAX_PATH + 1];
-        utf8towchar(m_filename, wfname, MAX_PATH);
-        output = fstream(wfname, ios::out | ios::trunc);
-#else
-        output = fstream(m_filename, ios::out | ios::trunc);
-#endif
+        fstream output = path_open(m_filename, ios::out | ios::trunc);
         if (!output.is_open()) {
             return 0;
         }
