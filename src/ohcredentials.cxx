@@ -135,7 +135,10 @@ struct ServiceCreds {
             // before we login, so just hard-code it for now.  The
             // Python code uses the value from XBMC,285473059,
             // ohplayer uses 854233864
-            data = "285473059";
+            g_config->get("qobuzappid", data);
+            if (data.empty()) {
+                data = "285473059";
+            }
         } else if (servicename == "tidal") {
             // data contains the country code
             data = "FR";
@@ -651,6 +654,12 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
     if (it != m->creds.end()) {
         credsp = &(it->second);
     } else {
+        if (in_Id == "qobuz") {
+            g_config->get("qobuzappid", emptycreds.data);
+            if (emptycreds.data.empty()) {
+                emptycreds.data = "285473059";
+            }
+        }
         LOGDEB("OHCredentials::actGet: nothing found for " << in_Id << endl);
     }
     LOGDEB("OHCredentials::actGet: data for " << in_Id << " " <<
