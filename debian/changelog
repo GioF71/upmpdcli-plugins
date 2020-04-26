@@ -1,12 +1,13 @@
-upmpdcli (1.4.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.4.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Support gmusic oauth login
   * Fix Radio Paradise meta fetching script
   * Fix umpdcli-config
   * Fix error case in Tidal module
+  * Set appid in OHcreds Get response
   * Other small fixes.
 
- -- Jean-Francois Dockes <jf@dockes.org>  Sat, 25 Apr 2020 12:22:00 +0100
+ -- Jean-Francois Dockes <jf@dockes.org>  Sat, 26 Apr 2020 12:22:00 +0100
 
 upmpdcli (1.4.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
