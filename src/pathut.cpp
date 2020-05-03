@@ -119,7 +119,9 @@
 using namespace std;
 
 #ifdef _WIN32
-#include <shlobj_core.h>
+//#include <shlobj_core.h>
+#include <Shlobj.h>
+
 /// Convert \ separators to /
 void path_slashize(string& s)
 {
