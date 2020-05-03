@@ -67,8 +67,8 @@ class Session(object):
                                                      oauth_credentials=creds)
         else:
             if deviceid is None:
-                logged_in = self.api.login(username, password,
-                                           Mobileclient.FROM_MAC_ADDRESS)
+                logged_in = self.api.login(
+                    username, password, gmusicapi.Mobileclient.FROM_MAC_ADDRESS)
                 if logged_in:
                     # Try to re-login with a valid deviceid
                     data = self.api.get_registered_devices()
