@@ -1,5 +1,29 @@
 = Upmpdcli release notes
 
+== 2020-05-13 libnpupnp 4.0.4
+
+- Fix bug which sometimes crashed upplay (Control Point side) when staring up.
+- Fix initialization not working when an interface had several IP addresses
+  (device side).
+
+== 2020-05-11 upplay 1.4.4
+
+- Direct buttons to switch between radio and playlist.
+- Windows: npupnp port.
+- Fix WM_CLASS for easier window management on X11.
+
+== 2020-05-08 libnpupnp 4.0.2, libupnpp 0.19.1
+
+- Support running on multiple network interfaces.
+- Fix issue where libnpupnp would stop responding to searches from control
+  points, becoming invisible until restarted.
+- There were  4.01/0.19.0 versions briefly released and replaced because of
+  issues 
+
+== 2020-04-26 upmpdcli 1.4.9
+
+Small fix for Bubble UPnP compatibility
+
 == 2020-04-16 upmpdcli 1.4.8
 
 Small improvements to the mediaserver modules.
