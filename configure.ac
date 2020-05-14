@@ -53,30 +53,31 @@ AC_ARG_ENABLE(spotify, AC_HELP_STRING([--disable-spotify],
               enableSpotify=$enableval, enableSpotify="yes")
 AM_CONDITIONAL(ENABLESPOTIFY, [test X$enableSpotify = Xyes])
 
-# The 3 following checks for libthreadutil libixml and libupnp are normally
-# unnecessary and even problematic. upmpdcli does not use them directly,
-# and they should be used automatically because libupnpp is linked with them.
-# Still you may need them to include them on some systems where the
-# automatic link does not work.
-dnl AC_CHECK_LIB([threadutil], [TimerThreadRemove], [],
-dnl     AC_MSG_ERROR([libthreadutil (part of libupnp) not found]))
-dnl AC_CHECK_LIB([ixml], [ixmlDocument_getElementsByTagName], [], 
-dnl    AC_MSG_ERROR([libixml (usually installed as part of libupnp) not found]))
-dnl AC_CHECK_LIB([upnp], [UpnpInit], [], AC_MSG_ERROR([libupnp not found]))
-dnl AC_CHECK_LIB([curl], [curl_easy_init], [],AC_MSG_ERROR([libcurl not found]))
-dnl AC_CHECK_LIB([expat], [XML_ParserCreate], [],AC_MSG_ERROR([libexpat not found]))
 
-PKG_CHECK_MODULES([upnpp], [libupnpp], [], [AC_MSG_ERROR([libupnpp])])
+PKG_CHECK_MODULES([upnpp], [libupnpp], [], [AC_MSG_ERROR([libupnpp not found])])
 PKG_CHECK_MODULES([libmpdclient], [libmpdclient], [],
 	[AC_MSG_ERROR([libmpdclient not found])])
-SCCTL_LIBS="$LIBS $upnpp_LIBS $libmpdclient_LIBS"
-
 PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd], [],
 	[AC_MSG_ERROR([libmicrohttpd not found])])
-
 PKG_CHECK_MODULES([jsoncpp], [jsoncpp], [], [AC_MSG_ERROR([jsoncpp not found])])
 
-UPMPDCLI_LIBS="$LIBS $upnpp_LIBS $libmpdclient_LIBS $libmicrohttpd_LIBS $jsoncpp_LIBS"
+
+AC_ARG_ENABLE(staticlink, AC_HELP_STRING([--enable-staticlink],
+              [Enable static link by adding the needed libraries.]),
+              enableStaticLink=$enableval, enableStaticLink="no")
+if test X$enableStaticLink = Xyes ; then
+    PKG_CHECK_MODULES([curl], [libcurl], [], [AC_MSG_ERROR([libcurl])])
+    PKG_CHECK_MODULES([expat], [expat], [], [AC_MSG_ERROR([libexpat])])
+    PKG_CHECK_MODULES([npupnp], [libnpupnp], [], [AC_MSG_ERROR([libexpat])])
+	addstaticlibs="$npupnp_LIBS $curl_LIBS $expat_LIBS $libmicrohttpd_LIBS"
+else
+	addstaticlibs=""
+fi
+
+
+SCCTL_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs "
+UPMPDCLI_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs"
+
 
 if test X$enableSpotify = Xyes; then
    UPMPDCLI_LIBS="$UPMPDCLI_LIBS -ldl "
