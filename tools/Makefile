@@ -2,7 +2,7 @@
 # - Needs to run in a configured tree (config.h)
 # - Needs libupnpp installed, as the rest of the build, for finding log.h
 
-CPPFLAGS = -I../src -I.. -DMDU_INCLUDE_LOG='<libupnpp/log.h>'
+CPPFLAGS = -I../src -I.. -I../cfgui -DMDU_INCLUDE_LOG='<libupnpp/log.h>'
 VPATH=../src
 
 OBJS = confxml.o smallut.o conftree.o pathut.o

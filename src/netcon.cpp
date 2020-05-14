@@ -50,6 +50,7 @@
 #endif
 
 #include <map>
+#include <algorithm>
 
 #ifdef MDU_INCLUDE_LOG
 #include MDU_INCLUDE_LOG
@@ -58,6 +59,10 @@
 #endif
 
 using namespace std;
+
+#ifndef PRETEND_USE
+#define PRETEND_USE(expr) ((void)(expr))
+#endif
 
 #ifndef SOCKLEN_T
 #define SOCKLEN_T socklen_t
@@ -81,12 +86,7 @@ static const int zero = 0;
     LOGERR(who << ": "  << call << "("  << spar << ") errno " <<  \
            errno << " ("  << strerror(errno) << ")\n")
 #endif
-#ifndef MIN
-#define MIN(a,b) ((a)<(b)?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#endif
+
 #ifndef freeZ
 #define freeZ(X) if (X) {free(X);X=0;}
 #endif
@@ -276,11 +276,11 @@ int SelectLoop::doLoop()
                     pll->m_wantedEvents << "\n");
             if (pll->m_wantedEvents & Netcon::NETCONPOLL_READ) {
                 FD_SET(fd, &rd);
-                nfds = MAX(nfds, fd + 1);
+                nfds = std::max(nfds, fd + 1);
             }
             if (pll->m_wantedEvents & Netcon::NETCONPOLL_WRITE) {
                 FD_SET(fd, &wd);
-                nfds = MAX(nfds, fd + 1);
+                nfds = std::max(nfds, fd + 1);
             }
         }
 
@@ -708,7 +708,7 @@ void NetconData::cancelReceive()
         // We can't do a thing about the ::write return value, the
         // following nonsense is for cancelling warnings
         int ret = ::write(m_wkfds[1], "!", 1);
-        ret = ret;
+        PRETEND_USE(ret);
     }
 }
 
@@ -727,7 +727,7 @@ int NetconData::receive(char *buf, int cnt, int timeo)
     // Get whatever might have been left in the buffer by a previous
     // getline, except if we're called to fill the buffer of course
     if (m_buf && m_bufbytes > 0 && (buf < m_buf || buf > m_buf + m_bufsize)) {
-        fromibuf = MIN(m_bufbytes, cnt);
+        fromibuf = std::min(m_bufbytes, cnt);
         memcpy(buf, m_bufbase, fromibuf);
         m_bufbytes -= fromibuf;
         m_bufbase += fromibuf;
@@ -750,7 +750,7 @@ int NetconData::receive(char *buf, int cnt, int timeo)
             LOGDEB2("NetconData::receive: cancel fd " << m_wkfds[0] << endl);
             FD_SET(m_wkfds[0], &rd);
         }
-        int nfds = MAX(m_fd, m_wkfds[0]) + 1;
+        int nfds = std::max(m_fd, m_wkfds[0]) + 1;
 
         int ret = select(nfds, &rd, 0, 0, &tv);
         LOGDEB2("NetconData::receive: select returned " << ret << endl);
@@ -760,7 +760,7 @@ int NetconData::receive(char *buf, int cnt, int timeo)
             // We can't do a thing about the return value, the
             // following nonsense is for cancelling warnings
             int ret = ::read(m_wkfds[0], b, 100);
-            ret = ret;
+            PRETEND_USE(ret);
             return Cancelled;
         }
 
@@ -834,7 +834,7 @@ int NetconData::getline(char *buf, int cnt, int timeo)
     for (;;) {
         // Transfer from buffer. Have to take a lot of care to keep counts and
         // pointers consistant in all end cases
-        int maxtransf = MIN(m_bufbytes, cnt - 1);
+        int maxtransf = std::min(m_bufbytes, cnt - 1);
         int nn = maxtransf;
         LOGDEB2("Before loop, bufbytes " << m_bufbytes << ", maxtransf " <<
                 maxtransf << ", nn: " << nn << "\n");

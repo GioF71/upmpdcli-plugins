@@ -109,6 +109,8 @@ extern bool path_readable(const std::string& path);
 extern std::string path_PATHsep();
 
 #ifdef _WIN32
+extern bool wchartoutf8(const wchar_t *in, std::string& out);
+extern bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
 #define SYSPATH(PATH, SPATH) wchar_t PATH ## _buf[2048];      \
     utf8towchar(PATH, PATH ## _buf, 2048);                    \
     wchar_t *SPATH = PATH ## _buf;

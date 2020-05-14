@@ -1063,7 +1063,7 @@ void ReExec::init(int argc, char *args[])
 
 void ReExec::insertArgs(const vector<string>& args, int idx)
 {
-    vector<string>::iterator it, cit;
+    vector<string>::iterator it;
     unsigned int cmpoffset = (unsigned int) - 1;
 
     if (idx == -1 || string::size_type(idx) >= m_argv.size()) {

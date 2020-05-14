@@ -49,7 +49,6 @@
  * (useful to have central/personal config files).
  */
 
-#include <time.h>
 #include <algorithm>
 #include <map>
 #include <string>
@@ -219,7 +218,8 @@ public:
     /** Print all values to stdout */
     virtual void showall() const override;
 
-    /** Return all names in given submap. */
+    /** Return all names in given submap. On win32, the pattern thing
+        only works in recoll builds */
     virtual std::vector<std::string> getNames(
         const std::string& sk, const char *pattern = 0) const override;
 
@@ -299,7 +299,7 @@ protected:
 private:
     // Set if we're working with a file
     std::string m_filename;
-    time_t      m_fmtime;
+    int64_t     m_fmtime;
     // Configuration data submaps (one per subkey, the main data has a
     // null subkey)
     std::map<std::string, std::map<std::string, std::string> > m_submaps;
@@ -492,6 +492,8 @@ public:
         return m_confs.front()->holdWrites(on);
     }
 
+    /** Return all names in given submap. On win32, the pattern thing
+        only works in recoll builds */
     virtual std::vector<std::string> getNames(
         const std::string& sk, const char *pattern = 0) const override {
         return getNames1(sk, pattern, false);

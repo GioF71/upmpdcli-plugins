@@ -16,7 +16,6 @@
  */
 #ifdef BUILDING_RECOLL
 #include "autoconfig.h"
-#include "transcode.h"
 #else
 #include "config.h"
 #endif
@@ -24,15 +23,10 @@
 #include "conftree.h"
 
 #include <ctype.h>
+#if defined(BUILDING_RECOLL) || !defined(_WIN32)
 #include <fnmatch.h>
-#ifdef _WIN32
-#include "safesysstat.h"
-#else
+#endif /* BUILDING_RECOLL */
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <pwd.h>
-#endif
 
 #include <algorithm>
 #include <cstring>
@@ -243,7 +237,7 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
     fstream input = path_open(fname, mode);
     if (!input.is_open()) {
         LOGDEB0("ConfSimple::ConfSimple: fstream(w)(" << fname << ", " << mode <<
-				") errno " << errno << "\n");
+                ") errno " << errno << "\n");
     }
 
     if (!readonly && !input.is_open()) {
@@ -255,13 +249,13 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
     }
 
     if (!input.is_open()) {
-		// Don't log ENOENT, this is common with some recoll config files
-		string reason;
-		catstrerror(&reason, nullptr, errno);
-		if (errno != 2) {
-			LOGERR("ConfSimple::ConfSimple: fstream(" << fname << ", " <<
-				   ios::in << ") " << reason << "\n");
-		}
+        // Don't log ENOENT, this is common with some recoll config files
+        string reason;
+        catstrerror(&reason, nullptr, errno);
+        if (errno != 2) {
+            LOGERR("ConfSimple::ConfSimple: fstream(" << fname << ", " <<
+                   ios::in << ") " << reason << "\n");
+        }
         status = STATUS_ERROR;
         return;
     }
@@ -285,9 +279,9 @@ ConfSimple::StatusCode ConfSimple::getStatus() const
 bool ConfSimple::sourceChanged() const
 {
     if (!m_filename.empty()) {
-        struct stat st;
-        if (stat(m_filename.c_str(), &st) == 0) {
-            if (m_fmtime != st.st_mtime) {
+        PathStat st;
+        if (path_fileprops(m_filename, &st) == 0) {
+            if (m_fmtime != st.pst_mtime) {
                 return true;
             }
         }
@@ -298,11 +292,11 @@ bool ConfSimple::sourceChanged() const
 bool ConfSimple::i_changed(bool upd)
 {
     if (!m_filename.empty()) {
-        struct stat st;
-        if (stat(m_filename.c_str(), &st) == 0) {
-            if (m_fmtime != st.st_mtime) {
+        PathStat st;
+        if (path_fileprops(m_filename, &st) == 0) {
+            if (m_fmtime != st.pst_mtime) {
                 if (upd) {
-                    m_fmtime = st.st_mtime;
+                    m_fmtime = st.pst_mtime;
                 }
                 return true;
             }
@@ -670,7 +664,14 @@ vector<string> ConfSimple::getNames(const string& sk, const char *pattern) const
     }
     mylist.reserve(ss->second.size());
     for (const auto& item : ss->second) {
-        if (pattern && 0 != fnmatch(pattern, item.first.c_str(), 0)) {
+        if (pattern &&
+#if defined(BUILDING_RECOLL) || !defined(_WIN32)
+            0 != fnmatch(pattern, item.first.c_str(), 0)
+#else
+            /* Default to no match: yields easier to spot errors */
+            1
+#endif
+        ) {
             continue;
         }
         mylist.push_back(item.first);

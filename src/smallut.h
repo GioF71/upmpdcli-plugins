@@ -18,9 +18,8 @@
 #ifndef _SMALLUT_H_INCLUDED_
 #define _SMALLUT_H_INCLUDED_
 
-#include <sys/types.h>
 #include <stdint.h>
-
+#include <time.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -204,6 +203,10 @@ inline void leftzeropad(std::string& s, unsigned len)
         s = s.insert(0, len - s.length(), '0');
     }
 }
+
+// Print binary string in hexa, separate bytes with character separ if not zero
+// (e.g. ac:23:0c:4f:46:fd)
+extern std::string hexprint(const std::string& in, char separ= 0);
 
 // A class to solve platorm/compiler issues for simple regex
 // matches. Uses the appropriate native lib under the hood.

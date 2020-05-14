@@ -563,7 +563,7 @@ bool file_scan(const string& fn, FileScanDo* doer, int64_t startoffs,
     
     FileScanSourceFile source(doer, fn, startoffs, cnttoread, reason);
     FileScanUpstream *up = &source;
-    up = up;
+    PRETEND_USE(up);
     
 #if defined(READFILE_ENABLE_ZLIB)
     GzFilter gzfilter;
@@ -637,7 +637,7 @@ bool string_scan(const char *data, size_t cnt, FileScanDo* doer,
 {
     FileScanSourceBuffer source(doer, data, cnt, reason);
     FileScanUpstream *up = &source;
-    up = up;
+    PRETEND_USE(up);
     
 #ifdef READFILE_ENABLE_MD5
     string digest;
