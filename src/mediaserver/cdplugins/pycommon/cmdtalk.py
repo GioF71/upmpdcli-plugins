@@ -140,8 +140,12 @@ class CmdTalk(object):
         else:
             paramdata = b''
         if PY3 and not self.nodecodeinput:
-            paramdata = paramdata.decode('utf-8')
-    
+            try:
+                paramdata = paramdata.decode('utf-8')
+            except Exception as ex:
+                self.log("Exception decoding param: %s" % ex)
+                paramdata = b''
+                
         #self.log("paramname [%s] paramsize %d value [%s]" %
         #          (paramname, paramsize, paramdata))
         return (paramname, paramdata)
