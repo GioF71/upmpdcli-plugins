@@ -332,7 +332,7 @@ private:
                 return false;
             }
             spos = epos + 1;
-            epos = tag.find_first_of("\"", spos);
+            epos = tag.find_first_of(R"(")", spos);
             if (epos == std::string::npos) {
                 m_reason << "Missing closing dquote at cpos " << m_pos+spos;
                 return false;
