@@ -59,8 +59,8 @@ log = MLog()
 class Config(object):
     def __init__(self, quality=Quality.high):
         self.quality = quality
-        self.api_location = 'https://api.tidal.com/v1/'
-        self.api_token = 'kgsOOmYk3zShYrNP'
+        self.api_location = 'https://api.tidalhifi.com/v1/'
+        self.api_token = 'pl4Vc0hemlAXD0mN'
         self.preview_token = "8C7kRFdkaRp0dLBp" # Token for Preview Mode
 
 

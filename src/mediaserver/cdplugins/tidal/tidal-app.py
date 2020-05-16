@@ -194,7 +194,7 @@ def browse(a):
     else:
         plugin.run([idpath])
     #msgproc.log("%s" % xbmcplugin.entries)
-    encoded = json.dumps(xbmcplugin.entries)
+    encoded = json.dumps(xbmcplugin.entries, default=str)
     return {"entries" : encoded}
 
 @plugin.route('/')
@@ -423,7 +423,7 @@ def search(a):
         searchresults = session.search('track', value)
         track_list(searchresults.tracks)
     #msgproc.log("%s" % xbmcplugin.entries)
-    encoded = json.dumps(xbmcplugin.entries)
+    encoded = json.dumps(xbmcplugin.entries, default=str)
     return {"entries" : encoded}
 
 
