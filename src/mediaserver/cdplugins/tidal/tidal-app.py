@@ -93,7 +93,12 @@ def maybelogin(a={}):
     else:
         raise Exception("Bad tidal quality string in config. "+
                         "Must be lossless/high/low")
-    tidalconf = tidalapi.Config(quality)
+    apitoken = upconfig.get('tidalapitoken')
+    if apitoken:
+        tidalconf = tidalapi.Config(quality, apitoken=apitoken)
+    else:
+        tidalconf = tidalapi.Config(quality)
+
     session = tidalapi.Session(config=tidalconf)
     session.login(username, password)
     is_logged_in = True

@@ -57,12 +57,11 @@ log = MLog()
 
 # See https://github.com/arnesongit/python-tidal/ for token descs
 class Config(object):
-    def __init__(self, quality=Quality.high):
+    def __init__(self, quality=Quality.high, apitoken = 'pl4Vc0hemlAXD0mN'):
         self.quality = quality
         self.api_location = 'https://api.tidalhifi.com/v1/'
-        self.api_token = 'pl4Vc0hemlAXD0mN'
+        self.api_token = apitoken
         self.preview_token = "8C7kRFdkaRp0dLBp" # Token for Preview Mode
-
 
 class Session(object):
 
@@ -126,7 +125,7 @@ class Session(object):
                 msg = r.json().get('userMessage')
             except:
                 msg = r.reason
-            log.error(msg)
+            log.error("Tidal login: %s" % msg)
         else:
             try:
                 body = r.json()
@@ -135,7 +134,7 @@ class Session(object):
                 self.user = self.init_user(user_id=body['userId'],
                                            subscription_type=subscription_type)
             except Exception as err:
-                log.error('Login failed. err %s %s' % (err, body))
+                log.error('Tidal login failed. err %s %s' % (err, body))
                 self.logout()
 
         return self.is_logged_in

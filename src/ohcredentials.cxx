@@ -140,8 +140,13 @@ struct ServiceCreds {
                 data = "285473059";
             }
         } else if (servicename == "tidal") {
-            // data contains the country code
-            data = "FR";
+            g_config->get("tidalapitoken", data);
+            if (data.empty()) {
+                data = "pl4Vc0hemlAXD0mN";
+            }
+            // data used to contain the country code, but the change
+            // does not appear to affect kazoo
+            // data = "FR";
         }
     }
 
@@ -659,7 +664,12 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
             if (emptycreds.data.empty()) {
                 emptycreds.data = "285473059";
             }
-        }
+        } else if (in_Id == "tidal") {
+            g_config->get("tidalapitoken", emptycreds.data);
+            if (emptycreds.data.empty()) {
+                emptycreds.data = "pl4Vc0hemlAXD0mN";
+            }
+		}
         LOGDEB("OHCredentials::actGet: nothing found for " << in_Id << endl);
     }
     LOGDEB("OHCredentials::actGet: data for " << in_Id << " " <<
