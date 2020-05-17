@@ -1,3 +1,10 @@
+upmpdcli (1.4.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Update tidal token and set it in ohcredentials Get data to help bubble
+    discriminate working and non-working versions.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 17 May 2020 10:42:00 +0100
+
 upmpdcli (1.4.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Support gmusic oauth login
