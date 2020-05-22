@@ -1,5 +1,13 @@
 = Upmpdcli release notes
 
+== 2020-05-21 libnpupnp 4.0.5
+
+Hopefully fixes the upmpdcli boot startup issues from previous versions.
+
+== 2020-05-17 upmpdcli 1.4.10
+
+Released with a new Tidal API token, the old one did not work any more.
+
 == 2020-05-13 libnpupnp 4.0.4
 
 - Fix bug which sometimes crashed upplay (Control Point side) when staring up.
