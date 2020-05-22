@@ -147,6 +147,7 @@ extern bool path_makepath(const std::string& path, int mode);
  * @param path an utf-8 file path.
  * @param mode is an std::fstream mode (ios::in etc.) */
 extern std::fstream path_open(const std::string& path, int mode);
+extern bool path_open(const std::string& path, int mode, std::fstream& outstream);
 
 /// Where we create the user data subdirs
 extern std::string path_homedata();
