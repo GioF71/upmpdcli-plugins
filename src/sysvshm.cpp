@@ -158,8 +158,10 @@ LockableShmSeg::LockableShmSeg(key_t ky, size_t size, bool create, int perms)
         err = pthread_mutexattr_init(&attr);if (err) goto done;
         err = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED); 
         if (err) goto done;
+#ifndef __APPLE__
         err = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
         if (err) goto done;
+#endif
         err = pthread_mutex_init(mutex, &attr);
         pthread_mutexattr_destroy(&attr);
     done:

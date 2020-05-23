@@ -30,7 +30,7 @@ class UpMpd;
 
 using namespace UPnPP;
 
-class RadioMeta;
+struct RadioMeta;
 class MpdStatus;
 
 class OHRadio : public OHService {

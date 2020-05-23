@@ -378,6 +378,7 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
         return true;
     }
 
+#ifndef __APPLE__
     // Deal with groups.
     // Note that 1000 is arbitrary, we should call with 0 to retrieve
     // the actual size and allocate accordingly then recall
@@ -407,7 +408,7 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
             return true;
         }
     }
-
+    
     // File does not belong to any of our groups. We already checked
     // that "other read" was not set. Have to change the file
     // group. Note that we could also add the file group to our group
@@ -425,5 +426,6 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
             return false;
         }
     }
+#endif
     return true;
 }
