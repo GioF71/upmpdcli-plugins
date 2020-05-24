@@ -66,8 +66,10 @@ public:
     bool talk(const pair<string, string>& arg0,
               const unordered_map<string, string>& args,
               unordered_map<string, string>& rep);
-
+    bool running();
+    
     ExecCmd *cmd{0};
+    bool failed{false};
     Canceler m_cancel;
     std::mutex mmutex;
 };
@@ -87,7 +89,10 @@ bool CmdTalk::startCmd(const string& cmdname,
                        const vector<string>& path)
 {
     LOGDEB("CmdTalk::startCmd\n");
-
+    if (m->failed) {
+        LOGINF("CmdTalk: command failed, not restarting\n");
+        return false;
+    }
     delete m->cmd;
     m->cmd = new ExecCmd;
     m->cmd->setAdvise(&m->m_cancel);
@@ -173,12 +178,29 @@ bool CmdTalk::Internal::readDataElement(string& name, string &data)
     return true;
 }
 
+bool CmdTalk::Internal::running()
+{
+    if (failed || nullptr == cmd || cmd->getChildPid() <= 0) {
+        return false;
+    }
+        
+    int status;
+    if (cmd->maybereap(&status)) {
+        // Command exited. Set error status so that a restart will fail.
+        LOGERR("CmdTalk::talk: command exited\n");
+        failed = true;
+        return false;
+    }
+    return true;
+}
+
 bool CmdTalk::Internal::talk(const pair<string, string>& arg0,
                              const unordered_map<string, string>& args,
                              unordered_map<string, string>& rep)
 {
     std::unique_lock<std::mutex> lock(mmutex);
-    if (cmd->getChildPid() <= 0) {
+
+    if (!running()) {
         LOGERR("CmdTalk::talk: no process\n");
         return false;
     }
@@ -223,12 +245,16 @@ bool CmdTalk::Internal::talk(const pair<string, string>& arg0,
 
 bool CmdTalk::running()
 {
-    return m && m->cmd && m->cmd->getChildPid() > 0;
+    if (nullptr == m)
+        return false;
+    return m->running();
 }
 
 bool CmdTalk::talk(const unordered_map<string, string>& args,
                    unordered_map<string, string>& rep)
 {
+    if (nullptr == m)
+        return false;
     return m->talk({"",""}, args, rep);
 }
 
@@ -237,7 +263,7 @@ bool CmdTalk::callproc(
     const unordered_map<std::string, std::string>& args,
     unordered_map<std::string, std::string>& rep)
 {
+    if (nullptr == m)
+        return false;
     return m->talk({"cmdtalk:proc", proc}, args, rep);
 }
-
-    
