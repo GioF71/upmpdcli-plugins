@@ -96,7 +96,7 @@ protected:
     virtual void startElement(
         const std::string& /* nm */,
         const std::map<std::string, std::string>& /* attrs */) {}
-	/** Expatmm compat. We don't support attributes with this at the moment */
+    /** Expatmm compat. We don't support attributes with this at the moment */
     virtual void StartElement(const XML_Char *, const XML_Char **) {}
 
     /**
@@ -106,7 +106,7 @@ protected:
      * @param tagname the tag name.
      */
     virtual void endElement(const std::string& /* nm */) {}
-	/** Expatmm compat */
+    /** Expatmm compat */
     virtual void EndElement(const XML_Char */* nm */) {}
 
     /**
@@ -114,7 +114,7 @@ protected:
      * @param data the data.
      */
     virtual void characterData(const std::string& /*data*/) {}
-	/** Expatmm compat */
+    /** Expatmm compat */
     virtual void CharacterData(const XML_Char *, int) {}
 
     /** 
@@ -353,50 +353,50 @@ private:
         return true;
     }
 
-	std::string unQuote(const std::string &s) {
-		static const std::string e_quot{"quot"};
-		static const std::string e_amp{"amp"};
-		static const std::string e_apos{"apos"};
-		static const std::string e_lt{"lt"};
-		static const std::string e_gt{"gt"};
+    std::string unQuote(const std::string &s) {
+        static const std::string e_quot{"quot"};
+        static const std::string e_amp{"amp"};
+        static const std::string e_apos{"apos"};
+        static const std::string e_lt{"lt"};
+        static const std::string e_gt{"gt"};
 
-		std::string out;
-		out.reserve(s.size());
-		std::string::const_iterator it = s.begin();
-		while (it != s.end()) {
-			if (*it != '&') {
-				out += *it;
-				it++;
-				continue;
-			}
-			if (it == s.end()) {
-				// ??
-				break;
-			}
-			it++;
-			std::string code;
-			while (it != s.end() && *it != ';') {
-				code += *it;
-				it++;
-			}
-			if (it == s.end()) {
-				// ??
-				break;
-			}
-			it++;
-			if (code == e_quot) {
-				out += '"';
-			} else if (code == e_amp) {
-				out += '&';
-			} else if (code == e_apos) {
-				out += '\'';
-			} else if (code == e_lt) {
-				out += '<';
-			} else if (code == e_gt) {
-				out += '>';
-			}
-		}
-		return out;
-	}
+        std::string out;
+        out.reserve(s.size());
+        std::string::const_iterator it = s.begin();
+        while (it != s.end()) {
+            if (*it != '&') {
+                out += *it;
+                it++;
+                continue;
+            }
+            if (it == s.end()) {
+                // ??
+                break;
+            }
+            it++;
+            std::string code;
+            while (it != s.end() && *it != ';') {
+                code += *it;
+                it++;
+            }
+            if (it == s.end()) {
+                // ??
+                break;
+            }
+            it++;
+            if (code == e_quot) {
+                out += '"';
+            } else if (code == e_amp) {
+                out += '&';
+            } else if (code == e_apos) {
+                out += '\'';
+            } else if (code == e_lt) {
+                out += '<';
+            } else if (code == e_gt) {
+                out += '>';
+            }
+        }
+        return out;
+    }
 };
 #endif /* _PICOXML_H_INCLUDED_ */

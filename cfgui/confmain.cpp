@@ -87,29 +87,29 @@ class ConfLinkCS : public confgui::ConfLinkRep {
 public:
     ConfLinkCS(ConfNull *conf, ConfNull *confdef, const std::string& nm,
                std::string *sk = 0)
-	: m_conf(conf), m_confdef(confdef), m_nm(nm), m_sk(sk) {
+    : m_conf(conf), m_confdef(confdef), m_nm(nm), m_sk(sk) {
     }
     virtual ~ConfLinkCS() {
     }
 
     virtual bool set(const std::string& val) {
-	if (!m_conf)
-	    return false;
-	bool ret = m_conf->set(m_nm, val, m_sk ? *m_sk : "");
-	if (!ret) {
+    if (!m_conf)
+        return false;
+    bool ret = m_conf->set(m_nm, val, m_sk ? *m_sk : "");
+    if (!ret) {
             std::cerr << "ConfLinkCS::set: failed for " << m_nm << std::endl;
         } else {
             cerr << "ConfLinkCS::set: " << (m_sk?*m_sk:string()) <<
                 "[" << m_nm << "] = " << val << endl;
         }
-	return ret;
+    return ret;
     }
     virtual bool get(std::string& val) {
         // cerr << "conflinkCS: get value for " << m_nm << endl;
-	if (!m_conf)
-	    return false;
+    if (!m_conf)
+        return false;
         std::string sk = m_sk ? *m_sk : "";
-	bool ret = m_conf->get(m_nm, val, sk);
+    bool ret = m_conf->get(m_nm, val, sk);
         if (!ret && m_confdef) {
             // cerr << " no value from conf. Trying default\n";
             ret = m_confdef->get(m_nm, val, sk);
@@ -120,7 +120,7 @@ public:
         std::string sv = ret ? val : "no value";
         //std::cerr << "ConfLinkimpl::get: [" << m_nm << "] sk [" << sk <<
         //"] -> [" << sv << "]\n";
-	return ret;
+    return ret;
     }
 private:
     ConfNull     *m_conf;
