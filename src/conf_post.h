@@ -44,8 +44,8 @@ static const char *UPMPDCLI_PACKAGE_VERSION = PACKAGE_VERSION;
 // few codes we actually return. The exact values have no real
 // importance anyway, except for success==0/error==negative.
 #ifndef UPNP_E_SUCCESS
-#define UPNP_E_SUCCESS			0
-#define UPNP_E_INVALID_PARAM		-101
-#define UPNP_E_INTERNAL_ERROR		-911
+#define UPNP_E_SUCCESS            0
+#define UPNP_E_INVALID_PARAM        -101
+#define UPNP_E_INTERNAL_ERROR        -911
 #endif
 

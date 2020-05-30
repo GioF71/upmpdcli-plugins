@@ -1158,17 +1158,17 @@ secondelt:
 
 std::string hexprint(const std::string& in, char separ)
 {
-	string out;
-	out.reserve(separ ? (3 *in.size()) : (2 * in.size()));
-	static const char hex[]="0123456789abcdef";
-	auto cp = (const unsigned char *)in.c_str();
-	for (unsigned int i = 0; i < in.size(); i++) {
-		out.append(1, hex[cp[i] >> 4]);
-		out.append(1, hex[cp[i] & 0x0f]);
-		if (separ && i != in.size() - 1)
-			out.append(1, separ);
-	}
-	return out;
+    string out;
+    out.reserve(separ ? (3 *in.size()) : (2 * in.size()));
+    static const char hex[]="0123456789abcdef";
+    auto cp = (const unsigned char *)in.c_str();
+    for (unsigned int i = 0; i < in.size(); i++) {
+        out.append(1, hex[cp[i] >> 4]);
+        out.append(1, hex[cp[i] & 0x0f]);
+        if (separ && i != in.size() - 1)
+            out.append(1, separ);
+    }
+    return out;
 }
 
 

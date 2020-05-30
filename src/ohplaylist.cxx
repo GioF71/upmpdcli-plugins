@@ -561,7 +561,7 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
     if (ok) {
         if (!keepconsume)
             m_dev->m_mpdcli->consume(false);
-		m_dev->m_mpdcli->single(false);
+        m_dev->m_mpdcli->single(false);
         ok = m_dev->m_mpdcli->play(pos);
         maybeWakeUp(ok);
     }

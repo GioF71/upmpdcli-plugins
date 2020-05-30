@@ -510,7 +510,7 @@ int main(int argc, char *argv[])
             LOGFAT("Can't write pidfile: " << pidfile.getreason() << endl);
             return 1;
         }
-	if (opts.cachedir.empty())
+    if (opts.cachedir.empty())
             opts.cachedir = "/var/cache/upmpdcli";
     } else if (runas == geteuid()) {
         // Already running as upmpdcli user. There are actually 2
@@ -524,10 +524,10 @@ int main(int argc, char *argv[])
         // package was installed. One way to fix this if this if it is
         // wrong is to set cachedir in the configuration file
         // (opts.cachedir will be non-empty then).
-	if (opts.cachedir.empty())
+    if (opts.cachedir.empty())
             opts.cachedir = "/var/cache/upmpdcli";
     } else {
-	if (opts.cachedir.empty())
+    if (opts.cachedir.empty())
             opts.cachedir = path_cat(path_tildexpand("~") , "/.cache/upmpdcli");
     }
 
@@ -772,9 +772,9 @@ int main(int argc, char *argv[])
     MediaServer *mediaserver{nullptr};
     
     if (inprocessms) {
-	// Create the Media Server device. If msonly is set, both
-	// branches do the same thing and create a root device
-	// (mediarenderer is null).
+    // Create the Media Server device. If msonly is set, both
+    // branches do the same thing and create a root device
+    // (mediarenderer is null).
         // The multidev modified libupnp is needed for using 2 root devices
         mediaserver = new MediaServer(msroot?nullptr:mediarenderer, string("uuid:") +
                                       ids.uuidMS,ids.fnameMS, enableMediaServer);

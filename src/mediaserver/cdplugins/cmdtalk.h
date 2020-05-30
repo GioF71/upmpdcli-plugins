@@ -79,25 +79,25 @@ class CmdTalk {
     // expects data pairs on the command line. If actual parameters
     // need to be passed, it can't be used by the processor.
     virtual bool startCmd(const std::string& cmdname,
-			  const std::vector<std::string>& args =
-			  std::vector<std::string>(),
-			  const std::vector<std::string>& env =
-			  std::vector<std::string>(),
-			  const std::vector<std::string>& path =
-			  std::vector<std::string>()
-	);
+              const std::vector<std::string>& args =
+              std::vector<std::string>(),
+              const std::vector<std::string>& env =
+              std::vector<std::string>(),
+              const std::vector<std::string>& path =
+              std::vector<std::string>()
+    );
     virtual bool running();
     
     // Single exchange: send and receive data.
     virtual bool talk(const std::unordered_map<std::string, std::string>& args,
-		      std::unordered_map<std::string, std::string>& rep);
+              std::unordered_map<std::string, std::string>& rep);
 
     // Specialized version with special argument used by dispatcher to call
     // designated method
     virtual bool callproc(
-	const std::string& proc,
-	const std::unordered_map<std::string, std::string>& args,
-	std::unordered_map<std::string, std::string>& rep);
+    const std::string& proc,
+    const std::unordered_map<std::string, std::string>& args,
+    std::unordered_map<std::string, std::string>& rep);
 
     CmdTalk(const CmdTalk&) = delete;
     CmdTalk &operator=(const CmdTalk &) = delete;

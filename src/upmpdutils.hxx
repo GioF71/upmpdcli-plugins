@@ -1,18 +1,18 @@
 /* Copyright (C) 2014 J.F.Dockes
- *	 This program is free software; you can redistribute it and/or modify
- *	 it under the terms of the GNU Lesser General Public License as published by
- *	 the Free Software Foundation; either version 2.1 of the License, or
- *	 (at your option) any later version.
+ *     This program is free software; you can redistribute it and/or modify
+ *     it under the terms of the GNU Lesser General Public License as published by
+ *     the Free Software Foundation; either version 2.1 of the License, or
+ *     (at your option) any later version.
  *
- *	 This program is distributed in the hope that it will be useful,
- *	 but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	 GNU Lesser General Public License for more details.
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU Lesser General Public License for more details.
  *
- *	 You should have received a copy of the GNU Lesser General Public License
- *	 along with this program; if not, write to the
- *	 Free Software Foundation, Inc.,
- *	 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *     You should have received a copy of the GNU Lesser General Public License
+ *     along with this program; if not, write to the
+ *     Free Software Foundation, Inc.,
+ *     59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef _UPMPDUTILS_H_X_INCLUDED_
 #define _UPMPDUTILS_H_X_INCLUDED_
@@ -38,7 +38,7 @@ public:
     UpSong() {
     }
     void clear() {
-	*this = UpSong();
+    *this = UpSong();
     }
     std::string id;
     std::string parentid;
@@ -84,25 +84,25 @@ public:
     std::string didl() const;
 
     static UpSong container(const std::string& id, const std::string& pid,
-			    const std::string& title, bool sable = true,
-			    const std::string& annot = std::string()) {
-	UpSong song;
-	song.iscontainer = true;
-	song.id = id;
+                const std::string& title, bool sable = true,
+                const std::string& annot = std::string()) {
+    UpSong song;
+    song.iscontainer = true;
+    song.id = id;
         song.parentid = pid;
         song.title = title;
         song.searchable = sable;
-	song.tracknum = annot;
-	return song;
+    song.tracknum = annot;
+    return song;
     }
     static UpSong item(const std::string& id, const std::string& parentid,
                        const std::string& title) {
-	UpSong song;
-	song.iscontainer = false;
-	song.id = id;
+    UpSong song;
+    song.iscontainer = false;
+    song.id = id;
         song.parentid = parentid;
         song.title = title;
-	return song;
+    return song;
     }
 };
 

@@ -78,14 +78,14 @@ UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
                             bind(&UpMpdAVTransport::getCurrentTransportActions,
                                  this,_1,_2));
     m_dev->addActionMapping(this,"Stop", bind(&UpMpdAVTransport::playcontrol, 
-                                         this, _1, _2, 0));
+                                              this, _1, _2, 0));
     m_dev->addActionMapping(this,"Play", bind(&UpMpdAVTransport::playcontrol, 
-                                         this, _1, _2, 1));
+                                              this, _1, _2, 1));
     m_dev->addActionMapping(this,"Pause", 
                             bind(&UpMpdAVTransport::playcontrol, 
                                  this, _1, _2, 2));
     m_dev->addActionMapping(this,"Seek", bind(&UpMpdAVTransport::seek, 
-                                         this, _1, _2));
+                                              this, _1, _2));
 
     // should we get rid of those ? They don't make sense for us
     m_dev->addActionMapping(this, "Next", bind(&UpMpdAVTransport::seqcontrol, 
@@ -109,24 +109,24 @@ UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
 
 // AVTransport Errors
 enum AVTErrorCode {
-  UPNP_AV_AVT_INVALID_TRANSITION                    = 701,
-  UPNP_AV_AVT_NO_CONTENTS                           = 702,
-  UPNP_AV_AVT_READ_ERROR                            = 703,
-  UPNP_AV_AVT_UNSUPPORTED_PLAY_FORMAT               = 704,
-  UPNP_AV_AVT_TRANSPORT_LOCKED                      = 705,
-  UPNP_AV_AVT_WRITE_ERROR                           = 706,
-  UPNP_AV_AVT_PROTECTED_MEDIA                       = 707,
-  UPNP_AV_AVT_UNSUPPORTED_REC_FORMAT                = 708,
-  UPNP_AV_AVT_FULL_MEDIA                            = 709,
-  UPNP_AV_AVT_UNSUPPORTED_SEEK_MODE                 = 710,
-  UPNP_AV_AVT_ILLEGAL_SEEK_TARGET                   = 711,
-  UPNP_AV_AVT_UNSUPPORTED_PLAY_MODE                 = 712,
-  UPNP_AV_AVT_UNSUPPORTED_REC_QUALITY               = 713,
-  UPNP_AV_AVT_ILLEGAL_MIME                          = 714,
-  UPNP_AV_AVT_CONTENT_BUSY                          = 715,
-  UPNP_AV_AVT_RESOURCE_NOT_FOUND                    = 716,
-  UPNP_AV_AVT_UNSUPPORTED_PLAY_SPEED                = 717,
-  UPNP_AV_AVT_INVALID_INSTANCE_ID                   = 718,
+    UPNP_AV_AVT_INVALID_TRANSITION                    = 701,
+    UPNP_AV_AVT_NO_CONTENTS                           = 702,
+    UPNP_AV_AVT_READ_ERROR                            = 703,
+    UPNP_AV_AVT_UNSUPPORTED_PLAY_FORMAT               = 704,
+    UPNP_AV_AVT_TRANSPORT_LOCKED                      = 705,
+    UPNP_AV_AVT_WRITE_ERROR                           = 706,
+    UPNP_AV_AVT_PROTECTED_MEDIA                       = 707,
+    UPNP_AV_AVT_UNSUPPORTED_REC_FORMAT                = 708,
+    UPNP_AV_AVT_FULL_MEDIA                            = 709,
+    UPNP_AV_AVT_UNSUPPORTED_SEEK_MODE                 = 710,
+    UPNP_AV_AVT_ILLEGAL_SEEK_TARGET                   = 711,
+    UPNP_AV_AVT_UNSUPPORTED_PLAY_MODE                 = 712,
+    UPNP_AV_AVT_UNSUPPORTED_REC_QUALITY               = 713,
+    UPNP_AV_AVT_ILLEGAL_MIME                          = 714,
+    UPNP_AV_AVT_CONTENT_BUSY                          = 715,
+    UPNP_AV_AVT_RESOURCE_NOT_FOUND                    = 716,
+    UPNP_AV_AVT_UNSUPPORTED_PLAY_SPEED                = 717,
+    UPNP_AV_AVT_INVALID_INSTANCE_ID                   = 718,
 };
 
 const std::string UpMpdAVTransport::serviceErrString(int error) const
@@ -308,7 +308,7 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
 
     string playmedium("NONE");
     if (is_song)
-        playmedium = uri.find("http://") == 0 ?	"HDD" : "NETWORK";
+        playmedium = uri.find("http://") == 0 ?    "HDD" : "NETWORK";
     status["NumberOfTracks"] = "1";
     status["CurrentMediaDuration"] = is_song?
         upnpduration(mpds.songlenms):"00:00:00";
@@ -670,7 +670,7 @@ int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
     }
     string playmedium("NONE");
     if (is_song)
-        playmedium = thisuri.find("http://") == 0 ?	"HDD" : "NETWORK";
+        playmedium = thisuri.find("http://") == 0 ?    "HDD" : "NETWORK";
     data.addarg("PlayMedium", playmedium);
 
     data.addarg("RecordMedium", "NOT_IMPLEMENTED");
@@ -693,14 +693,14 @@ int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, in
     switch (mpds.state) {
     case MpdStatus::MPDS_PLAY: 
         switch (what) {
-        case 0:	ok = m_dev->m_mpdcli->stop(); break;
+        case 0: ok = m_dev->m_mpdcli->stop(); break;
         case 1: ok = m_dev->m_mpdcli->play();break;
         case 2: ok = m_dev->m_mpdcli->togglePause();break;
         }
         break;
     case MpdStatus::MPDS_PAUSE:
         switch (what) {
-        case 0:	ok = m_dev->m_mpdcli->stop(); break;
+        case 0: ok = m_dev->m_mpdcli->stop(); break;
         case 1: ok = m_dev->m_mpdcli->togglePause();break;
         case 2: break;
         }
@@ -708,13 +708,13 @@ int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, in
     case MpdStatus::MPDS_STOP:
     default:
         switch (what) {
-        case 0:	break;
+        case 0: break;
         case 1: ok = m_dev->m_mpdcli->play();break;
         case 2: break;
         }
         break;
     }
-	
+    
     m_dev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -747,7 +747,7 @@ int UpMpdAVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int
  * sense. If ownqueue is 0, it might still make sense for us to
  * control the mpd play mode though, but any special mode will be reset if
  * set(Next)AVTransport is called.
-*/
+ */
 int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string playmode;
@@ -821,8 +821,8 @@ int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     //LOGDEB("UpMpdAVTransport::seek: unit " << unit << " target " << target << 
-    //	   " current posisition " << mpds.songelapsedms / 1000 << 
-    //	   " seconds" << endl);
+    //       " current posisition " << mpds.songelapsedms / 1000 << 
+    //       " seconds" << endl);
 
     int abs_seconds;
     // Note that ABS_TIME and REL_TIME don't mean what you'd think

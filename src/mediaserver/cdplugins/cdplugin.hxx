@@ -67,10 +67,10 @@ public:
     /// @param flg browse flag
     /// @return total number of matched entries in container
     virtual int browse(
-	const std::string& objid, int stidx, int cnt,
-	std::vector<UpSong>& entries,
-	const std::vector<std::string>& sortcrits = std::vector<std::string>(),
-	BrowseFlag flg = BFChildren) = 0;
+    const std::string& objid, int stidx, int cnt,
+    std::vector<UpSong>& entries,
+    const std::vector<std::string>& sortcrits = std::vector<std::string>(),
+    BrowseFlag flg = BFChildren) = 0;
 
     /// Search under object at objid.
     ///
@@ -86,10 +86,10 @@ public:
     /// @param sortcrits csv list of sort criteria.
     /// @return total number of matched entries in container
     virtual int search(
-	const std::string& ctid, int stidx, int cnt,
-	const std::string& searchstr,
-	std::vector<UpSong>& entries,
-	const std::vector<std::string>& sortcrits = std::vector<std::string>())
+    const std::string& ctid, int stidx, int cnt,
+    const std::string& searchstr,
+    std::vector<UpSong>& entries,
+    const std::vector<std::string>& sortcrits = std::vector<std::string>())
     = 0;
 
     const std::string& getname() {

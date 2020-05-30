@@ -669,7 +669,7 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
             if (emptycreds.data.empty()) {
                 emptycreds.data = "pl4Vc0hemlAXD0mN";
             }
-		}
+        }
         LOGDEB("OHCredentials::actGet: nothing found for " << in_Id << endl);
     }
     LOGDEB("OHCredentials::actGet: data for " << in_Id << " " <<

@@ -869,7 +869,7 @@ bool path_open(const std::string& path, int mode, std::fstream& outstream)
     outstream.open(wpath, std::ios_base::openmode(mode));
     if (!outstream.is_open()) {
         LOGERR("path_open("<< path << ", "<< mode <<") errno " << errno <<"\n");
-	return false;
+    return false;
     }
     return true;
 #else

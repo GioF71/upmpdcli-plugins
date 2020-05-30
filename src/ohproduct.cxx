@@ -159,11 +159,11 @@ OHProduct::OHProduct(UpMpd *dev, ohProductDesc_t& ohProductDesc, int version)
         if (!g_state->get(cstr_stsrcnmkey, savedsrc)) {
             savedsrc = "Playlist";
         }
-		if (savedsrc.compare("Playlist")) {
-			if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
-				g_state->set(cstr_stsrcnmkey, "Playlist");
-			}
-		}
+        if (savedsrc.compare("Playlist")) {
+            if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
+                g_state->set(cstr_stsrcnmkey, "Playlist");
+            }
+        }
     }
 }
 

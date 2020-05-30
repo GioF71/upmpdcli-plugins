@@ -207,9 +207,9 @@ public:
         session_callbacks.log_message = log_message;
         session_callbacks.notify_main_thread = notify_main_thread;
         session_callbacks.metadata_updated = metadata_updated;
-	session_callbacks.music_delivery = music_delivery;
+    session_callbacks.music_delivery = music_delivery;
         session_callbacks.play_token_lost = play_token_lost;
-	session_callbacks.end_of_track = end_of_track,
+    session_callbacks.end_of_track = end_of_track,
 
         spconfig.api_version = SPOTIFY_API_VERSION;
         spconfig.cache_location = cachedir.c_str();
@@ -331,7 +331,7 @@ public:
 
 #define NMTOPTR(NM, TP)                                                 \
     if ((api.NM = TP dlsym(libhandle, #NM)) == 0) {                     \
-	badnames += #NM + string(" ");					\
+    badnames += #NM + string(" ");                    \
     }
 
 static vector<string> lib_suffixes{".so.12", ".so"};
@@ -387,8 +387,8 @@ bool SpotiProxy::Internal::init_spotify_api()
     NMTOPTR(sp_track_name, (const char * (*)(sp_track *track)));
     NMTOPTR(sp_track_release, (sp_error (*)(sp_track *track)));
     if (!badnames.empty()) {
-	reason = string("init_libspotify: symbols not found:") + badnames;
-	return false;
+    reason = string("init_libspotify: symbols not found:") + badnames;
+    return false;
     }
     return true;
 }

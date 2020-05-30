@@ -1,18 +1,18 @@
 /* Copyright (C) 2014 J.F.Dockes
- *	 This program is free software; you can redistribute it and/or modify
- *	 it under the terms of the GNU Lesser General Public License as published by
- *	 the Free Software Foundation; either version 2.1 of the License, or
- *	 (at your option) any later version.
+ *     This program is free software; you can redistribute it and/or modify
+ *     it under the terms of the GNU Lesser General Public License as published by
+ *     the Free Software Foundation; either version 2.1 of the License, or
+ *     (at your option) any later version.
  *
- *	 This program is distributed in the hope that it will be useful,
- *	 but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	 GNU Lesser General Public License for more details.
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU Lesser General Public License for more details.
  *
- *	 You should have received a copy of the GNU Lesser General Public License
- *	 along with this program; if not, write to the
- *	 Free Software Foundation, Inc.,
- *	 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *     You should have received a copy of the GNU Lesser General Public License
+ *     along with this program; if not, write to the
+ *     Free Software Foundation, Inc.,
+ *     59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include "config.h"
@@ -240,7 +240,7 @@ int UpMpdRenderCtl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
     if (volume < 0 || volume > 100) {
         return UPNP_E_INVALID_PARAM;
     }
-	
+    
     m_dev->setvolume(volume);
 
     m_dev->loopWakeup();
@@ -255,7 +255,7 @@ int UpMpdRenderCtl::getVolume(const SoapIncoming& sc, SoapOutgoing& data,
     if (!sc.get("Channel", &channel) || channel.compare("Master")) {
         return UPNP_E_INVALID_PARAM;
     }
-	
+    
     int volume = m_dev->getvolume();
     if (isDb) {
         volume = percentodbvalue(volume);
