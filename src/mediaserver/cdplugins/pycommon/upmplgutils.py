@@ -58,7 +58,7 @@ class XbmcPlugin:
         self.idprefix = idprefix
         setidprefix(idprefix)
 
-    def addDirectoryItem(self, hdl, endpoint, title, isend):
+    def addDirectoryItem(self, hdl, endpoint, title, isend = False):
         self.entries.append(direntry(self.idprefix + endpoint, self.objid,
                                      title))
 

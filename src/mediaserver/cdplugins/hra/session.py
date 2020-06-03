@@ -7,29 +7,43 @@ import sys
 import json
 from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
      Category, Genre, Model
-from ownModel import DynamicModel
 from upmplgutils import *
-from highresaudio.api import raw
+import hraapi
 import urllib
 import datetime
 import traceback
+import base64
 
 class Session(object):
     def __init__(self):
-        self.api = None
+        self.api = hraapi.HRAAPI()
         self.user = None
 
     def login(self, username, password):
-        self.api = raw.RawApi()
         data = self.api.user_login(username=username, password=password)
-
         if data:
             self.user = User(**data)
-
             return True
         else:
             return False
 
+
+    def isloggedin(self):
+        return self.api.isloggedin()
+    
+
+    def get_categories(self):
+        return list(map(_parse_category, self.api.getAllCategories()))
+
+
+    def get_genres(self, parent=None):
+        data = self.api.getAllGenres()
+        return [_parse_genre(g) for g in data]
+
+    def get_catg_albums(self, prefix):
+        data = self.api.listCategoryContent(category=prefix, offset=0, limit=30)
+        return [_parse_album(a) for a in data]
+    
     def get_media_url(self, trackid, format_id=5):
         # Format id: 5 for MP3 320, 6 for FLAC Lossless, 7 for FLAC
         # Hi-Res 24 bit =< 96kHz, 27 for FLAC Hi-Res 24 bit >96 kHz &
@@ -155,16 +169,6 @@ class Session(object):
                 return [_parse_album(alb) for alb in data['albums']['items']]
         return []
 
-    def get_category_list(self, genre_id=None):
-        data = self.api.category_list(genre_id=genre_id)
-        return [_parse_album(g) for g in data['data']['results']]
-
-    def get_genres(self, parent=None):
-        data = self.api.genre_list()
-        # return [Genre(id=None, name='All Genres')] + \
-        return [_parse_genre(g) for g in data['data']['results']]
-
-
     def filter_search(self, list, by):
         results = []
         for i in list:
@@ -263,55 +267,39 @@ class Session(object):
 
             return cplt
 
+
+
+def encode_prefix(p):
+    return base64.urlsafe_b64encode(p.encode('utf-8')).decode('utf-8')
+def decode_prefix(p):
+    return base64.urlsafe_b64decode(p.encode('utf-8')).decode('utf-8')
+
+def _parse_category(data):
+    return Category(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
+
+def _parse_genre(data):
+    return Genre(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
+
 def _parse_artist(json_obj):
     artist = Artist(id=json_obj['id'], name=json_obj['title'].encode())
     return artist
 
-def _parse_genre(data):
-    return Genre(id=urllib.quote_plus(data['prefix']), name=data['title'])
 
-def _parse_menu_item(data):
-    return DynamicModel(id=data['id'], name=data['title'])
-
-def _parse_menu_image_item(data):
-    return DynamicModel(id=data['id'], name=data['title'], image=data["playlistCover"])
-
-
-def _parse_album(json_obj, artist=None, artists=None):
-    #if artist is None and 'artist' in json_obj:
-    #    artist = _parse_artist(json_obj['artist'])
-    #if artists is None:
-    #    artists = _parse_artists(json_obj['artists'])
-    # available = json_obj['streamable'] if 'streamable' in json_obj else false
-    #if not available:
-    #    uplog("Album not streamable: %s " % json_obj['title'])
-
-    uplog(json_obj)
+def _parse_album(data):
+    uplog(data)
     uplog("-_"*30)
 
     kwargs = {
-        'id': json_obj['id'].encode("utf-8"),
-        'name': json_obj['title'].encode("utf-8"),
-        'num_tracks': json_obj.get('trackCount'),
-        'duration': json_obj.get('duration'),
-        'artist': json_obj['artist'].encode("utf-8"),
-        #'available': available,
-        #'artists': artists,
+        'id': data['id'].encode("utf-8"),
+        'name': data['title'].encode("utf-8"),
+        'artist': data['artist'].encode("utf-8"),
     }
-
-    if 'cover' in json_obj:
-
-        if "preview" in json_obj["cover"] and isinstance(json_obj["cover"], dict):
-            kwargs['image'] = json_obj['cover']["preview"]["file_url"]
+    if 'cover' in data:
+        if "preview" in data["cover"] and isinstance(data["cover"], dict):
+            kwargs['image'] = data['cover']["preview"]["file_url"]
         else:
-            kwargs['image'] = json_obj['cover']
+            kwargs['image'] = data['cover']
 
-
-    ##if 'releaseDate' in json_obj:
-    ##    try:
-    ##        kwargs['release_date'] = datetime.datetime(*map(int, json_obj['releaseDate'].split('-')))
-    ##    except ##ValueError:
-    ##        pass
     a = Album(**kwargs)
     return a
 
@@ -436,8 +424,6 @@ class Favorites(object):
 
 
 class User(object):
-
-
     def __init__(self, **kwargs):
         self.raw = kwargs
         self.session = kwargs["session_id"]

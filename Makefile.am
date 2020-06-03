@@ -169,6 +169,12 @@ dist_cdpluginsqobuzlib_DATA = \
                   src/mediaserver/cdplugins/qobuz/api/__init__.py \
                   src/mediaserver/cdplugins/qobuz/api/raw.py
 
+cdpluginshradir = $(pkgdatadir)/cdplugins/hra
+dist_cdpluginshra_DATA = \
+                  src/mediaserver/cdplugins/hra/hra-app.py \
+                  src/mediaserver/cdplugins/hra/hraapi.py \
+                  src/mediaserver/cdplugins/hra/session.py
+
 cdpluginsgmusicdir = $(pkgdatadir)/cdplugins/gmusic
 dist_cdpluginsgmusic_DATA = \
                   src/mediaserver/cdplugins/gmusic/gmusic-app.py \
@@ -264,6 +270,7 @@ install-data-hook: web.tar.gz rdpl2stream.tar.gz uprclbottle.tar.gz
 	(cd $(DESTDIR)/$(cdpluginsgmusicdir); chmod a+x gmusic-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
+	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
         
 dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
