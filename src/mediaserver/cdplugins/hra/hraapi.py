@@ -8,6 +8,16 @@ import hashlib
 import binascii
 from upmplgutils import *
 import requests
+import json
+
+#import logging
+#import http.client as http_client
+#http_client.HTTPConnection.debuglevel = 1
+#logging.basicConfig(stream=sys.stderr)
+#logging.getLogger().setLevel(logging.DEBUG)
+#requests_log = logging.getLogger("requests.packages.urllib3")
+#requests_log.setLevel(logging.DEBUG)
+#requests_log.propagate = True
 
 class MLog(object):
     def __init__(self):
@@ -32,6 +42,7 @@ class HRAAPI(object):
         self.apiUrl = 'https://streaming.highresaudio.com:8182/vault3'
         self.session_id = None
         self.user_id = None
+        self.user_data = None
         self.logged_on = None
         self.error = None
         self.status_code = None
@@ -77,22 +88,27 @@ class HRAAPI(object):
         url = self.apiUrl + uri
         headers = {}
         params = {}
-        if self.user_id:
-            params = {'user_id' : self.user_id, 'session_id' : self.session_id}
+        dopost = False
+        if 'method' in opt and opt['method'] == 'POST':
+            dopost = True
+        if self.user_data:
+            params = {'userData' : self.user_data}
         params.update(iparams)
+
         log.info('HRAAPI:request: url {}, params: {}'.format(url, str(params)))
         r = None
         try:
-            if 'method' in opt and opt['method'] == 'POST':
+            if dopost:
                 log.info("METHOD POST")
                 r = self.session.post(url, data=params, headers=headers)
             else:
                 log.info("METHOD GET")
-                r = self.session.get(url, data=params, headers=headers)
+                r = self.session.get(url, params=params, headers=headers)
         except:
-            self.error = 'Post request fail'
+            self.error = 'HTTP request failed'
             log.warn(self.error)
             return None
+
         self.status_code = int(r.status_code)
         if self.status_code != 200:
             self.error = self._api_error_string(r, url, params)
@@ -135,6 +151,7 @@ class HRAAPI(object):
             return None
         self.session_id = data['session_id']
         self.user_id = data['user_id']
+        self.user_data = json.dumps({'user_id':self.user_id, 'session_id':self.session_id})
         self.logged_on = time()
         return data
 
@@ -165,6 +182,7 @@ class HRAAPI(object):
           return None
         self.session_id = data['session_id']
         self.user_id = data['user_id']
+        self.user_data = json.dumps({'user_id':self.user_id, 'session_id':self.session_id})
         self.logged_on = time()
         return data
 
@@ -172,10 +190,11 @@ class HRAAPI(object):
     def getAllCategories(self):
         if not self.isloggedin():
             return None
-        data = self._api_request({}, '/vault/categories/ListAllCategories')
+        data = self._api_request({}, '/vault/categories/ListAllCategories/')
         if not data or 'data' not in data or 'results' not in data['data']:
             return {}
         return [item[1] for item in data['data']['results'].items()]
+
 
     def getAllGenres(self):
         if not self.isloggedin():
@@ -188,17 +207,34 @@ class HRAAPI(object):
 
     def listCategoryContent(self, **ka):
         self._check_ka(ka, ['category', 'limit', 'offset'])
-        data = self._api_request(ka, '/vault/categories/ListCategorieContent')
+        data = self._api_request(ka, '/vault/categories/ListCategorieContent/')
         if not data or 'data' not in data or 'results' not in data['data']:
             return {}
         return data['data']['results']
 
 
-    def track_getFileUrl(self, **ka):
+    def getAlbumDetails(self, **ka):
+        self._check_ka(ka, ['album_id'])
+        data = self._api_request(ka, '/vault/album/')
+        if not data or 'data' not in data or 'results' not in data['data'] or \
+          'tracks' not in data['data']['results']:
+            return None
+        return data['data']['results']
+        
+
+    def getTrackById(self, **ka):
         self._check_ka(ka, ['track_id'])
         if not self.isloggedin():
             return None
         params = ka
-        params['user_id'] = self.user_id
-        params['session_id'] = self.session_id
-        return self._api_request(params, '/vault/track')
+        data = self._api_request(params, '/vault/track/')
+        if not data or 'data' not in data or 'results' not in data['data'] or \
+          'tracks' not in data['data']['results']:
+            return None
+        return data['data']['results']['tracks']
+
+    def listAllUserPlaylists(self, **ka):
+        if not self.isloggedin():
+            return {}
+        params = ka
+        return self._api_request(params, '/user/ListAllUserPlaylists')

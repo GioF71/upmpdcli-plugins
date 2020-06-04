@@ -19,6 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+##### AFAIRE
+# Track arturi
+# Track format
+# User playlists
+# search
+# ,,,
+
 import sys
 import os
 import json
@@ -77,17 +85,15 @@ def maybelogin():
     
 @dispatcher.record('trackuri')
 def trackuri(a):
-    global formatid, pathprefix
-    formatid = 7
+    global pathprefix
     msgproc.log("trackuri: [%s]" % a)
     trackid = trackid_from_urlpath(pathprefix, a)
     maybelogin()
-    media_url = sess.get_media_url(trackid, formatid)
-
+    media_url = sess.get_media_url(trackid)
     if not media_url:
         media_url = ""
-
     #msgproc.log("%s" % media_url)
+    formatid = 7
     if formatid == 5:
         mime = "audio/mpeg"
         kbs = "320"
@@ -167,6 +173,7 @@ def root():
         return
     add_directory('Categories', allCategories)
     add_directory('Genres', allGenres)
+    add_directory('My Playlists', allUserPlaylists)
 
 
 @plugin.route('/allcategories')
@@ -180,6 +187,11 @@ def allGenres():
     items = sess.get_genres()
     view(items, urls_from_id(category_view, items))
 
+@plugin.route('/alluserplaylists')
+def allUserPlaylists():
+    items = sess.get_alluserplaylists()
+    view(items, urls_from_id(category_view, items))
+
 
 @plugin.route('/category/<catg_id>')
 def category_view(catg_id):
@@ -188,9 +200,13 @@ def category_view(catg_id):
     items = sess.get_catg_albums(decoded)
     view(items, urls_from_id(album_view, items))
 
+def track_list(tracks):
+    xbmcplugin.entries += trackentries(httphp, pathprefix,
+                                       xbmcplugin.objid, tracks)
+
 @plugin.route('/album/<album_id>')
 def album_view(album_id):
-    track_list(session.get_album_tracks(album_id))
+    track_list(sess.get_album_tracks(album_id))
 
 
 @dispatcher.record('search')
