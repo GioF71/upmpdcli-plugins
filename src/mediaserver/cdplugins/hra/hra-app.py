@@ -89,19 +89,9 @@ def trackuri(a):
     msgproc.log("trackuri: [%s]" % a)
     trackid = trackid_from_urlpath(pathprefix, a)
     maybelogin()
-    media_url = sess.get_media_url(trackid)
-    if not media_url:
-        media_url = ""
+    url = sess.get_media_url(trackid) or ""
     #msgproc.log("%s" % media_url)
-    formatid = 7
-    if formatid == 5:
-        mime = "audio/mpeg"
-        kbs = "320"
-    else:
-        mime = "application/flac"
-        kbs = "1410"
-    uplog({'media_url' : media_url, 'mimetype' : mime, 'kbs' : kbs})
-    return {'media_url' : media_url, 'mimetype' : mime, 'kbs' : kbs}
+    return {'media_url' : url}
 
 
 def add_directory(title, endpoint):

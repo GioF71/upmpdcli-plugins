@@ -53,17 +53,18 @@ class Session(object):
         data = self.api.getAlbumDetails(album_id=albid)
         if not data:
             return {}
-        album = Album(name=data['title'], artist=data['artist'])
+        # Apart from the tracks array, sata contains a copy of the album
+        # metadata. Parse it like an album.
+        album = _parse_album(data)
         return [_parse_track(t, album) for t in data['tracks']]
 
 
     def get_media_url(self, trackid):
         data = self.api.getTrackById(track_id=trackid)
-        if not data:
+        if not data or 'url' not in data:
             return None
-        url = data['url']
-        uplog("get_media_url got: %s" % url)
-        return url
+        return data['url']
+
 
     def get_playlist_tracks(self, plid):
         data = self.api.playlist_get(playlist_id = plid, extra = 'tracks')
@@ -98,10 +99,13 @@ def _parse_album(data):
         'artist': data['artist']
     }
     if 'cover' in data:
-        if "preview" in data["cover"] and isinstance(data["cover"], dict):
-            kwargs['image'] = data['cover']["preview"]["file_url"]
-        else:
-            kwargs['image'] = data['cover']
+        uplog("COVER: %s" % data['cover'])
+        if isinstance(data['cover'], dict):
+            for key in ('preview', 'master', 'thumbnail'):
+                if key in data['cover']:
+                    kwargs['image'] = 'https://' + data['cover'][key]['file_url']
+                    uplog("SETTING IMAGE = %s" % kwargs['image'])
+                    break
 
     a = Album(**kwargs)
     return a
@@ -114,6 +118,7 @@ def _parse_track(data, albumarg = None):
         'id': data['playlistAdd'],
         'name': data['title'],
         'duration': data['playtime'],
+        'format': data['format'],
         'artist': artist,
         'available': True
     }

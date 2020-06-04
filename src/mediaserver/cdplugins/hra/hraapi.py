@@ -141,7 +141,7 @@ class HRAAPI(object):
         self._clear_login()
 
 
-    def _renew_session():
+    def _renew_session(self):
         log.info("HRAAPI: _renew_session()")
         data = self._api_request({'user_id' : self.user_id, 'session_id': self.session_id},
                                      '/user/keepalive', method='POST')
