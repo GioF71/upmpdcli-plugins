@@ -19,14 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-##### AFAIRE
-# Track arturi
-# Track format
-# User playlists
-# search
-# ,,,
-
 import sys
 import os
 import json
@@ -36,8 +28,6 @@ import base64
 import conftree
 import cmdtalkplugin
 from upmplgutils import *
-from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
-     Category, Genre, Model
 
 # Using kodi plugin routing plugin: lets use reuse a lot of code from
 # the addon.
@@ -46,7 +36,6 @@ from routing import Plugin
 # retrieve addon id
 plugin = Plugin('')
 
-from session import Session
 import session
 
 _rootid = '0$hra$'
@@ -60,7 +49,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
-sess = Session()
+sess = session.Session()
 
 def maybelogin():
     if sess.isloggedin():
@@ -86,6 +75,7 @@ def maybelogin():
     setMimeAndSamplerate("application/flac", "44100")
     return sess.login(username, password)
     
+
 @dispatcher.record('trackuri')
 def trackuri(a):
     global pathprefix
@@ -102,10 +92,12 @@ def add_directory(title, endpoint):
         endpoint = plugin.url_for(endpoint)
     xbmcplugin.addDirectoryItem(None, endpoint, title)
 
+
 def urls_from_id(view_func, items):
     #msgproc.log("urls_from_id: items: %s" % str([item.id for item in items]))
     return [plugin.url_for(view_func, item.id)
             for item in items if str(item.id).find('http') != 0]
+
 
 def view(data_items, urls, end=True):
     for item, url in zip(data_items, urls):
@@ -127,9 +119,11 @@ def view(data_items, urls, end=True):
             direntry(_rootid + url, xbmcplugin.objid, title, arturi=image,
                      artist=artnm, upnpclass=upnpclass))
 
+
 def track_list(tracks):
     xbmcplugin.entries += trackentries(httphp, pathprefix,
                                        xbmcplugin.objid, tracks)
+
 
 @dispatcher.record('browse')
 def browse(a):
@@ -166,7 +160,12 @@ def root():
         return
     add_directory('Categories', allCategories)
     add_directory('Genres', allGenres)
+    add_directory('Editor playlists: Moods', allEditorMoods)
+    add_directory('Editor playlists: Genres', allEditorGenres)
+    add_directory('Editor playlists: Themes', allEditorThemes)
     add_directory('My Playlists', allUserPlaylists)
+    add_directory('My Albums', allUserAlbums)
+    add_directory('My Tracks', allUserTracks)
 
 
 @plugin.route('/allcategories')
@@ -174,17 +173,10 @@ def allCategories():
     items = sess.get_categories()
     view(items, urls_from_id(category_view, items))
 
-
 @plugin.route('/allgenres')
 def allGenres():
     items = sess.get_genres()
     view(items, urls_from_id(category_view, items))
-
-@plugin.route('/alluserplaylists')
-def allUserPlaylists():
-    items = sess.get_alluserplaylists()
-    view(items, urls_from_id(category_view, items))
-
 
 @plugin.route('/category/<catg_id>')
 def category_view(catg_id):
@@ -193,9 +185,35 @@ def category_view(catg_id):
     items = sess.get_catg_albums(decoded)
     view(items, urls_from_id(album_view, items))
 
-def track_list(tracks):
-    xbmcplugin.entries += trackentries(httphp, pathprefix,
-                                       xbmcplugin.objid, tracks)
+@plugin.route('/alleditorgenres')
+def allEditorGenres():
+    items = sess.get_editorgenres()
+    view(items, urls_from_id(edplaylist_view, items))
+@plugin.route('/alleditormoods')
+def allEditorMoods():
+    items = sess.get_editormoods()
+    view(items, urls_from_id(edplaylist_view, items))
+@plugin.route('/alleditorthemes')
+def allEditorThemes():
+    items = sess.get_editorthemes()
+    view(items, urls_from_id(edplaylist_view, items))
+
+@plugin.route('/editorplaylist/<id>')
+def edplaylist_view(id):
+    track_list(sess.get_editor_playlist(id))
+
+@plugin.route('/alluserplaylists')
+def allUserPlaylists():
+    items = sess.get_alluserplaylists()
+    view(items, urls_from_id(edplaylist_view, items))
+@plugin.route('/alluseralbums')
+def allUserAlbums():
+    items = sess.get_alluseralbums()
+    view(items, urls_from_id(album_view, items))
+@plugin.route('/allusertracks')
+def allUserTracks():
+    track_list(sess.get_allusertracks())
+
 
 @plugin.route('/album/<album_id>')
 def album_view(album_id):

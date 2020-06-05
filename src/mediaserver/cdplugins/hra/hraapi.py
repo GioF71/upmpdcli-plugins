@@ -1,15 +1,32 @@
+#
+# Copyright (C) 2020 Jean-Francois Dockes
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
     Interface to highresaudio WEB API
 '''
 import sys
-from time import time
-import math
-import hashlib
-import binascii
-from upmplgutils import *
+import time
 import requests
 import json
 
+from upmplgutils import *
+
+# For debugging the details of the HTTP transaction. Note that http.client
+# logs to stdout by default, so you need to actually edit the module to log
+# to stderr if you want these messages (else they mess up the communication
+# with our parent).
 #import logging
 #import http.client as http_client
 #http_client.HTTPConnection.debuglevel = 1
@@ -19,6 +36,8 @@ import json
 #requests_log.setLevel(logging.DEBUG)
 #requests_log.propagate = True
 
+# Bogus logging class initially to avoid to change the qobuz module code. Could
+# get rid of it here...
 class MLog(object):
     def __init__(self):
         self.f = sys.stderr
@@ -34,13 +53,11 @@ class MLog(object):
     def warn(self, msg):
         if self.level >= 1:
             self._doprint(msg)
-
 log = MLog()
 
 class HRAAPI(object):
 
     def __init__(self):
-        self.appid = '285473059'  # XBMC
         self.apiUrl = 'https://streaming.highresaudio.com:8182/vault3'
         self.session_id = None
         self.user_id = None
@@ -48,8 +65,6 @@ class HRAAPI(object):
         self.logged_on = None
         self.error = None
         self.status_code = None
-        self.statContentSizeTotal = 0
-
         self.session = requests.Session()
 
     def _api_error_string(self, request, url='', params={}, json=''):
@@ -62,12 +77,6 @@ class HRAAPI(object):
                     json=str(json))
 
     def _check_ka(self, ka, mandatory, allowed=[]):
-        '''Checking parameters before sending our request
-        - if mandatory parameter is missing raise error
-        - if a given parameter is neither in mandatory or allowed
-        raise error (Creating exception class like MissingParameter
-        may be a good idea)
-        '''
         for label in mandatory:
             if not label in ka:
                 raise Exception("HRAAPI: missing parameter %s" % label)
@@ -152,15 +161,15 @@ class HRAAPI(object):
         self.user_id = data['user_id']
         self.user_data = json.dumps({'user_id':self.user_id,
                                          'session_id':self.session_id})
-        self.logged_on = time()
+        self.logged_on = time.time()
         return data
 
 
     def isloggedin(self):
-        log.info("isloggedin(): user_id %s" % self.user_id)
+        log.debug("isloggedin(): user_id %s" % self.user_id)
         # Hra sessions expire after 30mn.
         if self.logged_on:
-            now = time()
+            now = time.time()
             if now - self.logged_on > 20 * 60:
                 self._renew_session()
         return self.logged_on is not None
@@ -184,7 +193,7 @@ class HRAAPI(object):
         self.user_id = data['user_id']
         self.user_data = json.dumps(
             {'user_id':self.user_id, 'session_id':self.session_id})
-        self.logged_on = time()
+        self.logged_on = time.time()
         return data
 
 
@@ -235,7 +244,7 @@ class HRAAPI(object):
         data = self._api_request(params, '/vault/track/')
         if not data or 'data' not in data or 'results' not in data['data'] or \
           'tracks' not in data['data']['results']:
-            return None
+          return None
         return data['data']['results']['tracks']
 
     def quickSearch(self, **ka):
@@ -257,9 +266,72 @@ class HRAAPI(object):
         # The data is a dict key:albumdata, the key can be used as album_id
         # with /vault/album
         return data['data']['results']
+
+
+    def getAvailableMoods(self, **ka):
+        params = ka
+        data = self._api_request(params, '/vault/getEditorPlaylistsMoods/')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return {}
+        return data['data']['results']
+
+
+    def getAvailableGenres(self, **ka):
+        params = ka
+        data = self._api_request(params, '/vault/getEditorPlaylistsGenres/')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return {}
+        return data['data']['results']
+
+
+    def getAvailableThemes(self, **ka):
+        params = ka
+        data = self._api_request(params, '/vault/getEditorPlaylistsThemes/')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return {}
+        return data['data']['results']
+
+    def getEditorPlaylist(self, **ka):
+        if not self.isloggedin():
+            return None
+        self._check_ka(ka, ['id'])
+        data = self._api_request(ka, '/vault/getSingleEditorPlaylists/')
+        if not data or 'data' not in data or 'results' not in data['data'] or \
+          'tracks' not in data['data']['results'][0]:
+            log.info("getEditorPlaylist: RETURNING NONE")
+            return None
+        return data['data']['results'][0]
+
         
     def listAllUserPlaylists(self, **ka):
         if not self.isloggedin():
             return {}
         params = ka
-        return self._api_request(params, '/user/ListAllUserPlaylists')
+        data = self._api_request(params, '/user/ListAllUserPlaylists')
+        if not data or 'data' not in data:
+            return None
+        log.info(data)
+        return data['data']
+
+    def listAllUserAlbums(self, **ka):
+        if not self.isloggedin():
+            return {}
+        params = ka
+        params['limit'] = 1000
+        data = self._api_request(params, '/user/list/MyAlbum')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return None
+        return data['data']['results']
+
+    
+    def listAllUserTracks(self, **ka):
+        if not self.isloggedin():
+            return {}
+        params = ka
+        params['limit'] = 2000
+        data = self._api_request(params, '/user/list/MyTracks')
+        if not data or 'data' not in data or 'data' not in data['data'] or \
+            not 'results' in data['data']['data']:
+            return None
+        ret = data['data']['data']['results']
+        return ret
