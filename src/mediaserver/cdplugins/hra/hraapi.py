@@ -308,11 +308,23 @@ class HRAAPI(object):
             return {}
         params = ka
         data = self._api_request(params, '/user/ListAllUserPlaylists')
-        if not data or 'data' not in data:
+        if not data or 'data' not in data or 'data' not in data['data']:
             return None
-        log.info(data)
-        return data['data']
+        ret = data['data']['data']
+        log.info(ret)
+        return ret
 
+
+    def getUserPlaylist(self, **ka):
+        if not self.isloggedin():
+            return None
+        self._check_ka(ka, ['playlist_id'])
+        data = self._api_request(ka, '/user/ListSingleUserPlaylist/')
+        if not data or 'data' not in data or 'data' not in data['data']:
+            return None
+        return data['data']['data']
+
+        
     def listAllUserAlbums(self, **ka):
         if not self.isloggedin():
             return {}

@@ -50,6 +50,12 @@ class Session(object):
             return []
         return [_parse_playlist(p) for p in data]
         
+    def get_user_playlist(self, id):
+        data = self.api.getUserPlaylist(playlist_id=id)
+        if not data:
+            return []
+        return [_parse_track(t) for t in data]
+
     def get_alluseralbums(self):
         data = self.api.listAllUserAlbums()
         if not data:
@@ -182,11 +188,11 @@ def _parse_track(data, albumarg = None):
     return Track(**kwargs)
 
 
-def _parse_playlist(json_obj, artist=None, artists=None):
+def _parse_playlist(data, artist=None, artists=None):
     kwargs = {
-        'id': json_obj['id'],
-        'name': json_obj['name'],
-        'num_tracks': json_obj.get('tracks_count'),
-        'duration': json_obj.get('duration'),
+        'id': data['playlist_id'],
+        'name': data['playlist_title'],
+        'num_tracks': data.get('count_track'),
+        'duration': data.get('duration')
     }
     return Playlist(**kwargs)

@@ -205,7 +205,7 @@ def edplaylist_view(id):
 @plugin.route('/alluserplaylists')
 def allUserPlaylists():
     items = sess.get_alluserplaylists()
-    view(items, urls_from_id(edplaylist_view, items))
+    view(items, urls_from_id(userplaylist_view, items))
 @plugin.route('/alluseralbums')
 def allUserAlbums():
     items = sess.get_alluseralbums()
@@ -214,6 +214,9 @@ def allUserAlbums():
 def allUserTracks():
     track_list(sess.get_allusertracks())
 
+@plugin.route('/userplaylist/<id>')
+def userplaylist_view(id):
+    track_list(sess.get_user_playlist(id))
 
 @plugin.route('/album/<album_id>')
 def album_view(album_id):
