@@ -22,16 +22,18 @@ import json
 class MLog(object):
     def __init__(self):
         self.f = sys.stderr
-        self.level = 3
+        self.level = 2
+    def _doprint(self, msg):
+        print("HRAAPI: %s" % msg, file=self.f)
     def debug(self, msg):
         if self.level >= 3:
-            print("%s" % msg, file=self.f)
+            self._doprint(msg)
     def info(self, msg):
         if self.level >= 2:
-            print("%s" % msg, file=self.f)
+            self._doprint(msg)
     def warn(self, msg):
         if self.level >= 1:
-            print("%s" % msg, file=self.f)
+            self._doprint(msg)
 
 log = MLog()
 
@@ -95,14 +97,12 @@ class HRAAPI(object):
             params = {'userData' : self.user_data}
         params.update(iparams)
 
-        log.info('HRAAPI:request: url {}, params: {}'.format(url, str(params)))
+        log.debug('request: url {}, params: {}'.format(url, str(params)))
         r = None
         try:
             if dopost:
-                log.info("METHOD POST")
                 r = self.session.post(url, data=params, headers=headers)
             else:
-                log.info("METHOD GET")
                 r = self.session.get(url, params=params, headers=headers)
         except:
             self.error = 'HTTP request failed'
@@ -136,28 +136,28 @@ class HRAAPI(object):
 
 
     def logout(self):
-        log.info("HRAAPI: logout()")
+        log.info("logout()")
         self._api_request({}, '/user/logout', method='POST')
         self._clear_login()
 
 
     def _renew_session(self):
-        log.info("HRAAPI: _renew_session()")
-        data = self._api_request({'user_id' : self.user_id, 'session_id': self.session_id},
-                                     '/user/keepalive', method='POST')
+        log.info("_renew_session()")
+        data = self._api_request('/user/keepalive', method='POST')
         if not data or 'user_id' not in data or 'session_id' not in data or \
           not data['user_id'] or not data['session_id']:
             self.logged_on = None
             return None
         self.session_id = data['session_id']
         self.user_id = data['user_id']
-        self.user_data = json.dumps({'user_id':self.user_id, 'session_id':self.session_id})
+        self.user_data = json.dumps({'user_id':self.user_id,
+                                         'session_id':self.session_id})
         self.logged_on = time()
         return data
 
 
     def isloggedin(self):
-        log.info("HRAAPI: isloggedin(): user_id %s" % self.user_id)
+        log.info("isloggedin(): user_id %s" % self.user_id)
         # Hra sessions expire after 30mn.
         if self.logged_on:
             now = time()
@@ -177,12 +177,13 @@ class HRAAPI(object):
         data = self._api_request(ka, '/user/login', method='POST')
         if not data or 'user_id' not in data or 'session_id' not in data or \
           not data['user_id'] or not data['session_id']:
-          log.info("HRAAPI: login failed")
+          log.warn("login failed")
           self.clean_login()
           return None
         self.session_id = data['session_id']
         self.user_id = data['user_id']
-        self.user_data = json.dumps({'user_id':self.user_id, 'session_id':self.session_id})
+        self.user_data = json.dumps(
+            {'user_id':self.user_id, 'session_id':self.session_id})
         self.logged_on = time()
         return data
 
@@ -206,6 +207,8 @@ class HRAAPI(object):
 
 
     def listCategoryContent(self, **ka):
+        if not self.isloggedin():
+            return None
         self._check_ka(ka, ['category', 'limit', 'offset'])
         data = self._api_request(ka, '/vault/categories/ListCategorieContent/')
         if not data or 'data' not in data or 'results' not in data['data']:
@@ -214,6 +217,8 @@ class HRAAPI(object):
 
 
     def getAlbumDetails(self, **ka):
+        if not self.isloggedin():
+            return None
         self._check_ka(ka, ['album_id'])
         data = self._api_request(ka, '/vault/album/')
         if not data or 'data' not in data or 'results' not in data['data'] or \
@@ -223,9 +228,9 @@ class HRAAPI(object):
         
 
     def getTrackById(self, **ka):
-        self._check_ka(ka, ['track_id'])
         if not self.isloggedin():
             return None
+        self._check_ka(ka, ['track_id'])
         params = ka
         data = self._api_request(params, '/vault/track/')
         if not data or 'data' not in data or 'results' not in data['data'] or \
@@ -233,6 +238,26 @@ class HRAAPI(object):
             return None
         return data['data']['results']['tracks']
 
+    def quickSearch(self, **ka):
+        self._check_ka(ka, ['search'])
+        params = ka
+        data = self._api_request(params, '/vault/search/quickSearch/')
+        if not data or 'data' not in data:
+            return {}
+        # The data is a dict key:albumdata, the key can be used as album_id
+        # with /vault/album
+        return data['data']
+        
+    def searchCategory(self, **ka):
+        self._check_ka(ka, ['search', 'category'])
+        params = ka
+        data = self._api_request(params, '/vault/SearchInCategory/')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return {}
+        # The data is a dict key:albumdata, the key can be used as album_id
+        # with /vault/album
+        return data['data']['results']
+        
     def listAllUserPlaylists(self, **ka):
         if not self.isloggedin():
             return {}

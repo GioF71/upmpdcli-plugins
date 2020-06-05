@@ -49,6 +49,9 @@ plugin = Plugin('')
 from session import Session
 import session
 
+_rootid = '0$hra$'
+_rootidre = '0\$hra\$'
+
 def msg(s):
     print("%s" % s, file=sys.stderr)
     
@@ -121,7 +124,7 @@ def view(data_items, urls, end=True):
         except:
             artnm = None
         xbmcplugin.entries.append(
-            direntry('0$hra$' + url, xbmcplugin.objid, title, arturi=image,
+            direntry(_rootid + url, xbmcplugin.objid, title, arturi=image,
                      artist=artnm, upnpclass=upnpclass))
 
 def track_list(tracks):
@@ -131,19 +134,19 @@ def track_list(tracks):
 @dispatcher.record('browse')
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin('0$hra$')
+    xbmcplugin = XbmcPlugin(_rootid)
     msgproc.log("browse: [%s]" % a)
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
     bflg = a['flag'] if 'flag' in a else 'children'
     
-    if re.match('0\$hra\$', objid) is None:
+    if re.match(_rootidre, objid) is None:
         raise Exception("bad objid [%s]" % objid)
     maybelogin()
 
     xbmcplugin.objid = objid
-    idpath = objid.replace('0$hra$', '', 1)
+    idpath = objid.replace(_rootid, '', 1)
     if bflg == 'meta':
         m = re.match('.*\$(.+)$', idpath)
         if m:
@@ -202,47 +205,36 @@ def album_view(album_id):
 @dispatcher.record('search')
 def search(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin('0$hra$')
+    xbmcplugin = XbmcPlugin(_rootid)
 
-    msgproc.log("search: [%s]" % a)
+    msgproc.log("search: %s" % a)
 
     objid = a['objid']
     field = a['field'] if 'field' in a else None
     value = a['value']
     objkind = a['objkind'] if 'objkind' in a and a['objkind'] else None
 
-    if re.match('0\$hra\$', objid) is None:
+    if re.match(_rootidre, objid) is None:
         raise Exception("bad objid [%s]" % objid)
     xbmcplugin.objid = objid
     maybelogin()
-    
-    if field and field not in ['artist', 'album', 'playlist', 'track']:
-        msgproc.log('Unknown field \'%s\'' % field)
-        field = 'track'
 
-    if objkind and objkind not in ['artist', 'album', 'playlist', 'track']:
-        msgproc.log('Unknown objkind \'%s\'' % objkind)
-        objkind = 'track'
+    idpath = objid.replace(_rootid, '', 1)
+    catg = ""
+    if idpath.startswith('/category'):
+        catg = session.decode_prefix(idpath.replace('/category/', '', 1))
 
-    # type may be 'tracks', 'albums', 'artists' or 'playlists'
-    qkind = objkind + "s" if objkind else None
-    searchresults = session.search(value, qkind)
-
-    if objkind is None or objkind == 'artist':
-        view(searchresults.artists,
-             urls_from_id(artist_view, searchresults.artists), end=False)
-    if objkind is None or objkind == 'album':
-        view(searchresults.albums,
-             urls_from_id(album_view, searchresults.albums), end=False)
-    if objkind is None or objkind == 'playlist':
-        view(searchresults.playlists,
-             urls_from_id(playlist_view, searchresults.playlists), end=False)
-    if objkind is None or objkind == 'track':
-        track_list(searchresults.tracks)
-
+    uplog("SEARCH CATG %s" % catg)
+    # HRA search always returns albums anyway.
+    if catg:
+        albums = sess.searchCategory(value, catg)
+    else:
+        albums = sess.search(value)
+    view(albums, urls_from_id(album_view, albums))
     #msgproc.log("%s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
     return {"entries": encoded}
+
 
 msgproc.log("HighresAudio running")
 msgproc.mainloop()

@@ -71,7 +71,20 @@ class Session(object):
         return [_parse_track(t) for t in data['tracks']['items']]
 
 
+    def search(self, value):
+        data = self.api.quickSearch(search=value)
+        albums = []
+        for key,value in data.items():
+            value['id'] = key
+            albums.append(value)
+        return [_parse_album(a) for a in albums]
 
+
+    def searchCategory(self, value, prefix):
+        data = self.api.searchCategory(category=prefix, search=value)
+        return [_parse_album(a) for a in data]
+
+    
 def encode_prefix(p):
     return base64.urlsafe_b64encode(p.encode('utf-8')).decode('utf-8')
 
@@ -99,12 +112,10 @@ def _parse_album(data):
         'artist': data['artist']
     }
     if 'cover' in data:
-        uplog("COVER: %s" % data['cover'])
         if isinstance(data['cover'], dict):
             for key in ('preview', 'master', 'thumbnail'):
                 if key in data['cover']:
-                    kwargs['image'] = 'https://' + data['cover'][key]['file_url']
-                    uplog("SETTING IMAGE = %s" % kwargs['image'])
+                    kwargs['image'] = 'https://'+data['cover'][key]['file_url']
                     break
 
     a = Album(**kwargs)
