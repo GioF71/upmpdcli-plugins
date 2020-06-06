@@ -18,7 +18,8 @@ class Session(object):
     def __init__(self):
         self.api = hraapi.HRAAPI()
 
-    def login(self, username, password):
+    def login(self, username, password, lang):
+        self.api.setlang(lang)
         data = self.api.user_login(username=username, password=password)
         if data:
             return True
@@ -40,7 +41,7 @@ class Session(object):
 
 
     def get_catg_albums(self, prefix):
-        data = self.api.listCategoryContent(category=prefix, offset=0, limit=30)
+        data = self.api.listCategoryContent(category=prefix)
         return [_parse_album(a) for a in data]
 
     
@@ -66,7 +67,6 @@ class Session(object):
         data = self.api.listAllUserTracks()
         if not data:
             return []
-        uplog(data)
         return [_parse_track(p) for p in data]
         
 
@@ -87,6 +87,7 @@ class Session(object):
             return None
         return data['url']
 
+
     def get_editormoods(self):
         data = self.api.getAvailableMoods()
         return [_parse_album(a) for a in data]
@@ -96,6 +97,12 @@ class Session(object):
     def get_editorthemes(self):
         data = self.api.getAvailableThemes()
         return [_parse_album(a) for a in data]
+
+
+    def get_alleditorplaylists(self):
+        data = self.api.getAllEditorPlaylists()
+        return [_parse_album(a) for a in data]
+
 
     def get_editor_playlist(self, id):
         data = self.api.getEditorPlaylist(id=id)
@@ -159,6 +166,9 @@ def _parse_album(data):
                     break
         else:
             kwargs['image'] = data['cover']
+    elif 'playlistCover' in data:
+        kwargs['image'] = data['playlistCover']
+
     a = Album(**kwargs)
     return a
 
@@ -180,11 +190,16 @@ def _parse_track(data, albumarg = None):
     else:
         kwargs['track_num'] = 0
 
+        
     if albumarg:
         kwargs['album'] = albumarg
     elif 'cover' in data and 'album' in data:
         kwargs['album'] = Album(image=data['cover'], name=data['album'])
-            
+
+    # If track has own cover, use it (e.g. for multialbum playlists)
+    if 'cover' in data:
+        kwargs['image'] = data['cover']
+
     return Track(**kwargs)
 
 

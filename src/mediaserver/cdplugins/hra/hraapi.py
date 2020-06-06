@@ -36,6 +36,7 @@ from upmplgutils import *
 #requests_log.setLevel(logging.DEBUG)
 #requests_log.propagate = True
 
+
 # Bogus logging class initially to avoid to change the qobuz module code. Could
 # get rid of it here...
 class MLog(object):
@@ -55,6 +56,7 @@ class MLog(object):
             self._doprint(msg)
 log = MLog()
 
+
 class HRAAPI(object):
 
     def __init__(self):
@@ -66,6 +68,12 @@ class HRAAPI(object):
         self.error = None
         self.status_code = None
         self.session = requests.Session()
+        self.lang = 'en'
+
+
+    def setlang(self, lang):
+        self.lang = lang
+
 
     def _api_error_string(self, request, url='', params={}, json=''):
         return '{reason} (code={status_code})\n' \
@@ -103,11 +111,13 @@ class HRAAPI(object):
         if 'method' in opt and opt['method'] == 'POST':
             dopost = True
         if self.user_data:
-            params = {'userData' : self.user_data}
+            params = {'userData' : self.user_data, 'lang':self.lang}
         params.update(iparams)
-
+        if 'limit' not in params:
+            params['limit'] = 300
         log.debug('request: url {}, params: {}'.format(url, str(params)))
         r = None
+        time1 = time.time()
         try:
             if dopost:
                 r = self.session.post(url, data=params, headers=headers)
@@ -117,7 +127,10 @@ class HRAAPI(object):
             self.error = 'HTTP request failed'
             log.warn(self.error)
             return None
+        time2 = time.time()
+        log.info('Request took {:.3f} ms'.format((time2-time1)*1000.0))
 
+        
         self.status_code = int(r.status_code)
         if self.status_code != 200:
             self.error = self._api_error_string(r, url, params)
@@ -218,7 +231,7 @@ class HRAAPI(object):
     def listCategoryContent(self, **ka):
         if not self.isloggedin():
             return None
-        self._check_ka(ka, ['category', 'limit', 'offset'])
+        self._check_ka(ka, ['category'])
         data = self._api_request(ka, '/vault/categories/ListCategorieContent/')
         if not data or 'data' not in data or 'results' not in data['data']:
             return {}
@@ -247,20 +260,22 @@ class HRAAPI(object):
           return None
         return data['data']['results']['tracks']
 
+
     def quickSearch(self, **ka):
         self._check_ka(ka, ['search'])
-        params = ka
-        data = self._api_request(params, '/vault/search/quickSearch/')
-        if not data or 'data' not in data:
+        log.info("quickSearch: %s" % ka)
+        data = self._api_request(ka, '/vault/search/quickSearch/')
+        if not data or 'data' not in data or not data['data']:
             return {}
         # The data is a dict key:albumdata, the key can be used as album_id
         # with /vault/album
         return data['data']
         
+
     def searchCategory(self, **ka):
         self._check_ka(ka, ['search', 'category'])
-        params = ka
-        data = self._api_request(params, '/vault/SearchInCategory/')
+        log.info("searchCategory: %s" % ka)
+        data = self._api_request(ka, '/vault/SearchInCategory/')
         if not data or 'data' not in data or 'results' not in data['data']:
             return {}
         # The data is a dict key:albumdata, the key can be used as album_id
@@ -285,12 +300,18 @@ class HRAAPI(object):
 
 
     def getAvailableThemes(self, **ka):
-        params = ka
-        data = self._api_request(params, '/vault/getEditorPlaylistsThemes/')
+        data = self._api_request(ka, '/vault/getEditorPlaylistsThemes/')
         if not data or 'data' not in data or 'results' not in data['data']:
             return {}
         return data['data']['results']
 
+    def getAllEditorPlaylists(self, **ka):
+        data = self._api_request(ka, '/vault/editorPlaylists/')
+        if not data or 'data' not in data or 'results' not in data['data']:
+            return None
+        ret = data['data']['results']
+        return ret
+        
     def getEditorPlaylist(self, **ka):
         if not self.isloggedin():
             return None
@@ -298,7 +319,7 @@ class HRAAPI(object):
         data = self._api_request(ka, '/vault/getSingleEditorPlaylists/')
         if not data or 'data' not in data or 'results' not in data['data'] or \
           'tracks' not in data['data']['results'][0]:
-            log.info("getEditorPlaylist: RETURNING NONE")
+            log.info("getEditorPlaylist: RETURNING NONE for id %s"%ka['id'])
             return None
         return data['data']['results'][0]
 
@@ -306,12 +327,10 @@ class HRAAPI(object):
     def listAllUserPlaylists(self, **ka):
         if not self.isloggedin():
             return {}
-        params = ka
-        data = self._api_request(params, '/user/ListAllUserPlaylists')
+        data = self._api_request(ka, '/user/ListAllUserPlaylists')
         if not data or 'data' not in data or 'data' not in data['data']:
             return None
         ret = data['data']['data']
-        log.info(ret)
         return ret
 
 

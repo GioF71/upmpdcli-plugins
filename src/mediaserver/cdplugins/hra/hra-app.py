@@ -72,8 +72,11 @@ def maybelogin():
     if not username or not password:
         raise Exception("hrauser and/or hrapass " +
                             "not set in configuration")
+    lang = upconfig.get('hralang')
+    if not lang:
+        lang = 'en'
     setMimeAndSamplerate("application/flac", "44100")
-    return sess.login(username, password)
+    return sess.login(username, password, lang)
     
 
 @dispatcher.record('trackuri')
@@ -160,9 +163,11 @@ def root():
         return
     add_directory('Categories', allCategories)
     add_directory('Genres', allGenres)
-    add_directory('Editor playlists: Moods', allEditorMoods)
-    add_directory('Editor playlists: Genres', allEditorGenres)
-    add_directory('Editor playlists: Themes', allEditorThemes)
+# These seem mostly empty. The hra app uses alleditor
+#    add_directory('Editor playlists: Moods', allEditorMoods)
+#    add_directory('Editor playlists: Genres', allEditorGenres)
+#    add_directory('Editor playlists: Themes', allEditorThemes)
+    add_directory('Editor Playlists', allEditorPlaylists)
     add_directory('My Playlists', allUserPlaylists)
     add_directory('My Albums', allUserAlbums)
     add_directory('My Tracks', allUserTracks)
@@ -198,10 +203,16 @@ def allEditorThemes():
     items = sess.get_editorthemes()
     view(items, urls_from_id(edplaylist_view, items))
 
+@plugin.route('/alleditorplaylists')
+def allEditorPlaylists():
+    items = sess.get_alleditorplaylists()
+    view(items, urls_from_id(edplaylist_view, items))
+    
 @plugin.route('/editorplaylist/<id>')
 def edplaylist_view(id):
     track_list(sess.get_editor_playlist(id))
 
+    
 @plugin.route('/alluserplaylists')
 def allUserPlaylists():
     items = sess.get_alluserplaylists()
@@ -241,11 +252,12 @@ def search(a):
     maybelogin()
 
     idpath = objid.replace(_rootid, '', 1)
+
     catg = ""
+    # Both genres and categories have an objid path beginning with category
     if idpath.startswith('/category'):
         catg = session.decode_prefix(idpath.replace('/category/', '', 1))
 
-    uplog("SEARCH CATG %s" % catg)
     # HRA search always returns albums anyway.
     if catg:
         albums = sess.searchCategory(value, catg)
