@@ -115,7 +115,7 @@ class HRAAPI(object):
         params.update(iparams)
         if 'limit' not in params:
             params['limit'] = 300
-        log.debug('request: url {}, params: {}'.format(url, str(params)))
+        log.info('request: url {}, params: {}'.format(url, str(params)))
         r = None
         time1 = time.time()
         try:
@@ -165,7 +165,7 @@ class HRAAPI(object):
 
     def _renew_session(self):
         log.info("_renew_session()")
-        data = self._api_request('/user/keepalive', method='POST')
+        data = self._api_request({}, '/user/keepalive/', method='POST')
         if not data or 'user_id' not in data or 'session_id' not in data or \
           not data['user_id'] or not data['session_id']:
             self.logged_on = None
