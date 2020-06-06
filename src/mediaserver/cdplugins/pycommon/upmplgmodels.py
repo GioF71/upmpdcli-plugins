@@ -74,6 +74,7 @@ class Track(Model):
     artist = None
     artists = []
     album = None
+    image = None
     available = True
     maxsamprate = "44.1"
     maxbitdepth = "16"

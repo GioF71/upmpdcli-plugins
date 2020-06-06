@@ -117,9 +117,11 @@ def trackentries(httphp, pathprefix, objid, tracks):
                     posixpath.join(pathprefix,
                                    'track?version=1&trackId=%s' % track.id)
         li['tp'] = 'it'
+        if track.image:
+            li['upnp:albumArtURI'] = track.image
         if track.album:
             li['upnp:album'] = track.album.name
-            if track.album.image:
+            if not track.image and track.album.image:
                 li['upnp:albumArtURI'] = track.album.image
             if track.album.release_date:
                 li['releasedate'] = track.album.release_date 
