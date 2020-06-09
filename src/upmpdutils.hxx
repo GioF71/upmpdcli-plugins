@@ -35,10 +35,9 @@ bool readLibFile(const std::string& name, std::string& contents);
 // to general purpose track/container descriptor
 class UpSong {
 public:
-    UpSong() {
-    }
+    UpSong() {}
     void clear() {
-    *this = UpSong();
+        *this = UpSong();
     }
     std::string id;
     std::string parentid;
@@ -84,25 +83,25 @@ public:
     std::string didl() const;
 
     static UpSong container(const std::string& id, const std::string& pid,
-                const std::string& title, bool sable = true,
-                const std::string& annot = std::string()) {
-    UpSong song;
-    song.iscontainer = true;
-    song.id = id;
+                            const std::string& title, bool sable = true,
+                            const std::string& annot = std::string()) {
+        UpSong song;
+        song.iscontainer = true;
+        song.id = id;
         song.parentid = pid;
         song.title = title;
         song.searchable = sable;
-    song.tracknum = annot;
-    return song;
+        song.tracknum = annot;
+        return song;
     }
     static UpSong item(const std::string& id, const std::string& parentid,
                        const std::string& title) {
-    UpSong song;
-    song.iscontainer = false;
-    song.id = id;
+        UpSong song;
+        song.iscontainer = false;
+        song.id = id;
         song.parentid = parentid;
         song.title = title;
-    return song;
+        return song;
     }
 };
 

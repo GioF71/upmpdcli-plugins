@@ -274,11 +274,13 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     // unknown entry (will have <orig>mpd</orig> in both cases because
     // null id in the song). In these cases, build meta from the mpd song.
     LOGDEB2("UpMpdAVTransport: curmeta: " << m_curMetadata << endl);
-    if (m_dev->radioPlaying() || m_curMetadata.empty() ||
+    if (m_dev->radioPlaying() ||
         m_curMetadata.find("<orig>mpd</orig>") != string::npos) {
         m_curMetadata = didlmake(mpds.currentsong);
+        LOGDEB2("TPSTATEMTOU: RADIO OR MPD: FROM MPD:\n");
     } else {
         if (!uri.compare(m_nextUri)) {
+            LOGDEB2("TPSTATEMTOU m_uri is m_nextUri. -> nextMetadata\n");
             m_uri = m_nextUri;
             m_curMetadata = m_nextMetadata;
             m_nextUri.clear();
@@ -290,22 +292,14 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
             m_uri = uri;
             if (!m_ohp || !m_ohp->cacheFind(uri, m_curMetadata)) {
                 m_curMetadata = didlmake(mpds.currentsong);
+                LOGDEB2("TPSTATEMTOU: FROM MPDS\n");
+            } else {
+                LOGDEB2("TPSTATEMTOU: FROM OHCACHE\n");
             }
         }
     }
     
     status["CurrentTrack"] = "1";
-    status["CurrentTrackURI"] = uri;
-
-    // If we own the queue, just use the metadata from the content directory.
-    // else, try to make up something from mpd status.
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
-        status["CurrentTrackMetaData"] = is_song ? m_curMetadata : "";
-    } else {
-        status["CurrentTrackMetaData"] = is_song ?
-            didlmake(mpds.currentsong) : "";
-    }
-
     string playmedium("NONE");
     if (is_song)
         playmedium = uri.find("http://") == 0 ?    "HDD" : "NETWORK";
@@ -314,13 +308,10 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
         upnpduration(mpds.songlenms):"00:00:00";
     status["CurrentTrackDuration"] = is_song?
         upnpduration(mpds.songlenms):"00:00:00";
+    status["CurrentTrackURI"] = uri;
     status["AVTransportURI"] = uri;
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
-        status["AVTransportURIMetaData"] = is_song ? m_curMetadata : "";
-    } else {
-        status["AVTransportURIMetaData"] = is_song ?
-            didlmake(mpds.currentsong) : "";
-    }
+    status["AVTransportURIMetaData"] = status["CurrentTrackMetaData"] =
+        is_song ? m_curMetadata : "";
     status["RelativeTimePosition"] = is_song?
         upnpduration(mpds.songelapsedms):"0:00:00";
     status["AbsoluteTimePosition"] = is_song?
