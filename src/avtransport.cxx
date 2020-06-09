@@ -252,7 +252,7 @@ static string mpdsToTState(const MpdStatus &mpds)
 //
 // To be all bundled inside:    LastChange
 
-// Translate MPD state to UPnP AVTransport state variables
+// Prepare UPnP AVTransport state variables from our and MPD state.
 bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
 {
     const MpdStatus &mpds =  m_dev->getMpdStatus();
@@ -568,11 +568,7 @@ int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data
     }
 
     if (is_song) {
-        if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
-            data.addarg("TrackMetaData", m_curMetadata);
-        } else {
-            data.addarg("TrackMetaData", didlmake(mpds.currentsong));
-        }
+        data.addarg("TrackMetaData", m_curMetadata);
     } else {
         data.addarg("TrackMetaData", "");
     }
@@ -644,11 +640,7 @@ int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
         data.addarg("CurrentURI", "");
     }
     if (is_song) {
-        if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
-            data.addarg("CurrentURIMetaData", m_curMetadata);
-        } else {
-            data.addarg("CurrentURIMetaData", didlmake(mpds.currentsong));
-        }
+        data.addarg("CurrentURIMetaData", m_curMetadata);
     } else {
         data.addarg("CurrentURIMetaData", "");
     }
