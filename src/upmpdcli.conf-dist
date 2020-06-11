@@ -133,24 +133,6 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Decide if we proxy (copy: fetch/serve), or redirect the streaming services streams.
 #plgproxymethod = redirect
 
-# Tidal streaming service parameters
-
-# Tidal user name.
-#tidaluser = your tidal user name
-# Tidal password.
-#tidalpass = your Tidal password
-# Tidal stream quality.
-#tidalquality = low
-
-# Qobuz streaming service parameters
-
-# Qobuz user name.
-#qobuzuser = me@some.place
-# Qobuz password.
-#qobuzpass = agoodpassword
-# Qobuz stream quality.
-#qobuzformatid = 5
-
 # Google Music streaming service parameters
 
 # Google Music user name.
@@ -162,6 +144,15 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Google Music device id.
 #gmusicdeviceid =
 
+# Highresaudio streaming service parameters
+
+# Hra user name.
+#hrauser = your hra user name
+# Hra password.
+#hrapass = your Hra password
+# Hra language setting (en/de).
+#hralang = en
+
 # Spotify streaming service parameters
 
 # Spotify user name.
@@ -170,6 +161,26 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #spotifypass = agoodpassword
 # Spotify preferred bitrate: 160 (default), 320 or 96.
 #spotifybitrate = 160
+
+# Tidal streaming service parameters
+
+# Tidal user name.
+#tidaluser = your tidal user name
+# Tidal password.
+#tidalpass = your Tidal password
+# Tidal API token.
+#tidalapitoken = thetoken
+# Tidal stream quality.
+#tidalquality = low
+
+# Qobuz streaming service parameters
+
+# Qobuz user name.
+#qobuzuser = me@some.place
+# Qobuz password.
+#qobuzpass = agoodpassword
+# Qobuz stream quality.
+#qobuzformatid = 5
 
 # Local Media Server parameters
 

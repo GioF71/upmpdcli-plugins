@@ -307,31 +307,6 @@ services streams. Using redirect is much more efficient,
 but the proxy has a facility to retry when a stream is dropped by the
 service, which seems to happen esp. with Qobuz.
 
-=== Tidal streaming service parameters 
-
-[[tidaluser]]
-tidaluser:: Tidal user name. Your Tidal login name.
-
-[[tidalpass]]
-tidalpass:: Tidal password. The password for your Tidal account.
-
-[[tidalquality]]
-tidalquality:: Tidal stream quality. 'low' and 'high' are aac
-streams. 'lossless' is FLAC and will only work if your subscription
-allows it.
-
-=== Qobuz streaming service parameters 
-
-[[qobuzuser]]
-qobuzuser:: Qobuz user name. Your Qobuz login name.
-
-[[qobuzpass]]
-qobuzpass:: Qobuz password. The password for your Qobuz account.
-
-[[qobuzformatid]]
-qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
-allows streaming each of the formats).
-
 === Google Music streaming service parameters 
 
 [[gmusicuser]]
@@ -353,6 +328,19 @@ devices. If this does not work, you will need to set the gmusicdeviceid
 value to the device ID from a phone or tablet on which you also use
 Google Play Music (look up "Android deviceid" for help).
 
+=== Highresaudio streaming service parameters 
+
+[[hrauser]]
+hrauser:: Hra user name. Your Hra login name.
+
+[[hrapass]]
+hrapass:: Hra password. The password for your Hra account.
+
+[[hralang]]
+hralang:: Hra language setting
+(en/de). Some Highresaudio messages will be set in the
+appropriate language.
+
 === Spotify streaming service parameters 
 
 [[spotifyuser]]
@@ -363,6 +351,36 @@ spotifypass:: Spotify password. The password for your Spotify account.
 
 [[spotifybitrate]]
 spotifybitrate:: Spotify preferred bitrate: 160 (default), 320 or 96. Unverified.
+
+=== Tidal streaming service parameters 
+
+[[tidaluser]]
+tidaluser:: Tidal user name. Your Tidal login name.
+
+[[tidalpass]]
+tidalpass:: Tidal password. The password for your Tidal account.
+
+[[tidalapitoken]]
+tidalapitoken:: Tidal API token. The default token distributed with upmpdcli does not work any
+more. You will need to find a valid token and set here for the access to
+work.
+
+[[tidalquality]]
+tidalquality:: Tidal stream quality. 'low' and 'high' are aac
+streams. 'lossless' is FLAC and will only work if your subscription
+allows it.
+
+=== Qobuz streaming service parameters 
+
+[[qobuzuser]]
+qobuzuser:: Qobuz user name. Your Qobuz login name.
+
+[[qobuzpass]]
+qobuzpass:: Qobuz password. The password for your Qobuz account.
+
+[[qobuzformatid]]
+qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
+allows streaming each of the formats).
 
 === Local Media Server parameters 
 

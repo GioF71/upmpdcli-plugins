@@ -1,9 +1,12 @@
 *.pyc
+.deps
+.gitignore
 Makefile
 Makefile.in
 \#*#
 aclocal.m4
 autom4te.cache
+cfgui/upmpdcli-config.pro
 compile
 config.log
 config.status
@@ -13,10 +16,8 @@ doc/*.html
 install-sh
 missing
 rdpl2stream.tar.gz
+src/.dirstamp
 src/config.h
 src/stamp-h1
-web.tar.gz
 uprclbottle.tar.gz
-.deps
-.gitignore
-src/.dirstamp
+web.tar.gz

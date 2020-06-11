@@ -12,9 +12,10 @@ jump to the xref:UPMPDCLI-OVERVIEW[upmpdcli overview] section.
 
 Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high
 quality DAC I2S daugtherboard) you can transform it into a state of the art
-network streamer (my main one is 25 years old).
+network streamer.
 
 === Security
+
 WARNING: The UPnP protocols have no security
 provisions. Upmpdcli is not audited for security issues, and, as far as I
 know, it is full of exploitable bugs. Do not run it on an Internet-facing
@@ -159,11 +160,12 @@ allowing the local machine to behave as a Songcast Receiver or Sender (with
 help from the closely related *sc2mpd* package, for processing the audio
 streams).
 
-- Upmpdcli provides a Media Server interface, currently used for accessing
-external streaming services (Tidal, Google Music, Spotify). A local Media
-Server is in development, the motivation being that I see none which is
-both open-source and really satisfying (MinimServer is great but not
-open-source).
+- Upmpdcli provides a Media Server interface, mostly used for accessing
+external streaming services (Google Music, Spotify, Highresaudio,
+Qobuz). The *uprcl* module provides a local Media Server based on the
+link:https://www.recoll.org[Recoll] medata extraction and search functions.
+The motivation for the latter is that I see none which is both open-source
+and really satisfying (MinimServer is great but not open-source).
 
 Upmpdcli can be installed on most Linux systems. It is frequently used on
 small single board computers like the Raspberry Pi. As far as I know, all
@@ -176,8 +178,8 @@ parameters can be set on the
 xref:COMMAND-ENVIRON[command line or in the environment].
 
 Most parameters can only be set in the configuration file, which is
-designated with the +-c+ command line option. The usual location is
-+/etc/upmpdcli.conf+
+designated with the `-c` command line option. The usual location is
+`/etc/upmpdcli.conf`.
 
 The configuration file has a simple `name = value` format, and is fully
 described in the <<UPMPDCLI-CONFIGURATION,configuration reference section>>.
@@ -200,7 +202,7 @@ directly linked with the controls used to modify the parameters.
 ////
 // Note about configuration section refs: only the first parameter in a
 // subsection can be referenced, and it references the whole
-// subsection. Hence refs like <<mpdhost,+mpdport+>>, which are not typos
+// subsection. Hence refs like <<mpdhost,`mpdport`>>, which are not typos
 ////
 
 
@@ -213,14 +215,14 @@ appropriate section.).
 
 If several instances of *upmpdcli* run on the same network, you will want
 to give them distinct names. The name which is displayed by most Control
-Points can be set with the <<friendlyname,+friendlyname+>> configuration
+Points can be set with the <<friendlyname,`friendlyname`>> configuration
 parameter. Some Linn Control Points (e.g. Kazoo) use another value, set
-with <<ohproductroom,+ohproductroom+>>.
+with <<ohproductroom,`ohproductroom`>>.
 
 Upmpdcli usually controls the MPD instance running on the same
 host. However, there may be reasons to do otherwise, and the host name and
-port where mpd should be reached can be set with <<mpdhost,+mpdhost+>>,
-and <<mpdhost,+mpdport+>>.
+port where mpd should be reached can be set with <<mpdhost,`mpdhost`>>,
+and <<mpdhost,`mpdport`>>.
 
 The Upmpdcli Media Renderer has two active interfaces by default: UPnP AV
 and OpenHome. Only OpenHome Control Points can share the renderer. If you
@@ -228,7 +230,7 @@ use an UPnP AV Control Point, it must be the only one. This is not
 enforced, and misuse will result in miscellaneous weirdnesses. In some
 special situations, it may be useful to limit the interface to UPnP AV or
 OpenHome only (or disable both), which can be done with the
-<<friendlyname,+openhome+>> and <<friendlyname,+upnpav+>> parameters.
+<<friendlyname,`openhome`>> and <<friendlyname,`upnpav`>> parameters.
 
 [[UPMPDCLI-RENDERER-FORMATS]]
 === Audio formats
@@ -239,7 +241,7 @@ anything, including DSD.
 Upmpdcli normally checks that the format of a resource to be played is
 compatible with what it thinks MPD can do. This check is sometimes
 pessimistic and can be disabled by setting
-<<friendlyname,+checkcontentformat+>> to 0.
+<<friendlyname,`checkcontentformat`>> to 0.
 
 You should know that MPD has difficulties with some formats _when accessed
 through HTTP_ which is how the Media Server transfers the data.
@@ -285,12 +287,12 @@ select the _Radio_ OpenHome source.
 
 Radio stations can be defined in the configuration (at the end because of
 the use of section indicators), or in in a separate file by setting the
-<<ohproductroom,+radiolist+>> parameter in the main configuration.
+<<ohproductroom,`radiolist`>> parameter in the main configuration.
 
 An example of a simple radio station definition follows. The only mandatory
-value is the +url+ one, which should point to the actual audio stream or to
+value is the `url` one, which should point to the actual audio stream or to
 the station playlist link which will redirect to it (more detail in the
-<<RADIO-SCRIPTS,radio scripts section>>. +artUrl+ points to a
+<<RADIO-SCRIPTS,radio scripts section>>. `artUrl` points to a
 static logo image for the station.
 
 ----
@@ -359,12 +361,12 @@ connecting, so it is unusable in this context.
 |image:pics/upmpdcli-receiver-alsa.png[Upmpdcli Receiver, alsa mode]|image:pics/upmpdcli-receiver-mpd.png[Upmpdcli Receiver, mpd mode]
 |=============
 
-What approach is used is decided by the <<sclogfilename,+scplaymethod+>>
+What approach is used is decided by the <<sclogfilename,`scplaymethod`>>
 configuration parameter, which can be set to _mpd_ or _alsa_. 
 
 The _mpd_ mode is the default, because it needs no configuration, but there
 are *multiple* problems with it. If you go the _alsa_ route,
-you will need to set <<sclogfilename, +scalsadevice+>> in the
+you will need to set <<sclogfilename, `scalsadevice`>> in the
 configuration, but you probably had to set it in the MPD configuration too,
 so this may not be too much of an issue.
  
@@ -462,7 +464,7 @@ mechanism).  With
 link:http://www.lesbonscomptes.com/upplay/index.html[upplay], for example,
 you can select the source from the `File`->`Select Source` menu entry.
 
-The *sc2mpd* configuration *must* be set with +scplaymethod = alsa+ for the
+The *sc2mpd* configuration *must* be set with `scplaymethod = alsa` for the
 `XX-to-Songcast` sources to appear. See the
 xref:sclogfilename[configuration section], and the
 xref:UPMPDCLI-MULTIROOM-SYNC[section about synchronisation].
@@ -531,8 +533,8 @@ that you'd better use the Control Point approaches if at all possible.
 ==== Synchronisation issues
 
 The short version is: for good syncrhronization, all *sc2mpd* instances
-must be configured to play directly to the audio driver with +scplaymethod
-= alsa+. See the xref:sclogfilename[configuration section].
+must be configured to play directly to the audio driver with `scplaymethod
+= alsa`. See the xref:sclogfilename[configuration section].
 
 Longer version: *Songcast* is a real-time audio stream. As the Sender and
 Receiver sample clocks (the 44.1 or 48 KHz clocks) are independant, audio
@@ -567,9 +569,9 @@ the Receivers can be out of sync by several seconds.
 
 === Streaming Services and UPnP
 
-Streaming services like Tidal or Spotify give access to a huge catalog of
-music through a WEB programming interface which is also usable by programs
-other than their own applications.
+Streaming services like Google Music or Spotify give access to a huge
+catalog of music through a WEB programming interface which is also usable
+by programs other than their own applications.
 
 The only thing that they have in common with UPnP is that most of them use
 HTTP to retrieve the audio stream (as a short-lived URL). Spotify is an
@@ -614,19 +616,22 @@ framework, and knowing which way you are using will avoid confusion:
 [[UPMPDCLI-MS-STR-MS]]
 === Accessing Streaming Services through the upmpdcli Media Server
   
-The Media Server function in Upmpdcli (1.2.0 and later) gives access to
-external streaming services: Tidal, and Google Music and Spotify at the
-moment. Qobuz used to work too, but they now forbid access through
-non-authorized apps, and revoked all the known access keys.
+The Media Server function in Upmpdcli gives access to external streaming
+services: Google Music, Spotify, and Highresaudio currently work
+unconditionally (1.4.11). Tidal and Qobuz are still supported by the code,
+but the access will only be possible if you can find a working application
+token (Tidal) or appid/secret pair (Qobuz), to authorize access by the
+Upmpdcli application. This is completely independant from your service
+subscription, which is needed in all cases.
 
-You will need a valid account on any service that you want to use (for
-Spotify, this means a premium account, the free ones will not work).
+You will need a valid subscription for any service that you want to use
+(for Spotify, this means a premium account, the free ones will not work).
 
 When the function is activated, *upmpdcli* creates a separate auxiliary Media
 Server, with the sole purpose of presenting the streaming server
 catalog. You will see it appear on the network if streaming service
 parameters are present in the configuration file. The Media Server name is
-the +friendlyname+ for the Upmpdcli instance, with _-mediaserver_ appended.
+the `friendlyname` for the Upmpdcli instance, with _-mediaserver_ appended.
 
 Streaming is not limited to the local Upmpdcli Renderer, and the Media
 Server will happily send music to other Renderers (within the limitations
@@ -636,21 +641,21 @@ Two conditions must be true for the Media Server to appear with an entry
 for a streaming service:
 
  - The code for the service plugin must be installed. This comes generally
-   in a separate package (e.g _upmpdcli-tidal_).
+   in a separate package (e.g _upmpdcli-gmusic_).
  - The user variable for the service must be present in the configuration
-   file (e.g +tidaluser+).
+   file (e.g `gmusicuser`).
 
 Some other parameters (e.g. a password) may be needed for the access to
 work, depending on the specific service. See the service-specific notes below.
 
 NOTE: The streaming services passwords are stored in the upmpdcli
-configuration file ('/etc/upmpdcli.conf'). The installer does not
-make this file r/w by owner only. This will be fixed, but for now, you
-should probably do it after setting the password:
-+chmod&#160;600&#160;/etc/upmpdcli.conf+ Actually, it would quite probably
-be a good idea not to use the same account for your mail and music
-uses. Especially, for Google Music you can and should use an
-application-specific password.
+configuration file ('/etc/upmpdcli.conf'). The installer does not make this
+file r/w by owner only. You should probably change the mode after setting
+the password: `chmod&#160;600&#160;/etc/upmpdcli.conf` Actually, it would
+quite probably be a good idea not to use the same account for your mail and
+music uses. Especially, for Google Music you can and should use an
+application-specific password, or the newer oauth method (see the
+<<upmpdcli.googlemusicnotes,gmusic section>>).
 
 NOTE: I have no reason to believe that upmpdcli is technically mis-using
 the streaming services in any way, but it is definitely not approved by any
@@ -659,15 +664,16 @@ of them, and you are using it under your own responsibility.
 [[UPMPDCLI-MS-STR-CRED]]
 === Accessing the streaming services with OpenHome from Kazoo
 
-This only works for Tidal (used to work with Qobuz), and only with upmpdcli
-versions 1.3.0 and later. The corresponding media server module must be
-installed (upmpdcli-tidal), but no other configuration should be necessary
-on the renderer.
+This implements the `OpenHome Credentials` service only works for Tidal and
+Qobuz, if you have found an API token or appid/secret pair and only with
+upmpdcli versions 1.3.0 and later. The corresponding media server module
+must be installed (upmpdcli-tidal), but no other configuration should be
+necessary on the renderer.
 
 This should also work with Lumin, but it does not currently, the reason is
 unknown. When feature is active, it actually prevents Lumin from
 discovering upmpdcli at all, so there is a configuration variable to
-disable it: '+lumincompat+'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
 
 Upmpdcli uses the *openssl* command to perform the cryptography work. This
 was not made a hard dependancy, so you should check that it is
@@ -678,7 +684,6 @@ moment (12-2018)). If you are running Jessie, there is a fairly easy
 workaround available by building a static version of openssl and telling
 upmpdcli what version to use. See <<OHCREDS-OPENSSL, some instructions in
 this annex>>.
-
 
 The media service icons will appear in the Control Point interface, and the
 service will be accessible after entering the login and password.
@@ -695,6 +700,7 @@ For reference, this method is *not* usable with *Upplay*
 
 The notes which follow relate to accessing the services through the
 Upmpdcli Media Server.
+
 
 === Using Tidal through the Upmpdcli Media Server
 
@@ -723,7 +729,8 @@ comes from link:https://github.com/arnesongit/kodi-tidal[this Git
 repository]. The software is not officially supported by Tidal, and may
 just stop to work one day...
 
-It only works with a valid Tidal subscription.
+It only works with a valid Tidal subscription and valid Tidal API token,
+which you must set in the `tidalapitoken` configuration variable.
 
 The configuration parameters are described in the
 <<tidaluser,configuration section>>
@@ -731,9 +738,10 @@ The configuration parameters are described in the
 [[upmpdcli.qobuznotes]]
 === Using Qobuz through the Upmpdcli Media Server
 
-upmpdcli Qobuz access does not work any more, because Qobuz revoked the
+Upmpdcli Qobuz access does not work any more, because Qobuz revoked the
 access key, so this is just kept as a historical note... Also, if you are
-lucky enough to have a valid app key, you can use it with the module.
+lucky enough to have a valid app key/secret pair, you can use it with the
+module.
 
 This is based on the service API from the
 link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
@@ -752,6 +760,7 @@ You need a valid Qobuz subscription.
 
 The configuration parameters are described in the
 <<qobuzuser,configuration section>>
+
 
 [[upmpdcli.googlemusicnotes]]
 === Using Google Music through the Upmpdcli Media Server
@@ -880,12 +889,12 @@ The list of MinimServer functions which are _not_ supported would be too
 long. Here follows what *uprcl* does support, at least partially, at this
 point (1.4.3pre):
 
-- +contentDir+ will be used if +uprclmediadirs+ is not set in
+- `contentDir` will be used if `uprclmediadirs` is not set in
   '/etc/upmpdcli.conf' 
-- +excludePattern+
-- +aliasTags+
-- +indexTags+
-- +showExtras+
+- `excludePattern`
+- `aliasTags`
+- `indexTags`
+- `showExtras`
 - Multidisc albums (partial).
 
 All in all, not a lot of the customization options are supported for
@@ -979,7 +988,7 @@ Also the Python modules for streaming service support use the
 at run time). Also *gmusicapi* for Google Music.
 
 If you are using the source from the git repository, you will also need the
-*autoconf*, *automake*, *libtool* trio. Use the +autogen.sh+ script to set
+*autoconf*, *automake*, *libtool* trio. Use the `autogen.sh` script to set
 things up.
 
 So you need to either clone 3 git repositories:
@@ -1170,7 +1179,7 @@ WEB API for browsing the catalog, and the old libspotify library for
 streaming.
 
 As a consequence, two sets of authorization parameters must be specified:
-the library uses a classical user name + password pair, to be set in the
+the library uses a classical user name ` password pair, to be set in the
 <<spotifyuser,configuration file>>.
 
 The WEB API uses a more modern (and more ennoying) oauth2
@@ -1200,7 +1209,7 @@ browser. You will need to execute the following steps to set things up:
   '/tmp/spotipy-<username>-token', which you will need to copy to the host
   where upmpdcli run, and move it to a file named
   '/var/cache/upmpdcli/spotify/token', or, if you changed the value of the
-  +cachedir+ parameter, to '[cachedir]/spotify/token'.
+  `cachedir` parameter, to '[cachedir]/spotify/token'.
 - Make sure that /var/cache/upmpdcli and its contents belong to upmpdcli:
 
     sudo chown -R upmpdcli /var/cache/upmpdcli/spotify
@@ -1272,7 +1281,7 @@ When using multiple Receiver instances, you need to at least customize
 their names, and you want to take care of synchronization issues. You will
 need to take a look at a bit more documentation:
 
- - xref:friendlyname[+friendlyname+]
+ - xref:friendlyname[`friendlyname`]
  - xref:UPMPDCLI-MULTIROOM-SYNC[audio synchronization issues and *sc2mpd*
    configuration].
 
@@ -1310,23 +1319,23 @@ explaining how to link a Bluetooth device to Songcast.
 
 The general idea is that upmpdcli will create an Openhome Source for each
 script it finds inside a designated directory. By default, the directory is
-+/usr/share/upmpdcli/src_scripts+, but it can be changed by setting the
-+ohsrc_scripts_dir+ configuration variable inside +/etc/upmpdcli.conf+
+`/usr/share/upmpdcli/src_scripts`, but it can be changed by setting the
+`ohsrc_scripts_dir` configuration variable inside `/etc/upmpdcli.conf`
 
 For managing analog sources, entries inside the directory will typically
 be created as symbolic links to the sample script, which is installed as
-+/usr/share/upmpdcli/Analog-Input+. For doing other things, the scripts
+`/usr/share/upmpdcli/Analog-Input`. For doing other things, the scripts
 will not be links, but they must still be named a bit specially.
 
 The scripts (or links) must be named like _SourceType_-_SourceName_, where
-_SourceType_ MUST BE one of +Analog+, +Digital+, or +Hdmi+, (which are all
+_SourceType_ MUST BE one of `Analog`, `Digital`, or `Hdmi`, (which are all
 the same, and for display purpose only), and you can choose _SourceName_ as
 you wish, but it should contain no space characters.
 
-The Source will appear with type +Analog+, +Digital+ or +Hdmi+ and name
+The Source will appear with type `Analog`, `Digital` or `Hdmi` and name
 _SourceName_ in an OpenHome Source select dialog (e.g from *upplay*).
 
-The +Analog-Input+ sample script has provisions for reading the device name
+The `Analog-Input` sample script has provisions for reading the device name
 and setup/teardown instructions from external files, so that it does not
 need to be modified. This is only relevant for the sample, please have a
 look at the comments for details.
@@ -1336,7 +1345,7 @@ look at the comments for details.
 
 === The radio URL script
 
-The +url+ field inside the radio definition can be a direct audio link or a
+The `url` field inside the radio definition can be a direct audio link or a
 link to the radio station playlist. This link will be interpreted by the
 'fetchstream.py' ('rdpltostream' directory inside the source tree, or see
 '/usr/share/upmpdcli/rdpl2stream'). The Python code knows about the various
@@ -1344,18 +1353,18 @@ playlist formats used by the stations.
 
 === The dynamic album art script
 
-If set, +artScript+ is the path to an executable script which can retrieve
+If set, `artScript` is the path to an executable script which can retrieve
 the image URL for the currently playing title. It can also be a simple
 script name if this is located in the PATH or in the 'radio_scripts'
 directory inside the upmpdcli directory (typically '/usr/share/upmpdcli').
 
 Some radios (e.g.  link:https://www.radioparadise.com/rp_2.php?#[Radio
 Paradise]) publish the album art for the currently playing title. The
-details vary. The +artScript+ parameter, if set, should point to an
+details vary. The `artScript` parameter, if set, should point to an
 executable script which prints this dynamic art Uri to stdout. The image
 will supercede the radio logo, to be displayed by control points. Beware
 that the path to the script must be accessible by the _upmpdcli_ user,
-which may not be the case for your home. +/usr/local/bin+ is your
+which may not be the case for your home. `/usr/local/bin` is your
 friend. The Upmpdcli installation has a very small set of scripts inside
 the '/usr/share/upmpdcli/radio_scripts' directory. This includes a very
 rough example for retrieving the Radio Paradise art URI,
@@ -1364,15 +1373,15 @@ rough example for retrieving the Radio Paradise art URI,
 The art script is executed each time the stream metadata changes (the data
 is obtained by mpd from Icy metadata in the stream).
 
-Upmpdcli does not set a timeout for the +artScript+ execution. A reasonable
+Upmpdcli does not set a timeout for the `artScript` execution. A reasonable
 value should be used inside the script, to avoid freezing upmpdcli forever.
 
-There is no reason to have an +artScript+ if +metaScript+ exists for the
-radio. +metaScript+ can also return the image URL.
+There is no reason to have an `artScript` if `metaScript` exists for the
+radio. `metaScript` can also return the image URL.
 
 === The dynamic metadata script
 
-If set, +metaScript+ is the path to an executable script which can retrieve
+If set, `metaScript` is the path to an executable script which can retrieve
 the metadata (possibly including art Url) for the currently playing
 title. It can also be a simple script name if this is located in the PATH
 or in the 'radio_scripts' directory inside the upmpdcli directory
@@ -1394,11 +1403,11 @@ valid JSON will do):
 }
 ----
 
-The +reload+ value gives the number of seconds after which the script
+The `reload` value gives the number of seconds after which the script
 should be re-executed (the clever radio sets this to the remaining song
 time). By default, the script is executed every 10 S.
 
-Any value not present will simply not be used (not an error). +audioUrl+ is
+Any value not present will simply not be used (not an error). `audioUrl` is
 generally not set. If it is set, it's the next audio Url to queue after the
 current one (this is used for radio streams which are a sequences of URLs
 rather than a continuous stream, for example the Radio Paradise FLAC

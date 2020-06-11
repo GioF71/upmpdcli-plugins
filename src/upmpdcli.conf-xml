@@ -325,34 +325,6 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # service, which seems to happen esp. with Qobuz.</descr></var>
 #plgproxymethod = redirect
 
-# <grouptitle>Tidal streaming service parameters</grouptitle>
-
-# <var name="tidaluser" type="string"><brief>Tidal user name.</brief>
-# <descr>Your Tidal login name.</descr></var>
-#tidaluser = your tidal user name
-# <var name="tidalpass" type="string"><brief>Tidal password.</brief>
-# <descr>The password for your Tidal account.</descr></var>
-#tidalpass = your Tidal password
-# <var name="tidalquality" type="cstr" values="low high lossless">
-# <brief>Tidal stream quality.</brief> <descr>'low' and 'high' are aac
-# streams. 'lossless' is FLAC and will only work if your subscription
-# allows it.</descr></var>
-#tidalquality = low
-
-# <grouptitle>Qobuz streaming service parameters</grouptitle>
-
-# <var name="qobuzuser" type="string"><brief>Qobuz user name.</brief>
-# <descr>Your Qobuz login name.</descr></var>
-#qobuzuser = me@some.place
-# <var name="qobuzpass" type="string"><brief>Qobuz password.</brief>
-# <descr>The password for your Qobuz account.</descr></var>
-#qobuzpass = agoodpassword
-# <var name="qobuzformatid" type="cstr" values="5 7 27">
-# <brief>Qobuz stream quality.</brief>
-# <descr>5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
-# allows streaming each of the formats).</descr></var>
-#qobuzformatid = 5
-
 # <grouptitle>Google Music streaming service parameters</grouptitle>
 
 # <var name="gmusicuser" type="string"><brief>Google Music user name.</brief>
@@ -374,6 +346,19 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Google Play Music (look up "Android deviceid" for help).</descr></var>
 #gmusicdeviceid =
 
+# <grouptitle>Highresaudio streaming service parameters</grouptitle>
+
+# <var name="hrauser" type="string"><brief>Hra user name.</brief>
+# <descr>Your Hra login name.</descr></var>
+#hrauser = your hra user name
+# <var name="hrapass" type="string"><brief>Hra password.</brief>
+# <descr>The password for your Hra account.</descr></var>
+#hrapass = your Hra password
+# <var name="hralang" type="string"><brief>Hra language setting
+# (en/de).</brief> <descr>Some Highresaudio messages will be set in the
+# appropriate language.</descr></var>
+#hralang = en
+
 # <grouptitle>Spotify streaming service parameters</grouptitle>
 
 # <var name="spotifyuser" type="string"><brief>Spotify user name.</brief>
@@ -386,6 +371,39 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # <brief>Spotify preferred bitrate: 160 (default), 320 or 96.</brief>
 # <descr>Unverified.</descr></var>
 #spotifybitrate = 160
+
+# <grouptitle>Tidal streaming service parameters</grouptitle>
+
+# <var name="tidaluser" type="string"><brief>Tidal user name.</brief>
+# <descr>Your Tidal login name.</descr></var>
+#tidaluser = your tidal user name
+# <var name="tidalpass" type="string"><brief>Tidal password.</brief>
+# <descr>The password for your Tidal account.</descr></var>
+#tidalpass = your Tidal password
+# <var name="tidalapitoken" type="string"><brief>Tidal API token.</brief>
+# <descr>The default token distributed with upmpdcli does not work any
+# more. You will need to find a valid token and set here for the access to
+# work.</descr></var> 
+#tidalapitoken = thetoken
+# <var name="tidalquality" type="cstr" values="low high lossless">
+# <brief>Tidal stream quality.</brief> <descr>'low' and 'high' are aac
+# streams. 'lossless' is FLAC and will only work if your subscription
+# allows it.</descr></var>
+#tidalquality = low
+
+# <grouptitle>Qobuz streaming service parameters</grouptitle>
+
+# <var name="qobuzuser" type="string"><brief>Qobuz user name.</brief>
+# <descr>Your Qobuz login name.</descr></var>
+#qobuzuser = me@some.place
+# <var name="qobuzpass" type="string"><brief>Qobuz password.</brief>
+# <descr>The password for your Qobuz account.</descr></var>
+#qobuzpass = agoodpassword
+# <var name="qobuzformatid" type="cstr" values="5 7 27">
+# <brief>Qobuz stream quality.</brief>
+# <descr>5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
+# allows streaming each of the formats).</descr></var>
+#qobuzformatid = 5
 
 # <grouptitle>Local Media Server parameters</grouptitle>
 
