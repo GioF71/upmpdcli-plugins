@@ -1,5 +1,15 @@
 = Upmpdcli release notes
 
+== 2020-06-11 upmpdcli 1.4.11
+
+- Initial implementation of a HighResAudio media server module.
+- Improve cover art management in places.
+- Fix bug where media server plugin failure could terminate parent.
+
+== 2020-06-10 libnpupnp 4.0.6
+
+Fixes IPV6 operation on Linux. IPV6 still only works on one interface only.
+
 == 2020-05-21 libnpupnp 4.0.5
 
 Hopefully fixes the upmpdcli boot startup issues from previous versions.
