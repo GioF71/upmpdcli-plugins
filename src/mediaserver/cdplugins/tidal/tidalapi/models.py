@@ -48,6 +48,7 @@ class Album(Model):
     num_tracks = -1
     duration = -1
     release_date = None
+    image = None
 
     @property
     def image(self, width=512, height=512):
@@ -89,6 +90,7 @@ class Track(Model):
     artists = []
     album = None
     available = True
+    image = None
 
 
 class SearchResult(Model):
