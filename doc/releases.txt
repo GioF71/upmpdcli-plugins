@@ -1,10 +1,17 @@
 = Upmpdcli release notes
 
-== 2020-06-11 upmpdcli 1.4.11
+== 2020-06-22 libnpupnp 4.0.7, libupnpp 0.19.2
+
+- libnpupnp: fix vulnerability to CVE-2020-12695 (CallStranger).
+- libnpupnp: using the same version of netif.cpp as libnpupnp should allow
+  static builds.
+
+== 2020-06-12 upmpdcli 1.4.12
 
 - Initial implementation of a HighResAudio media server module.
 - Improve cover art management in places.
 - Fix bug where media server plugin failure could terminate parent.
+- Short-lived 1.4.11 had a bug in the Tidal plugin
 
 == 2020-06-10 libnpupnp 4.0.6
 
