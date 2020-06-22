@@ -10,7 +10,7 @@ DEFINES += MDU_INCLUDE_LOG=\'<libupnpp/log.h>\'
 CONFIG	+= qt warn_on thread release debug
 QT += widgets
 
-LIBS += -lupnpp
+LIBS += @UPMPDCLI_LIBS@
 
 INCLUDEPATH += ../src
 INCLUDEPATH += @srcdir@/../src
