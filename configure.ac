@@ -68,7 +68,7 @@ AC_ARG_ENABLE(staticlink, AC_HELP_STRING([--enable-staticlink],
 if test X$enableStaticLink = Xyes ; then
     PKG_CHECK_MODULES([curl], [libcurl], [], [AC_MSG_ERROR([libcurl])])
     PKG_CHECK_MODULES([expat], [expat], [], [AC_MSG_ERROR([libexpat])])
-    PKG_CHECK_MODULES([npupnp], [libnpupnp], [], [AC_MSG_ERROR([libexpat])])
+    PKG_CHECK_MODULES([npupnp], [libnpupnp], [], [AC_MSG_ERROR([libnpupnp])])
 	addstaticlibs="$npupnp_LIBS $curl_LIBS $expat_LIBS $libmicrohttpd_LIBS"
 else
 	addstaticlibs=""
