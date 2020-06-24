@@ -133,6 +133,22 @@ dist_pkgdata_DATA = src/description.xml src/AVTransport.xml \
                   src/protocolinfo.txt src/presentation.html \
                   src/upmpdcli.conf-dist src/upmpdcli.conf-xml
 
+rdpl2streamdir = $(pkgdatadir)/rdpl2stream
+dist_rdpl2stream_DATA = \
+    rdpl2stream/AsfPlaylistDecoder.py  \
+    rdpl2stream/AsxPlaylistDecoder.py  \
+    rdpl2stream/common.py  \
+    rdpl2stream/fetchStream.py  \
+    rdpl2stream/M3uPlaylistDecoder.py \
+    rdpl2stream/PlsPlaylistDecoder.py  \
+    rdpl2stream/RamPlaylistDecoder.py  \
+    rdpl2stream/StreamDecoder.py \
+    rdpl2stream/UrlInfo.py \
+    rdpl2stream/XspfPlaylistDecoder.py \
+    rdpl2stream/AUTHORS \
+    rdpl2stream/CONTRIBUTORS \
+    rdpl2stream/COPYING
+    
 radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
                     src/radio_scripts/radio-france-meta.py \
@@ -226,7 +242,6 @@ EXTRA_DIST = \
     cfgui/mainwindow.h \
     cfgui/picoxml.h \
     cfgui/upmpdcli-config.pro \
-    rdpl2stream.tar.gz \
     autogen.sh \
     src/mediaserver/cdplugins/spotify/spotiproxy.cpp \
     src/mediaserver/cdplugins/spotify/spotiproxy.h \
@@ -247,23 +262,16 @@ uprclbottle.tar.gz: bogus
             uprclbottle.tar.gz; \
         fi
 
-rdpl2stream.tar.gz: bogus
-	if test -d $(srcdir)/rdpl2stream; then \
-	    (cd $(srcdir); rm -rf rdpl2stream/__pycache__/; \
-               tar cvzf - rdpl2stream) > rdpl2stream.tar.gz; \
-        fi
-
 bogus:
 
-install-data-hook: web.tar.gz rdpl2stream.tar.gz uprclbottle.tar.gz
+install-data-hook: web.tar.gz uprclbottle.tar.gz
 	whoami
 	(cd $(DESTDIR)$(sysconfdir); test -f upmpdcli.conf || \
 		mv upmpdcli.conf-dist upmpdcli.conf; chmod 600 upmpdcli.conf)
 	(cd $(DESTDIR)$(pkgdatadir); tar xzf -) < web.tar.gz 
-	(cd $(DESTDIR)$(pkgdatadir); tar xzf -) < rdpl2stream.tar.gz
 	(cd $(DESTDIR)$(pkgdatadir); tar xzf -) < uprclbottle.tar.gz
 	@(cd $(DESTDIR)$(pkgdatadir); \
-         chown -R root:root rdpl2stream web cdplugins) || true
+         chown -R root:root web cdplugins) || true
 	(cd $(DESTDIR)$(pkgdatadir); test -d src_scripts || mkdir src_scripts)
 	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
@@ -272,6 +280,7 @@ install-data-hook: web.tar.gz rdpl2stream.tar.gz uprclbottle.tar.gz
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
+	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
         
 dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
 
@@ -280,6 +289,5 @@ dist_sysconf_DATA = src/upmpdcli.conf-dist
 dist_man1_MANS = man/upmpdcli.1
 
 dist-hook:
-	rm -rf rdpl2stream/__pycache__/
 	test -z "`git status -s | grep -v '??' | grep -v Makefile.am`" 
 	git tag -a upmpdcli-v$(VERSION) -m 'version $(VERSION)'
