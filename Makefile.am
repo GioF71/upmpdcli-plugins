@@ -157,6 +157,22 @@ dist_radioscripts_DATA = \
                     src/radio_scripts/radio-paradise-meta.py \
                     src/radio_scripts/radiolist.conf
 
+webdir = $(pkgdatadir)
+nobase_dist_web_DATA = \
+    web/scweb.py \
+    web/static/style.css \
+    web/bottle.py \
+    web/views/main.tpl \
+    web/views/list.tpl \
+    web/views/menu.tpl \
+    web/views/assoc.tpl \
+    web/views/header.tpl \
+    web/views/footer.tpl \
+    web/views/stop.tpl \
+    web/init/default-scweb \
+    web/init/scweb-service \
+    web/scweb-standalone.py
+
 cdpluginspycomdir = $(pkgdatadir)/cdplugins/pycommon
 dist_cdpluginspycom_DATA = \
                     src/mediaserver/cdplugins/pycommon/cmdtalk.py \
@@ -233,6 +249,15 @@ dist_cdpluginsuprcl_DATA = \
                  src/mediaserver/cdplugins/uprcl/uprcluntagged.py \
                  src/mediaserver/cdplugins/uprcl/uprclutils.py
 
+uprclbottlestaticdir = $(pkgdatadir)/cdplugins/uprcl/bottle/static
+dist_uprclbottlestatic_DATA = \
+    src/mediaserver/cdplugins/uprcl/bottle/static/style.css
+uprclbottleviewsdir = $(pkgdatadir)/cdplugins/uprcl/bottle/views
+dist_uprclbottleviews_DATA = \
+    src/mediaserver/cdplugins/uprcl/bottle/views/footer.tpl \
+    src/mediaserver/cdplugins/uprcl/bottle/views/header.tpl \
+    src/mediaserver/cdplugins/uprcl/bottle/views/main.tpl
+    
 EXTRA_DIST = \
     autogen.sh \
     cfgui/Makefile \
@@ -246,32 +271,12 @@ EXTRA_DIST = \
     src/mediaserver/cdplugins/spotify/spotiproxy.cpp \
     src/mediaserver/cdplugins/spotify/spotiproxy.h \
     src/upmpdcli.conf-xml \
-    systemd/upmpdcli.service \
-    uprclbottle.tar.gz \
-    web.tar.gz
+    systemd/upmpdcli.service
 
 
-web.tar.gz: bogus
-	if test -d $(srcdir)/web; then \
-           (cd $(srcdir); tar cvzf - web) > web.tar.gz; \
-        fi
-
-uprclbottle.tar.gz: bogus
-	if test -d $(srcdir)/src/mediaserver/cdplugins/uprcl/bottle; then \
-	(cd $(srcdir)/src/mediaserver; tar cvzf - cdplugins/uprcl/bottle) > \
-            uprclbottle.tar.gz; \
-        fi
-
-bogus:
-
-install-data-hook: web.tar.gz uprclbottle.tar.gz
-	whoami
+install-data-hook:
 	(cd $(DESTDIR)$(sysconfdir); test -f upmpdcli.conf || \
 		mv upmpdcli.conf-dist upmpdcli.conf; chmod 600 upmpdcli.conf)
-	(cd $(DESTDIR)$(pkgdatadir); tar xzf -) < web.tar.gz 
-	(cd $(DESTDIR)$(pkgdatadir); tar xzf -) < uprclbottle.tar.gz
-	@(cd $(DESTDIR)$(pkgdatadir); \
-         chown -R root:root web cdplugins) || true
 	(cd $(DESTDIR)$(pkgdatadir); test -d src_scripts || mkdir src_scripts)
 	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
@@ -281,6 +286,7 @@ install-data-hook: web.tar.gz uprclbottle.tar.gz
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
+	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py)
         
 dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
 
