@@ -17,39 +17,25 @@
 # along with Radio Tray.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##########################################################################
-from __future__ import print_function
-
 import sys
 import ssl
-
-PY3 = sys.version > '3'
-if PY3:
-    from urllib.request import Request as UrlRequest
-    import urllib.request, urllib.error, urllib.parse
-    from urllib.error import HTTPError as HTTPError
-    from urllib.error import URLError as URLError
-    from http.client import BadStatusLine as BadStatusLine
-    from urllib.request import build_opener as urlBuild_opener
-    from urllib.request import HTTPSHandler
-    if sys.version_info < (3,5):
-        def my_ssl_create_unverified_context():
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-            return ssl_ctx
-    else:
-        my_ssl_create_unverified_context = ssl._create_unverified_context
+from urllib.request import Request as UrlRequest
+import urllib.request, urllib.error, urllib.parse
+from urllib.error import HTTPError as HTTPError
+from urllib.error import URLError as URLError
+from urllib.request import HTTPRedirectHandler
+from http.client import BadStatusLine as BadStatusLine
+from urllib.request import build_opener as urlBuild_opener
+from urllib.request import HTTPSHandler
+if sys.version_info < (3,5):
+    def my_ssl_create_unverified_context():
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        return ssl_ctx
 else:
-    from urllib2 import Request as UrlRequest
-    from urllib2 import HTTPError as HTTPError
-    from urllib2 import URLError as URLError
-    from urllib2 import build_opener as urlBuild_opener
-    from urllib2 import HTTPSHandler
-    class BadStatusLine:
-        pass
-
-from lib.common import USER_AGENT, Logger
-from lib.DummyMMSHandler import DummyMMSHandler
+    my_ssl_create_unverified_context = ssl._create_unverified_context
+from common import USER_AGENT
 from PlsPlaylistDecoder import PlsPlaylistDecoder
 from M3uPlaylistDecoder import M3uPlaylistDecoder
 from AsxPlaylistDecoder import AsxPlaylistDecoder
@@ -57,8 +43,23 @@ from XspfPlaylistDecoder import XspfPlaylistDecoder
 from AsfPlaylistDecoder import AsfPlaylistDecoder
 from RamPlaylistDecoder import RamPlaylistDecoder
 from UrlInfo import UrlInfo
+import logging
 
-      
+
+class DummyMMSHandler(HTTPRedirectHandler):
+    def __init__(self):
+        self.log = logging.getLogger('upmpdcli')
+
+    # Handle mms redirection, or let the standard code deal with it.
+    def http_error_302(self, req, fp, code, msg, headers):
+        #self.log.info("http_error_302: code %s headers %s" % (code, headers))
+        if 'location' in headers:
+            newurl = headers['location']
+            if newurl.startswith('mms:'):
+                raise URLError("MMS REDIRECT:" + headers["Location"])
+        return HTTPRedirectHandler.http_error_302(self, req, fp, code,
+                                                  msg, headers)
+
 class StreamDecoder:
 
     def __init__(self, cfg_provider):
@@ -69,7 +70,7 @@ class StreamDecoder:
         asfDecoder = AsfPlaylistDecoder()
         ramDecoder = RamPlaylistDecoder()
 
-        self.log = Logger()
+        self.log = logging.getLogger('upmpdcli')
         
         self.decoders = [plsDecoder, asxDecoder, asfDecoder, xspfDecoder, ramDecoder, m3uDecoder]
 

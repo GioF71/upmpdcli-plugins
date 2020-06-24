@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-from __future__ import print_function
+#
+# Main program for fetching a stream URL
 
 import sys
 import logging
@@ -49,5 +50,3 @@ if urlInfo is not None:
 else:
     logger.error("Ended with null urlinfo")
     print()
-
-    

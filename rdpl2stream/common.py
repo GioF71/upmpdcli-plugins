@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 
 APPVERSION="0.14"
@@ -13,16 +12,3 @@ try:
 except:
     USER_AGENT = "Upmpdcli/" + APPVERSION
 
-
-class Logger:
-    def mprint(self, m):
-        #print("%s"%m, file=sys.stderr)
-        pass
-    def error(self, m):
-        self.mprint(m)
-    def warn(self, m):
-        self.mprint(m)
-    def info(self, m):
-        self.mprint(m)
-    def debug(self, m):
-        self.mprint(m)

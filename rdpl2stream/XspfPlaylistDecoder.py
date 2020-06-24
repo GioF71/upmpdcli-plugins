@@ -18,21 +18,16 @@
 #
 ##########################################################################
 import sys
-PY3 = sys.version > '3'
-if PY3:
-    from urllib.request import Request as UrlRequest
-    from urllib.request import urlopen as urlUrlopen
-else:
-    from urllib2 import Request as UrlRequest
-    from urllib2 import urlopen as urlUrlopen
-
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen as urlUrlopen
 import xml.etree.ElementTree as ET
 from io import BytesIO
-from lib.common import USER_AGENT, Logger
+import logging
+from common import USER_AGENT
 
 class XspfPlaylistDecoder:
     def __init__(self):
-        self.log = Logger()
+        self.log = logging.getLogger('upmpdcli')
 
     def isStreamValid(self, contentType, firstBytes):
         if 'application/xspf+xml' in contentType:
