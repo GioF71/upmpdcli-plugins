@@ -689,7 +689,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
                 for (const auto& entry : m_mpdsavedstate.queue) {
                     if (entry.mpdid == id) {
                         song = entry;
-                        metadata = didlmake(song);
+                        metadata = SoapHelp::xmlQuote(didlmake(song));
                     }
                 }
                 if (metadata.empty()) {
