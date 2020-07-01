@@ -673,7 +673,20 @@ int main(int argc, char *argv[])
             mpdstat.verspatch >= 16; 
     }
     
-        
+    // Initialise lower upnp lib logging. Static so can be done before
+    // the rest of init.
+    if ((cp = getenv("UPMPDCLI_UPNPLOGFILENAME"))) {
+        char *cp1 = getenv("UPMPDCLI_UPNPLOGLEVEL");
+        int loglevel = LibUPnP::LogLevelNone;
+        if (cp1) {
+            loglevel = atoi(cp1);
+        }
+        loglevel = loglevel < 0 ? 0: loglevel;
+        if (loglevel != LibUPnP::LogLevelNone) {
+            LibUPnP::setLogFileName(cp, LibUPnP::LogLevel(loglevel));
+        }
+    }
+
     // Initialize libupnpp, and check health
     LibUPnP *mylib = 0;
     string hwaddr;
@@ -693,18 +706,6 @@ int main(int argc, char *argv[])
         LOGFAT("Lib init failed: " <<
                mylib->errAsString("main", mylib->getInitError()) << endl);
         return 1;
-    }
-
-    if ((cp = getenv("UPMPDCLI_UPNPLOGFILENAME"))) {
-        char *cp1 = getenv("UPMPDCLI_UPNPLOGLEVEL");
-        int loglevel = LibUPnP::LogLevelNone;
-        if (cp1) {
-            loglevel = atoi(cp1);
-        }
-        loglevel = loglevel < 0 ? 0: loglevel;
-        if (loglevel != LibUPnP::LogLevelNone) {
-            mylib->setLogFileName(cp, LibUPnP::LogLevel(loglevel));
-        }
     }
 
     // Create unique IDs for renderer and possible media server
