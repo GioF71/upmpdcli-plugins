@@ -1,3 +1,11 @@
+upmpdcli (1.4.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix some AVT events metadata emitted while Playlist is active
+  * New HighResAudio streaming service media server plugin
+  * Misc small fixes
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Fri, 12 Jun 2020 13:47:00 +0100
+
 upmpdcli (1.4.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Update tidal token and set it in ohcredentials Get data to help bubble
