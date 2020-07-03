@@ -1021,7 +1021,8 @@ bool ExecCmd::maybereap(int *status)
         e.inactivate();
         return false;
     } else {
-        LOGDEB("ExecCmd::maybereap: got status 0x" << (status) << "\n");
+        if (*status)
+            LOGDEB("ExecCmd::maybereap: got status 0x" << *status << "\n");
         m->m_pid = -1;
         return true;
     }
