@@ -382,7 +382,7 @@ int OHPlaylist::next(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::next: not active\n");
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::next" << endl);
     bool ok = m_dev->m_mpdcli->next();
@@ -394,7 +394,7 @@ int OHPlaylist::previous(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::previous: not active\n");
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::previous" << endl);
     bool ok = m_dev->m_mpdcli->previous();
@@ -406,7 +406,7 @@ int OHPlaylist::setRepeat(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::setRepeat: not active\n");
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::setRepeat" << endl);
     bool onoff;
@@ -422,7 +422,7 @@ int OHPlaylist::repeat(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::repeat: not active\n");
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::repeat" << endl);
     const MpdStatus &mpds =  m_dev->getMpdStatusNoUpdate();
@@ -434,7 +434,7 @@ int OHPlaylist::setShuffle(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::setShuffle: not active\n");
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::setShuffle" << endl);
     bool onoff;
@@ -573,7 +573,7 @@ int OHPlaylist::id(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
         LOGERR("OHPlaylist::id: not active" << endl);
-        return UPNP_E_INTERNAL_ERROR;
+        return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::id" << endl);
 
@@ -689,7 +689,12 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
                 for (const auto& entry : m_mpdsavedstate.queue) {
                     if (entry.mpdid == id) {
                         song = entry;
-                        metadata = SoapHelp::xmlQuote(didlmake(song));
+                        auto mit = m_metacache.find(song.rsrc.uri);
+                        if (mit != m_metacache.end()) {
+                            metadata = SoapHelp::xmlQuote(mit->second);
+                        } else {
+                            metadata = SoapHelp::xmlQuote(didlmake(song));
+                        }
                     }
                 }
                 if (metadata.empty()) {
