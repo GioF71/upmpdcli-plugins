@@ -56,6 +56,18 @@ Small improvements to the mediaserver modules.
 - Support the oauth connection method in upmpdcli-gmusic.
 - Small bug fix in the upmpdcli-tidal module
 
+== 2020-04-02 sc2mpd 1.1.7
+
+- Allow adjusting the receiver audio delay in the configuration (see the
+  manual). Allows better synchronisation, especially with non-sc2mpd
+  receivers.
+
+== 2020-04-01 sc2mpd 1.1.6
+
+- Allow adjusting the stream volume according to the mpd current setting
+  (allows adjusting from control point connected to upmpdcli). Set
+  'scusempdvolume' to true in the config to activate.
+  
 == 2020-03-06 libnpupnp 2.2.1
 
 - Improve interface to ease experimental port of Gerbera.
@@ -237,7 +249,14 @@ See the
 link:https://www.lesbonscomptes.com/upmpdcli/upmpdcli-manual.html[Upmpdcli
 manual] for more detail about these functions. 
 
-== upmpdcli 1.2.16
+== 2018-04-06 sc2mpd 1.1.5
+
+- Improved handling of halt state.
+- Narrower range of sample rate adjustments to avoid extreme strangeness.
+- Openhome updates. Switch to Joerg Krause repository on GitHub because
+  Linn OhSongcast does not appear to be maintained any more.
+  
+== 2018-04-06 upmpdcli 1.2.16
 
 - Multiple small fixes for crashes in rare circumstances.
 - New GUI editor for the configuration file (not built by default, use
@@ -257,6 +276,12 @@ manual] for more detail about these functions.
   Receiver to reconnect to the previous Sender when starting up
 - uprcl plugin (Media Server for local files): multiple improvements, still alpha
   quality.
+
+== 2017-09-19 sc2mpd 1.1.4
+
+- Better handling of transition to stop state and process exit, properly
+  close ALSA when needed.
+- Update the openhome code version.
 
 == libupnpp 0.16.1
 

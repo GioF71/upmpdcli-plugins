@@ -1100,6 +1100,18 @@ understandable reasons:
 - The OpenHome build system is very complicated because it works on
   multiple platforms and multiple language bindings.
 
+===== The easy way
+
+Download the tar file of the appropriately patched openhome code from the
+upmpdcli downloads page, create an empty directory and untar it in it.
+
+    cd /home/me
+    mkdir openhome
+    cd openhome
+    tar xf /path/to/openhome-sc2-20180615.tar.gz
+    
+===== The complicated way
+
 The *sc2mpd* source comes with a shell script named _ohbuild.sh_ to help
 with this. It has several functions:
 
@@ -1115,6 +1127,10 @@ normal build, the procedure would be as follows:
     cd sc2mpd
     mkdir /my/place/for/openhome
     sh ohbuild.sh -b /my/place/for/openhome
+
+NOTE: for sc2mpd 1.1.7 you will need to copy the ohpatches directory from
+the git code directory to the extracted tar file directory because I forgot
+to include it in the distribution.
 
 
 ==== Building sc2mpd
@@ -1160,7 +1176,7 @@ files and the sc2mpd (git) source tree.
     mkdir sc2mpd_build
     cd sc2mpd_build
     cp $distdir/sc2mpd-1.1.1.tar.gz sc2mpd_1.1.1.orig.tar.gz
-    cp $distdir/openhome-sc2-20151223.tar.gz sc2mpd_1.1.1.orig-openhome.tar.gz
+    cp $distdir/openhome-sc2-20180615.tar.gz sc2mpd_1.1.1.orig-openhome.tar.gz
     tar xzf sc2mpd_1.1.1.orig.tar.gz
     cp -rp $sc2mpd_src/debian sc2mpd-1.1.1/
     cd sc2mpd-1.1.1
