@@ -1088,10 +1088,10 @@ release] or clone the *sc2mpd*
 https://framagit.org/medoc92/sc2mpd[Git repository].
 
 
-==== Building the OpenHome libraries
+==== Creating the the OpenHome source tree
 
 Building the Openhome libraries is a bit of a black art for a number of
-understandable reasons:
+reasons:
 
 - There are no released distributions for the OpenHome libraries, but
   only a number of git repositories for the different components. The state
@@ -1100,15 +1100,22 @@ understandable reasons:
 - The OpenHome build system is very complicated because it works on
   multiple platforms and multiple language bindings.
 
+The first step is to create the openhome source tree. There are two
+possible ways, described just below.
+
+In both cases, after creating the tree, you need to compile the openhome
+software. See the sc2mpd build section below.
+
 ===== The easy way
 
 Download the tar file of the appropriately patched openhome code from the
-upmpdcli downloads page, create an empty directory and untar it in it.
+upmpdcli downloads page (use the current one, the date on the one below is
+just an example), create an empty directory, untar it in it
 
     cd /home/me
     mkdir openhome
     cd openhome
-    tar xf /path/to/openhome-sc2-20180615.tar.gz
+    tar xf /path/to/openhome-sc2-20200704.tar.gz
     
 ===== The complicated way
 
@@ -1135,7 +1142,8 @@ to include it in the distribution.
 
 ==== Building sc2mpd
 
-*sc2mpd* depends on a number of libraries:
+*sc2mpd* depends on a number of libraries, which are usually packaged on
+Linux, and which you need to install first:
 
 - The link:http://www.gnu.org/software/libmicrohttpd/[microhttpd]
   library. Install the development and runtime packages which are currently
@@ -1146,9 +1154,15 @@ to include it in the distribution.
 - The *libasound* Alsa interface library (_libasound2-dev_ on Debian,
   _alsa-lib-devel_ for Fedora).
 
+First build openhome. Change your current directory to the top of the
+sc2mpd source tree, then run:
+
+    sh ohbuild.sh /my/place/for/openhome
+
 Once OpenHome is built and the auxiliary library development packages are
 installed, build *sc2mpd*, using the following commands inside the
-_sc2mpd_ directory:
+_sc2mpd_ directory (you only need the autogen part for a cloned git tree,
+not for a tar extraction):
 
     sh autogen.sh
     ./configure --prefix=/usr --with-openhome=/my/place/for/openhome
