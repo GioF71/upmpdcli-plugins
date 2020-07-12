@@ -132,7 +132,7 @@ int ConfTabsW::addForeignPanel(ConfPanelWIF* w, const QString& title)
     m_widgets.push_back(w);
     QWidget *qw = dynamic_cast<QWidget *>(w);
     if (qw == 0) {
-        qDebug() << "Can't cast panel to QWidget";
+        qDebug() << "addForeignPanel: can't cast panel to QWidget";
         abort();
     }
     return tabWidget->addTab(qw, title);
@@ -227,9 +227,11 @@ ConfParamW *ConfTabsW::findParamW(const QString& varname)
 }
 void ConfTabsW::endOfList(int tabindex)
 {
-    ConfPanelW *panel = (ConfPanelW*)tabWidget->widget(tabindex);
-    if (nullptr == panel) 
+    ConfPanelW *panel = dynamic_cast<ConfPanelW*>(tabWidget->widget(tabindex));
+    // panel may be null if this is a foreign panel (not a conftabsw)
+    if (nullptr == panel) {
         return;
+    }
     panel->endOfList();
 }
 

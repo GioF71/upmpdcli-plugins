@@ -56,7 +56,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
 #include <errno.h>
 #include <fstream>
 #include <iostream>
@@ -88,12 +87,12 @@
 #endif
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
-#define MAXPATHLEN PATH_MAX
-
 #include <windows.h>
 #include <io.h>
-
 #include <sys/stat.h>
+#include <direct.h>
+#include <Shlobj.h>
+#include <Stringapiset.h>
 
 #if !defined(S_IFLNK)
 #define S_IFLNK 0
@@ -104,11 +103,13 @@
 #ifndef S_ISREG
 # define S_ISREG(ST_MODE) (((ST_MODE) & _S_IFMT) == _S_IFREG)
 #endif
-
-#include <direct.h>
-
-#include <Shlobj.h>
-#include <Stringapiset.h>
+#define MAXPATHLEN PATH_MAX
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
+#ifndef R_OK
+#define R_OK 4
+#endif
 
 #define STAT _wstati64
 #define LSTAT _wstati64
@@ -130,7 +131,9 @@
 // For getpid
 #include <process.h>
 #define getpid _getpid
-#endif
+
+#define PATHUT_SSIZE_T int
+#endif // _MSC_VER
 
 #else /* !_WIN32 -> */
 
@@ -159,7 +162,18 @@
 
 #endif /* !_WIN32 */
 
+#ifdef _MSC_VER
+#include <msvc_dirent.h>
+#else // !_MSC_VER
+#include <dirent.h>
+#endif // _MSC_VER
+
 using namespace std;
+
+#ifndef PATHUT_SSIZE_T
+#define PATHUT_SSIZE_T ssize_t
+#endif
+
 
 #ifdef _WIN32
 
@@ -1401,7 +1415,7 @@ int Pidfile::write_pid()
     char pidstr[20];
     sprintf(pidstr, "%u", int(getpid()));
     lseek(m_fd, 0, 0);
-    if (::write(m_fd, pidstr, strlen(pidstr)) != (ssize_t)strlen(pidstr)) {
+    if (::write(m_fd, pidstr, strlen(pidstr)) != (PATHUT_SSIZE_T)strlen(pidstr)) {
         m_reason = "write failed";
         return -1;
     }

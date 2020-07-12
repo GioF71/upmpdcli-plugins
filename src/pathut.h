@@ -143,11 +143,7 @@ extern bool path_unlink(const std::string& path);
  * extension. On other OSes, just builds the fstream.  We'd need to
  * find a way to make this work with g++. It would be easier in this
  * case to use a FILE (_openw(), then fdopen()), but conftree really
- * depends on std::iostream. One possible workaround for g++ would be
- * to use shortpaths (which we already use to pass file names to
- * xapian and aspell). Most of the problems are caused by the home
- * directory name being non-ASCII, so returning a short path in
- * path_home() would probably solve everything (but not pretty).
+ * depends on std::iostream. 
  *
  * @param path an utf-8 file path.
  * @param mode is an std::fstream mode (ios::in etc.) */

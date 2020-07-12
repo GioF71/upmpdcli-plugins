@@ -66,7 +66,7 @@ extern void stringtolower(std::string& io);
 extern std::string stringtolower(const std::string& io);
 extern void stringtoupper(std::string& io);
 extern std::string stringtoupper(const std::string& io);
-extern bool beginswith(const std::string& big, const std::string& small);
+extern bool beginswith(const std::string& bg, const std::string& sml);
 
 // Is one string the end part of the other ?
 extern int stringisuffcmp(const std::string& s1, const std::string& s2);
