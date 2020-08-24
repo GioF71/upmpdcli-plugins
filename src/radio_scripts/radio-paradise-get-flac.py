@@ -59,7 +59,18 @@ def makebytes(data):
     if type(data) == type(u''):
         return data.encode("UTF-8", errors='replace')
     return data
-    
+
+# Write the selected song to the output
+def writesong(jsd, song):
+    global out
+    songs = jsd['song']
+    out['title'] = songs[song]['title']
+    out['artist'] = songs[song]['artist']
+    if 'album' in songs[song]:
+        out['album'] = songs[song]['album']
+    out['artUrl'] = 'http:%s%s' % (jsd['image_base'],
+                                  songs[song]['cover'])
+
 ##### Main script
 
     
@@ -81,20 +92,38 @@ try:
 except:
     pass
 
+# Default value for "channel" if not set in radio.conf
+# 0: main, "RP Main Mix"
+# 1: mellow, "RP Mellow Mix"
+# 2: rock, "RP Rock Mix"
+# 3: eclectic, "RP World/Etc Mix"
+if "channel" not in args:
+    args["channel"] = "0"
+    
 debug("rp-get-flac: got elapsed %d" % elapsedms)
 
-# Try to read the current cached data.
+# Try to read the current cached data, and extract the last event (song) in the block.
 cached = None
+endEvent = None
 try:
     s = open(tmpname, 'rb').read().decode('utf-8', errors = 'replace')
     cached = json.loads(s)
+
+    if cached and 'end_event' in cached and elapsedms >= 0:
+        endEvent = cached['end_event']
+
 except Exception as err:
     debug("No cached data read: %s" % err)
     pass
 
-
-r = requests.get("https://api.radioparadise.com/api/get_block",
-                 params={"bitrate": "4", "info":"true"})
+# If we have an end event (last song), then the next block is retrieved by sending this end event
+# Otherwise we just get the current block
+if endEvent:
+    r = requests.get("https://api.radioparadise.com/api/get_block",
+                 params={"bitrate": "4", "info":"true", "chan":args["channel"], "event":endEvent})
+else:
+    r = requests.get("https://api.radioparadise.com/api/get_block",
+                 params={"bitrate": "4", "info":"true", "chan":args["channel"]})
 r.raise_for_status()
 newjsd = r.json()
 
@@ -107,8 +136,8 @@ out = {}
 # a new block, we output the audio URL
 if cached:
     debug("Cached end_event %s new %s"%(cached['end_event'], newjsd['end_event']))
-if elapsedms >= 0 and cached and 'end_event' in cached and \
-       cached['end_event'] == newjsd['end_event']:
+
+if elapsedms >= 0 and endEvent:
     debug("rp-get-flac: using cached data")
     jsd = cached
 else:
@@ -116,14 +145,15 @@ else:
     jsd = newjsd
     elapsedms = -1
     newcache(jsd)
-    
+
+# Find the current song in the block based on the elased time    
 currentk = None
 if elapsedms > 0:
     songs = jsd['song']
     for k in sorted(songs.keys()):
         startms = songs[k]['elapsed']
         endms  = startms + songs[k]['duration']
-        debug("k %s Startms %d endms %d" % (k, startms, endms))
+        debug("k %s Startms %d endms %d event %s" % (k, startms, endms, songs[k]['event']))
         if elapsedms >= startms and elapsedms <= endms:
             currentk = k
             break
@@ -134,14 +164,10 @@ if not currentk:
           " not found in song array") % elapsedms)
     jsd = newjsd
     newcache(jsd)
-    out['reload'] = 3
+    out['reload'] = 1
+    writesong(jsd, '0')
 else:
-    songs = jsd['song']
-    out['title'] = songs[currentk]['title']
-    out['artist'] = songs[currentk]['artist']
-    out['album'] = songs[currentk]['album']
-    out['artUrl'] = 'http:%s%s' % (jsd['image_base'],
-                                  songs[currentk]['cover'])
+    writesong(jsd, currentk)
     reload = int((endms - elapsedms)/1000)
     # Last song: reload a bit earlier so that we can queue the URL
     if currentk == len(songs) -1 and reload > 3:
