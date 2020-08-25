@@ -18,6 +18,8 @@
 #   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 
+# Updated/improved in 2020 by Pete Callaghan.
+
 # Handling the Flac channel from radio-paradise. This is made of
 # 'blocks' which are multi-title periods with a single audio
 # url. Metadata should be displayed according to the elapsed time in
