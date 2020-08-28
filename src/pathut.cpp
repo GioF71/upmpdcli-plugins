@@ -756,11 +756,7 @@ string path_absolute(const string& is)
     path_slashize(s);
 #endif
     if (!path_isabsolute(s)) {
-        char buf[MAXPATHLEN];
-        if (!getcwd(buf, MAXPATHLEN)) {
-            return string();
-        }
-        s = path_cat(string(buf), s);
+        s = path_cat(path_cwd(), s);
 #ifdef _WIN32
         path_slashize(s);
 #endif
@@ -783,16 +779,11 @@ string path_canon(const string& is, const string* cwd)
 #endif
 
     if (!path_isabsolute(s)) {
-        char buf[MAXPATHLEN];
-        const char *cwdp = buf;
         if (cwd) {
-            cwdp = cwd->c_str();
+            s = path_cat(*cwd, s);
         } else {
-            if (!getcwd(buf, MAXPATHLEN)) {
-                return string();
-            }
+            s = path_cat(path_cwd(), s);
         }
-        s = path_cat(string(cwdp), s);
     }
     vector<string> elems;
     stringToTokens(s, elems, "/");
@@ -869,6 +860,27 @@ bool path_chdir(const std::string& path)
 {
     SYSPATH(path, syspath);
     return CHDIR(syspath) == 0;
+}
+
+std::string path_cwd()
+{
+#ifdef _WIN32
+    wchar_t *wd = _wgetcwd(nullptr, 0);
+    if (nullptr == wd) {
+        return std::string();
+    }
+    string sdname;
+    wchartoutf8(wd, sdname);
+    free(wd);
+    path_slashize(sdname);
+    return sdname;
+#else
+    char wd[MAXPATHLEN+1];
+    if (nullptr == getcwd(wd, MAXPATHLEN+1)) {
+        return string();
+    }
+    return wd;
+#endif
 }
 
 bool path_unlink(const std::string& path)

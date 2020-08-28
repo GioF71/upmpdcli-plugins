@@ -135,6 +135,7 @@ extern bool path_makepath(const std::string& path, int mode);
 
 ///
 extern bool path_chdir(const std::string& path);
+extern std::string path_cwd();
 extern bool path_unlink(const std::string& path);
 
 /* Open file, trying to do the right thing with non-ASCII paths on

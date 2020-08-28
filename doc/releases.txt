@@ -1,5 +1,10 @@
 = Upmpdcli release notes
 
+== 2020-07-20 libnpupnp 4.0.10
+
+- Source cleanup
+- Be more tolerant of incorrect UTF-8 data
+
 == 2020-07-04 upplay 1.4.5
 
 - Add prefs to control lower upnp lib logging.
@@ -12,7 +17,7 @@
   actually accessing the library object.
 - Use the NetIF interface from libnpupnp instead of duplicating the module.
 
-== 2020-07-04 libnpupnp 4.1.0
+== 2020-07-04 libnpupnp 4.0.8
 
 - Improved processing of device errors, better error data returned.
 - Optional (configure time) code to fix bad utf-8 in data returned from

@@ -107,7 +107,7 @@ protected:
      */
     virtual void endElement(const std::string& /* nm */) {}
     /** Expatmm compat */
-    virtual void EndElement(const XML_Char */* nm */) {}
+    virtual void EndElement(const XML_Char * /* nm */) {}
 
     /**
      * Non-tag data handler.
@@ -186,7 +186,18 @@ private:
         
         for (;;) {
             // Current char is '<' and the next char is not '?'
-            //std::cerr<< "m_pos "<< m_pos<<" char "<< m_in[m_pos] << std::endl;
+            //std::cerr<< "m_pos "<< m_pos<<" char "<< m_in[m_pos]<<std::endl;
+            // skipComment also processes 
+            if (!skipComment()) {
+                return false;
+            }
+            if (nomore()) {
+                if (!m_tagstack.empty()) {
+                    m_reason << "EOF hit inside open element";
+                    return false;
+                }
+                return true;
+            }
             m_pos++;
             if (nomore()) {
                 m_reason << "EOF within tag";
@@ -227,24 +238,29 @@ private:
                 _startelem(tag, attrs, emptyel);
             }
             spos = m_pos;
-            m_pos = m_in.find("<", m_pos);
-            if (nomore()) {
-                if (!m_tagstack.empty()) {
-                    m_reason << "EOF hit inside open element";
-                    return false;
-                }
-                return true;
-            }
-            if (m_pos != spos) {
-                std::string data{unQuote(m_in.substr(spos, m_pos - spos))};
-                characterData(data);
-                CharacterData(data.c_str(), data.size());
+            if (!_chardata()) {
+                return false;
             }
         }
         return false;
     }
-    bool nomore() const {
-        return m_pos == std::string::npos || m_pos == m_in.size();
+
+    bool _chardata() {
+        std::string::size_type spos = m_pos;
+        m_pos = m_in.find("<", m_pos);
+        if (nomore()) {
+            return true;
+        }
+        if (m_pos != spos) {
+            std::string data{unQuote(m_in.substr(spos, m_pos - spos))};
+            characterData(data);
+            CharacterData(data.c_str(), data.size());
+        }
+        return true;
+    }
+    
+    bool nomore(int sz = 0) const {
+        return m_pos == std::string::npos || m_pos >= m_in.size() - sz;
     }
     bool skipWS(const std::string& in, std::string::size_type& pos) {
         if (pos == std::string::npos)
@@ -260,10 +276,10 @@ private:
             m_pos += str.size();
         return m_pos != std::string::npos;
     }
-    int peek() const {
-        if (nomore())
+    int peek(int sz = 0) const {
+        if (nomore(sz))
             return -1;
-        return m_in[m_pos + 1];
+        return m_in[m_pos + 1 + sz];
     }
     void trimtag(std::string& tagname) {
         std::string::size_type trimpos = tagname.find_last_not_of(" \t\n\r");
@@ -291,6 +307,27 @@ private:
             } else {
                 break;
             }
+        }
+        return true;
+    }
+
+    bool skipComment() {
+        if (nomore()) {
+            return true;
+        }
+        if (m_in[m_pos] != '<') {
+            m_reason << "Internal error: skipComment called with wrong "
+                "start: m_pos " <<
+                m_pos << " char [" << m_in[m_pos] << "]\n";
+            return false;
+        }
+        if (peek() == '!' && peek(1) == '-' && peek(2) == '-') {
+            if (!skipStr("-->")) {
+                m_reason << "EOF while looking for end of XML comment";
+                return false;
+            }
+            // Process possible characters until next tag
+            return _chardata();
         }
         return true;
     }
@@ -327,14 +364,17 @@ private:
             }
             epos++;
             skipWS(tag, epos);
-            if (tag[epos] != '"' || epos == tag.size() - 1) {
-                m_reason << "Missing dquote or value at cpos " << m_pos+epos;
+            char qc{0};
+            if ((tag[epos] != '"' && tag[epos] != '\'') ||
+                epos == tag.size() - 1) {
+                m_reason << "Missing quote or value at cpos " << m_pos+epos;
                 return false;
             }
+            qc = tag[epos];
             spos = epos + 1;
-            epos = tag.find_first_of(R"(")", spos);
+            epos = tag.find_first_of(qc, spos);
             if (epos == std::string::npos) {
-                m_reason << "Missing closing dquote at cpos " << m_pos+spos;
+                m_reason << "Missing closing quote at cpos " << m_pos+spos;
                 return false;
             }
             attrs[attrnm] = tag.substr(spos, epos - spos);
@@ -370,7 +410,7 @@ private:
                 continue;
             }
             if (it == s.end()) {
-                // ??
+                // Unexpected
                 break;
             }
             it++;
@@ -380,7 +420,7 @@ private:
                 it++;
             }
             if (it == s.end()) {
-                // ??
+                // Unexpected
                 break;
             }
             it++;

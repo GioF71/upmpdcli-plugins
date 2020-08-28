@@ -57,9 +57,9 @@ struct StringIcmpPred {
     const std::string& m_s1;
 };
 
-extern int stringlowercmp(const std::string& alreadylower,
+extern int stringlowercmp(const std::string& s1, // already lower
                           const std::string& s2);
-extern int stringuppercmp(const std::string& alreadyupper,
+extern int stringuppercmp(const std::string& s1, // already upper
                           const std::string& s2);
 
 extern void stringtolower(std::string& io);
@@ -163,7 +163,7 @@ extern void neutchars(const std::string& str, std::string& out,
 
 /** Turn string into something that won't be expanded by a shell. In practise
  *  quote with double-quotes and escape $`\ */
-extern std::string escapeShell(const std::string& str);
+extern std::string escapeShell(const std::string& in);
 
 /** Truncate a string to a given maxlength, avoiding cutting off midword
  *  if reasonably possible. */
@@ -221,7 +221,7 @@ public:
     bool simpleMatch(const std::string& val) const;
     /// After simpleMatch success, get nth submatch, 0 is the whole
     /// match, 1 first parentheses, etc.
-    std::string getMatch(const std::string& val, int matchidx) const;
+    std::string getMatch(const std::string& val, int i) const;
     /// Calls simpleMatch()
     bool operator() (const std::string& val) const;
     /// Check after construction
@@ -249,7 +249,7 @@ struct CharFlags {
 
 /// Translate a bitfield into string description
 extern std::string flagsToString(const std::vector<CharFlags>&,
-                                 unsigned int flags);
+                                 unsigned int val);
 
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);

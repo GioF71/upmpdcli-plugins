@@ -15,9 +15,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *   02110-1301 USA
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <inttypes.h>
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cinttypes>
 
 #ifdef _WIN32
 // needed for localtime_r under mingw?
@@ -27,11 +28,11 @@
 #endif /* _MSC_VER */
 #endif /* _WIN32 */
 
-#include <time.h>
-#include <ctype.h>
-#include <errno.h>
-#include <string.h>
-#include <math.h>
+#include <ctime>
+#include <cctype>
+#include <cerrno>
+#include <cstring>
+#include <cmath>
 
 // Older compilers don't support stdc++ regex, but Windows does not
 // have the Linux one. Have a simple class to solve the simple cases.
@@ -46,6 +47,7 @@
 #include <string>
 #include <iostream>
 #include <list>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -71,18 +73,18 @@ int stringicmp(const string& s1, const string& s2)
             ++it2;
         }
         return size1 == size2 ? 0 : -1;
-    } else {
-        while (it2 != s2.end()) {
-            c1 = ::toupper(*it1);
-            c2 = ::toupper(*it2);
-            if (c1 != c2) {
-                return c1 > c2 ? 1 : -1;
-            }
-            ++it1;
-            ++it2;
-        }
-        return size1 == size2 ? 0 : 1;
     }
+
+    while (it2 != s2.end()) {
+        c1 = ::toupper(*it1);
+        c2 = ::toupper(*it2);
+        if (c1 != c2) {
+            return c1 > c2 ? 1 : -1;
+        }
+        ++it1;
+        ++it2;
+    }
+    return size1 == size2 ? 0 : 1;
 }
 void stringtolower(string& io)
 {
@@ -150,17 +152,17 @@ int stringlowercmp(const string& s1, const string& s2)
             ++it2;
         }
         return size1 == size2 ? 0 : -1;
-    } else {
-        while (it2 != s2.end()) {
-            c2 = ::tolower(*it2);
-            if (*it1 != c2) {
-                return *it1 > c2 ? 1 : -1;
-            }
-            ++it1;
-            ++it2;
-        }
-        return size1 == size2 ? 0 : 1;
     }
+
+    while (it2 != s2.end()) {
+        c2 = ::tolower(*it2);
+        if (*it1 != c2) {
+            return *it1 > c2 ? 1 : -1;
+        }
+        ++it1;
+        ++it2;
+    }
+    return size1 == size2 ? 0 : 1;
 }
 
 //  s1 is already uppercase
@@ -181,42 +183,29 @@ int stringuppercmp(const string& s1, const string& s2)
             ++it2;
         }
         return size1 == size2 ? 0 : -1;
-    } else {
-        while (it2 != s2.end()) {
-            c2 = ::toupper(*it2);
-            if (*it1 != c2) {
-                return *it1 > c2 ? 1 : -1;
-            }
-            ++it1;
-            ++it2;
-        }
-        return size1 == size2 ? 0 : 1;
     }
+
+    while (it2 != s2.end()) {
+        c2 = ::toupper(*it2);
+        if (*it1 != c2) {
+            return *it1 > c2 ? 1 : -1;
+        }
+        ++it1;
+        ++it2;
+    }
+    return size1 == size2 ? 0 : 1;
 }
 
 bool beginswith(const std::string& big, const std::string& small)
 {
-    if (big.compare(0, small.size(), small)) {
-        return false;
-    }
-    return true;
+    return big.compare(0, small.size(), small) == 0;
 }
 
 // Compare charset names, removing the more common spelling variations
 bool samecharset(const string& cs1, const string& cs2)
 {
-    string mcs1, mcs2;
-    // Remove all - and _, turn to lowecase
-    for (unsigned int i = 0; i < cs1.length(); i++) {
-        if (cs1[i] != '_' && cs1[i] != '-') {
-            mcs1 += ::tolower(cs1[i]);
-        }
-    }
-    for (unsigned int i = 0; i < cs2.length(); i++) {
-        if (cs2[i] != '_' && cs2[i] != '-') {
-            mcs2 += ::tolower(cs2[i]);
-        }
-    }
+    auto mcs1 = std::accumulate(cs1.begin(), cs1.end(), "", [](const char* m, char i) { return (i != '_' && i != '-') ? m + ::tolower(i) : m; });
+    auto mcs2 = std::accumulate(cs2.begin(), cs2.end(), "", [](const char* m, char i) { return (i != '_' && i != '-') ? m + ::tolower(i) : m; });
     return mcs1 == mcs2;
 }
 
@@ -227,8 +216,8 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
     tokens.clear();
     enum states {SPACE, TOKEN, INQUOTE, ESCAPE};
     states state = SPACE;
-    for (unsigned int i = 0; i < s.length(); i++) {
-        switch (s[i]) {
+    for (char i : s) {
+        switch (i) {
         case '"':
             switch (state) {
             case SPACE:
@@ -279,13 +268,13 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
                 continue;
             case INQUOTE:
             case ESCAPE:
-                current += s[i];
+                current += i;
                 continue;
             }
             break;
 
         default:
-            if (!addseps.empty() && addseps.find(s[i]) != string::npos) {
+            if (!addseps.empty() && addseps.find(i) != string::npos) {
                 switch (state) {
                 case ESCAPE:
                     state = INQUOTE;
@@ -293,12 +282,12 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
                 case INQUOTE:
                     break;
                 case SPACE:
-                    tokens.insert(tokens.end(), string(1, s[i]));
+                    tokens.insert(tokens.end(), string(1, i));
                     continue;
                 case TOKEN:
                     tokens.insert(tokens.end(), current);
                     current.erase();
-                    tokens.insert(tokens.end(), string(1, s[i]));
+                    tokens.insert(tokens.end(), string(1, i));
                     state = SPACE;
                     continue;
                 }
@@ -313,7 +302,7 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
                 case INQUOTE:
                     break;
                 }
-            current += s[i];
+            current += i;
         }
     }
     switch (state) {
@@ -340,7 +329,7 @@ template bool stringToStrings<std::unordered_set<string> >
 
 template <class T> void stringsToString(const T& tokens, string& s)
 {
-    for (typename T::const_iterator it = tokens.begin();
+    for (auto it = tokens.begin();
          it != tokens.end(); it++) {
         bool hasblanks = false;
         if (it->find_first_of(" \t\n") != string::npos) {
@@ -385,7 +374,7 @@ template <class T> void stringsToCSV(const T& tokens, string& s,
                                      char sep)
 {
     s.erase();
-    for (typename T::const_iterator it = tokens.begin();
+    for (auto it = tokens.begin();
          it != tokens.end(); it++) {
         bool needquotes = false;
         if (it->empty() ||
@@ -433,10 +422,11 @@ void stringToTokens(const string& str, vector<string>& tokens,
         if (pos == string::npos) {
             tokens.push_back(str.substr(startPos));
             break;
-        } else if (pos == startPos) {
+        }
+        if (pos == startPos) {
             // Dont' push empty tokens after first
             if (tokens.empty()) {
-                tokens.push_back(string());
+                tokens.emplace_back();
             }
             startPos = ++pos;
         } else {
@@ -461,9 +451,10 @@ void stringSplitString(const string& str, vector<string>& tokens,
         if (pos == string::npos) {
             tokens.push_back(str.substr(startPos));
             break;
-        } else if (pos == startPos) {
+        }
+        if (pos == startPos) {
             // Initial or consecutive separators
-            tokens.push_back(string());
+            tokens.emplace_back();
         } else {
             tokens.push_back(str.substr(startPos, pos - startPos));
         }
@@ -478,12 +469,9 @@ bool stringToBool(const string& s)
     }
     if (isdigit(s[0])) {
         int val = atoi(s.c_str());
-        return val ? true : false;
+        return val != 0;
     }
-    if (s.find_first_of("yYtT") == 0) {
-        return true;
-    }
-    return false;
+    return s.find_first_of("yYtT") == 0;
 }
 
 void trimstring(string& s, const char *ws)
@@ -572,13 +560,13 @@ string truncate_to_word(const string& input, string::size_type maxlen)
 string escapeHtml(const string& in)
 {
     string out;
-    for (string::size_type pos = 0; pos < in.length(); pos++) {
-        switch(in.at(pos)) {
+    for (char pos : in) {
+        switch(pos) {
         case '<': out += "&lt;"; break;
         case '>': out += "&gt;"; break;
         case '&': out += "&amp;"; break;
         case '"': out += "&quot;"; break;
-        default: out += in.at(pos); break;
+        default: out += pos; break;
         }
     }
     return out;
@@ -588,8 +576,8 @@ string escapeShell(const string& in)
 {
     string out;
     out += "\"";
-    for (string::size_type pos = 0; pos < in.length(); pos++) {
-        switch (in.at(pos)) {
+    for (char pos : in) {
+        switch (pos) {
         case '$':
             out += "\\$";
             break;
@@ -606,7 +594,7 @@ string escapeShell(const string& in)
             out += "\\\\";
             break;
         default:
-            out += in.at(pos);
+            out += pos;
         }
     }
     out += "\"";
@@ -619,8 +607,8 @@ string makeCString(const string& in)
 {
     string out;
     out += "\"";
-    for (string::size_type pos = 0; pos < in.length(); pos++) {
-        switch (in.at(pos)) {
+    for (char pos : in) {
+        switch (pos) {
         case '"':
             out += "\\\"";
             break;
@@ -634,7 +622,7 @@ string makeCString(const string& in)
             out += "\\\\";
             break;
         default:
-            out += in.at(pos);
+            out += pos;
         }
     }
     out += "\"";
@@ -684,13 +672,13 @@ bool pcSubst(const string& in, string& out, const map<string, string>& subs)
                 out += '%';
                 continue;
             }
-            string key = "";
+            string key;
             if (in[i] == '(') {
                 if (++i == in.size()) {
                     out += string("%(");
                     break;
                 }
-                string::size_type j = in.find_first_of(")", i);
+                string::size_type j = in.find_first_of(')', i);
                 if (j == string::npos) {
                     // ??concatenate remaining part and stop
                     out += in.substr(i - 2);
@@ -733,7 +721,6 @@ void ulltodecstr(uint64_t val, string& buf)
     } while (val);
 
     buf.assign(&rbuf[idx+1]);
-    return;
 }
 
 void lltodecstr(int64_t val, string& buf)
@@ -760,7 +747,6 @@ void lltodecstr(int64_t val, string& buf)
         rbuf[idx--] = '-';
     }
     buf.assign(&rbuf[idx+1]);
-    return;
 }
 
 string lltodecstr(int64_t val)
@@ -809,9 +795,9 @@ string breakIntoLines(const string& in, unsigned int ll,
     while (query.length() > 0) {
         string ss = query.substr(0, ll);
         if (ss.length() == ll) {
-            string::size_type pos = ss.find_last_of(" ");
+            string::size_type pos = ss.find_last_of(' ');
             if (pos == string::npos) {
-                pos = query.find_first_of(" ");
+                pos = query.find_first_of(' ');
                 if (pos != string::npos) {
                     ss = query.substr(0, pos + 1);
                 } else {
@@ -1080,7 +1066,7 @@ secondelt:
 
     // Empty part means today IF other part is period, else means
     // forever (stays at 0)
-    time_t now = time(0);
+    time_t now = time(nullptr);
     struct tm *tmnow = gmtime(&now);
     if ((!hasp1 && !hasd1) && hasp2) {
         d1.y1 = 1900 + tmnow->tm_year;
@@ -1161,7 +1147,7 @@ std::string hexprint(const std::string& in, char separ)
     string out;
     out.reserve(separ ? (3 *in.size()) : (2 * in.size()));
     static const char hex[]="0123456789abcdef";
-    auto cp = (const unsigned char *)in.c_str();
+    auto cp = reinterpret_cast<const unsigned char*>(in.c_str());
     for (unsigned int i = 0; i < in.size(); i++) {
         out.append(1, hex[cp[i] >> 4]);
         out.append(1, hex[cp[i] & 0x0f]);
@@ -1269,12 +1255,12 @@ string localelang()
 {
     const char *lang = getenv("LANG");
 
-    if (lang == 0 || *lang == 0 || !strcmp(lang, "C") ||
+    if (lang == nullptr || *lang == 0 || !strcmp(lang, "C") ||
         !strcmp(lang, "POSIX")) {
         return "en";
     }
     string locale(lang);
-    string::size_type under = locale.find_first_of("_");
+    string::size_type under = locale.find_first_of('_');
     if (under == string::npos) {
         return locale;
     }
@@ -1316,13 +1302,11 @@ string SimpleRegexp::getMatch(const string&, int i) const
 class SimpleRegexp::Internal {
 public:
     Internal(const string& exp, int flags, int nm) : nmatch(nm) {
-        if (regcomp(&expr, exp.c_str(), REG_EXTENDED |
-                    ((flags&SRE_ICASE) ? REG_ICASE : 0) |
-                    ((flags&SRE_NOSUB) ? REG_NOSUB : 0)) == 0) {
-            ok = true;
-        } else {
-            ok = false;
-        }
+        ok = regcomp(&expr, exp.c_str(), REG_EXTENDED |
+
+                         ((flags & SRE_ICASE) ? REG_ICASE : 0) |
+
+                         ((flags & SRE_NOSUB) ? REG_NOSUB : 0)) == 0;
         matches.resize(nmatch+1);
     }
     ~Internal() {
@@ -1338,11 +1322,7 @@ bool SimpleRegexp::simpleMatch(const string& val) const
 {
     if (!ok())
         return false;
-    if (regexec(&m->expr, val.c_str(), m->nmatch+1, &m->matches[0], 0) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return regexec(&m->expr, val.c_str(), m->nmatch + 1, &m->matches[0], 0) == 0;
 }
 
 string SimpleRegexp::getMatch(const string& val, int i) const
@@ -1424,13 +1404,8 @@ unsigned int stringToFlags(const vector<CharFlags>& flags,
     stringToTokens(input, toks, sep);
     for (auto& tok: toks) {
         trimstring(tok);
-        for (auto& flag : flags) {
-            if (!tok.compare(flag.yesname)) {
-                /* Note: we don't break: the same name could conceivably
-                   set several flags. */
-                out |= flag.value;
-            }
-        }
+        out += std::accumulate(flags.begin(), flags.end(), out,
+            [&](int o, CharFlags flag){ return tok == flag.yesname ? o | flag.value : o; });
     }
     return out;
 }

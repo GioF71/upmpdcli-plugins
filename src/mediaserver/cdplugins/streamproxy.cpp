@@ -26,11 +26,11 @@
 #include "chrono.h"
 
 #include <fcntl.h>
+
 #include <microhttpd.h>
 
-
-#if MHD_VERSION < 0x00097002
-typedef int MHD_Result;
+#if MHD_VERSION < 0x00097000
+#define MHD_Result int
 #endif
 
 #include <mutex>
