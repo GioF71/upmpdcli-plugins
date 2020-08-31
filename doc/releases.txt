@@ -1,5 +1,10 @@
 = Upmpdcli release notes
 
+== 2020-08-31 upmpdcli 1.4.13
+
+- Fix building with newer microhttpd version (MHD_Result issue).
+- Misc small fixes for marginal cases.
+
 == 2020-07-20 libnpupnp 4.0.10
 
 - Source cleanup
