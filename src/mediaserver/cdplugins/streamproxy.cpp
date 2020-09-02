@@ -29,7 +29,7 @@
 
 #include <microhttpd.h>
 
-#if MHD_VERSION < 0x00097000
+#if MHD_VERSION <= 0x00097000
 #define MHD_Result int
 #endif
 

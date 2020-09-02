@@ -1404,8 +1404,11 @@ unsigned int stringToFlags(const vector<CharFlags>& flags,
     stringToTokens(input, toks, sep);
     for (auto& tok: toks) {
         trimstring(tok);
-        out += std::accumulate(flags.begin(), flags.end(), out,
-            [&](int o, CharFlags flag){ return tok == flag.yesname ? o | flag.value : o; });
+        out = std::accumulate(
+            flags.begin(), flags.end(), out,
+            [&](unsigned int o, CharFlags flag) {
+                return tok == flag.yesname ? o | flag.value : o;
+            });
     }
     return out;
 }
