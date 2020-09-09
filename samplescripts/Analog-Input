@@ -1,9 +1,10 @@
 #!/usr/bin/python3
-
-from __future__ import print_function
-
+#
 # Reference script for reading an audio input and sending to Songcast,
-# with an appropriate interface to be controlled by upmpdcli.
+#
+# The script has the command-line and stdout interface expected by upmpdcli,
+# which allows starting and stopping it (and in consequence, the Songcast
+# Sender) by selecting an OpenHome Source.
 #
 # The script can also be executed from the command line for
 # testing. No need for parameters, but you should set the device name
@@ -27,10 +28,11 @@ from __future__ import print_function
 # The Source will appear with type Analog, Digital or Hdmi and name
 # SourceName in an OpenHome Source select dialog (e.g from upplay).
 #
-# If a file named device-SourceName exists in the same directory as
-# the link, we read the device name from it (the contents should be
-# a single line with the device name). Else, the device name is
-# 'default', which has little chance to work
+# If a file named device-SourceName exists in the same directory as the link,
+# we read the device name from it (the contents should be a single line with
+# the device name). Else, the device name is 'default', which has little chance
+# to work. The device name will typically be taken from "arecord -L" output and
+# look similar to 'hw:CARD=PCH,DEV=0'
 #
 # If a file named prescript-SourceName exists in the same directory,
 # it must be executable, and we try to execute it before

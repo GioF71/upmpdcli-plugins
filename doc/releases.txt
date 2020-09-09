@@ -1,5 +1,10 @@
 = Upmpdcli release notes
 
+== 2020-09-03 libnpupnp 4.0.11, libupnpp 0.19.4
+
+- Install the include files in /usr/include/npupnp instead of
+  /usr/include/npupnp/upnp
+  
 == 2020-09-02 upmpdcli 1.4.14
 
 - Fix the microhttpd version fix: the change came with 0.9.71, not 0.9.70.
