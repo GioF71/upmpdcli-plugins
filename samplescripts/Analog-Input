@@ -117,7 +117,7 @@ print("device [%s] prescript [%s] postscript [%s] " %
 # UDN and name for the Sender UPnP device. We use a hash of the
 # friendly name and host name
 sender_udn = uuid.uuid5(uuid.NAMESPACE_DNS,
-                        socket.gethostname() + upmpdcli_fname + sys.argv[0]).urn
+                        socket.gethostname() + upmpdcli_fname + sys.argv[0]).hex
 sender_name = "%s UxSender" % upmpdcli_fname
 
 recordproc = None
