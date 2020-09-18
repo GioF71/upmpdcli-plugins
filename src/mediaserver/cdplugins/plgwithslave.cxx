@@ -158,13 +158,13 @@ StreamProxy::UrlTransReturn translateurl(
     if (method == StreamProxy::Proxy) {
         if (!realplg->getname().compare("spotify")) {
 #ifdef ENABLE_SPOTIFY
-            fetcher = std::move(std::unique_ptr<NetFetch>(new SpotiFetch(url)));
+            fetcher = std::unique_ptr<NetFetch>(new SpotiFetch(url));
 #else
             LOGERR("Spotify URL but Spotify not supported by build\n");
             return StreamProxy::Error;
 #endif
         } else {
-            fetcher = std::move(std::unique_ptr<NetFetch>(new CurlFetch(url)));
+            fetcher = std::unique_ptr<NetFetch>(new CurlFetch(url));
         }
     }
     return method;
