@@ -212,6 +212,7 @@ ConfParamW *ConfTabsW::addParam(
         cp = new ConfParamCSLW(varname, this, lnk, label, tooltip, *sl);
         break;
     }
+    cp->setToolTip(tooltip);
     panel->addParam(cp);
     return cp;
 }
@@ -377,7 +378,7 @@ void setSzPol(QWidget *w, QSizePolicy::Policy hpol,
     w->setSizePolicy(policy);
 }
 
-bool ConfParamW::createCommon(const QString& lbltxt, const QString& tltptxt)
+bool ConfParamW::createCommon(const QString& lbltxt, const QString&)
 {
     m_hl = new QHBoxLayout(this);
     m_hl->setSpacing(spacing);
@@ -386,7 +387,6 @@ bool ConfParamW::createCommon(const QString& lbltxt, const QString& tltptxt)
     QLabel *tl = new QLabel(this);
     setSzPol(tl, QSizePolicy::Preferred, QSizePolicy::Fixed, 0, 0);
     tl->setText(lbltxt);
-    tl->setToolTip(tltptxt);
 
     m_hl->addWidget(tl);
 
@@ -549,7 +549,7 @@ void ConfParamCStrW::setImmediate()
 
 ConfParamBoolW::ConfParamBoolW(
     const QString& varnm, QWidget *parent, ConfLink cflink,
-    const QString& lbltxt, const QString& tltptxt, bool deflt)
+    const QString& lbltxt, const QString&, bool deflt)
     : ConfParamW(varnm, parent, cflink), m_dflt(deflt)
 {
     // No createCommon because the checkbox has a label
@@ -559,7 +559,6 @@ ConfParamBoolW::ConfParamBoolW(
 
     m_cb = new QCheckBox(lbltxt, this);
     setSzPol(m_cb, QSizePolicy::Fixed, QSizePolicy::Fixed, 0, 0);
-    m_cb->setToolTip(tltptxt);
     m_hl->addWidget(m_cb);
 
     QFrame *fr = new QFrame(this);
@@ -665,7 +664,7 @@ public:
 
 ConfParamSLW::ConfParamSLW(
     const QString& varnm, QWidget *parent, ConfLink cflink,
-    const QString& lbltxt, const QString& tltptxt)
+    const QString& lbltxt, const QString&)
     : ConfParamW(varnm, parent, cflink)
 {
     // Can't use createCommon here cause we want the buttons below the label
@@ -683,7 +682,6 @@ ConfParamSLW::ConfParamSLW(
     QLabel *tl = new QLabel(this);
     setSzPol(tl, QSizePolicy::Preferred, QSizePolicy::Fixed, 0, 0);
     tl->setText(lbltxt);
-    tl->setToolTip(tltptxt);
     vl1->addWidget(tl);
 
     QPushButton *pbA = new QPushButton(this);
