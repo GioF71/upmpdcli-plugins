@@ -88,6 +88,14 @@ echo "UPMPDCLI_LIBS=$UPMPDCLI_LIBS"
 LIBS=""
 
 #### Functions
+AC_TRY_LINK([#include <math.h>],
+  [double x = exp10(1.0);],
+  AC_DEFINE([HAVE_EXP10], [1], [Define to 1 if you have the 'exp10' function]),
+  [])
+
+dnl AC_CHECK_DECLS([exp10(double)], [], [],
+dnl [#include <math.h>])
+
 AC_FUNC_LIBUPNPP_LINNSONGCAST
 
 AC_SUBST(UPMPDCLI_LIBS)

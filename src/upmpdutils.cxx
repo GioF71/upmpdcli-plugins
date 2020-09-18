@@ -56,6 +56,10 @@
 #include "pathut.h"
 #include "conftree.h"
 
+#if !defined(HAVE_EXP10)
+inline double exp10(double a) { return pow(10.0, a); }
+#endif
+
 using namespace std;
 using namespace UPnPP;
 using namespace UPnPClient;
