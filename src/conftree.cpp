@@ -235,7 +235,7 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
         mode |= ios::trunc;
     }
     fstream input;
-    path_open(fname, mode, input);
+    path_streamopen(fname, mode, input);
     if (!input.is_open()) {
         LOGDEB0("ConfSimple::ConfSimple: fstream(w)(" << fname << ", " << mode <<
                 ") errno " << errno << "\n");
@@ -246,7 +246,7 @@ ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
         input.clear();
         status = STATUS_RO;
         // open readonly
-        path_open(fname, ios::in, input);
+        path_streamopen(fname, ios::in, input);
     }
 
     if (!input.is_open()) {
@@ -579,7 +579,7 @@ bool ConfSimple::write()
     }
     if (m_filename.length()) {
         fstream output;
-        path_open(m_filename, ios::out | ios::trunc, output);
+        path_streamopen(m_filename, ios::out | ios::trunc, output);
         if (!output.is_open()) {
             return 0;
         }

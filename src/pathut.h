@@ -39,6 +39,21 @@ extern std::string path_basename(const std::string& s,
 extern std::string path_suffix(const std::string& s);
 /// Get the father directory
 extern std::string path_getfather(const std::string& s);
+/// Test if path is absolute
+extern bool path_isabsolute(const std::string& s);
+/// Test if path is root (x:/). root is defined by root/.. == root
+extern bool path_isroot(const std::string& p);
+/// Test if sub is a subdirectory of top. This is a textual test,
+/// links not allowed
+extern bool path_isdesc(const std::string& top, const std::string& sub);
+
+/// Clean up path by removing duplicated / and resolving ../ + make it absolute
+extern std::string path_canon(const std::string& s, const std::string *cwd = 0);
+
+/// Check that path refers to same file. Uses dev/ino on Linux,
+/// textual comparison on Windows.
+bool path_samefile(const std::string& p1, const std::string& p2);
+
 /// Get the current user's home directory
 extern std::string path_home();
 /// Expand ~ at the beginning of std::string
@@ -46,26 +61,6 @@ extern std::string path_tildexpand(const std::string& s);
 /// Use getcwd() to make absolute path if needed. Beware: ***this can fail***
 /// we return an empty path in this case.
 extern std::string path_absolute(const std::string& s);
-/// Clean up path by removing duplicated / and resolving ../ + make it absolute
-extern std::string path_canon(const std::string& s, const std::string *cwd = 0);
-/// Use glob(3) to return the file names matching pattern inside dir
-extern std::vector<std::string> path_dirglob(const std::string& dir,
-        const std::string pattern);
-/// Encode according to rfc 1738
-extern std::string url_encode(const std::string& url,
-                              std::string::size_type offs = 0);
-extern std::string url_decode(const std::string& encoded);
-//// Convert to file path if url is like file://. This modifies the
-//// input (and returns a copy for convenience)
-extern std::string fileurltolocalpath(std::string url);
-/// Test for file:/// url
-extern bool urlisfileurl(const std::string& url);
-///
-extern std::string url_parentfolder(const std::string& url);
-
-/// Return the host+path part of an url. This is not a general
-/// routine, it does the right thing only in the recoll context
-extern std::string url_gpath(const std::string& url);
 
 /// Stat parameter and check if it's a directory
 extern bool path_isdir(const std::string& path, bool follow = false);
@@ -74,6 +69,31 @@ extern bool path_isfile(const std::string& path, bool follow = false);
 
 /// Retrieve file size
 extern long long path_filesize(const std::string& path);
+
+/// Check that path is traversable and last element exists
+/// Returns true if last elt could be checked to exist. False may mean that
+/// the file/dir does not exist or that an error occurred.
+bool path_exists(const std::string& path);
+/// Same but must be readable
+bool path_readable(const std::string& path);
+
+#ifdef _WIN32
+#  ifndef R_OK
+#    define R_OK 4
+#  endif
+#  ifndef W_OK
+#    define W_OK 2
+#  endif
+#  ifndef X_OK
+// Not useful/supported on Windows. Define as R_OK
+#    define X_OK R_OK
+#  endif
+#  ifndef F_OK
+#    define F_OK 0
+#  endif
+#endif /* _WIN32 */
+/// access() or _waccess()
+bool path_access(const std::string& path, int mode);
 
 /// Retrieve essential file attributes. This is used rather than a
 /// bare stat() to ensure consistent use of the time fields (on
@@ -98,26 +118,34 @@ struct PathStat {
 extern int path_fileprops(const std::string path, struct PathStat *stp,
                           bool follow = true);
 
-/// Check that path is traversable and last element exists
-/// Returns true if last elt could be checked to exist. False may mean that
-/// the file/dir does not exist or that an error occurred.
-extern bool path_exists(const std::string& path);
-/// Same but must be readable
-extern bool path_readable(const std::string& path);
 
 /// Return separator for PATH environment variable
 extern std::string path_PATHsep();
 
 #ifdef _WIN32
-extern bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
-extern std::string wchartoutf8(const wchar_t *in, size_t len = 0);
-extern bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
-#define SYSPATH(PATH, SPATH) wchar_t PATH ## _buf[2048];      \
-    utf8towchar(PATH, PATH ## _buf, 2048);                    \
-    wchar_t *SPATH = PATH ## _buf;
-#else
-#define SYSPATH(PATH, SPATH) const char *SPATH = PATH.c_str()
+bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
+std::string wchartoutf8(const wchar_t *in, size_t len = 0);
+bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
+std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
 #endif
+
+/// Directory reading interface. UTF-8 on Windows.
+class PathDirContents {
+public:
+    PathDirContents(const std::string& dirpath);
+    ~PathDirContents();
+
+    bool opendir();
+    struct Entry {
+        std::string d_name;
+    };
+    const struct Entry* readdir();
+    void rewinddir();
+
+private:
+    class Internal;
+    Internal *m{nullptr};
+};
 
 /// Dump directory
 extern bool listdir(const std::string& dir, std::string& reason,
@@ -134,10 +162,11 @@ bool fsocc(const std::string& path, int *pc, long long *avmbs = 0);
 extern bool path_makepath(const std::string& path, int mode);
 
 ///
-extern bool path_chdir(const std::string& path);
-extern std::string path_cwd();
-extern bool path_unlink(const std::string& path);
-
+bool path_chdir(const std::string& path);
+std::string path_cwd();
+bool path_unlink(const std::string& path);
+bool path_rmdir(const std::string& path);
+                 
 /* Open file, trying to do the right thing with non-ASCII paths on
  * Windows, where it only works with MSVC at the moment if the path is
  * not ASCII, because it uses fstream(wchar_t*), which is an MSVC
@@ -148,21 +177,23 @@ extern bool path_unlink(const std::string& path);
  *
  * @param path an utf-8 file path.
  * @param mode is an std::fstream mode (ios::in etc.) */
-extern std::fstream path_open(const std::string& path, int mode);
-extern bool path_open(const std::string& path, int mode, std::fstream& outstream);
+extern bool path_streamopen(
+    const std::string& path, int mode, std::fstream& outstream);
 
-/// Where we create the user data subdirs
-extern std::string path_homedata();
-/// Test if path is absolute
-extern bool path_isabsolute(const std::string& s);
-
-/// Test if path is root (x:/). root is defined by root/.. == root
-extern bool path_isroot(const std::string& p);
-
-/// Test if sub is a subdirectory of top. This is a textual test,
-/// links not allowed
-extern bool path_isdesc(const std::string& top, const std::string& sub);
-
+/// Encode according to rfc 1738
+extern std::string url_encode(const std::string& url,
+                              std::string::size_type offs = 0);
+extern std::string url_decode(const std::string& encoded);
+//// Convert to file path if url is like file://. This modifies the
+//// input (and returns a copy for convenience)
+extern std::string fileurltolocalpath(std::string url);
+/// Test for file:/// url
+extern bool urlisfileurl(const std::string& url);
+///
+extern std::string url_parentfolder(const std::string& url);
+/// Return the host+path part of an url. This is not a general
+/// routine, it does the right thing only in the recoll context
+extern std::string url_gpath(const std::string& url);
 /// Turn absolute path into file:// url
 extern std::string path_pathtofileurl(const std::string& path);
 

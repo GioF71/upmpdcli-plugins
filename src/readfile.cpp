@@ -32,7 +32,6 @@
 #include "safefcntl.h"
 #include "safesysstat.h"
 #include "safeunistd.h"
-#include "transcode.h"
 #define OPEN _wopen
 
 #else
@@ -333,7 +332,12 @@ public:
 
         // If we have a file name, open it, else use stdin.
         if (!m_fn.empty()) {
-            SYSPATH(m_fn, realpath);
+#ifdef _WIN32
+            auto buf = utf8towchar(m_fn);
+            auto realpath = buf.get();
+#else
+            auto realpath = m_fn.c_str();
+#endif
             fd = OPEN(realpath, O_RDONLY | O_BINARY);
             if (fd < 0 || fstat(fd, &st) < 0) {
                 catstrerror(m_reason, "open/stat", errno);
@@ -440,7 +444,12 @@ public:
         if (m_fn.empty()) {
             ret1 = mz_zip_reader_init_mem(&zip, m_data, m_cnt, 0);
         } else {
-            SYSPATH(m_fn, realpath);
+#ifdef _WIN32
+            auto buf = utf8towchar(m_fn);
+            auto realpath = buf.get();
+#else
+            auto realpath = m_fn.c_str();
+#endif
             ret1 = mz_zip_reader_init_file(&zip, realpath, 0);
         }
         if (!ret1) {

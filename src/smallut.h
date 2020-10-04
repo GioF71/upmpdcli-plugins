@@ -41,6 +41,9 @@ void smallut_init_mt();
 #ifndef deleteZ
 #define deleteZ(X) {delete X;X = 0;}
 #endif
+#ifndef PRETEND_USE
+#define PRETEND_USE(var) ((void)(var))
+#endif
 #endif /* SMALLUT_DISABLE_MACROS */
 
 // Case-insensitive compare. ASCII ONLY !
