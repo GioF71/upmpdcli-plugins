@@ -115,7 +115,7 @@ class ConfSimple(object):
             sk = sk.encode('utf-8')
         #v = ConfSimple.getbin(self, nm, sk)
         v = self.getbin(nm, sk)
-        if v and dodecode:
+        if v is not None and dodecode:
             v = v.decode('utf-8')
         return v
 
@@ -257,7 +257,7 @@ class ConfStack(object):
             sk = sk.encode('utf-8')
         #v = ConfSimple.getbin(self, nm, sk)
         v = self.getbin(nm, sk)
-        if v and dodecode:
+        if v is not None and dodecode:
             v = v.decode('utf-8')
         return v
 

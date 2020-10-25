@@ -1213,7 +1213,7 @@ void catstrerror(string *reason, const char *what, int _errno)
 }
 
 
-static std::unordered_map<string, string> lang_to_code {
+static const std::unordered_map<string, string> lang_to_code {
     {"be", "cp1251"},
     {"bg", "cp1251"},
     {"cs", "iso-8859-2"},

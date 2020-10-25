@@ -239,7 +239,7 @@ private:
 
 /// Entries for the descriptive table
 struct CharFlags {
-    CharFlags(int v, const char *y, const char *n=0)
+    CharFlags(int v, const char *y, const char *n=nullptr)
         : value(v), yesname(y), noname(n) {}
     unsigned int value; // Flag or value
     const char *yesname;// String to print if flag set or equal
