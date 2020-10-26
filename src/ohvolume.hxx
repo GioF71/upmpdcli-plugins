@@ -28,7 +28,7 @@
 
 class OHVolume : public OHService {
 public:
-    OHVolume(UpMpd *dev);
+    OHVolume(UpMpd *dev, UpMpdOpenHome *udev);
 
 protected:
     int characteristics(const SoapIncoming& sc, SoapOutgoing& data);

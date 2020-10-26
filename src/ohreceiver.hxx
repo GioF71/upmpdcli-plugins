@@ -45,7 +45,7 @@ struct OHReceiverParams {
 
 class OHReceiver : public OHService {
 public:
-    OHReceiver(UpMpd *dev, const OHReceiverParams& parms);
+    OHReceiver(UpMpd *dev, UpMpdOpenHome *udev, const OHReceiverParams& parms);
 
     bool iStop();
     bool iPlay();

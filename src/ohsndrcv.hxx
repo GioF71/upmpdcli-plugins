@@ -42,11 +42,12 @@
 #include <string>
 
 class UpMpd;
+class UpMpdOpenHome;
 
 class SenderReceiver {
 public:
-    SenderReceiver(UpMpd *dev, const std::string& senderstarterpath,
-                   int mpdport);
+    SenderReceiver(UpMpd *dev, UpMpdOpenHome *udev,
+                   const std::string& senderstarterpath, int mpdport);
     ~SenderReceiver();
 
     // script can be empty when using an internal source (radio or

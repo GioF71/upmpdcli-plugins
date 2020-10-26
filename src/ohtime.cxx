@@ -39,10 +39,10 @@ using namespace std::placeholders;
 static const string sTpProduct("urn:av-openhome-org:service:Time:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Time");
 
-OHTime::OHTime(UpMpd *dev)
-    : OHService(sTpProduct, sIdProduct, "OHTime.xml", dev)
+OHTime::OHTime(UpMpd *dev, UpMpdOpenHome *udev)
+    : OHService(sTpProduct, sIdProduct, "OHTime.xml", dev, udev)
 {
-    dev->addActionMapping(this, "Time", bind(&OHTime::ohtime, this, _1, _2));
+    udev->addActionMapping(this, "Time", bind(&OHTime::ohtime, this, _1, _2));
 }
 
 void OHTime::getdata(string& trackcount, string &duration, 

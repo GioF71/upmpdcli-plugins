@@ -28,7 +28,7 @@
 
 #include "libupnpp/log.hxx"
 
-#include "upmpd.hxx"
+#include "main.hxx"
 #include "smallut.h"
 #include "conftree.h"
 #include "execmd.h"
@@ -37,7 +37,7 @@
 struct mpd_status;
 
 using namespace std;
-using namespace UPnPP;
+
 
 MPDCli::MPDCli(const string& host, int port, const string& pass)
     : m_host(host), m_port(port), m_password(pass)

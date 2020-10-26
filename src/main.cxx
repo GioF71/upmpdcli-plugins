@@ -155,14 +155,6 @@ ohProductDesc_t ohProductDesc = {
     }
 };
 
-// Ad-hoc struct to hold the input identification parameters for the device(s)
-struct UDevIds {
-    std::string fname;
-    std::string uuid;
-    std::string fnameMS;
-    std::string uuidMS;
-};
-
 // Static for cleanup in sig handler.
 static vector<UpnpDevice *> devs;
 
@@ -709,14 +701,11 @@ int main(int argc, char *argv[])
     }
 
     // Create unique IDs for renderer and possible media server
-    UDevIds ids;
-    ids.fname = friendlyname;
-    ids.uuid =  LibUPnP::makeDevUUID(ids.fname, hwaddr);
-    if (!g_config || !g_config->get("msfriendlyname", ids.fnameMS)) {
-        ids.fnameMS = ids.fname + "-mediaserver";
+    string fnameMS;
+    if (!g_config || !g_config->get("msfriendlyname", fnameMS)) {
+        fnameMS = friendlyname + "-mediaserver";
     }
-    ids.uuidMS = LibUPnP::makeDevUUID(ids.fnameMS, hwaddr);
-
+    string uuidMS = LibUPnP::makeDevUUID(fnameMS, hwaddr);
 
     // If running as mediaserver only, make sure we don't conflict
     // with a possible renderer
@@ -764,21 +753,31 @@ int main(int argc, char *argv[])
     setupsigs();
 
     UpMpd *mediarenderer{nullptr};
+    UpnpDevice *root{nullptr};
     if (!msonly) {
-        mediarenderer = new UpMpd(string("uuid:") + ids.uuid, ids.fname,
+        mediarenderer = new UpMpd(hwaddr, friendlyname,
                                   ohProductDesc, mpdclip, opts);
-        devs.push_back(mediarenderer);
+        UpMpdOpenHome *oh = mediarenderer->getoh();
+        if (nullptr != oh) {
+            root = oh;
+            devs.push_back(oh);
+        }
+        UpMpdMediaRenderer *av = mediarenderer->getav();
+        if (nullptr != av) {
+            root = av;
+            devs.push_back(av);
+        }
     }
 
     MediaServer *mediaserver{nullptr};
     
     if (inprocessms) {
-    // Create the Media Server device. If msonly is set, both
-    // branches do the same thing and create a root device
-    // (mediarenderer is null).
-        // The multidev modified libupnp is needed for using 2 root devices
-        mediaserver = new MediaServer(msroot?nullptr:mediarenderer, string("uuid:") +
-                                      ids.uuidMS,ids.fnameMS, enableMediaServer);
+        // Create the Media Server device. If msonly is set, both
+        // branches do the same thing and create a root device
+        // (mediarenderer is null).
+        mediaserver = new MediaServer(
+            msroot ? nullptr : root,
+            string("uuid:") + uuidMS, fnameMS, enableMediaServer);
         devs.push_back(mediaserver);
         LOGDEB("Media server event loop" << endl);
     } else if (enableMediaServer) {
@@ -786,7 +785,7 @@ int main(int argc, char *argv[])
     }
     if (!msonly) {
         LOGDEB("Renderer event loop" << endl);
-        mediarenderer->startloop();
+        mediarenderer->startloops();
     }
     if (inprocessms && enableMediaServer) {
         mediaserver->startloop();

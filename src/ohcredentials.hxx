@@ -23,14 +23,13 @@
 #include "libupnpp/device/device.hxx"
 #include "libupnpp/soaphelp.hxx"
 
-#include "upmpd.hxx"
 #include "ohservice.hxx"
 
 using namespace UPnPP;
 
 class OHCredentials : public OHService {
 public:
-    OHCredentials(UpMpd *dev, const std::string& cachedir);
+    OHCredentials(UpMpd *dev, UpMpdOpenHome *udev, const std::string& cachedir);
     virtual ~OHCredentials();
 
 protected:

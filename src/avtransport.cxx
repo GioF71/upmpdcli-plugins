@@ -47,50 +47,51 @@ static const string sTpTransport("urn:schemas-upnp-org:service:AVTransport:1");
 static bool m_autoplay{false};
 static bool keepconsume(false);
 
-UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
-    : UpnpService(sTpTransport, sIdTransport, "AVTransport.xml", dev, noev),
-      m_dev(dev), m_ohp(0)
+UpMpdAVTransport::UpMpdAVTransport(
+    UpMpd *dev, UpMpdMediaRenderer *udev, bool noev)
+    : UpnpService(sTpTransport, sIdTransport, "AVTransport.xml", udev, noev),
+      m_dev(dev), m_udev(udev), m_ohp(0)
 {
-    m_dev->addActionMapping(this,"SetAVTransportURI", 
+    udev->addActionMapping(this,"SetAVTransportURI", 
                             bind(&UpMpdAVTransport::setAVTransportURI, 
                                  this,_1,_2, false));
-    m_dev->addActionMapping(this,"SetNextAVTransportURI", 
+    udev->addActionMapping(this,"SetNextAVTransportURI", 
                             bind(&UpMpdAVTransport::setAVTransportURI, 
                                  this,_1, _2, true));
-    m_dev->addActionMapping(this,"GetPositionInfo", 
+    udev->addActionMapping(this,"GetPositionInfo", 
                             bind(&UpMpdAVTransport::getPositionInfo, 
                                  this, _1, _2));
-    m_dev->addActionMapping(this,"GetTransportInfo", 
+    udev->addActionMapping(this,"GetTransportInfo", 
                             bind(&UpMpdAVTransport::getTransportInfo, 
                                  this, _1, _2));
-    m_dev->addActionMapping(this,"GetMediaInfo", 
+    udev->addActionMapping(this,"GetMediaInfo", 
                             bind(&UpMpdAVTransport::getMediaInfo, 
                                  this, _1, _2));
-    m_dev->addActionMapping(this,"GetDeviceCapabilities", 
+    udev->addActionMapping(this,"GetDeviceCapabilities", 
                             bind(&UpMpdAVTransport::getDeviceCapabilities, 
                                  this, _1, _2));
-    m_dev->addActionMapping(this,"SetPlayMode", 
+    udev->addActionMapping(this,"SetPlayMode", 
                             bind(&UpMpdAVTransport::setPlayMode, this, _1, _2));
-    m_dev->addActionMapping(this,"GetTransportSettings", 
+    udev->addActionMapping(this,"GetTransportSettings", 
                             bind(&UpMpdAVTransport::getTransportSettings, 
                                  this, _1, _2));
-    m_dev->addActionMapping(this,"GetCurrentTransportActions", 
+    udev->addActionMapping(this,"GetCurrentTransportActions", 
                             bind(&UpMpdAVTransport::getCurrentTransportActions,
                                  this,_1,_2));
-    m_dev->addActionMapping(this,"Stop", bind(&UpMpdAVTransport::playcontrol, 
+    udev->addActionMapping(this,"Stop", bind(&UpMpdAVTransport::playcontrol, 
                                               this, _1, _2, 0));
-    m_dev->addActionMapping(this,"Play", bind(&UpMpdAVTransport::playcontrol, 
+    udev->addActionMapping(this,"Play", bind(&UpMpdAVTransport::playcontrol, 
                                               this, _1, _2, 1));
-    m_dev->addActionMapping(this,"Pause", 
+    udev->addActionMapping(this,"Pause", 
                             bind(&UpMpdAVTransport::playcontrol, 
                                  this, _1, _2, 2));
-    m_dev->addActionMapping(this,"Seek", bind(&UpMpdAVTransport::seek, 
+    udev->addActionMapping(this,"Seek", bind(&UpMpdAVTransport::seek, 
                                               this, _1, _2));
 
     // should we get rid of those ? They don't make sense for us
-    m_dev->addActionMapping(this, "Next", bind(&UpMpdAVTransport::seqcontrol, 
+    udev->addActionMapping(this, "Next", bind(&UpMpdAVTransport::seqcontrol, 
                                                this, _1, _2, 0));
-    m_dev->addActionMapping(this, "Previous", 
+    udev->addActionMapping(this, "Previous", 
                             bind(&UpMpdAVTransport::seqcontrol, 
                                  this, _1, _2, 1));
 
@@ -101,7 +102,7 @@ UpMpdAVTransport::UpMpdAVTransport(UpMpd *dev, bool noev)
     // If no setnext, we'd like to fake stopping at each track but
     // this does not work because mpd goes into PAUSED PLAY at the end
     // of track, not STOP.
-//    m_dev->m_mpdcli->single(true);
+//    m_dev->getmpdcli()->single(true);
 #endif
     m_autoplay = g_config->getBool("avtautoplay", false);
     keepconsume = g_config->getBool("keepconsume", false);
@@ -263,7 +264,11 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     
     status["TransportState"] = mpdsToTState(mpds);
     status["CurrentTransportActions"] = mpdsToTActions(mpds);
-    status["TransportStatus"] = m_dev->m_mpdcli->ok() ? "OK" : "ERROR_OCCURRED";
+    {
+        auto lock = m_dev->mpdlock();
+        status["TransportStatus"] = m_dev->getmpdcli()->ok() ?
+            "OK" : "ERROR_OCCURRED";
+    }
     status["TransportPlaySpeed"] = "1";
 
     const string& uri = mpds.currentsong.rsrc.uri;
@@ -322,7 +327,7 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     status["NextAVTransportURIMetaData"] = "NOT_IMPLEMENTED";
 #else
     status["NextAVTransportURI"] = mpds.nextsong.rsrc.uri;
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
+    if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         status["NextAVTransportURIMetaData"] = is_song ? m_nextMetadata : "";
     } else {
         status["NextAVTransportURIMetaData"] = is_song ?
@@ -433,12 +438,15 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
             "AVTransportURI: curpos: " <<
             curpos << " is_song " << is_song << " qlen " << mpds.qlen << endl);
 
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue) && !setnext) {
+    if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue) && !setnext) {
         // If we own the queue, just clear it before setting the
         // track.  Else it's difficult to impossible to prevent it
         // from growing if upmpdcli restarts. If the option is not set, the
         // user prefers to live with the issue.
-        m_dev->m_mpdcli->clearQueue();
+        {
+            auto lock = m_dev->mpdlock();
+            m_dev->getmpdcli()->clearQueue();
+        }
         // mpds is now invalid!
         curpos = -1;
     }
@@ -449,12 +457,15 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
     // end of the track. Note that always setting repeat to false is
     // one of the ways which we are incompatible with simultaneous
     // mpc or ohplaylist use (there are many others of course).
-    m_dev->m_mpdcli->repeat(false);
-    m_dev->m_mpdcli->random(false);
-    // See comment about single in init
-    m_dev->m_mpdcli->single(false);
-    if (!keepconsume)
-        m_dev->m_mpdcli->consume(false);
+    {
+        auto lock = m_dev->mpdlock();
+        m_dev->getmpdcli()->repeat(false);
+        m_dev->getmpdcli()->random(false);
+        // See comment about single in init
+        m_dev->getmpdcli()->single(false);
+        if (!keepconsume)
+            m_dev->getmpdcli()->consume(false);
+    }
     
     // curpos == -1 means that the playlist was cleared or we just started. A
     // play will use position 0, so it's actually equivalent to curpos == 0
@@ -467,22 +478,27 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
             LOGDEB("setNextAVTransportURI invoked but empty queue!" << endl);
             return UPNP_E_INVALID_PARAM;
         }
-        if ((m_dev->m_options & UpMpd::upmpdOwnQueue) && mpds.qlen > 1) {
+        if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue) && mpds.qlen > 1) {
             // If we own the queue, make sure we only keep 2 songs in it:
             // guard against multiple setnext calls.
             int posend;
+            auto lock = m_dev->mpdlock();
             for (posend = curpos + 1;; posend++) {
                 UpSong nsong;
-                if (!m_dev->m_mpdcli->statSong(nsong, posend))
+                if (!m_dev->getmpdcli()->statSong(nsong, posend))
                     break;
             }
             if (posend > curpos+1)
-                m_dev->m_mpdcli->deletePosRange(curpos + 1, posend);
+                m_dev->getmpdcli()->deletePosRange(curpos + 1, posend);
         }
     }
 
-    int songid = m_dev->m_mpdcli->insert(uri, setnext ? curpos + 1 : curpos,
+    int songid;
+    {
+        auto lock = m_dev->mpdlock();
+        songid = m_dev->getmpdcli()->insert(uri, setnext ? curpos + 1 : curpos,
                                          metaformpd);
+    }
     if (songid < 0) {
         return UPNP_E_INTERNAL_ERROR;
     }
@@ -512,34 +528,37 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
         //  - MediaHouse: no setnext, Play
         //  - Raumfeld: needs autoplay
         if (m_autoplay) {
-            m_dev->m_mpdcli->play(curpos);
+            auto lock = m_dev->mpdlock();
+            m_dev->getmpdcli()->play(curpos);
         } else {
+            auto lock = m_dev->mpdlock();
             switch (st) {
-            case MpdStatus::MPDS_PLAY: m_dev->m_mpdcli->play(curpos); break;
-            case MpdStatus::MPDS_PAUSE: m_dev->m_mpdcli->pause(true); break;
-            case MpdStatus::MPDS_STOP: m_dev->m_mpdcli->stop(); break;
+            case MpdStatus::MPDS_PLAY: m_dev->getmpdcli()->play(curpos); break;
+            case MpdStatus::MPDS_PAUSE: m_dev->getmpdcli()->pause(true); break;
+            case MpdStatus::MPDS_STOP: m_dev->getmpdcli()->stop(); break;
             default: break;
             }
         }
         // Clean up old song ids
-        if (!(m_dev->m_options & UpMpd::upmpdOwnQueue)) {
+        if (!(m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
+            auto lock = m_dev->mpdlock();
             for (auto id : m_songids) {
                 // Can't just delete here. If the id does not exist, MPD 
                 // gets into an apparently permanent error state, where even 
                 // get_status does not work
-                if (m_dev->m_mpdcli->statId(id)) {
-                    m_dev->m_mpdcli->deleteId(id);
+                if (m_dev->getmpdcli()->statId(id)) {
+                    m_dev->getmpdcli()->deleteId(id);
                 }
             }
             m_songids.clear();
         }
     }
 
-    if (!(m_dev->m_options & UpMpd::upmpdOwnQueue)) {
+    if (!(m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         m_songids.insert(songid);
     }
 
-    m_dev->loopWakeup();
+    m_udev->loopWakeup();
     return UPNP_E_SUCCESS;
 }
 
@@ -603,8 +622,11 @@ int UpMpdAVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data
             mpdsToTState(mpds) << endl);
 
     data.addarg("CurrentTransportState", mpdsToTState(mpds));
-    data.addarg("CurrentTransportStatus", m_dev->m_mpdcli->ok() ? "OK" : 
-                "ERROR_OCCURRED");
+    {
+        auto lock = m_dev->mpdlock();
+        data.addarg("CurrentTransportStatus", m_dev->getmpdcli()->ok() ? "OK" : 
+                    "ERROR_OCCURRED");
+    }
     data.addarg("CurrentSpeed", "1");
     return UPNP_E_SUCCESS;
 }
@@ -644,7 +666,7 @@ int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
     } else {
         data.addarg("CurrentURIMetaData", "");
     }
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
+    if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         data.addarg("NextURI", m_nextUri);
         data.addarg("NextURIMetaData", is_song ? m_nextMetadata : "");
     } else {
@@ -673,32 +695,34 @@ int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, in
     }
 
     bool ok = true;
-    switch (mpds.state) {
-    case MpdStatus::MPDS_PLAY: 
-        switch (what) {
-        case 0: ok = m_dev->m_mpdcli->stop(); break;
-        case 1: ok = m_dev->m_mpdcli->play();break;
-        case 2: ok = m_dev->m_mpdcli->togglePause();break;
+    {
+        auto lock = m_dev->mpdlock();
+        switch (mpds.state) {
+        case MpdStatus::MPDS_PLAY: 
+            switch (what) {
+            case 0: ok = m_dev->getmpdcli()->stop(); break;
+            case 1: ok = m_dev->getmpdcli()->play();break;
+            case 2: ok = m_dev->getmpdcli()->togglePause();break;
+            }
+            break;
+        case MpdStatus::MPDS_PAUSE:
+            switch (what) {
+            case 0: ok = m_dev->getmpdcli()->stop(); break;
+            case 1: ok = m_dev->getmpdcli()->togglePause();break;
+            case 2: break;
+            }
+            break;
+        case MpdStatus::MPDS_STOP:
+        default:
+            switch (what) {
+            case 0: break;
+            case 1: ok = m_dev->getmpdcli()->play();break;
+            case 2: break;
+            }
+            break;
         }
-        break;
-    case MpdStatus::MPDS_PAUSE:
-        switch (what) {
-        case 0: ok = m_dev->m_mpdcli->stop(); break;
-        case 1: ok = m_dev->m_mpdcli->togglePause();break;
-        case 2: break;
-        }
-        break;
-    case MpdStatus::MPDS_STOP:
-    default:
-        switch (what) {
-        case 0: break;
-        case 1: ok = m_dev->m_mpdcli->play();break;
-        case 2: break;
-        }
-        break;
-    }
-    
-    m_dev->loopWakeup();
+    }    
+    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -714,12 +738,14 @@ int UpMpdAVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int
     }
 
     bool ok = true;
-    switch (what) {
-    case 0: ok = m_dev->m_mpdcli->next();break;
-    case 1: ok = m_dev->m_mpdcli->previous();break;
+    {
+        auto lock = m_dev->mpdlock();
+        switch (what) {
+        case 0: ok = m_dev->getmpdcli()->next();break;
+        case 1: ok = m_dev->getmpdcli()->previous();break;
+        }
     }
-
-    m_dev->loopWakeup();
+    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -739,7 +765,7 @@ int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
     }
     LOGDEB("UpMpdAVTransport::setPlayMode: " << playmode << endl);
 
-    if ((m_dev->m_options & UpMpd::upmpdOwnQueue)) {
+    if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         // If we own the queue then none of this makes sense, we're
         // only keeping 1 or 2 entries on the queue and controlling
         // everything.
@@ -748,28 +774,38 @@ int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     bool ok;
-    if (!playmode.compare("NORMAL")) {
-        ok = m_dev->m_mpdcli->repeat(false) && m_dev->m_mpdcli->random(false) &&
-            m_dev->m_mpdcli->single(false);
-    } else if (!playmode.compare("SHUFFLE")) {
-        ok = m_dev->m_mpdcli->repeat(false) && m_dev->m_mpdcli->random(true) &&
-            m_dev->m_mpdcli->single(false);
-    } else if (!playmode.compare("REPEAT_ONE")) {
-        ok = m_dev->m_mpdcli->repeat(true) && m_dev->m_mpdcli->random(false) &&
-            m_dev->m_mpdcli->single(true);
-    } else if (!playmode.compare("REPEAT_ALL")) {
-        ok = m_dev->m_mpdcli->repeat(true) && m_dev->m_mpdcli->random(false) &&
-            m_dev->m_mpdcli->single(false);
-    } else if (!playmode.compare("RANDOM")) {
-        ok = m_dev->m_mpdcli->repeat(true) && m_dev->m_mpdcli->random(true) &&
-            m_dev->m_mpdcli->single(false);
-    } else if (!playmode.compare("DIRECT_1")) {
-        ok = m_dev->m_mpdcli->repeat(false) && m_dev->m_mpdcli->random(false) &&
-            m_dev->m_mpdcli->single(true);
-    } else {
-        return UPNP_E_INVALID_PARAM;
+    {
+        auto lock = m_dev->mpdlock();
+    
+        if (!playmode.compare("NORMAL")) {
+            ok = m_dev->getmpdcli()->repeat(false) &&
+                m_dev->getmpdcli()->random(false) &&
+                m_dev->getmpdcli()->single(false);
+        } else if (!playmode.compare("SHUFFLE")) {
+            ok = m_dev->getmpdcli()->repeat(false) &&
+                m_dev->getmpdcli()->random(true) &&
+                m_dev->getmpdcli()->single(false);
+        } else if (!playmode.compare("REPEAT_ONE")) {
+            ok = m_dev->getmpdcli()->repeat(true) &&
+                m_dev->getmpdcli()->random(false) &&
+                m_dev->getmpdcli()->single(true);
+        } else if (!playmode.compare("REPEAT_ALL")) {
+            ok = m_dev->getmpdcli()->repeat(true) &&
+                m_dev->getmpdcli()->random(false) &&
+                m_dev->getmpdcli()->single(false);
+        } else if (!playmode.compare("RANDOM")) {
+            ok = m_dev->getmpdcli()->repeat(true) &&
+                m_dev->getmpdcli()->random(true) &&
+                m_dev->getmpdcli()->single(false);
+        } else if (!playmode.compare("DIRECT_1")) {
+            ok = m_dev->getmpdcli()->repeat(false) &&
+                m_dev->getmpdcli()->random(false) &&
+                m_dev->getmpdcli()->single(true);
+        } else {
+            return UPNP_E_INVALID_PARAM;
+        }
     }
-    m_dev->loopWakeup();
+    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -820,7 +856,10 @@ int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("UpMpdAVTransport::seek: seeking to " << abs_seconds << 
            " seconds (" << upnpduration(abs_seconds * 1000) << ")" << endl);
 
-    m_dev->loopWakeup();
-    return m_dev->m_mpdcli->seek(abs_seconds) ? 
-        UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
+    m_udev->loopWakeup();
+    {
+        auto lock = m_dev->mpdlock();
+        return m_dev->getmpdcli()->seek(abs_seconds) ? 
+            UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
+    }
 }

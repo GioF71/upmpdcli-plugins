@@ -1,4 +1,4 @@
-    <deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType>
+    <deviceType>@DEVICETYPE@</deviceType>
     <friendlyName>@FRIENDLYNAME@</friendlyName>
     <manufacturer>JF Light Industries</manufacturer>
     <manufacturerURL>https://framagit.org/medoc92</manufacturerURL>

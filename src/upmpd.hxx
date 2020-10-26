@@ -21,10 +21,12 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #include "libupnpp/device/device.hxx"
 
 #include "main.hxx"
+#include "chrono.h"
 
 class MPDCli;
 class MpdStatus;
@@ -32,7 +34,6 @@ class MpdStatus;
 using namespace UPnPProvider;
 
 class UpSong;
-class UpMpdRenderCtl;
 class UpMpdAVTransport;
 class OHInfo;
 class OHPlaylist;
@@ -40,19 +41,60 @@ class OHProduct;
 class OHReceiver;
 class SenderReceiver;
 class OHRadio;
+class UpMpd;
+
+class UpMpdDevice : public UpnpDevice {
+public:
+    UpMpdDevice(UpMpd *upmpd, const std::string& deviceid,
+                const std::string &friendlyname, const std::string& devicetype)
+        : UpnpDevice(deviceid), m_upmpd(upmpd), m_friendlyname(friendlyname),
+          m_devicetype(devicetype) {
+    }
+    bool readLibFile(const std::string& name, std::string& contents) override;
+    const std::string& getfriendlyname() const {return m_friendlyname;}
+    
+protected:
+    UpMpd *m_upmpd{nullptr};
+    std::string m_friendlyname;
+    std::string m_devicetype;
+    std::vector<UpnpService*> m_services;
+};
+
+class UpMpdMediaRenderer : public UpMpdDevice {
+public:
+    UpMpdMediaRenderer(UpMpd *upmpd, const std::string& deviceid,
+                       const std::string &friendlyname);
+    void setOHP(OHPlaylist *ohpl);
+private:
+    UpMpdAVTransport *m_avt{0};
+};
+
+class UpMpdOpenHome : public UpMpdDevice {
+public:
+    UpMpdOpenHome(UpMpd *upmpd, const std::string& deviceid,
+                  const std::string &friendlyname,
+                  ohProductDesc_t& ohProductDesc);
+
+    OHInfo *getohif() {return m_ohif;}
+    OHPlaylist *getohpl() {return m_ohpl;}
+    OHProduct *getohpr() {return m_ohpr;}
+    OHRadio *getohrd() {return m_ohrd;}
+    OHReceiver *getohrcv() {return m_ohrcv;}
+    SenderReceiver *getsndrcv() {return m_sndrcv;}
+
+private:
+    OHProduct *m_ohpr{0};
+    OHPlaylist *m_ohpl{0};
+    OHRadio *m_ohrd{0};
+    OHInfo *m_ohif{0};
+    OHReceiver *m_ohrcv{0};
+    SenderReceiver *m_sndrcv{0};
+};
+
 
 // The UPnP MPD frontend device with its services
-class UpMpd : public UpnpDevice {
+class UpMpd {
 public:
-    friend class UpMpdRenderCtl;
-    friend class UpMpdAVTransport;
-    friend class OHInfo;
-    friend class OHPlaylist;
-    friend class OHProduct;
-    friend class OHReceiver;
-    friend class OHVolume;
-    friend class SenderReceiver;
-    friend class OHRadio;
 
     enum OptFlags {
         upmpdNone = 0,
@@ -91,41 +133,47 @@ public:
         std::string senderpath;
         int sendermpdport{0};
     };
-    UpMpd(const std::string& deviceid, const std::string& friendlyname,
-          ohProductDesc_t& ohProductDesc,
-          MPDCli *mpdcli, Options opts);
+    UpMpd(const std::string& hwaddr, const std::string& friendlyname,
+          ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts);
     ~UpMpd();
 
-    virtual bool readLibFile(const std::string& name,
-                             std::string& contents);
+    UpMpdOpenHome *getoh() {return m_oh;}
+    UpMpdMediaRenderer *getav() {return m_av;}
+    const Options& getopts() const {return m_allopts;};
 
-    const MpdStatus& getMpdStatus();
-    const MpdStatus& getMpdStatusNoUpdate() {
-        if (m_mpds == 0) {
-            return getMpdStatus();
-        } else {
-            return *m_mpds;
+    MPDCli *getmpdcli() {return m_mpdcli;}
+    void setmpdcli(MPDCli* mpdcli) {m_mpdcli = mpdcli;}
+    
+    void setohpl(OHPlaylist *ohpl) {
+        if (m_av) {
+            m_av->setOHP(ohpl);
         }
     }
 
-    const std::string& getMetaCacheFn() {
+    void startloops();
+    
+    const MpdStatus& getMpdStatus();
+    const MpdStatus& getMpdStatusNoUpdate();
+
+    const std::string& getMetaCacheFn() const {
         return m_mcachefn;
     }
 
     // Check that the metadata resource element matching the uri is
     // present in the input set. Convert the metadata to an mpdcli song
     // while we are at it.
-    bool checkContentFormat(const std::string& uri, const std::string& didl,
-                            UpSong *ups, bool nocheck = false);
+    bool checkContentFormat(
+        const std::string& uri, const std::string& didl,
+        UpSong *ups, bool nocheck = false);
 
     // Help avtransport report correct metadata for radios (for which
     // the uri, normally used to detect track transitions, does not
     // change). This is called by ohproduct when setting the source.
     void setRadio(bool on) {
-        m_radio = on;
+        m_radioplaying = on;
     }
-    bool radioPlaying() {
-        return m_radio;
+    bool radioPlaying() const {
+        return m_radioplaying;
     }
 
     // Common implementations used by ohvolume and renderctl
@@ -133,26 +181,24 @@ public:
     bool setvolume(int volume);
     bool setmute(bool onoff);
     bool flushvolume();
+
+    std::unique_lock<std::mutex> mpdlock() {
+        return std::unique_lock<std::mutex>(m_mpdmutex);
+    }
     
 private:
     MPDCli *m_mpdcli{0};
     const MpdStatus *m_mpds{0};
-    unsigned int m_options{0};
+    std::mutex m_mpdmutex;
+    Chrono m_mpdchron;
     Options m_allopts;
     std::string m_mcachefn;
-    UpMpdAVTransport *m_avt{0};
-    OHProduct *m_ohpr{0};
-    OHPlaylist *m_ohpl{0};
-    OHRadio *m_ohrd{0};
-    OHInfo *m_ohif{0};
-    OHReceiver *m_ohrcv{0};
-    SenderReceiver *m_sndrcv{0};
-    std::vector<UpnpService*> m_services;
-    std::string m_friendlyname;
-    bool m_radio{false};
+    bool m_radioplaying{false};
     // Desired volume target. We may delay executing small volume
     // changes to avoid saturating with small requests.
     int m_desiredvolume{-1};
+    UpMpdOpenHome *m_oh{nullptr};
+    UpMpdMediaRenderer *m_av{nullptr};
 };
 
 #endif /* _UPMPD_H_X_INCLUDED_ */

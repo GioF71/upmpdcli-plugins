@@ -32,8 +32,8 @@ using namespace UPnPP;
 class OHService : public UPnPProvider::UpnpService {
 public:
     OHService(const std::string& servtp, const std::string &servid,
-              const std::string& xmlfn, UpMpd *dev)
-        : UpnpService(servtp, servid, xmlfn, dev), m_dev(dev) {
+              const std::string& xmlfn, UpMpd *dev, UpMpdOpenHome *udev)
+        : UpnpService(servtp, servid, xmlfn, udev), m_dev(dev), m_udev(udev) {
     }
     virtual ~OHService() { }
 
@@ -65,6 +65,7 @@ protected:
     // State variable storage
     std::unordered_map<std::string, std::string> m_state;
     UpMpd *m_dev;
+    UpMpdOpenHome *m_udev;
 };
 
 #endif /* _OHSERVICE_H_X_INCLUDED_ */

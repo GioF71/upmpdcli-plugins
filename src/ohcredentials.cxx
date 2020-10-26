@@ -424,40 +424,41 @@ public:
 };
 
 
-OHCredentials::OHCredentials(UpMpd *dev, const string& cachedir)
-    : OHService(sTpCredentials, sIdCredentials, "OHCredentials.xml", dev),
+OHCredentials::OHCredentials(UpMpd *dev, UpMpdOpenHome *udev,
+                             const string& cachedir)
+    : OHService(sTpCredentials, sIdCredentials, "OHCredentials.xml", dev, udev),
       m(new Internal(cachedir))
 {
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "Set",
         bind(&OHCredentials::actSet, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "Clear",
         bind(&OHCredentials::actClear, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "SetEnabled",
         bind(&OHCredentials::actSetEnabled, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "Get",
         bind(&OHCredentials::actGet, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "Login",
         bind(&OHCredentials::actLogin, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "ReLogin",
         bind(&OHCredentials::actReLogin, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "GetIds",
         bind(&OHCredentials::actGetIds, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "GetPublicKey",
         bind(&OHCredentials::actGetPublicKey, this, _1, _2));
-    dev->addActionMapping(
+    udev->addActionMapping(
         this, "GetSequenceNumber",
         bind(&OHCredentials::actGetSequenceNumber, this, _1, _2));
 
     unsigned short usport;
-    dev->ipv4(&upnphost, &usport);
+    udev->ipv4(&upnphost, &usport);
 }
 
 OHCredentials::~OHCredentials()

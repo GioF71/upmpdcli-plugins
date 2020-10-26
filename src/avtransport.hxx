@@ -26,13 +26,14 @@
 #include "libupnpp/soaphelp.hxx"
 
 class OHPlaylist;
+class UpMpdMediaRenderer;
 class UpMpd;
 
 using namespace UPnPP;
 
 class UpMpdAVTransport : public UPnPProvider::UpnpService {
 public:
-    UpMpdAVTransport(UpMpd *dev, bool noev);
+    UpMpdAVTransport(UpMpd *dev, UpMpdMediaRenderer *udev, bool noev);
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values);
@@ -60,6 +61,7 @@ private:
     bool tpstateMToU(std::unordered_map<std::string, std::string>& state);
 
     UpMpd *m_dev;
+    UpMpdMediaRenderer *m_udev;
     OHPlaylist *m_ohp;
 
     // State variable storage
