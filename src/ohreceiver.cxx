@@ -1,39 +1,39 @@
 /* Copyright (C) 2014 J.F.Dockes
- *     This program is free software; you can redistribute it and/or modify
- *     it under the terms of the GNU Lesser General Public License as published by
- *     the Free Software Foundation; either version 2.1 of the License, or
- *     (at your option) any later version.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation; either version 2.1 of the License, or
+ *  (at your option) any later version.
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU Lesser General Public License for more details.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
  *
- *     You should have received a copy of the GNU Lesser General Public License
- *     along with this program; if not, write to the
- *     Free Software Foundation, Inc.,
- *     59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with this program; if not, write to the
+ *  Free Software Foundation, Inc.,
+ *  59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include "config.h"
 
 #include "ohreceiver.hxx"
 
-#include <stdlib.h>                     // for atoi
+#include <stdlib.h>
 
-#include <functional>                   // for _Bind, bind, _1, _2
-#include <iostream>                     // for endl, etc
-#include <string>                       // for string, allocator, etc
-#include <utility>                      // for pair
-#include <vector>                       // for vector
+#include <functional>
+#include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "libupnpp/log.hxx"             // for LOGDEB, LOGERR
-#include "libupnpp/soaphelp.hxx"        // for SoapIncoming, SoapOutgoing, i2s, etc
+#include "libupnpp/log.hxx"
+#include "libupnpp/soaphelp.hxx"
 
 #include "conftree.h"
-#include "mpdcli.hxx"                   // for MpdStatus, UpSong, MPDCli, etc
-#include "upmpd.hxx"                    // for UpMpd, etc
-#include "upmpdutils.hxx"               // for didlmake, diffmaps, etc
+#include "mpdcli.hxx"
+#include "upmpd.hxx"
+#include "upmpdutils.hxx"
 #include "ohplaylist.hxx"
 #include "ohproduct.hxx"
 
@@ -196,10 +196,7 @@ bool OHReceiver::iPlay()
     }
 
     if (m_pm == OHReceiverParams::OHRP_MPD) {
-        {
-            auto lock = m_dev->mpdlock();
-            m_dev->getmpdcli()->stop();
-        }
+        m_dev->getmpdcli()->stop();
 
         // Wait for sc2mpd to signal ready, then play.
         // sc2mpd writes a single line to stdout "CONNECTED" when
@@ -230,20 +227,15 @@ bool OHReceiver::iPlay()
                        << endl);
                 goto out;
             }
-            {
-                auto lock = m_dev->mpdlock();
-                id = m_dev->getmpdcli()->insertAfterId(m_httpuri, 0, metaformpd);
-            }
+            id = m_dev->getmpdcli()->insertAfterId(m_httpuri, 0, metaformpd);
             if (id == -1) {
                 LOGERR("OHReceiver::play: insertAfterId() failed\n");
                 goto out;
             }
         }
 
-        {
-            auto lock = m_dev->mpdlock();
-            ok = m_dev->getmpdcli()->playId(id);
-        }
+        ok = m_dev->getmpdcli()->playId(id);
+            
         if (!ok) {
             LOGERR("OHReceiver::play: play() failed\n");
             goto out;
@@ -276,10 +268,7 @@ bool OHReceiver::iStop()
     }
 
     if (m_pm == OHReceiverParams::OHRP_MPD) {
-        {
-            auto lock = m_dev->mpdlock();
-            m_dev->getmpdcli()->stop();
-        }
+        m_dev->getmpdcli()->stop();
         unordered_map<int, string> urlmap;
         // Remove our bogus URi from the playlist
         if (!m_udev->getohpl()->urlMap(urlmap)) {
@@ -287,7 +276,6 @@ bool OHReceiver::iStop()
         }
         for (auto it = urlmap.begin(); it != urlmap.end(); it++) {
             if (it->second == m_httpuri) {
-                auto lock = m_dev->mpdlock();
                 m_dev->getmpdcli()->deleteId(it->first);
             }
         }

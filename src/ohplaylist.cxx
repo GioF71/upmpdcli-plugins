@@ -195,11 +195,7 @@ bool OHPlaylist::makeIdArray(string& out)
     // Retrieve the data for current queue songs from mpd, and make an
     // ohPlaylist id array.
     vector<UpSong> vdata;
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->getQueueData(vdata);
-    }
+    bool ok = m_dev->getmpdcli()->getQueueData(vdata);
     if (!ok) {
         LOGERR("OHPlaylist::makeIdArray: getQueueData failed." 
                "metacache size " << m_metacache.size() << endl);
@@ -280,12 +276,9 @@ int OHPlaylist::idFromOldId(int oldid)
         return -1;
     }
     vector<UpSong> vdata;
-    {
-        auto lock = m_dev->mpdlock();
-        if (!m_dev->getmpdcli()->getQueueData(vdata)) {
-            LOGERR("OHPlaylist::idFromUri: getQueueData failed\n");
-            return -1;
-        }
+    if (!m_dev->getmpdcli()->getQueueData(vdata)) {
+        LOGERR("OHPlaylist::idFromUri: getQueueData failed\n");
+        return -1;
     }
     for (const auto& entry: vdata) {
         if (!entry.rsrc.uri.compare(uri)) {
@@ -333,7 +326,6 @@ void OHPlaylist::maybeWakeUp(bool ok)
 
 void OHPlaylist::setActive(bool onoff)
 {
-    auto lock = m_dev->mpdlock();
     if (onoff) {
         m_dev->getmpdcli()->clearQueue();
         m_dev->getmpdcli()->restoreState(m_mpdsavedstate);
@@ -359,13 +351,10 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
         m_udev->getohpr()->iSetSourceIndexByName("Playlist");
     }
     bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        if (!keepconsume) 
-            m_dev->getmpdcli()->consume(false);
-        m_dev->getmpdcli()->single(false);
-        ok = m_dev->getmpdcli()->play();
-    }
+    if (!keepconsume) 
+        m_dev->getmpdcli()->consume(false);
+    m_dev->getmpdcli()->single(false);
+    ok = m_dev->getmpdcli()->play();
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UpnpService::UPNP_ACTION_FAILED;
 }
@@ -373,22 +362,14 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
 int OHPlaylist::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::pause" << endl);
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->pause(true);
-    }
+    bool ok = m_dev->getmpdcli()->pause(true);
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
 int OHPlaylist::iStop()
 {
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->stop();
-    }
+    bool ok = m_dev->getmpdcli()->stop();
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -405,11 +386,7 @@ int OHPlaylist::next(const SoapIncoming& sc, SoapOutgoing& data)
         return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::next" << endl);
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->next();
-    }
+    bool ok = m_dev->getmpdcli()->next();
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -421,11 +398,7 @@ int OHPlaylist::previous(const SoapIncoming& sc, SoapOutgoing& data)
         return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::previous" << endl);
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->previous();
-    }
+    bool ok = m_dev->getmpdcli()->previous();
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -440,10 +413,7 @@ int OHPlaylist::setRepeat(const SoapIncoming& sc, SoapOutgoing& data)
     bool onoff;
     bool ok = sc.get("Value", &onoff);
     if (ok) {
-        {
-            auto lock = m_dev->mpdlock();
-            ok = m_dev->getmpdcli()->repeat(onoff);
-        }
+        ok = m_dev->getmpdcli()->repeat(onoff);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -473,10 +443,7 @@ int OHPlaylist::setShuffle(const SoapIncoming& sc, SoapOutgoing& data)
     if (ok) {
         // Note that mpd shuffle shuffles the playlist, which is different
         // from playing at random
-        {
-            auto lock = m_dev->mpdlock();
-            ok = m_dev->getmpdcli()->random(onoff);
-        }
+        ok = m_dev->getmpdcli()->random(onoff);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -504,10 +471,7 @@ int OHPlaylist::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
-        {
-            auto lock = m_dev->mpdlock();
-            ok = m_dev->getmpdcli()->seek(seconds);
-        }
+        ok = m_dev->getmpdcli()->seek(seconds);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -528,10 +492,7 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
             (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
             seconds += mpds.songelapsedms / 1000;
-            {
-                auto lock = m_dev->mpdlock();
-                ok = m_dev->getmpdcli()->seek(seconds);
-            }
+            ok = m_dev->getmpdcli()->seek(seconds);
         } else {
             ok = false;
         }
@@ -578,14 +539,10 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
             return UPNP_E_INTERNAL_ERROR;
         }
     }
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        if (!keepconsume)
-            m_dev->getmpdcli()->consume(false);
-        m_dev->getmpdcli()->single(false);
-        ok = m_dev->getmpdcli()->playId(id);
-    }
+    if (!keepconsume)
+        m_dev->getmpdcli()->consume(false);
+    m_dev->getmpdcli()->single(false);
+    bool ok = m_dev->getmpdcli()->playId(id);
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -603,13 +560,10 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
     int pos;
     bool ok = sc.get("Value", &pos);
     if (ok) {
-        {
-            auto lock = m_dev->mpdlock();
-            if (!keepconsume)
-                m_dev->getmpdcli()->consume(false);
-            m_dev->getmpdcli()->single(false);
-            ok = m_dev->getmpdcli()->play(pos);
-        }
+        if (!keepconsume)
+            m_dev->getmpdcli()->consume(false);
+        m_dev->getmpdcli()->single(false);
+        ok = m_dev->getmpdcli()->play(pos);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -653,12 +607,9 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
     UpSong song;
     string metadata;
     if (m_active) {
-        {
-            auto lock = m_dev->mpdlock();
-            if (!m_dev->getmpdcli()->statSong(song, id, true)) {
-                LOGERR("OHPlaylist::ohread: statsong failed for " << id << endl);
-                return UPNP_E_INTERNAL_ERROR;
-            }
+        if (!m_dev->getmpdcli()->statSong(song, id, true)) {
+            LOGERR("OHPlaylist::ohread: statsong failed for " << id << endl);
+            return UPNP_E_INTERNAL_ERROR;
         }
         auto cached = m_metacache.find(song.rsrc.uri);
         if (cached != m_metacache.end()) {
@@ -717,13 +668,10 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
             string metadata;
             UpSong song;
             if (m_active) {
-                {
-                    auto lock = m_dev->mpdlock();
-                    if (!m_dev->getmpdcli()->statSong(song, id, true)) {
-                        LOGDEB("OHPlaylist::readList:stat failed for " <<
-                               id <<endl);
-                        continue;
-                    }
+                if (!m_dev->getmpdcli()->statSong(song, id, true)) {
+                    LOGDEB("OHPlaylist::readList:stat failed for " <<
+                           id <<endl);
+                    continue;
                 }
                 auto mit = m_metacache.find(song.rsrc.uri);
                 if (mit != m_metacache.end()) {
@@ -775,12 +723,9 @@ bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
 {
     for (auto it = ids.begin(); it != ids.end(); it++) {
         UpSong song;
-        {
-            auto lock = m_dev->mpdlock();
-            if (!m_dev->getmpdcli()->statSong(song, *it, true)) {
-                LOGDEB("OHPlaylist::readList:stat failed for " << *it << endl);
-                continue;
-            }
+        if (!m_dev->getmpdcli()->statSong(song, *it, true)) {
+            LOGDEB("OHPlaylist::readList:stat failed for " << *it << endl);
+            continue;
         }
         songs.push_back(song);
     }
@@ -856,11 +801,7 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
                " metadata " << metadata);
         return false;
     }
-    int id;
-    {
-        auto lock = m_dev->mpdlock();
-        id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
-    }
+    int id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
     if (id != -1) {
         m_metacache[uri] = metadata;
         m_cachedirty = true;
@@ -890,16 +831,12 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
     }
     LOGDEB("OHPlaylist::deleteId: " << id << endl);
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        if (mpds.songid == id) {
-            // MPD skips to the next track if the current one is removed,
-            // but I think it's better to stop in this case
-            m_dev->getmpdcli()->stop();
-        }
-        ok = m_dev->getmpdcli()->deleteId(id);
+    if (mpds.songid == id) {
+        // MPD skips to the next track if the current one is removed,
+        // but I think it's better to stop in this case
+        m_dev->getmpdcli()->stop();
     }
+    bool ok = m_dev->getmpdcli()->deleteId(id);
     m_mpdqvers = -1;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -911,11 +848,7 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
     if (!m_active && m_udev->getohpr()) {
         m_udev->getohpr()->iSetSourceIndexByName("Playlist");
     }
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->clearQueue();
-    }
+    bool ok = m_dev->getmpdcli()->clearQueue();
     m_mpdqvers = -1;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;

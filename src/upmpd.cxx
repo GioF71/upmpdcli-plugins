@@ -93,7 +93,6 @@ bool UpMpdDevice::readLibFile(const string& name, string& contents)
     if (!::readLibFile("description.xml", contents)) {
         return false;
     }
-    std::cerr << "READLIBFILE: " << m_devicetype <<"\n";
     contents = regsub1("@DEVICETYPE@", contents, m_devicetype);
     contents = regsub1("@UUID@", contents, getDeviceId());
     contents = regsub1("@FRIENDLYNAME@", contents, m_friendlyname);
@@ -244,7 +243,6 @@ UpMpd::~UpMpd()
 
 const MpdStatus& UpMpd::getMpdStatus()
 {
-    auto lck = mpdlock();
     if (nullptr == m_mpds || m_mpdchron.restart() > 300) {
         m_mpds = &m_mpdcli->getStatus();
     }
@@ -257,14 +255,11 @@ const MpdStatus& UpMpd::getMpdStatusNoUpdate()
 
 int UpMpd::getvolume()
 {
-    auto lck = mpdlock();
-    return m_desiredvolume >= 0 ? m_desiredvolume : 
-        m_mpdcli->getVolume();
+    return m_desiredvolume >= 0 ? m_desiredvolume : m_mpdcli->getVolume();
 }
 
 bool UpMpd::setvolume(int volume)
 {
-    auto lck = mpdlock();
     int previous_volume = m_mpdcli->getVolume();
     int delta = previous_volume - volume;
     if (delta < 0)
@@ -283,7 +278,6 @@ bool UpMpd::setvolume(int volume)
 
 bool UpMpd::flushvolume()
 {
-    auto lck = mpdlock();
     bool ret{false};
     if (m_desiredvolume >= 0) {
         ret = m_mpdcli->setVolume(m_desiredvolume);
@@ -294,7 +288,6 @@ bool UpMpd::flushvolume()
 
 bool UpMpd::setmute(bool onoff)
 {
-    auto lck = mpdlock();
     bool ret{false};
     if (onoff) {
         if (m_desiredvolume >= 0) {

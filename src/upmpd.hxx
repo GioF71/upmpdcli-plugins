@@ -21,7 +21,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <mutex>
 
 #include "libupnpp/device/device.hxx"
 
@@ -182,14 +181,9 @@ public:
     bool setmute(bool onoff);
     bool flushvolume();
 
-    std::unique_lock<std::mutex> mpdlock() {
-        return std::unique_lock<std::mutex>(m_mpdmutex);
-    }
-    
 private:
     MPDCli *m_mpdcli{0};
     const MpdStatus *m_mpds{0};
-    std::mutex m_mpdmutex;
     Chrono m_mpdchron;
     Options m_allopts;
     std::string m_mcachefn;

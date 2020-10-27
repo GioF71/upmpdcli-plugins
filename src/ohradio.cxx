@@ -308,7 +308,6 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
     string audioUri= decoded.get("audioUrl", "").asString();
     if (!audioUri.empty() &&
         (m_playpending || mpds.state == MpdStatus::MPDS_PLAY)) {
-        auto lock = m_dev->mpdlock();
         vector<UpSong> queue;
         m_dev->getmpdcli()->getQueueData(queue);
 
@@ -441,7 +440,6 @@ int OHRadio::setPlaying()
         // We count on the metascript to also return an audio URI,
         // which will be sent to MPD during makestate().
         radio.currentAudioUri.clear();
-        auto lock = m_dev->mpdlock();
         m_dev->getmpdcli()->clearQueue();
         m_playpending = true;
         return UPNP_E_SUCCESS;
@@ -474,7 +472,6 @@ int OHRadio::setPlaying()
     }
 
     // Send url to mpd
-    auto lock = m_dev->mpdlock();
     m_dev->getmpdcli()->clearQueue();
     UpSong song;
     song.album = radio.title;
@@ -495,7 +492,6 @@ void OHRadio::setActive(bool onoff)
 {
     LOGDEB0("OHRadio::setActive: " << onoff << endl);
     m_active = onoff;
-    auto lock = m_dev->mpdlock();
     if (m_active) {
         if (m_id) {
             // Only restore state if it was saved
@@ -530,11 +526,7 @@ int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
 int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHRadio::pause" << endl);
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->pause(true);
-    }
+    bool ok = m_dev->getmpdcli()->pause(true);
     m_playpending = false;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -542,11 +534,7 @@ int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::iStop()
 {
-    bool ok;
-    {
-        auto lock = m_dev->mpdlock();
-        ok = m_dev->getmpdcli()->stop();
-    }
+    bool ok = m_dev->getmpdcli()->stop();
     m_playpending = false;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -752,10 +740,7 @@ int OHRadio::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
-        {
-            auto lock = m_dev->mpdlock();
-            ok = m_dev->getmpdcli()->seek(seconds);
-        }
+        ok = m_dev->getmpdcli()->seek(seconds);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -772,10 +757,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
             (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
             seconds += mpds.songelapsedms / 1000;
-            {
-                auto lock = m_dev->mpdlock();
-                ok = m_dev->getmpdcli()->seek(seconds);
-            }
+            ok = m_dev->getmpdcli()->seek(seconds);
         } else {
             ok = false;
         }

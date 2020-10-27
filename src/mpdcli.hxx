@@ -1,27 +1,28 @@
 /* Copyright (C) 2014 J.F.Dockes
- *       This program is free software; you can redistribute it and/or modify
- *       it under the terms of the GNU Lesser General Public License as published by
- *       the Free Software Foundation; either version 2.1 of the License, or
- *       (at your option) any later version.
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU Lesser General Public License as published by
+ *   the Free Software Foundation; either version 2.1 of the License, or
+ *   (at your option) any later version.
  *
- *       This program is distributed in the hope that it will be useful,
- *       but WITHOUT ANY WARRANTY; without even the implied warranty of
- *       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *       GNU Lesser General Public License for more details.
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Lesser General Public License for more details.
  *
- *       You should have received a copy of the GNU Lesser General Public License
- *       along with this program; if not, write to the
- *       Free Software Foundation, Inc.,
- *       59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   You should have received a copy of the GNU Lesser General Public License
+ *   along with this program; if not, write to the
+ *   Free Software Foundation, Inc.,
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef _MPDCLI_H_X_INCLUDED_
 #define _MPDCLI_H_X_INCLUDED_
 
-#include <regex.h>                      // for regex_t
-#include <string>                       // for string
+#include <regex.h>
+#include <string>
 #include <cstdio>
-#include <vector>                       // for vector
+#include <vector>
 #include <memory>
+#include <mutex>
 
 #include "upmpdutils.hxx"
 
@@ -104,18 +105,14 @@ public:
     bool getQueueData(std::vector<UpSong>& vdata);
     bool statSong(UpSong& usong, int pos = -1, bool isId = false);
     UpSong& mapSong(UpSong& usong, struct mpd_song *song);
-    
-    const MpdStatus& getStatus() {
-        updStatus();
-        return m_stat;
-    }
-
+    const MpdStatus& getStatus();
     // Copy complete mpd state. If seekms is > 0, this is the value to
     // save (sometimes useful if mpd was stopped)
     bool saveState(MpdState& st, int seekms = 0);
     bool restoreState(const MpdState& st);
     
 private:
+    std::mutex m_mutex;
     struct mpd_connection *m_conn{nullptr};
     MpdStatus m_stat;
     // Saved volume while muted.
@@ -156,6 +153,17 @@ private:
     bool checkForCommand(const std::string& cmdname);
     bool send_tag(const char *cid, int tag, const std::string& data);
     bool send_tag_data(int id, const UpSong& meta);
+    // Non-locking versions of public calls.
+    int insert_i(const std::string& uri, int pos, const UpSong& meta);
+    bool getQueueData_i(std::vector<UpSong>& vdata);
+    bool statSong_i(UpSong& usong, int pos = -1, bool isId = false);
+    bool clearQueue_i();
+    bool pause_i(bool onoff);
+    bool repeat_i(bool on);
+    bool random_i(bool on);
+    bool single_i(bool on);
+    bool consume_i(bool on);
+    bool play_i(int pos);
 };
 
 #endif /* _MPDCLI_H_X_INCLUDED_ */

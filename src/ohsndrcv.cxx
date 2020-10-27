@@ -57,7 +57,6 @@ public:
     }
     void clear() {
         if (dev && origmpd) {
-            auto lock = dev->mpdlock();
             dev->setmpdcli(origmpd);
             origmpd = 0;
         }
@@ -121,10 +120,7 @@ bool SenderReceiver::start(const string& script, int seekms)
     }
     
     // Stop MPD Play (normally already done)
-    {
-        auto lock = m->dev->mpdlock();
-        m->dev->getmpdcli()->stop();
-    }
+    m->dev->getmpdcli()->stop();
 
     // sndcmd will non empty if we actually started a script instead
     // of reusing an old one (then need to read the initial data).
@@ -220,7 +216,6 @@ bool SenderReceiver::start(const string& script, int seekms)
 
     if (script.empty()) {
         // Internal source: copy mpd state
-        auto lock = m->dev->mpdlock();
         copyMpd(m->dev->getmpdcli(), m->mpd, seekms);
         if (m->scalestream) {
             m->mpd->forceInternalVControl();
@@ -251,10 +246,7 @@ bool SenderReceiver::stop()
         // Do we want to transfer the playlist back ? Probably we do.
         copyMpd(m->mpd, m->origmpd, -1);
         m->mpd->stop();
-        {
-            auto lock = m->dev->mpdlock();
-            m->dev->setmpdcli(m->origmpd);
-        }
+        m->dev->setmpdcli(m->origmpd);
         m->origmpd = 0;
     }
 
