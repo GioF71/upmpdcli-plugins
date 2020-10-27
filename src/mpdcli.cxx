@@ -381,7 +381,7 @@ bool MPDCli::restoreState(const MpdState& st)
     }
     clearQueue_i();
     for (unsigned int i = 0; i < st.queue.size(); i++) {
-        if (insert(st.queue[i].rsrc.uri, i, st.queue[i]) < 0) {
+        if (insert_i(st.queue[i].rsrc.uri, i, st.queue[i]) < 0) {
             LOGERR("MPDCli::restoreState: insert failed\n");
             return false;
         }
@@ -405,7 +405,7 @@ bool MPDCli::restoreState(const MpdState& st)
         // pause/seek from stop state. To be verified.
         play_i(st.status.songpos);
         if (st.status.songelapsedms > 0)
-            seek(st.status.songelapsedms/1000);
+            seek_i(st.status.songelapsedms/1000);
         if (st.status.state == MpdStatus::MPDS_PAUSE)
             pause_i(true);
     }
@@ -652,6 +652,10 @@ bool MPDCli::stop()
 bool MPDCli::seek(int seconds)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
+    return seek_i(seconds);
+}
+bool MPDCli::seek_i(int seconds)
+{
     if (!updStatus() || m_stat.songpos < 0)
         return false;
     LOGDEB("MPDCli::seek: pos:"<<m_stat.songpos<<" seconds: "<< seconds<<endl);

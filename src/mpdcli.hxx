@@ -154,16 +154,17 @@ private:
     bool send_tag(const char *cid, int tag, const std::string& data);
     bool send_tag_data(int id, const UpSong& meta);
     // Non-locking versions of public calls.
-    int insert_i(const std::string& uri, int pos, const UpSong& meta);
-    bool getQueueData_i(std::vector<UpSong>& vdata);
-    bool statSong_i(UpSong& usong, int pos = -1, bool isId = false);
     bool clearQueue_i();
-    bool pause_i(bool onoff);
-    bool repeat_i(bool on);
-    bool random_i(bool on);
-    bool single_i(bool on);
     bool consume_i(bool on);
+    bool getQueueData_i(std::vector<UpSong>& vdata);
+    int insert_i(const std::string& uri, int pos, const UpSong& meta);
+    bool pause_i(bool onoff);
     bool play_i(int pos);
+    bool random_i(bool on);
+    bool repeat_i(bool on);
+    bool seek_i(int seconds);
+    bool single_i(bool on);
+    bool statSong_i(UpSong& usong, int pos = -1, bool isId = false);
 };
 
 #endif /* _MPDCLI_H_X_INCLUDED_ */
