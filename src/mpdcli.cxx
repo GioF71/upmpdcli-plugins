@@ -391,13 +391,10 @@ bool MPDCli::restoreState(const MpdState& st)
     single_i(st.status.single);
     consume_i(st.status.consume);
 
-#if 0
-    // Do not restore the volume level, we want to keep whatever the user set
     m_cachedvolume = st.status.volume;
     //no need to set volume if it is controlled external
     if (!m_externalvolumecontrol)
         mpd_run_set_volume(m_conn, st.status.volume);
-#endif
     
     if (st.status.state == MpdStatus::MPDS_PAUSE ||
         st.status.state == MpdStatus::MPDS_PLAY) {

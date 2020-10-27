@@ -219,13 +219,14 @@ bool SenderReceiver::start(const string& script, int seekms)
         copyMpd(m->dev->getmpdcli(), m->mpd, seekms);
         if (m->scalestream) {
             m->mpd->forceInternalVControl();
-            // Stream is scaled, set the main mixer to 100 to allow
-            // full scale. Actually this appears to have no effect
-            // (appear automagically for some other cause).
-            m->dev->getmpdcli()->setVolume(100);
         }
         m->origmpd = m->dev->getmpdcli();
         m->dev->setmpdcli(m->mpd);
+        if (m->scalestream) {
+            // Stream is scaled, set the main mixer to 100 to allow
+            // full scale. Else we are compositing the two volumes.
+            m->origmpd->setVolume(100);
+         }
     } else {
         m->origmpd = 0;
     }
