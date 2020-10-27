@@ -69,7 +69,7 @@ UpMpdMediaRenderer::UpMpdMediaRenderer(
     : UpMpdDevice(upmpd, deviceid, friendlyname,
                   "urn:schemas-upnp-org:device:MediaRenderer:1")
 {
-    bool noavt = (0 == (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
+    bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
     m_avt = new UpMpdAVTransport(upmpd, this, noavt);
     m_services.push_back(m_avt);
     m_services.push_back(new UpMpdRenderCtl(upmpd, this, noavt));
@@ -150,7 +150,7 @@ UpMpdOpenHome::UpMpdOpenHome(
     : UpMpdDevice(upmpd, deviceid, friendlyname,
                   "urn:av-openhome-org:device:Source:1")
 {
-    bool noavt = (0 == (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
+    bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
     m_ohif = new OHInfo(m_upmpd, this, noavt);
     m_services.push_back(m_ohif);
 
@@ -174,29 +174,27 @@ UpMpdOpenHome::UpMpdOpenHome(
     }
     if (m_ohrd)
         m_services.push_back(m_ohrd);
-#if 0
-    if (m_upmpd->getopts().options & upmpdOhReceiver) {
+    if (m_upmpd->getopts().options & UpMpd::upmpdOhReceiver) {
         struct OHReceiverParams parms;
-        if (opts.schttpport)
-            parms.httpport = opts.schttpport;
-        if (!opts.scplaymethod.empty()) {
-            if (!opts.scplaymethod.compare("alsa")) {
+        if (m_upmpd->getopts().schttpport)
+            parms.httpport = m_upmpd->getopts().schttpport;
+        if (!m_upmpd->getopts().scplaymethod.empty()) {
+            if (!m_upmpd->getopts().scplaymethod.compare("alsa")) {
                 parms.pm = OHReceiverParams::OHRP_ALSA;
-            } else if (!opts.scplaymethod.compare("mpd")) {
+            } else if (!m_upmpd->getopts().scplaymethod.compare("mpd")) {
                 parms.pm = OHReceiverParams::OHRP_MPD;
             }
         }
-        parms.sc2mpdpath = opts.sc2mpdpath;
-        parms.screceiverstatefile = opts.screceiverstatefile;
-        m_ohrcv = new OHReceiver(this, parms);
+        parms.sc2mpdpath = m_upmpd->getopts().sc2mpdpath;
+        parms.screceiverstatefile = m_upmpd->getopts().screceiverstatefile;
+        m_ohrcv = new OHReceiver(m_upmpd, this, parms);
         m_services.push_back(m_ohrcv);
     }
-    if (m_upmpd->getopts().options& upmpdOhSenderReceiver) {
+    if (m_upmpd->getopts().options & UpMpd::upmpdOhSenderReceiver) {
         // Note: this is not an UPnP service
-        m_sndrcv = new SenderReceiver(this, opts.senderpath,
-                                      opts.sendermpdport);
+        m_sndrcv = new SenderReceiver(m_upmpd,this,m_upmpd->getopts().senderpath,
+                                      m_upmpd->getopts().sendermpdport);
     }
-#endif
     // Create ohpr last, so that it can ask questions to other services
     //
     // We set the service version to 1 if credentials are
