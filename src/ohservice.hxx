@@ -24,6 +24,7 @@
 #include "libupnpp/device/device.hxx"
 #include "upmpdutils.hxx"
 #include "upmpd.hxx"
+#include "mpdcli.hxx"
 
 using namespace UPnPP;
 
@@ -58,6 +59,17 @@ public:
         }
 
         return true;
+    }
+
+    static std::string mpdstatusToTransportState(MpdStatus::State st) {
+        switch (st) {
+        case MpdStatus::MPDS_PLAY:
+            return "Playing";
+        case MpdStatus::MPDS_PAUSE:
+            return "Paused";
+        default:
+            return "Stopped";
+        }
     }
     
 protected:
