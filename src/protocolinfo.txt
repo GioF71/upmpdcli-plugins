@@ -4,6 +4,9 @@
 # Lines beginning with @ enable dynamic editing of the data at startup,
 # depending, e.g. on mpd version. If you want static data, just replace the
 # @xx@ tag with whatever you want (e.g. # or empty), or delete the lines.
+#
+# Note that some MIME types don't really officially exist, but some media
+# servers use them anyway (e.g. audio/mp3).
 
 #http-get:*:audio/mpeg:DLNA.ORG_PN=MP3,
 #http-get:*:audio/x-flac:DLNA.ORG_PN=FLAC,
@@ -30,6 +33,7 @@ http-get:*:audio/x-m4a:*,
 http-get:*:audio/matroska:*,
 http-get:*:audio/x-matroska:*,
 http-get:*:audio/mp1:*,
+http-get:*:audio/mp3:*,
 http-get:*:audio/mp4:*,
 http-get:*:audio/mpeg:*,
 http-get:*:audio/x-mpeg:*,
