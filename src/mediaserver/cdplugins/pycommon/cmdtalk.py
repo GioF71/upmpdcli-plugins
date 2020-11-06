@@ -33,12 +33,16 @@ PY3 = sys.version > '3'
 
 if PY3:
     def makebytes(data):
+        if data is None:
+            return b""
         if isinstance(data, bytes):
             return data
         else:
             return data.encode("UTF-8")
 else:
     def makebytes(data):
+        if data is None:
+            return ""
         if isinstance(data, unicode):
             return data.encode("UTF-8")
         else:
