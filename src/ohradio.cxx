@@ -225,22 +225,6 @@ bool OHRadio::readRadios()
     return true;
 }
 
-static string mpdstatusToTransportState(MpdStatus::State st)
-{
-    string tstate;
-    switch (st) {
-    case MpdStatus::MPDS_PLAY:
-        tstate = "Playing";
-        break;
-    case MpdStatus::MPDS_PAUSE:
-        tstate = "Paused";
-        break;
-    default:
-        tstate = "Stopped";
-    }
-    return tstate;
-}
-
 // The data format for id lists is an array of msb 32 bits ints
 // encoded in base64. The values could be anything, but, for us, they
 // are just the indices into o_radios(), beginning at 1 because 0 is
