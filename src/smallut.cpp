@@ -88,13 +88,9 @@ int stringicmp(const string& s1, const string& s2)
 }
 void stringtolower(string& io)
 {
-    string::iterator it = io.begin();
-    string::iterator ite = io.end();
-    while (it != ite) {
-        *it = ::tolower(*it);
-        it++;
-    }
+    std::transform(io.begin(), io.end(), io.begin(), [](unsigned char c) { return std::tolower(c); });
 }
+
 string stringtolower(const string& i)
 {
     string o = i;
@@ -104,13 +100,9 @@ string stringtolower(const string& i)
 
 void stringtoupper(string& io)
 {
-    string::iterator it = io.begin();
-    string::iterator ite = io.end();
-    while (it != ite) {
-        *it = ::toupper(*it);
-        it++;
-    }
+    std::transform(io.begin(), io.end(), io.begin(), [](unsigned char c) { return std::toupper(c); });
 }
+
 string stringtoupper(const string& i)
 {
     string o = i;
@@ -961,10 +953,9 @@ static void cerrdip(const string& s, DateInterval *dip)
 // back
 static bool addperiod(DateInterval *dp, DateInterval *pp)
 {
-    struct tm tm;
     // Create a struct tm with possibly non normalized fields and let
     // timegm sort it out
-    memset(&tm, 0, sizeof(tm));
+    struct tm tm = {};
     tm.tm_year = dp->y1 - 1900 + pp->y1;
     tm.tm_mon = dp->m1 + pp->m1 - 1;
     tm.tm_mday = dp->d1 + pp->d1;
@@ -1360,7 +1351,7 @@ string flagsToString(const vector<CharFlags>& flags, unsigned int val)
 {
     const char *s;
     string out;
-    for (auto& flag : flags) {
+    for (const auto& flag : flags) {
         if ((val & flag.value) == flag.value) {
             s = flag.yesname;
         } else {
@@ -1381,7 +1372,7 @@ string flagsToString(const vector<CharFlags>& flags, unsigned int val)
 string valToString(const vector<CharFlags>& flags, unsigned int val)
 {
     string out;
-    for (auto& flag : flags) {
+    for (const auto& flag : flags) {
         if (flag.value == val) {
             out = flag.yesname;
             return out;
