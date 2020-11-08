@@ -20,8 +20,10 @@
 #include <string>         
 #include <unordered_map>  
 #include <vector>         
+#include <functional>
 
 #include "libupnpp/device/device.hxx"
+#include "libupnpp/log.h"
 #include "upmpdutils.hxx"
 #include "upmpd.hxx"
 #include "mpdcli.hxx"
@@ -37,6 +39,15 @@ public:
         : UpnpService(servtp, servid, xmlfn, udev), m_dev(dev), m_udev(udev) {
     }
     virtual ~OHService() { }
+
+    virtual void onEvent(const MpdStatus*) {
+        LOGDEB1("OHService::onEvent()\n");
+        std::vector<std::string> names, values;
+        getEventData(false, names, values);
+        if (!names.empty()) {
+            m_udev->notifyEvent(this, names, values);
+        }
+    }
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values) {

@@ -25,6 +25,8 @@
 #include <unordered_map>                // for unordered_map, etc
 #include <utility>                      // for pair
 #include <vector>                       // for vector
+#include <thread>
+#include <chrono>
 
 #include "libupnpp/log.hxx"             // for LOGDEB
 #include "libupnpp/soaphelp.hxx"        // for i2s, SoapOutgoing, SoapIncoming
@@ -32,6 +34,7 @@
 #include "mpdcli.hxx"                   // for MpdStatus, etc
 #include "upmpd.hxx"                    // for UpMpd
 #include "upmpdutils.hxx"               // for diffmaps
+#include "smallut.h"
 
 using namespace std;
 using namespace std::placeholders;
@@ -43,6 +46,9 @@ OHTime::OHTime(UpMpd *dev, UpMpdOpenHome *udev)
     : OHService(sTpProduct, sIdProduct, "OHTime.xml", dev, udev)
 {
     udev->addActionMapping(this, "Time", bind(&OHTime::ohtime, this, _1, _2));
+
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdPlayerEvt, std::bind(&OHService::onEvent, this, _1));
 }
 
 void OHTime::getdata(string& trackcount, string &duration, 

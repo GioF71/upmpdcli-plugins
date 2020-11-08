@@ -250,7 +250,7 @@ int OHProduct::setStandby(const SoapIncoming& sc, SoapOutgoing& data)
             LOGDEB("OHProduct: standby is " << m_standby << endl);
         }
     }
-    m_udev->loopWakeup();
+    onEvent(nullptr);
     return UPNP_E_SUCCESS;
 }
 
@@ -359,7 +359,7 @@ int OHProduct::iSetSourceIndex(int sindex)
     if (g_state) {
         g_state->set(cstr_stsrcnmkey, newnm);
     }
-    m_udev->loopWakeup();
+    onEvent(nullptr);
 
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }

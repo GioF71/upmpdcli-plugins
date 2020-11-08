@@ -524,6 +524,7 @@ int OHCredentials::actSet(const SoapIncoming& sc, SoapOutgoing& data)
     }
     m->seq++;
     m->save();
+    onEvent(nullptr);
     if (m->setEnabled(in_Id, true)) {
         return UPNP_E_SUCCESS;
     } else {
@@ -706,5 +707,6 @@ int OHCredentials::actGetSequenceNumber(const SoapIncoming& sc,
 {
     LOGDEB("OHCredentials::actGetSequenceNumber: " << endl);
     data.addarg("SequenceNumber", SoapHelp::i2s(m->seq));
+    onEvent(nullptr);
     return UPNP_E_SUCCESS;
 }

@@ -26,6 +26,7 @@
 
 class UpMpd;
 class UpMpdMediaRenderer;
+class MpdStatus;
 
 using namespace UPnPP;
 
@@ -36,7 +37,11 @@ public:
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values);
     virtual const std::string serviceErrString(int) const;
+    void onMpdEvent(const MpdStatus*);
+
 private:
+    virtual bool getEventDataNoFlush(bool all, std::vector<std::string>& names, 
+                                     std::vector<std::string>& values);
     bool rdstateMToU(std::unordered_map<std::string, std::string>& status);
     int setMute(const SoapIncoming& sc, SoapOutgoing& data);
     int getMute(const SoapIncoming& sc, SoapOutgoing& data);

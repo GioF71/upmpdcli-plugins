@@ -94,7 +94,6 @@ private:
 // The UPnP MPD frontend device with its services
 class UpMpd {
 public:
-
     enum OptFlags {
         upmpdNone = 0,
         // If set, the MPD queue belongs to us, we shall clear
@@ -139,7 +138,6 @@ public:
     UpMpdOpenHome *getoh() {return m_oh;}
     UpMpdMediaRenderer *getav() {return m_av;}
     const Options& getopts() const {return m_allopts;};
-
     MPDCli *getmpdcli() {return m_mpdcli;}
     void setmpdcli(MPDCli* mpdcli) {m_mpdcli = mpdcli;}
     
@@ -150,6 +148,7 @@ public:
     }
 
     void startloops();
+    void startnoloops();
     
     const MpdStatus& getMpdStatus();
     const MpdStatus& getMpdStatusNoUpdate();

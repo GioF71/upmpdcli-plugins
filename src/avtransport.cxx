@@ -106,6 +106,8 @@ UpMpdAVTransport::UpMpdAVTransport(
 #endif
     m_autoplay = g_config->getBool("avtautoplay", false);
     keepconsume = g_config->getBool("keepconsume", false);
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdPlayerEvt, bind(&UpMpdAVTransport::onMpdEvent, this, _1));
 }
 
 // AVTransport Errors
@@ -394,6 +396,16 @@ bool UpMpdAVTransport::getEventData(bool all, std::vector<std::string>& names,
     return true;
 }
 
+void UpMpdAVTransport::onMpdEvent(const MpdStatus*)
+{
+    LOGDEB0("AVTransport::onMpdEvent()\n");
+    std::vector<std::string> names, values;
+    getEventData(false, names, values);
+    if (!names.empty()) {
+        m_udev->notifyEvent(this, names, values);
+    }
+}
+
 // http://192.168.4.4:8200/MediaItems/246.mp3
 int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
                                         SoapOutgoing& data, bool setnext)
@@ -541,7 +553,6 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
         m_songids.insert(songid);
     }
 
-    m_udev->loopWakeup();
     return UPNP_E_SUCCESS;
 }
 
@@ -699,7 +710,6 @@ int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, in
         }
         break;
     }
-    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -719,7 +729,6 @@ int UpMpdAVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int
     case 0: ok = m_dev->getmpdcli()->next();break;
     case 1: ok = m_dev->getmpdcli()->previous();break;
     }
-    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -775,7 +784,6 @@ int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
     } else {
         return UPNP_E_INVALID_PARAM;
     }
-    m_udev->loopWakeup();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -826,7 +834,6 @@ int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("UpMpdAVTransport::seek: seeking to " << abs_seconds << 
            " seconds (" << upnpduration(abs_seconds * 1000) << ")" << endl);
 
-    m_udev->loopWakeup();
     return m_dev->getmpdcli()->seek(abs_seconds) ? 
         UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }

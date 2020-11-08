@@ -136,8 +136,9 @@ bool OHReceiver::makestate(unordered_map<string, string> &st)
 
 void OHReceiver::maybeWakeUp(bool ok)
 {
-    if (ok && m_udev)
-        m_udev->loopWakeup();
+    if (ok) {
+        onEvent(nullptr);
+    }
 }
 
 void OHReceiver::setActive(bool onoff)

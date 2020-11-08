@@ -28,6 +28,7 @@
 class OHPlaylist;
 class UpMpdMediaRenderer;
 class UpMpd;
+class MpdStatus;
 
 using namespace UPnPP;
 
@@ -39,6 +40,7 @@ public:
                               std::vector<std::string>& values);
 
     virtual const std::string serviceErrString(int) const;
+    void onMpdEvent(const MpdStatus*);
 
     void setOHP(OHPlaylist *ohp) {
         m_ohp = ohp;

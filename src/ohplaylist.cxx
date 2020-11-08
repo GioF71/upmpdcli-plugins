@@ -117,6 +117,8 @@ OHPlaylist::OHPlaylist(UpMpd *dev,  UpMpdOpenHome *udev, unsigned int cssleep)
         }
     }
     keepconsume = g_config->getBool("keepconsume", false);
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdPlayerEvt, std::bind(&OHService::onEvent, this, _1));
 }
 
 static const int tracksmax = 16384;
@@ -304,8 +306,9 @@ void OHPlaylist::refreshState()
 
 void OHPlaylist::maybeWakeUp(bool ok)
 {
-    if (ok && m_dev)
-        m_udev->loopWakeup();
+    if (ok && m_dev) {
+        onEvent(nullptr);
+    }
 }
 
 void OHPlaylist::setActive(bool onoff)

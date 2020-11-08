@@ -22,7 +22,11 @@
 #include <cstdio>
 #include <vector>
 #include <memory>
+#include <utility>
+#include <functional>
+#include <thread>
 #include <mutex>
+#include <condition_variable>
 
 #include "upmpdutils.hxx"
 
@@ -110,10 +114,47 @@ public:
     // save (sometimes useful if mpd was stopped)
     bool saveState(MpdState& st, int seekms = 0);
     bool restoreState(const MpdState& st);
+
+    // Event loop. Allows running without polling from libupnpp (no
+    // call to the device eventloop()). We collect events from MPD
+    // instead and call the event generating chain when appropriate.
+    bool eventLoop();
+    bool startEventLoop();
+    void stopEventLoop();
+    bool takeEvents(MPDCli *from);
+    void shouldExit();
+    // Event selection mask.
+    enum SubsSelect {
+        // Lazy us are using the values from mpd/idle.h. Could translate instead.
+        MpdQueueEvt = 0x4, /* Queue modified */
+        MpdPlayerEvt = 0x8, /* Play, stop, etc. + play time, locally generated*/
+        MpdMixerEvt = 0x10, /* Volume */
+        MpdOptsEvt = 0x40, /* random, repeat, etc. */
+    };
+    // Type of subscription callback 
+    typedef std::function<void (const MpdStatus*)> evtFunc;
+    // Subscribe to event mask. Called by the services during initialization.
+    bool subscribe(int mask, evtFunc);
     
 private:
     std::mutex m_mutex;
+    // Main connection for sending commands
+    std::mutex m_connmutex;
     struct mpd_connection *m_conn{nullptr};
+    // Connection for the event loop
+    struct mpd_connection *m_idleconn{nullptr};
+    // thread to listen to MPD events.
+    std::thread m_idlethread;
+    // MPD does not report idle events for play time change. We poll
+    // it every second while playing to report the current time
+    // (needed for OHTime events for example)
+    std::thread m_pollerthread;
+    std::mutex m_pollmutex;
+    std::condition_variable m_pollcv;
+    bool m_dopoll{false};
+    // Event subscriptions
+    std::vector<std::pair<int, evtFunc>> m_subs;
+
     MpdStatus m_stat;
     // Saved volume while muted.
     int m_premutevolume{0};
@@ -165,6 +206,9 @@ private:
     bool seek_i(int seconds);
     bool single_i(bool on);
     bool statSong_i(UpSong& usong, int pos = -1, bool isId = false);
+    // thread routine for polling play time while playing.
+    void timepoller();
+    void pollerCtl(MpdStatus::State st);
 };
 
 #endif /* _MPDCLI_H_X_INCLUDED_ */

@@ -227,6 +227,7 @@ bool SenderReceiver::start(const string& script, int seekms)
             // full scale. Else we are compositing the two volumes.
             m->origmpd->setVolume(100);
          }
+        m->dev->getmpdcli()->takeEvents(m->origmpd);
     } else {
         m->origmpd = 0;
     }
@@ -248,6 +249,7 @@ bool SenderReceiver::stop()
         copyMpd(m->mpd, m->origmpd, -1);
         m->mpd->stop();
         m->dev->setmpdcli(m->origmpd);
+        m->dev->getmpdcli()->takeEvents(m->mpd);
         m->origmpd = 0;
     }
 

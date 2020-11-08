@@ -157,6 +157,7 @@ ohProductDesc_t ohProductDesc = {
 
 // Static for cleanup in sig handler.
 static vector<UpnpDevice *> devs;
+static MPDCli *mpdclip{nullptr};
 
 string g_datadir(DATADIR "/");
 string g_cachedir("/var/cache/upmpdcli");
@@ -173,6 +174,9 @@ static void onsig(int)
     LOGDEB("Got sig" << endl);
     for (auto& dev : devs) {
         dev->shouldExit();
+    }
+    if (mpdclip) {
+        mpdclip->shouldExit();
     }
 }
 
@@ -640,7 +644,6 @@ int main(int argc, char *argv[])
 
 
     // Initialize MPD client object. Retry until it works or power fail.
-    MPDCli *mpdclip = 0;
     if (!msonly) {
         int mpdretrysecs = 2;
         for (;;) {
@@ -783,14 +786,17 @@ int main(int argc, char *argv[])
     } else if (enableMediaServer) {
         startMsOnlyProcess();
     }
-    if (!msonly) {
-        LOGDEB("Renderer event loop" << endl);
-        mediarenderer->startloops();
-    }
     if (inprocessms && enableMediaServer) {
         mediaserver->startloop();
     }
+    if (!msonly) {
+        LOGDEB("Renderer event loop" << endl);
+        mediarenderer->startnoloops();
+//        mediarenderer->startloops();
+        mpdclip->startEventLoop();
+    }
     pause();
+
     LOGDEB("Event loop returned" << endl);
     return 0;
 }

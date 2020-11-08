@@ -67,6 +67,7 @@ MPDCli::MPDCli(const string& host, int port, const string& pass)
 MPDCli::~MPDCli()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
+    stopEventLoop();
     closeconn();
     regfree(&m_tpuexpr);
 }
@@ -131,6 +132,140 @@ bool MPDCli::openconn()
     return true;
 }
 
+bool MPDCli::startEventLoop()
+{
+    LOGDEB("MPDCli::startEventLoop\n");
+    if (nullptr == m_idleconn) {
+        m_idlethread = std::thread(bind(&MPDCli::eventLoop, this));
+    } else {
+        LOGINF("MPDCli::startEventLoop: already started\n");
+    }
+    return true;
+}
+
+void MPDCli::stopEventLoop()
+{
+    LOGDEB("MPDCli::stopEventLoop\n");
+    if (m_idleconn) {
+        mpd_send_noidle(m_idleconn);
+        m_idlethread.join();
+        m_idlethread = std::thread{};
+    }
+}
+
+bool MPDCli::takeEvents(MPDCli *from)
+{
+    if (from->m_idleconn) {
+        from->stopEventLoop();
+        m_subs = from->m_subs;
+        return startEventLoop();
+    } else {
+        return true;
+    }
+}
+
+void MPDCli::pollerCtl(MpdStatus::State st)
+{
+    if (st == MpdStatus::MPDS_PLAY) {
+        LOGDEB("MPDCli::pollerCtl: mpd is playing\n");
+        std::unique_lock<std::mutex> lock(m_pollmutex);
+        if (!m_dopoll) {
+            LOGDEB("MPDCli::eventloop: start polling thread\n");
+            m_dopoll = true;
+            m_pollerthread = std::thread(bind(&MPDCli::timepoller, this));
+        }
+    } else {
+        LOGDEB("MPDCli::pollerCtl: mpd is not playing\n");
+        std::unique_lock<std::mutex> lock(m_pollmutex);
+        m_dopoll = false;
+        m_pollcv.notify_all();
+    }
+    if (!m_dopoll && m_pollerthread.joinable()) {
+        m_pollerthread.join();
+    }
+}
+
+static int o_idle_mask =
+    MPD_IDLE_QUEUE | /* the queue has been modified */
+    MPD_IDLE_PLAYER | /* the player state has changed: play, stop, ... */
+    MPD_IDLE_MIXER | /* the volume has been modified */
+    MPD_IDLE_OPTIONS; /* options have changed: crossfade, random, repeat, ... */
+
+bool MPDCli::eventLoop()
+{
+    m_idleconn = mpd_connection_new(m_host.c_str(), m_port, m_timeoutms);
+    if (nullptr == m_idleconn) {
+        LOGERR("MPDCli::eventloop: could not open connection\n");
+        return false;
+    }
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        updStatus();
+    }
+    pollerCtl(m_stat.state);
+    for (;;) {
+        enum mpd_idle mask = 
+            mpd_run_idle_mask(m_idleconn, (enum mpd_idle)o_idle_mask);
+        if (mask == 0) {
+            LOGERR("MPDCli::eventloop: mpd_run_idle_mask returned 0\n");
+            break;
+        }
+        LOGDEB0("MPDCli::eventloop: mpd_run_idle_mask returned " << std::hex <<
+                mask << std::dec << "\n");
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            updStatus();
+        }
+        pollerCtl(m_stat.state);
+        for (auto& sub : m_subs) {
+            if (sub.first & mask) {
+                sub.second(&m_stat);
+            }
+        }
+    }
+    pollerCtl(MpdStatus::MPDS_STOP);
+    if (m_idleconn) {
+        mpd_connection_free(m_idleconn);
+        m_idleconn = nullptr;
+    }
+    return false;
+}
+
+void MPDCli::timepoller()
+{
+    for (;;) {
+        LOGDEB0("MPDCli::timepoller\n");
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            updStatus();
+        }
+        for (auto& sub : m_subs) {
+            if (sub.first & MpdPlayerEvt) {
+                sub.second(&m_stat);
+            }
+        }
+
+        std::unique_lock<std::mutex> lock(m_pollmutex);
+        m_pollcv.wait_for(lock, std::chrono::seconds(1));
+        if (!m_dopoll) {
+            LOGDEB("MPDCli::timepoller: returning\n");
+            return;
+        }
+    }
+}
+
+void MPDCli::shouldExit()
+{
+    LOGDEB("MPDCli::shouldExit\n");
+    stopEventLoop();
+}
+
+bool MPDCli::subscribe(int mask, evtFunc func)
+{
+    m_subs.push_back({mask, func});
+    return true;
+}
+
 // Call with lock held
 bool MPDCli::showError(const string& who)
 {
@@ -157,7 +292,7 @@ bool MPDCli::showError(const string& who)
     return false;
 }
 
-#define RETRY_CMD(CMD, ERROR) {                 \
+#define RETRY_CMD_NOLOCK(CMD, ERROR) {          \
         if (!ok()) {                            \
             return ERROR;                       \
         }                                       \
@@ -169,42 +304,51 @@ bool MPDCli::showError(const string& who)
         }                                       \
     }
 
-#define RETRY_CMD_WITH_SLEEP(CMD, ERROR) {      \
-        if (!ok()) {                            \
-            return ERROR;                       \
-        }                                       \
-        for (int i = 0; i < 2; i++) {           \
-            if ((CMD))                          \
-                break;                          \
-            sleep(1);                           \
-            if (i == 1 || !showError(#CMD))     \
-                return ERROR;                   \
-        }                                       \
-    }
+#define RETRY_CMD(CMD, ERROR) do {                     \
+        std::unique_lock<std::mutex> lock(m_connmutex); \
+        RETRY_CMD_NOLOCK(CMD, ERROR);                  \
+    } while (false);
+
+#define RETRY_CMD_WITH_SLEEP(CMD, ERROR) do {             \
+        std::unique_lock<std::mutex> lock(m_connmutex);    \
+        if (!ok()) {                                      \
+            return ERROR;                                 \
+        }                                                 \
+        for (int i = 0; i < 2; i++) {                     \
+            if ((CMD))                                    \
+                break;                                    \
+            sleep(1);                                     \
+            if (i == 1 || !showError(#CMD))               \
+                return ERROR;                             \
+        }                                                 \
+    } while (false);
 
 // Call with lock held
 bool MPDCli::updStatus()
 {
-    if (!ok() && !openconn()) {
-        LOGERR("MPDCli::updStatus: no connection" << endl);
-        return false;
-    }
-
     mpd_status *mpds = 0;
-    mpds = mpd_run_status(m_conn);
-    if (mpds == 0) {
-        if (!openconn()) {
-            LOGERR("MPDCli::updStatus: connection failed\n");
+    {
+        std::unique_lock<std::mutex> lock(m_connmutex);
+        if (!ok() && !openconn()) {
+            LOGERR("MPDCli::updStatus: no connection" << endl);
             return false;
         }
+
         mpds = mpd_run_status(m_conn);
         if (mpds == 0) {
-            LOGERR("MPDCli::updStatus: can't get status" << endl);
-            showError("MPDCli::updStatus");
+            if (!openconn()) {
+                LOGERR("MPDCli::updStatus: connection failed\n");
+                return false;
+            }
+            mpds = mpd_run_status(m_conn);
+            if (mpds == 0) {
+                LOGERR("MPDCli::updStatus: can't get status" << endl);
+                showError("MPDCli::updStatus");
+            }
+            return false;
         }
-        return false;
     }
-
+    
     if (m_externalvolumecontrol && !m_getexternalvolume.empty()) {
         string result;
         if (ExecCmd::backtick(m_getexternalvolume, result)) {
@@ -288,7 +432,7 @@ bool MPDCli::updStatus()
     m_stat.songelapsedms = mpd_status_get_elapsed_ms(mpds);
     m_stat.songlenms = mpd_status_get_total_time(mpds) * 1000;
     m_stat.kbrate = mpd_status_get_kbit_rate(mpds);
-    const struct mpd_audio_format *maf = 
+    const struct mpd_audio_format *maf =
         mpd_status_get_audio_format(mpds);
     if (maf) {
         m_stat.bitdepth = maf->bits;
@@ -322,7 +466,8 @@ bool MPDCli::checkForCommand(const string& cmdname)
 {
     LOGDEB1("MPDCli::checkForCommand: " << cmdname << endl);
     bool found = false;
-    RETRY_CMD(mpd_send_allowed_commands(m_conn), false);
+    std::unique_lock<std::mutex> lock(m_connmutex);
+    RETRY_CMD_NOLOCK(mpd_send_allowed_commands(m_conn), false);
     struct mpd_pair *rep;
     do {
         rep = mpd_recv_command_pair(m_conn);
@@ -732,6 +877,7 @@ bool MPDCli::send_tag(const char *cid, int tag, const string& _data)
         return false;
     string data;
     neutchars(_data, data, "\r\n", ' ');
+    std::unique_lock<std::mutex> lock(m_connmutex);
     if (!mpd_send_command(m_conn, "addtagid", cid, 
                           mpd_tag_name(mpd_tag_type(tag)),
                           data.c_str(), NULL)) {
@@ -870,10 +1016,10 @@ bool MPDCli::deletePosRange(unsigned int start, unsigned int end)
 bool MPDCli::statId(int id)
 {
     LOGDEB("MPDCli::statId " << id << endl);
-    std::unique_lock<std::mutex> lock(m_mutex);
     if (!ok())
         return false;
 
+    std::unique_lock<std::mutex> clock(m_connmutex);
     mpd_song *song = mpd_run_get_queue_song_id(m_conn, (unsigned)id);
     if (song) {
         mpd_song_free(song);
@@ -888,7 +1034,8 @@ bool MPDCli::getQueueSongs(vector<mpd_song*>& songs)
     //LOGDEB1("MPDCli::getQueueSongs" << endl);
     songs.clear();
 
-    RETRY_CMD(mpd_send_list_queue_meta(m_conn), false);
+    std::unique_lock<std::mutex> lock(m_connmutex);
+    RETRY_CMD_NOLOCK(mpd_send_list_queue_meta(m_conn), false);
 
     struct mpd_song *song;
     while ((song = mpd_recv_song(m_conn)) != NULL) {

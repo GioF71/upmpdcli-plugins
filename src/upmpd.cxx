@@ -143,6 +143,16 @@ void UpMpd::startloops()
     }
 }
 
+void UpMpd::startnoloops()
+{
+    if (m_av) {
+        m_av->start();
+    }
+    if (m_oh) {
+        m_oh->start();
+    }
+}
+
 
 UpMpdOpenHome::UpMpdOpenHome(
     UpMpd *upmpd, const std::string& deviceid, const std::string& friendlyname,

@@ -177,6 +177,9 @@ OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
     udev->addActionMapping(this, "TransportState",
                           bind(&OHRadio::transportState, this, _1, _2));
     keepconsume = g_config->getBool("keepconsume", false);
+
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdPlayerEvt, std::bind(&OHService::onEvent, this, _1));
 }
 
 static void getRadiosFromConf(ConfSimple* conf)
@@ -400,8 +403,8 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
 void OHRadio::maybeWakeUp(bool ok)
 {
-    if (ok && m_udev) {
-        m_udev->loopWakeup();
+    if (ok) {
+        onEvent(nullptr);
     }
 }
 

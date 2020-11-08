@@ -170,5 +170,6 @@ void OHInfo::setMetatext(const string& metatext)
     if (metatext.compare(m_metatext)) {
         m_metatext = metatext;
         m_metatextcnt++;
+        onEvent(nullptr);
     }
 }

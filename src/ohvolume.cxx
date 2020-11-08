@@ -32,6 +32,7 @@
 #include "upmpd.hxx"
 #include "upmpdutils.hxx"
 #include "renderctl.hxx"
+#include "mpdcli.hxx"
 
 using namespace std;
 using namespace std::placeholders;
@@ -77,6 +78,8 @@ OHVolume::OHVolume(UpMpd *dev, UpMpdOpenHome *udev)
     udev->addActionMapping(this,"FadeDec", 
                           bind(&OHVolume::fadeDec, this, _1, _2));
 
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdMixerEvt, bind(&OHService::onEvent, this, _1));
 }
 
 bool OHVolume::makestate(unordered_map<string, string> &st)
@@ -118,7 +121,7 @@ int OHVolume::setVolume(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
     m_dev->setvolume(volume);
-    m_udev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 
@@ -141,7 +144,7 @@ int OHVolume::volumeInc(const SoapIncoming& sc, SoapOutgoing& data)
     if (newvol > 100)
         newvol = 100;
     m_dev->setvolume(newvol);
-    m_udev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 
@@ -152,7 +155,7 @@ int OHVolume::volumeDec(const SoapIncoming& sc, SoapOutgoing& data)
     if (newvol < 0)
         newvol = 0;
     m_dev->setvolume(newvol);
-    m_udev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 
