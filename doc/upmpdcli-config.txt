@@ -46,9 +46,12 @@ value, which is automatically discovered.
 
 [[friendlyname]]
 friendlyname:: "Friendly Name" for the
-UPnP Media Renderer. This will be displayed by most Control
+Media Renderer. This will be displayed by most Control
 Points to identify the Renderer. Some OpenHome Control Points may display
 the 'ohproductroom' value instead.
+
+[[avfriendlyname]]
+avfriendlyname:: Specific friendly name for the UPnP/AV Media Renderer. The default is to append "-av" to the friendlyname value.
 
 [[upnpav]]
 upnpav:: Enable UPnP AV services

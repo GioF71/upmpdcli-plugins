@@ -29,8 +29,10 @@
 
 # Media Renderer parameters
 
-# "Friendly Name" for the UPnP Media Renderer.
+# "Friendly Name" for the Media Renderer.
 #friendlyname = UpMpd
+# Specific friendly name for the UPnP/AV Media Renderer.
+#avfriendlyname =
 # Enable UPnP AV services (0/1).
 #upnpav = 1
 # Enable OpenHome services (0/1).

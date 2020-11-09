@@ -24,6 +24,7 @@
 
 #include "main.hxx"
 #include "smallut.h"
+#include "conftree.h"
 #include "avtransport.hxx"
 #include "conman.hxx"
 #include "mpdcli.hxx"
@@ -228,9 +229,11 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
     // calling the getStatus() methods, and we want AVTransport to
     // update the mpd status for everybody
     if (0 == (opts.options & upmpdNoAV)) {
-        std::string avfname{friendlyname + "-av"};
+        std::string avfname{friendlyname + "-UPnP/AV"};
+        g_config->get("avfriendlyname", avfname);
+        // Add bogus string to avfname in case user set it same as fname
         std::string deviceid =  std::string("uuid:") +
-            LibUPnP::makeDevUUID(avfname, hwaddr);
+            LibUPnP::makeDevUUID(avfname + "xy3vhst39", hwaddr);
         m_av = new UpMpdMediaRenderer(this, deviceid, avfname);
     }
     if (opts.options & upmpdDoOH) {
