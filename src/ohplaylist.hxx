@@ -29,9 +29,11 @@
 
 using namespace UPnPP;
 
+class UpMpdOpenHome;
+
 class OHPlaylist : public OHService {
 public:
-    OHPlaylist(UpMpd *dev, unsigned int cachesavesleep);
+    OHPlaylist(UpMpd *dev, UpMpdOpenHome *udev, unsigned int cachesavesleep);
 
     // These are used by other services (ohreceiver etc.)
     bool cacheFind(const std::string& uri, std:: string& meta);

@@ -40,18 +40,18 @@ using namespace std::placeholders;
 static const string sTpProduct("urn:av-openhome-org:service:Info:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Info");
 
-OHInfo::OHInfo(UpMpd *dev, bool updstatus)
-    : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev),
+OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
+    : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
 {
-    dev->addActionMapping(this, "Counters", 
-                          bind(&OHInfo::counters, this, _1, _2));
-    dev->addActionMapping(this, "Track", 
-                          bind(&OHInfo::track, this, _1, _2));
-    dev->addActionMapping(this, "Details", 
-                          bind(&OHInfo::details, this, _1, _2));
-    dev->addActionMapping(this, "Metatext", 
-                          bind(&OHInfo::metatext, this, _1, _2));
+    udev->addActionMapping(this, "Counters", 
+                           bind(&OHInfo::counters, this, _1, _2));
+    udev->addActionMapping(this, "Track", 
+                           bind(&OHInfo::track, this, _1, _2));
+    udev->addActionMapping(this, "Details", 
+                           bind(&OHInfo::details, this, _1, _2));
+    udev->addActionMapping(this, "Metatext", 
+                           bind(&OHInfo::metatext, this, _1, _2));
 }
 
 void OHInfo::urimetadata(string& uri, string& metadata)
@@ -104,10 +104,9 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
 {
     st.clear();
 
-    st["TrackCount"] = SoapHelp::i2s(m_dev->m_mpds ? 
-                                     m_dev->m_mpds->trackcounter : 0);
-    st["DetailsCount"] = SoapHelp::i2s(m_dev->m_mpds ? 
-                                       m_dev->m_mpds->detailscounter : 0);
+    st["TrackCount"] = SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().trackcounter);
+    st["DetailsCount"] =
+        SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().detailscounter);
     st["MetatextCount"] = SoapHelp::i2s(m_metatextcnt);
     string uri, metadata;
     urimetadata(uri, metadata);
@@ -124,10 +123,10 @@ int OHInfo::counters(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHInfo::counters" << endl);
     
-    data.addarg("TrackCount", SoapHelp::i2s(m_dev->m_mpds ?
-                                            m_dev->m_mpds->trackcounter : 0));
-    data.addarg("DetailsCount", SoapHelp::i2s(m_dev->m_mpds ?
-                                              m_dev->m_mpds->detailscounter:0));
+    data.addarg("TrackCount",
+                SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().trackcounter));
+    data.addarg("DetailsCount", SoapHelp::i2s(
+                    m_dev->getMpdStatusNoUpdate().detailscounter));
     data.addarg("MetatextCount", SoapHelp::i2s(m_metatextcnt));
     return UPNP_E_SUCCESS;
 }
@@ -171,5 +170,6 @@ void OHInfo::setMetatext(const string& metatext)
     if (metatext.compare(m_metatext)) {
         m_metatext = metatext;
         m_metatextcnt++;
+        onEvent(nullptr);
     }
 }

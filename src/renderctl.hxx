@@ -17,25 +17,31 @@
 #ifndef _RENDERING_H_X_INCLUDED_
 #define _RENDERING_H_X_INCLUDED_
 
-#include <string>                       // for string
-#include <vector>                       // for vector
-#include <unordered_map>                // for unordered_map
+#include <string>
+#include <vector>
+#include <unordered_map>
 
-#include "libupnpp/device/device.hxx"   // for UpnpService
-#include "libupnpp/soaphelp.hxx"        // for SoapIncoming, SoapOutgoing
+#include "libupnpp/device/device.hxx"
+#include "libupnpp/soaphelp.hxx"
 
 class UpMpd;
+class UpMpdMediaRenderer;
+class MpdStatus;
 
 using namespace UPnPP;
 
 class UpMpdRenderCtl : public UPnPProvider::UpnpService {
 public:
-    UpMpdRenderCtl(UpMpd *dev, bool noev);
+    UpMpdRenderCtl(UpMpd *dev, UpMpdMediaRenderer*udev, bool noev);
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values);
     virtual const std::string serviceErrString(int) const;
+    void onMpdEvent(const MpdStatus*);
+
 private:
+    virtual bool getEventDataNoFlush(bool all, std::vector<std::string>& names, 
+                                     std::vector<std::string>& values);
     bool rdstateMToU(std::unordered_map<std::string, std::string>& status);
     int setMute(const SoapIncoming& sc, SoapOutgoing& data);
     int getMute(const SoapIncoming& sc, SoapOutgoing& data);
@@ -45,6 +51,7 @@ private:
     int selectPreset(const SoapIncoming& sc, SoapOutgoing& data);
 
     UpMpd *m_dev;
+    UpMpdMediaRenderer *m_udev;
     // State variable storage
     std::unordered_map<std::string, std::string> m_rdstate;
 };

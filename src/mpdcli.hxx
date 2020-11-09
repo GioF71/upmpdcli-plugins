@@ -1,27 +1,32 @@
 /* Copyright (C) 2014 J.F.Dockes
- *       This program is free software; you can redistribute it and/or modify
- *       it under the terms of the GNU Lesser General Public License as published by
- *       the Free Software Foundation; either version 2.1 of the License, or
- *       (at your option) any later version.
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU Lesser General Public License as published by
+ *   the Free Software Foundation; either version 2.1 of the License, or
+ *   (at your option) any later version.
  *
- *       This program is distributed in the hope that it will be useful,
- *       but WITHOUT ANY WARRANTY; without even the implied warranty of
- *       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *       GNU Lesser General Public License for more details.
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Lesser General Public License for more details.
  *
- *       You should have received a copy of the GNU Lesser General Public License
- *       along with this program; if not, write to the
- *       Free Software Foundation, Inc.,
- *       59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   You should have received a copy of the GNU Lesser General Public License
+ *   along with this program; if not, write to the
+ *   Free Software Foundation, Inc.,
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef _MPDCLI_H_X_INCLUDED_
 #define _MPDCLI_H_X_INCLUDED_
 
-#include <regex.h>                      // for regex_t
-#include <string>                       // for string
+#include <regex.h>
+#include <string>
 #include <cstdio>
-#include <vector>                       // for vector
+#include <vector>
 #include <memory>
+#include <utility>
+#include <functional>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "upmpdutils.hxx"
 
@@ -104,19 +109,52 @@ public:
     bool getQueueData(std::vector<UpSong>& vdata);
     bool statSong(UpSong& usong, int pos = -1, bool isId = false);
     UpSong& mapSong(UpSong& usong, struct mpd_song *song);
-    
-    const MpdStatus& getStatus() {
-        updStatus();
-        return m_stat;
-    }
-
+    const MpdStatus& getStatus();
     // Copy complete mpd state. If seekms is > 0, this is the value to
     // save (sometimes useful if mpd was stopped)
     bool saveState(MpdState& st, int seekms = 0);
     bool restoreState(const MpdState& st);
+
+    // Event loop. Allows running without polling from libupnpp (no
+    // call to the device eventloop()). We collect events from MPD
+    // instead and call the event generating chain when appropriate.
+    bool eventLoop();
+    bool startEventLoop();
+    void stopEventLoop();
+    bool takeEvents(MPDCli *from);
+    void shouldExit();
+    // Event selection mask.
+    enum SubsSelect {
+        // Lazy us are using the values from mpd/idle.h. Could translate instead.
+        MpdQueueEvt = 0x4, /* Queue modified */
+        MpdPlayerEvt = 0x8, /* Play, stop, etc. + play time, locally generated*/
+        MpdMixerEvt = 0x10, /* Volume */
+        MpdOptsEvt = 0x40, /* random, repeat, etc. */
+    };
+    // Type of subscription callback 
+    typedef std::function<void (const MpdStatus*)> evtFunc;
+    // Subscribe to event mask. Called by the services during initialization.
+    bool subscribe(int mask, evtFunc);
     
 private:
+    std::mutex m_mutex;
+    // Main connection for sending commands
+    std::mutex m_connmutex;
     struct mpd_connection *m_conn{nullptr};
+    // Connection for the event loop
+    struct mpd_connection *m_idleconn{nullptr};
+    // thread to listen to MPD events.
+    std::thread m_idlethread;
+    // MPD does not report idle events for play time change. We poll
+    // it every second while playing to report the current time
+    // (needed for OHTime events for example)
+    std::thread m_pollerthread;
+    std::mutex m_pollmutex;
+    std::condition_variable m_pollcv;
+    bool m_dopoll{false};
+    // Event subscriptions
+    std::vector<std::pair<int, evtFunc>> m_subs;
+
     MpdStatus m_stat;
     // Saved volume while muted.
     int m_premutevolume{0};
@@ -156,6 +194,21 @@ private:
     bool checkForCommand(const std::string& cmdname);
     bool send_tag(const char *cid, int tag, const std::string& data);
     bool send_tag_data(int id, const UpSong& meta);
+    // Non-locking versions of public calls.
+    bool clearQueue_i();
+    bool consume_i(bool on);
+    bool getQueueData_i(std::vector<UpSong>& vdata);
+    int insert_i(const std::string& uri, int pos, const UpSong& meta);
+    bool pause_i(bool onoff);
+    bool play_i(int pos);
+    bool random_i(bool on);
+    bool repeat_i(bool on);
+    bool seek_i(int seconds);
+    bool single_i(bool on);
+    bool statSong_i(UpSong& usong, int pos = -1, bool isId = false);
+    // thread routine for polling play time while playing.
+    void timepoller();
+    void pollerCtl(MpdStatus::State st);
 };
 
 #endif /* _MPDCLI_H_X_INCLUDED_ */

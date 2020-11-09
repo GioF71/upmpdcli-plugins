@@ -20,8 +20,10 @@
 #include <string>         
 #include <unordered_map>  
 #include <vector>         
+#include <functional>
 
 #include "libupnpp/device/device.hxx"
+#include "libupnpp/log.h"
 #include "upmpdutils.hxx"
 #include "upmpd.hxx"
 #include "mpdcli.hxx"
@@ -33,10 +35,19 @@ using namespace UPnPP;
 class OHService : public UPnPProvider::UpnpService {
 public:
     OHService(const std::string& servtp, const std::string &servid,
-              const std::string& xmlfn, UpMpd *dev)
-        : UpnpService(servtp, servid, xmlfn, dev), m_dev(dev) {
+              const std::string& xmlfn, UpMpd *dev, UpMpdOpenHome *udev)
+        : UpnpService(servtp, servid, xmlfn, udev), m_dev(dev), m_udev(udev) {
     }
     virtual ~OHService() { }
+
+    virtual void onEvent(const MpdStatus*) {
+        LOGDEB1("OHService::onEvent()\n");
+        std::vector<std::string> names, values;
+        getEventData(false, names, values);
+        if (!names.empty()) {
+            m_udev->notifyEvent(this, names, values);
+        }
+    }
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values) {
@@ -77,6 +88,7 @@ protected:
     // State variable storage
     std::unordered_map<std::string, std::string> m_state;
     UpMpd *m_dev;
+    UpMpdOpenHome *m_udev;
 };
 
 #endif /* _OHSERVICE_H_X_INCLUDED_ */

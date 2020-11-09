@@ -44,22 +44,25 @@ static const string
 sTpRender("urn:schemas-upnp-org:service:RenderingControl:1");
 static const string sIdRender("urn:upnp-org:serviceId:RenderingControl");
 
-UpMpdRenderCtl::UpMpdRenderCtl(UpMpd *dev, bool noev)
-    : UpnpService(sTpRender, sIdRender, "RenderingControl.xml", dev, noev),
-      m_dev(dev)
+UpMpdRenderCtl::UpMpdRenderCtl(UpMpd *dev, UpMpdMediaRenderer* udev, bool noev)
+    : UpnpService(sTpRender, sIdRender, "RenderingControl.xml", udev, noev),
+      m_dev(dev), m_udev(udev)
 {
-    m_dev->addActionMapping(this, "SetMute", 
+    m_udev->addActionMapping(this, "SetMute", 
                             bind(&UpMpdRenderCtl::setMute, this, _1, _2));
-    m_dev->addActionMapping(this, "GetMute", 
+    m_udev->addActionMapping(this, "GetMute", 
                             bind(&UpMpdRenderCtl::getMute, this, _1, _2));
-    m_dev->addActionMapping(this, "SetVolume", bind(&UpMpdRenderCtl::setVolume, 
+    m_udev->addActionMapping(this, "SetVolume", bind(&UpMpdRenderCtl::setVolume, 
                                               this, _1, _2, false));
-    m_dev->addActionMapping(this, "GetVolume", bind(&UpMpdRenderCtl::getVolume, 
+    m_udev->addActionMapping(this, "GetVolume", bind(&UpMpdRenderCtl::getVolume, 
                                               this, _1, _2, false));
-    m_dev->addActionMapping(this, "ListPresets", 
+    m_udev->addActionMapping(this, "ListPresets", 
                             bind(&UpMpdRenderCtl::listPresets, this, _1, _2));
-    m_dev->addActionMapping(this, "SelectPreset", 
+    m_udev->addActionMapping(this, "SelectPreset", 
                             bind(&UpMpdRenderCtl::selectPreset, this, _1, _2));
+
+    m_dev->getmpdcli()->subscribe(MPDCli::MpdMixerEvt,
+                               bind(&UpMpdRenderCtl::onMpdEvent, this, _1));
 }
 
 // Rendering Control errors
@@ -113,7 +116,12 @@ bool UpMpdRenderCtl::getEventData(bool all, std::vector<std::string>& names,
                                   std::vector<std::string>& values)
 {
     m_dev->flushvolume();
+    return getEventDataNoFlush(all, names, values);
+}
 
+bool UpMpdRenderCtl::getEventDataNoFlush(
+    bool all, std::vector<std::string>& names, std::vector<std::string>& values)
+{
     unordered_map<string, string> newstate;
     rdstateMToU(newstate);
     if (all)
@@ -154,6 +162,16 @@ bool UpMpdRenderCtl::getEventData(bool all, std::vector<std::string>& names,
     m_rdstate = newstate;
 
     return true;
+}
+
+void UpMpdRenderCtl::onMpdEvent(const MpdStatus*)
+{
+    LOGDEB0("RenderCtl::onMpdEvent()\n");
+    std::vector<std::string> names, values;
+    getEventDataNoFlush(false, names, values);
+    if (!names.empty()) {
+        m_udev->notifyEvent(this, names, values);
+    }
 }
 
 // Actions:
@@ -204,7 +222,6 @@ int UpMpdRenderCtl::setMute(const SoapIncoming& sc, SoapOutgoing& data)
     } else {
         return UPNP_E_INVALID_PARAM;
     }
-    m_dev->loopWakeup();
     return UPNP_E_SUCCESS;
 }
 
@@ -242,8 +259,6 @@ int UpMpdRenderCtl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
     }
     
     m_dev->setvolume(volume);
-
-    m_dev->loopWakeup();
     return UPNP_E_SUCCESS;
 }
 

@@ -43,8 +43,9 @@ public:
     // ssender is an arbitrary script probably reading from an audio
     // driver input and managing a sender. Our local source or mpd are
     // uninvolved
-    Internal(UpMpd *dv, const string& starterpath, int port)
-        : dev(dv), makeisendercmd(starterpath), mpdport(port) {
+    Internal(UpMpd *dv, UpMpdOpenHome *udv,
+             const string& starterpath, int port)
+        : dev(dv), udev(udv), makeisendercmd(starterpath), mpdport(port) {
         // Stream volume control ? This decides if the aux mpd has
         // mixer "software" or "none"
         scalestream = g_config->getBool("scstreamscaled", true);
@@ -56,17 +57,18 @@ public:
     }
     void clear() {
         if (dev && origmpd) {
-            dev->m_mpdcli = origmpd;
+            dev->setmpdcli(origmpd);
             origmpd = 0;
         }
-        if (dev && dev->m_ohrcv) {
-            dev->m_ohrcv->iStop();
+        if (dev && udev->getohrcv()) {
+            udev->getohrcv()->iStop();
         }
         deleteZ(mpd);
         deleteZ(isender);
         deleteZ(ssender);
     }
     UpMpd *dev;
+    UpMpdOpenHome *udev;
     MPDCli *mpd{nullptr};
     MPDCli *origmpd{nullptr};
     ExecCmd *isender{nullptr};
@@ -81,9 +83,10 @@ public:
 };
 
 
-SenderReceiver::SenderReceiver(UpMpd *dev, const string& starterpath, int port)
+SenderReceiver::SenderReceiver(UpMpd *dev, UpMpdOpenHome *udev,
+                               const string& starterpath, int port)
 {
-    m = new Internal(dev, starterpath, port);
+    m = new Internal(dev, udev, starterpath, port);
 }
 
 SenderReceiver::~SenderReceiver()
@@ -111,13 +114,13 @@ bool SenderReceiver::start(const string& script, int seekms)
     LOGDEB("SenderReceiver::start. script [" << script <<
            "] seekms " << seekms << endl);
     
-    if (!m->dev || !m->dev->m_mpdcli || !m->dev->m_ohrcv) {
+    if (!m->dev || !m->dev->getmpdcli() || !m->udev->getohrcv()) {
         LOGERR("SenderReceiver::start: no dev or absent service??\n");
         return false;
     }
     
     // Stop MPD Play (normally already done)
-    m->dev->m_mpdcli->stop();
+    m->dev->getmpdcli()->stop();
 
     // sndcmd will non empty if we actually started a script instead
     // of reusing an old one (then need to read the initial data).
@@ -133,7 +136,7 @@ bool SenderReceiver::start(const string& script, int seekms)
         args.push_back("-p");
         args.push_back(SoapHelp::i2s(m->mpdport));
         args.push_back("-f");
-        args.push_back(m->dev->m_friendlyname);
+        args.push_back(m->udev->getfriendlyname());
     if (!m->scalestream)
             args.push_back("-e");
         if (!m->streamcodec.empty() &&
@@ -152,7 +155,7 @@ bool SenderReceiver::start(const string& script, int seekms)
         }
         vector<string> args;
         args.push_back("-f");
-        args.push_back(m->dev->m_friendlyname);
+        args.push_back(m->udev->getfriendlyname());
         // This does nothing, just for consistence.
         if (!m->scalestream)
             args.push_back("-e");
@@ -205,24 +208,26 @@ bool SenderReceiver::start(const string& script, int seekms)
     }
     
     // Start our receiver
-    if (!m->dev->m_ohrcv->iSetSender(uri, meta) ||
-        !m->dev->m_ohrcv->iPlay()) {
+    if (!m->udev->getohrcv()->iSetSender(uri, meta) ||
+        !m->udev->getohrcv()->iPlay()) {
         m->clear();
         return false;
     }
 
     if (script.empty()) {
         // Internal source: copy mpd state
-        copyMpd(m->dev->m_mpdcli, m->mpd, seekms);
+        copyMpd(m->dev->getmpdcli(), m->mpd, seekms);
         if (m->scalestream) {
             m->mpd->forceInternalVControl();
-            // Stream is scaled, set the main mixer to 100 to allow
-            // full scale. Actually this appears to have no effect
-            // (appear automagically for some other cause).
-            m->dev->m_mpdcli->setVolume(100);
         }
-        m->origmpd = m->dev->m_mpdcli;
-        m->dev->m_mpdcli = m->mpd;
+        m->origmpd = m->dev->getmpdcli();
+        m->dev->setmpdcli(m->mpd);
+        if (m->scalestream) {
+            // Stream is scaled, set the main mixer to 100 to allow
+            // full scale. Else we are compositing the two volumes.
+            m->origmpd->setVolume(100);
+         }
+        m->dev->getmpdcli()->takeEvents(m->origmpd);
     } else {
         m->origmpd = 0;
     }
@@ -233,17 +238,18 @@ bool SenderReceiver::start(const string& script, int seekms)
 bool SenderReceiver::stop()
 {
     LOGDEB("SenderReceiver::stop()\n");
-    if (!m->dev || !m->dev->m_ohrcv) {
+    if (!m->dev || !m->udev->getohrcv()) {
         LOGERR("SenderReceiver::stop: bad state: dev/rcv null\n");
         return false;
     }
-    m->dev->m_ohrcv->iStop();
+    m->udev->getohrcv()->iStop();
 
     if (m->origmpd && m->mpd) {
         // Do we want to transfer the playlist back ? Probably we do.
         copyMpd(m->mpd, m->origmpd, -1);
         m->mpd->stop();
-        m->dev->m_mpdcli = m->origmpd;
+        m->dev->setmpdcli(m->origmpd);
+        m->dev->getmpdcli()->takeEvents(m->mpd);
         m->origmpd = 0;
     }
 

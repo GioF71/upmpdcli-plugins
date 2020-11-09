@@ -32,6 +32,7 @@
 #include "upmpd.hxx"
 #include "upmpdutils.hxx"
 #include "renderctl.hxx"
+#include "mpdcli.hxx"
 
 using namespace std;
 using namespace std::placeholders;
@@ -41,42 +42,44 @@ static const string millidbperstep("500");
 static const string sTpProduct("urn:av-openhome-org:service:Volume:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Volume");
 
-OHVolume::OHVolume(UpMpd *dev)
-    : OHService(sTpProduct, sIdProduct, "OHVolume.xml", dev)
+OHVolume::OHVolume(UpMpd *dev, UpMpdOpenHome *udev)
+    : OHService(sTpProduct, sIdProduct, "OHVolume.xml", dev, udev)
 {
-    dev->addActionMapping(this,"Characteristics", 
+    udev->addActionMapping(this,"Characteristics", 
                           bind(&OHVolume::characteristics, this, _1, _2));
-    dev->addActionMapping(this,"SetVolume", 
+    udev->addActionMapping(this,"SetVolume", 
                           bind(&OHVolume::setVolume, this, _1, _2));
-    dev->addActionMapping(this,"Volume", 
+    udev->addActionMapping(this,"Volume", 
                           bind(&OHVolume::volume, this, _1, _2));
-    dev->addActionMapping(this,"VolumeInc", 
+    udev->addActionMapping(this,"VolumeInc", 
                           bind(&OHVolume::volumeInc, this, _1, _2));
-    dev->addActionMapping(this,"VolumeDec", 
+    udev->addActionMapping(this,"VolumeDec", 
                           bind(&OHVolume::volumeDec, this, _1, _2));
-    dev->addActionMapping(this,"VolumeLimit", 
+    udev->addActionMapping(this,"VolumeLimit", 
                           bind(&OHVolume::volumeLimit, this, _1, _2));
-    dev->addActionMapping(this,"Mute", 
+    udev->addActionMapping(this,"Mute", 
                           bind(&OHVolume::mute, this, _1, _2));
-    dev->addActionMapping(this,"SetMute", 
+    udev->addActionMapping(this,"SetMute", 
                           bind(&OHVolume::setMute, this, _1, _2));
-    dev->addActionMapping(this,"SetBalance", 
+    udev->addActionMapping(this,"SetBalance", 
                           bind(&OHVolume::setBalance, this, _1, _2));
-    dev->addActionMapping(this,"Balance", 
+    udev->addActionMapping(this,"Balance", 
                           bind(&OHVolume::balance, this, _1, _2));
-    dev->addActionMapping(this,"BalanceInc", 
+    udev->addActionMapping(this,"BalanceInc", 
                           bind(&OHVolume::balanceInc, this, _1, _2));
-    dev->addActionMapping(this,"BalanceDec", 
+    udev->addActionMapping(this,"BalanceDec", 
                           bind(&OHVolume::balanceDec, this, _1, _2));
-    dev->addActionMapping(this,"SetFade", 
+    udev->addActionMapping(this,"SetFade", 
                           bind(&OHVolume::setFade, this, _1, _2));
-    dev->addActionMapping(this,"Fade", 
+    udev->addActionMapping(this,"Fade", 
                           bind(&OHVolume::fade, this, _1, _2));
-    dev->addActionMapping(this,"FadeInc", 
+    udev->addActionMapping(this,"FadeInc", 
                           bind(&OHVolume::fadeInc, this, _1, _2));
-    dev->addActionMapping(this,"FadeDec", 
+    udev->addActionMapping(this,"FadeDec", 
                           bind(&OHVolume::fadeDec, this, _1, _2));
 
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdMixerEvt, bind(&OHService::onEvent, this, _1));
 }
 
 bool OHVolume::makestate(unordered_map<string, string> &st)
@@ -118,7 +121,7 @@ int OHVolume::setVolume(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
     m_dev->setvolume(volume);
-    m_dev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 
@@ -141,7 +144,7 @@ int OHVolume::volumeInc(const SoapIncoming& sc, SoapOutgoing& data)
     if (newvol > 100)
         newvol = 100;
     m_dev->setvolume(newvol);
-    m_dev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 
@@ -152,7 +155,7 @@ int OHVolume::volumeDec(const SoapIncoming& sc, SoapOutgoing& data)
     if (newvol < 0)
         newvol = 0;
     m_dev->setvolume(newvol);
-    m_dev->loopWakeup();
+    m_udev->notifyEvent(this, {"Volume"}, {SoapHelp::i2s(m_dev->getvolume())});
     return UPNP_E_SUCCESS;
 }
 

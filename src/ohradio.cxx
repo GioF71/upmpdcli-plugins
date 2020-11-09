@@ -114,8 +114,8 @@ struct RadioMeta {
 
 static vector<RadioMeta> o_radios;
 
-OHRadio::OHRadio(UpMpd *dev)
-    : OHService(sTpProduct, sIdProduct, "OHRadio.xml", dev)
+OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
+    : OHService(sTpProduct, sIdProduct, "OHRadio.xml", dev, udev)
 {
     // Need Python for the radiopl playlist-to-audio-url script
     string pypath;
@@ -144,39 +144,42 @@ OHRadio::OHRadio(UpMpd *dev)
     
     m_ok = true;
     
-    dev->addActionMapping(this, "Channel",
+    udev->addActionMapping(this, "Channel",
                           bind(&OHRadio::channel, this, _1, _2));
-    dev->addActionMapping(this, "ChannelsMax",
+    udev->addActionMapping(this, "ChannelsMax",
                           bind(&OHRadio::channelsMax, this, _1, _2));
-    dev->addActionMapping(this, "Id",
+    udev->addActionMapping(this, "Id",
                           bind(&OHRadio::id, this, _1, _2));
-    dev->addActionMapping(this, "IdArray",
+    udev->addActionMapping(this, "IdArray",
                           bind(&OHRadio::idArray, this, _1, _2));
-    dev->addActionMapping(this, "IdArrayChanged",
+    udev->addActionMapping(this, "IdArrayChanged",
                           bind(&OHRadio::idArrayChanged, this, _1, _2));
-    dev->addActionMapping(this, "Pause",
+    udev->addActionMapping(this, "Pause",
                           bind(&OHRadio::pause, this, _1, _2));
-    dev->addActionMapping(this, "Play",
+    udev->addActionMapping(this, "Play",
                           bind(&OHRadio::play, this, _1, _2));
-    dev->addActionMapping(this, "ProtocolInfo",
+    udev->addActionMapping(this, "ProtocolInfo",
                           bind(&OHRadio::protocolInfo, this, _1, _2));
-    dev->addActionMapping(this, "Read",
+    udev->addActionMapping(this, "Read",
                           bind(&OHRadio::ohread, this, _1, _2));
-    dev->addActionMapping(this, "ReadList",
+    udev->addActionMapping(this, "ReadList",
                           bind(&OHRadio::readList, this, _1, _2));
-    dev->addActionMapping(this, "SeekSecondAbsolute",
+    udev->addActionMapping(this, "SeekSecondAbsolute",
                           bind(&OHRadio::seekSecondAbsolute, this, _1, _2));
-    dev->addActionMapping(this, "SeekSecondRelative",
+    udev->addActionMapping(this, "SeekSecondRelative",
                           bind(&OHRadio::seekSecondRelative, this, _1, _2));
-    dev->addActionMapping(this, "SetChannel",
+    udev->addActionMapping(this, "SetChannel",
                           bind(&OHRadio::setChannel, this, _1, _2));
-    dev->addActionMapping(this, "SetId",
+    udev->addActionMapping(this, "SetId",
                           bind(&OHRadio::setId, this, _1, _2));
-    dev->addActionMapping(this, "Stop",
+    udev->addActionMapping(this, "Stop",
                           bind(&OHRadio::stop, this, _1, _2));
-    dev->addActionMapping(this, "TransportState",
+    udev->addActionMapping(this, "TransportState",
                           bind(&OHRadio::transportState, this, _1, _2));
     keepconsume = g_config->getBool("keepconsume", false);
+
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdPlayerEvt, std::bind(&OHService::onEvent, this, _1));
 }
 
 static void getRadiosFromConf(ConfSimple* conf)
@@ -293,7 +296,8 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
     if (!audioUri.empty() &&
         (m_playpending || mpds.state == MpdStatus::MPDS_PLAY)) {
         vector<UpSong> queue;
-        m_dev->m_mpdcli->getQueueData(queue);
+        m_dev->getmpdcli()->getQueueData(queue);
+
         bool found = false;
         for (const auto& entry : queue) {
             if (entry.rsrc.uri == audioUri) {
@@ -307,10 +311,11 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
             song.rsrc.uri = audioUri;
             LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri <<
                     endl);
-            m_dev->m_mpdcli->single(false);
-            if (!keepconsume)
-                m_dev->m_mpdcli->consume(true);
-            if (m_dev->m_mpdcli->insert(audioUri, -1, song) < 0) {
+            m_dev->getmpdcli()->single(false);
+            if (!keepconsume) {
+                m_dev->getmpdcli()->consume(true);
+            }
+            if (m_dev->getmpdcli()->insert(audioUri, -1, song) < 0) {
                 LOGERR("OHRadio::mkstate: mpd insert failed."<< " pos " <<
                        mpds.songpos << " uri " << audioUri << endl);
                 return;
@@ -319,7 +324,7 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
 
         // Start things up if needed.
         if (m_playpending && mpds.state != MpdStatus::MPDS_PLAY &&
-            !m_dev->m_mpdcli->play(0)) {
+            !m_dev->getmpdcli()->play(0)) {
             LOGERR("OHRadio::mkstate: mpd play failed\n");
             return;
         }
@@ -392,14 +397,14 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
     string meta = didlmake(mpds.currentsong);
     st["Metadata"] =  meta;
-    m_dev->m_ohif->setMetatext(meta);
+    m_udev->getohif()->setMetatext(meta);
     return true;
 }
 
 void OHRadio::maybeWakeUp(bool ok)
 {
-    if (ok && m_dev) {
-        m_dev->loopWakeup();
+    if (ok) {
+        onEvent(nullptr);
     }
 }
 
@@ -422,7 +427,7 @@ int OHRadio::setPlaying()
         // We count on the metascript to also return an audio URI,
         // which will be sent to MPD during makestate().
         radio.currentAudioUri.clear();
-        m_dev->m_mpdcli->clearQueue();
+        m_dev->getmpdcli()->clearQueue();
         m_playpending = true;
         return UPNP_E_SUCCESS;
     }
@@ -454,16 +459,16 @@ int OHRadio::setPlaying()
     }
 
     // Send url to mpd
-    m_dev->m_mpdcli->clearQueue();
+    m_dev->getmpdcli()->clearQueue();
     UpSong song;
     song.album = radio.title;
     song.rsrc.uri = radio.uri;
-    if (m_dev->m_mpdcli->insert(audiourl, 0, song) < 0) {
+    if (m_dev->getmpdcli()->insert(audiourl, 0, song) < 0) {
         LOGDEB("OHRadio::setPlaying: mpd insert failed\n");
         return UPNP_E_INTERNAL_ERROR;
     }
-    m_dev->m_mpdcli->single(true);
-    if (!m_dev->m_mpdcli->play(0)) {
+    m_dev->getmpdcli()->single(true);
+    if (!m_dev->getmpdcli()->play(0)) {
         LOGDEB("OHRadio::setPlaying: mpd play failed\n");
         return UPNP_E_INTERNAL_ERROR;
     }
@@ -478,13 +483,13 @@ void OHRadio::setActive(bool onoff)
         if (m_id) {
             // Only restore state if it was saved
             if (m_mpdsavedstate.status.state != MpdStatus::MPDS_UNK) {
-                m_dev->m_mpdcli->restoreState(m_mpdsavedstate);
+                m_dev->getmpdcli()->restoreState(m_mpdsavedstate);
             }
         }
         maybeWakeUp(true);
     } else {
-        m_dev->m_mpdcli->saveState(m_mpdsavedstate);
-        m_dev->m_mpdcli->clearQueue();
+        m_dev->getmpdcli()->saveState(m_mpdsavedstate);
+        m_dev->getmpdcli()->clearQueue();
         iStop();
     }
 }
@@ -499,8 +504,8 @@ int OHRadio::iPlay()
 int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHRadio::play" << endl);
-    if (!m_active && m_dev->m_ohpr) {
-        m_dev->m_ohpr->iSetSourceIndexByName("Radio");
+    if (!m_active && m_udev->getohpr()) {
+        m_udev->getohpr()->iSetSourceIndexByName("Radio");
     }
     return iPlay();
 }
@@ -508,7 +513,7 @@ int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
 int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHRadio::pause" << endl);
-    bool ok = m_dev->m_mpdcli->pause(true);
+    bool ok = m_dev->getmpdcli()->pause(true);
     m_playpending = false;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -516,7 +521,7 @@ int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::iStop()
 {
-    bool ok = m_dev->m_mpdcli->stop();
+    bool ok = m_dev->getmpdcli()->stop();
     m_playpending = false;
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -722,7 +727,7 @@ int OHRadio::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
-        ok = m_dev->m_mpdcli->seek(seconds);
+        ok = m_dev->getmpdcli()->seek(seconds);
         maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -739,7 +744,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
             (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
             seconds += mpds.songelapsedms / 1000;
-            ok = m_dev->m_mpdcli->seek(seconds);
+            ok = m_dev->getmpdcli()->seek(seconds);
         } else {
             ok = false;
         }

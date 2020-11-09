@@ -35,7 +35,7 @@ class MpdStatus;
 
 class OHRadio : public OHService {
 public:
-    OHRadio(UpMpd *dev);
+    OHRadio(UpMpd *dev, UpMpdOpenHome *udev);
 
     // We can only offer this if Python is available because of the
     // stream uri fetching script. This is checked during construction.

@@ -35,7 +35,7 @@ public:
     // updstatus is set if we are the first service (avt not
     // running). We actually fetch the MPD status instead of using the
     // cached data.
-    OHInfo(UpMpd *dev, bool updstatus);
+    OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus);
 
     void setMetatext(const std::string& metatext);
 
