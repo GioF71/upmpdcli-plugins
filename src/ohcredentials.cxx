@@ -1,4 +1,4 @@
-/* Copyright (C) 2018 J.F.Dockes
+/* Copyright (C) 2018-2020 J.F.Dockes
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -215,7 +215,7 @@ struct ServiceCreds {
         // already done) to perform the URL redirections. If the media
         // server was actually enabled by one of the services, this
         // will do nothing.
-        startMsOnlyProcess();
+        startMediaServer(false);
         if (servicename == "qobuz") {
             data = servicedata["appid"];
         } else if (servicename == "tidal") {

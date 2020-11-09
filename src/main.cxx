@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 J.F.Dockes
+/* Copyright (C) 2015-2020 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -85,7 +85,7 @@ static const char usage[] =
     "-O 0|1\t decide if we run and export the OpenHome services\n"
     "-v      \tprint version info\n"
     "-m <0|1|2|3|4> media server mode "
-    "(default, forked|only renderer|only media|combined/embedded|combined/multidev)\n"
+    "(default, multidev|only renderer|only media|embedded|multidev)\n"
     "\n"
     ;
 
@@ -93,25 +93,19 @@ static const char usage[] =
 // accessing streaming services. This can happen in several modes. In
 // all cases, the Media Server is only created if the configuration
 // file does have parameters set for streaming services.
-// All this complication is needed because libupnp does not support
-// having several root devices in a single process, and because many
-// control points are confused by embedded devices.
-// 
-// - -m 0, default, Forked: this is for the main process, which will
-//    implement a Media Renderer device, and, if needed, fork/exec the
-//    Media Server (with option -m 2)
+// - -m 0, -m 4 combined/multidev: implement the Media Server and
+//   Media Renderers, as enabled by the configuration, as separate
+//   root devices.
 // - -m 1, RdrOnly: for the main instance: be a Renderer, do not start the
 //    Media Server even if the configuration indicates it is needed
 //    (this is not used in normal situations, just edit the config
 //    instead!)
-// - -m 2, MSOnly Media Server only, this is for the process forked/execed
-//    by a main Renderer process, or a standalone Media Server.
-// - -m 3, Combined: for the main process: implement the Media Server
+// - -m 2, MSOnly Media Server only.
+// - -m 3, combined/embedded: implement the Media Server
 //    as an embedded device. This works just fine with, for example,
 //    upplay, but confuses most of the other Control Points.
-// - -m 4, Combined: for the main process: implement the Media Server
-//    as a separate root device. Only works with a modified libupnp.
-enum MSMode {Forked, RdrOnly, MSOnly, CombinedEmbedded, CombinedMultiDev};
+
+enum MSMode {Default, RdrOnly, MSOnly, CombinedEmbedded, CombinedMultiDev};
 
 static void
 versionInfo(FILE *fp)
@@ -195,40 +189,32 @@ static void setupsigs()
         }
 }
 
-static vector<string> savedargs;
-
-// See comment in main.hxx
-bool startMsOnlyProcess()
+static UpnpDevice *rootdevice{nullptr};
+static MediaServer *mediaserver{nullptr};
+static std::string uuidMS;
+static std::string fnameMS;
+static bool msroot{false};
+bool startMediaServer(bool enable)
 {
-    static ExecCmd cmd;
-    if (cmd.getChildPid() > 0) {
+    if (mediaserver) {
         return true;
     }
-    // Fork process for media server, replacing whatever -m option
-    // was given with -m 2 (ms only)
-    vector<string> args{"-m", "2"};
-    string cmdpath(savedargs[0]);
-    for (unsigned int i = 1; i < savedargs.size(); i++) {
-        string sa(savedargs[i]);
-        if (sa[sa.length() - 1] == 'm') {
-            sa = sa.substr(0, sa.length()-1);
-            if (i == savedargs.size() - 1)
-                Usage();
-            i++;
-        }
-        if (!sa.empty() && sa.compare("-")) {
-            args.push_back(sa);
-        }
+    mediaserver = new MediaServer(
+        msroot ? nullptr : rootdevice, string("uuid:")+ uuidMS, fnameMS, enable);
+    if (nullptr == mediaserver)
+        return false;
+    devs.push_back(mediaserver);
+    LOGDEB("Media server event loop" << endl);
+    // msonly && !enableMediaServer is possible if we're just using
+    // the "mediaserver" to redirect URLs for ohcredentials/Kazoo
+    if (enable) {
+        mediaserver->startloop();
     }
-    return cmd.startExec(cmdpath, args, false, false) >= 0;
+    return true;
 }
 
 int main(int argc, char *argv[])
 {
-    for (int i = 0; i < argc; i++) {
-        savedargs.push_back(argv[i]);
-    }
-    
     // Path for the sc2mpd command, or empty
     string sc2mpdpath;
     string screceiverstatefile;
@@ -261,7 +247,6 @@ int main(int argc, char *argv[])
     int msm = 0;
     bool inprocessms{false};
     bool msonly{false};
-    bool msroot{false};
     
     const char *cp;
     if ((cp = getenv("UPMPD_HOST")))
@@ -449,33 +434,26 @@ int main(int argc, char *argv[])
         msonly = false;
         msroot = false;
         break;
+    case RdrOnly:
+        inprocessms = false;
+        msonly = false;
+        break;
     case CombinedMultiDev:
+    case Default:
+    default:
         inprocessms = true;
         msonly = false;
         msroot = true;
         break;
-    case RdrOnly:
-    case Forked:
-    default:
-        inprocessms = false;
-        msonly = false;
-        break;
     }
 
-    // If neither OH nor AV are enable, run as pure media server. This
+    // If neither OH nor AV are enabled, run as pure media server. This
     // is another way to do it besides the -m option
     if (!enableOH && !enableAV) {
         msonly = true;
-        // Set inprocessms in this case ! No need to fork
         inprocessms = true;
     }
     
-    if (msonly && !enableMediaServer) {
-        // We used to forbid this, but it's actually ok if we're just using
-        // the "mediaserver" to redirect URLs for ohcredentials/Kazoo
-        ;
-    }
-
     Pidfile pidfile(pidfilename);
 
     // If started by root, we use the pidfile and we will change the
@@ -704,11 +682,10 @@ int main(int argc, char *argv[])
     }
 
     // Create unique IDs for renderer and possible media server
-    string fnameMS;
     if (!g_config || !g_config->get("msfriendlyname", fnameMS)) {
         fnameMS = friendlyname + "-mediaserver";
     }
-    string uuidMS = LibUPnP::makeDevUUID(fnameMS, hwaddr);
+    uuidMS = LibUPnP::makeDevUUID(fnameMS, hwaddr);
 
     // If running as mediaserver only, make sure we don't conflict
     // with a possible renderer
@@ -756,47 +733,37 @@ int main(int argc, char *argv[])
     setupsigs();
 
     UpMpd *mediarenderer{nullptr};
-    UpnpDevice *root{nullptr};
     if (!msonly) {
         mediarenderer = new UpMpd(hwaddr, friendlyname,
                                   ohProductDesc, mpdclip, opts);
         UpMpdOpenHome *oh = mediarenderer->getoh();
+        // rootdevice is only used if we implement the media server as
+        // an embedded device, which is mostly for testing purposes
+        // and not done by default
         if (nullptr != oh) {
-            root = oh;
+            rootdevice = oh;
             devs.push_back(oh);
         }
         UpMpdMediaRenderer *av = mediarenderer->getav();
         if (nullptr != av) {
-            root = av;
+            rootdevice = av;
             devs.push_back(av);
         }
     }
 
-    MediaServer *mediaserver{nullptr};
-    
-    if (inprocessms) {
-        // Create the Media Server device. If msonly is set, both
-        // branches do the same thing and create a root device
-        // (mediarenderer is null).
-        mediaserver = new MediaServer(
-            msroot ? nullptr : root,
-            string("uuid:") + uuidMS, fnameMS, enableMediaServer);
-        devs.push_back(mediaserver);
-        LOGDEB("Media server event loop" << endl);
-    } else if (enableMediaServer) {
-        startMsOnlyProcess();
+    if (inprocessms && !startMediaServer(enableMediaServer)) {
+        LOGERR("Could not start media server\n");
+        std::cerr << "Could not start media server\n";
+        return 0;
     }
-    if (inprocessms && enableMediaServer) {
-        mediaserver->startloop();
-    }
+
     if (!msonly) {
         LOGDEB("Renderer event loop" << endl);
         mediarenderer->startnoloops();
-//        mediarenderer->startloops();
         mpdclip->startEventLoop();
     }
-    pause();
 
+    pause();
     LOGDEB("Event loop returned" << endl);
     return 0;
 }

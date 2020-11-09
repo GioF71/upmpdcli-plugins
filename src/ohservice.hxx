@@ -1,18 +1,18 @@
-/* Copyright (C) 2016 J.F.Dockes
- *     This program is free software; you can redistribute it and/or modify
- *     it under the terms of the GNU Lesser General Public License as published by
- *     the Free Software Foundation; either version 2.1 of the License, or
- *     (at your option) any later version.
+/* Copyright (C) 2016-2020 J.F.Dockes
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation; either version 2.1 of the License, or
+ *  (at your option) any later version.
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU Lesser General Public License for more details.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Lesser General Public License for more details.
  *
- *     You should have received a copy of the GNU Lesser General Public License
- *     along with this program; if not, write to the
- *     Free Software Foundation, Inc.,
- *     59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with this program; if not, write to the
+ *  Free Software Foundation, Inc.,
+ *  59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef _OHSERVICE_H_X_INCLUDED_
 #define _OHSERVICE_H_X_INCLUDED_
@@ -38,7 +38,7 @@ public:
               const std::string& xmlfn, UpMpd *dev, UpMpdOpenHome *udev)
         : UpnpService(servtp, servid, xmlfn, udev), m_dev(dev), m_udev(udev) {
     }
-    virtual ~OHService() { }
+    virtual ~OHService() = default;
 
     virtual void onEvent(const MpdStatus*) {
         LOGDEB1("OHService::onEvent()\n");

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 J.F.Dockes
+/* Copyright (C) 2014-2020 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -17,6 +17,8 @@
 #include "config.h"
 
 #include "ohproduct.hxx"
+
+#include <unistd.h>
 
 #include <functional>
 #include <iostream>
@@ -166,10 +168,6 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
             }
         }
     }
-}
-
-OHProduct::~OHProduct()
-{
 }
 
 bool OHProduct::makestate(unordered_map<string, string> &st)

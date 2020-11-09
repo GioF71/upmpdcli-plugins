@@ -1,18 +1,18 @@
-/* Copyright (C) 2014 J.F.Dockes
- *     This program is free software; you can redistribute it and/or modify
- *     it under the terms of the GNU Lesser General Public License as published by
- *     the Free Software Foundation; either version 2.1 of the License, or
- *     (at your option) any later version.
+/* Copyright (C) 2014-2020 J.F.Dockes
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU Lesser General Public License as published by
+ *   the Free Software Foundation; either version 2.1 of the License, or
+ *   (at your option) any later version.
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU Lesser General Public License for more details.
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU Lesser General Public License for more details.
  *
- *     You should have received a copy of the GNU Lesser General Public License
- *     along with this program; if not, write to the
- *     Free Software Foundation, Inc.,
- *     59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   You should have received a copy of the GNU Lesser General Public License
+ *   along with this program; if not, write to the
+ *   Free Software Foundation, Inc.,
+ *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #ifndef _UPMPDUTILS_H_X_INCLUDED_
 #define _UPMPDUTILS_H_X_INCLUDED_
@@ -20,16 +20,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <unordered_set>
-
-#include <unistd.h>
 
 namespace UPnPClient {
     class UPnPDirObject;
 };
-
-// Read file from datadir
-bool readLibFile(const std::string& name, std::string& contents);
 
 // This was originally purely a translation of data from mpd. Extended
 // to general purpose track/container descriptor
@@ -105,14 +99,12 @@ public:
     }
 };
 
-// Stupdid string comparison of the dc:title part
+// Stupid string comparison of the dc:title part
 bool metaSameTitle(const std::string& meta1, const std::string& meta2);
 
 // Convert between db value to percent values (Get/Set Volume and VolumeDb)
 extern int percentodbvalue(int value);
 extern int dbvaluetopercent(int dbvalue);
-
-extern bool sleepms(int ms);
 
 // Return mapvalue or null strings, for maps where absent entry and
 // null data are equivalent

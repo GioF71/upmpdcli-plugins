@@ -1,4 +1,4 @@
-/* Copyright (C) 2016 J.F.Dockes
+/* Copyright (C) 2016-2020 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -18,7 +18,6 @@
 #define _MAIN_H_X_INCLUDED_
 
 #include <string>
-#include <unordered_set>
 
 extern const std::string g_upmpdcli_package_version;
 extern std::string g_configfilename;
@@ -33,12 +32,15 @@ extern ConfSimple *g_config;
 // (e.g. Source, Radio channel).
 extern ConfSimple *g_state;
 
-// Start media server upmpdcli process (-m 2). This can be called
-// either from main() if some streaming services plugins are active
-// (have a defined user), or from ohcredentials when a service is
-// activated (it may not be configured locally). Uses static data and
-// only does anything if the process is not already started.
-extern bool startMsOnlyProcess();
+// Start media server. This can be called either from main() if some
+// streaming services plugins are active (have a defined user), or
+// from ohcredentials when a service is activated (it may not be
+// configured locally). Uses static data and only does anything if the
+// device is not already started.
+extern bool startMediaServer(bool enable);
+
+// Read file from datadir
+bool readLibFile(const std::string& name, std::string& contents);
 
 typedef struct ohInfoDesc {
     std::string name;

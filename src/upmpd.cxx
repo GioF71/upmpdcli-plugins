@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 J.F.Dockes
+/* Copyright (C) 2014-2020 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -17,9 +17,9 @@
 
 #include "upmpd.hxx"
 
-#include "libupnpp/device/device.hxx"   // for UpnpDevice, UpnpService
-#include "libupnpp/log.hxx"             // for LOGFAT, LOGERR, Logger, etc
-#include "libupnpp/upnpplib.hxx"        // for LibUPnP
+#include "libupnpp/device/device.hxx"
+#include "libupnpp/log.hxx"
+#include "libupnpp/upnpplib.hxx"
 #include "libupnpp/control/cdircontent.hxx"
 
 #include "main.hxx"
@@ -43,7 +43,6 @@
 #include "readfile.h"
 
 using namespace std;
-using namespace std::placeholders;
 using namespace UPnPP;
 
 static const int minVolumeDelta = 5;
