@@ -179,7 +179,8 @@ OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
     keepconsume = g_config->getBool("keepconsume", false);
 
     m_dev->getmpdcli()->subscribe(
-        MPDCli::MpdPlayerEvt, std::bind(&OHService::onEvent, this, _1));
+        MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
+        std::bind(&OHService::onEvent, this, _1));
 }
 
 static void getRadiosFromConf(ConfSimple* conf)

@@ -107,7 +107,8 @@ UpMpdAVTransport::UpMpdAVTransport(
     m_autoplay = g_config->getBool("avtautoplay", false);
     keepconsume = g_config->getBool("keepconsume", false);
     m_dev->getmpdcli()->subscribe(
-        MPDCli::MpdPlayerEvt, bind(&UpMpdAVTransport::onMpdEvent, this, _1));
+        MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
+        bind(&UpMpdAVTransport::onMpdEvent, this, _1));
 }
 
 // AVTransport Errors
