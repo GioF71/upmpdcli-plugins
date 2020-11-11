@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <set>
 
 // Miscellaneous mostly string-oriented small utilities
 // Note that none of the following code knows about utf-8.
@@ -71,17 +70,6 @@ extern void stringtoupper(std::string& io);
 extern std::string stringtoupper(const std::string& io);
 extern bool beginswith(const std::string& bg, const std::string& sml);
 
-// Is one string the end part of the other ?
-extern int stringisuffcmp(const std::string& s1, const std::string& s2);
-
-// Divine language from locale
-extern std::string localelang();
-// Divine 8bit charset from language
-extern std::string langtocode(const std::string& lang);
-
-// Compare charset names, removing the more common spelling variations
-extern bool samecharset(const std::string& cs1, const std::string& cs2);
-
 // Parse date interval specifier into pair of y,m,d dates.  The format
 // for the time interval is based on a subset of iso 8601 with
 // the addition of open intervals, and removal of all time indications.
@@ -104,8 +92,18 @@ struct DateInterval {
 extern bool parsedateinterval(const std::string& s, DateInterval *di);
 extern int monthdays(int mon, int year);
 
+
+/** Note for all templated functions: 
+ * By default, smallut.cpp has explicit instantiations for common
+ * containers (list, vector, set, etc.). If this is not enough, or
+ * conversely, if you want to minimize the module size, you can chose
+ * the instantiations by defining the SMALLUT_EXTERNAL_INSTANTIATIONS
+ * compilation flag, and defining the instances in a file named
+ * smallut_instantiations.h
+ */
+
 /**
- * Parse input string into list of strings.
+ * Parse input string into list of strings. See instantiation note above.
  *
  * Token delimiter is " \t\n" except inside dquotes. dquote inside
  * dquotes can be escaped with \ etc...
@@ -118,7 +116,7 @@ template <class T> bool stringToStrings(const std::string& s, T& tokens,
                                         const std::string& addseps = "");
 
 /**
- * Inverse operation:
+ * Inverse operation. See instantiation note above.
  */
 template <class T> void stringsToString(const T& tokens, std::string& s);
 template <class T> std::string stringsToString(const T& tokens);
@@ -126,12 +124,13 @@ template <class T> std::string stringsToString(const T& tokens);
 /**
  * Strings to CSV string. tokens containing the separator are quoted (")
  * " inside tokens is escaped as "" ([word "quote"] =>["word ""quote"""]
+ * See instantiation note above.
  */
 template <class T> void stringsToCSV(const T& tokens, std::string& s,
                                      char sep = ',');
 
 /**
- * Split input string. No handling of quoting
+ * Split input string. No handling of quoting.
  */
 extern void stringToTokens(const std::string& s,
                            std::vector<std::string>& tokens,
@@ -211,6 +210,7 @@ inline void leftzeropad(std::string& s, unsigned len)
 // (e.g. ac:23:0c:4f:46:fd)
 extern std::string hexprint(const std::string& in, char separ= 0);
 
+#ifndef SMALLUT_NO_REGEX
 // A class to solve platorm/compiler issues for simple regex
 // matches. Uses the appropriate native lib under the hood.
 // This always uses extended regexp syntax.
@@ -227,13 +227,19 @@ public:
     std::string getMatch(const std::string& val, int i) const;
     /// Calls simpleMatch()
     bool operator() (const std::string& val) const;
+
+    /// Replace the first occurrence of regexp. 
+    std::string simpleSub(const std::string& input, const std::string& repl);
+
     /// Check after construction
     bool ok() const;
+
     
     class Internal;
 private:
     Internal *m;
 };
+#endif // SMALLUT_NO_REGEX
 
 /// Utilities for printing names for defined values (Ex: O_RDONLY->"O_RDONLY")
 
@@ -256,10 +262,5 @@ extern std::string flagsToString(const std::vector<CharFlags>&,
 
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);
-
-/// Reverse operation: translate string into bitfield
-extern unsigned int
-stringToFlags(const std::vector<CharFlags>&, const std::string& input,
-              const char *sep = "|");
 
 #endif /* _SMALLUT_H_INCLUDED_ */

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2016 J.F.Dockes
+/* Copyright (C) 2006-2020 J.F.Dockes
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -15,10 +15,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *   02110-1301 USA
  */
+#include "smallut.h"
+
 #include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <cinttypes>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cinttypes>
+#include <cstring>
+#include <ctime>
+#include <iostream>
+#include <list>
+#include <numeric>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #ifdef _WIN32
 // needed for localtime_r under mingw?
@@ -28,11 +42,6 @@
 #endif /* _MSC_VER */
 #endif /* _WIN32 */
 
-#include <ctime>
-#include <cctype>
-#include <cerrno>
-#include <cstring>
-#include <cmath>
 
 // Older compilers don't support stdc++ regex, but Windows does not
 // have the Linux one. Have a simple class to solve the simple cases.
@@ -44,48 +53,13 @@
 #include <regex.h>
 #endif
 
-#include <string>
-#include <iostream>
-#include <list>
-#include <numeric>
-#include <unordered_map>
-#include <unordered_set>
-
-#include "smallut.h"
-
 using namespace std;
 
 int stringicmp(const string& s1, const string& s2)
 {
-    string::const_iterator it1 = s1.begin();
-    string::const_iterator it2 = s2.begin();
-    string::size_type size1 = s1.length(), size2 = s2.length();
-    char c1, c2;
-
-    if (size1 < size2) {
-        while (it1 != s1.end()) {
-            c1 = ::toupper(*it1);
-            c2 = ::toupper(*it2);
-            if (c1 != c2) {
-                return c1 > c2 ? 1 : -1;
-            }
-            ++it1;
-            ++it2;
-        }
-        return size1 == size2 ? 0 : -1;
-    }
-
-    while (it2 != s2.end()) {
-        c1 = ::toupper(*it1);
-        c2 = ::toupper(*it2);
-        if (c1 != c2) {
-            return c1 > c2 ? 1 : -1;
-        }
-        ++it1;
-        ++it2;
-    }
-    return size1 == size2 ? 0 : 1;
+    return strcasecmp(s1.c_str(), s2.c_str());
 }
+
 void stringtolower(string& io)
 {
     std::transform(io.begin(), io.end(), io.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -108,22 +82,6 @@ string stringtoupper(const string& i)
     string o = i;
     stringtoupper(o);
     return o;
-}
-
-extern int stringisuffcmp(const string& s1, const string& s2)
-{
-    string::const_reverse_iterator r1 = s1.rbegin(), re1 = s1.rend(),
-        r2 = s2.rbegin(), re2 = s2.rend();
-    while (r1 != re1 && r2 != re2) {
-        char c1 = ::toupper(*r1);
-        char c2 = ::toupper(*r2);
-        if (c1 != c2) {
-            return c1 > c2 ? 1 : -1;
-        }
-        ++r1;
-        ++r2;
-    }
-    return 0;
 }
 
 //  s1 is already lowercase
@@ -191,14 +149,6 @@ int stringuppercmp(const string& s1, const string& s2)
 bool beginswith(const std::string& big, const std::string& small)
 {
     return big.compare(0, small.size(), small) == 0;
-}
-
-// Compare charset names, removing the more common spelling variations
-bool samecharset(const string& cs1, const string& cs2)
-{
-    auto mcs1 = std::accumulate(cs1.begin(), cs1.end(), "", [](const char* m, char i) { return (i != '_' && i != '-') ? m + ::tolower(i) : m; });
-    auto mcs2 = std::accumulate(cs2.begin(), cs2.end(), "", [](const char* m, char i) { return (i != '_' && i != '-') ? m + ::tolower(i) : m; });
-    return mcs1 == mcs2;
 }
 
 template <class T> bool stringToStrings(const string& s, T& tokens,
@@ -310,15 +260,6 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
     return true;
 }
 
-template bool stringToStrings<list<string> >(const string&,
-                                             list<string>&, const string&);
-template bool stringToStrings<vector<string> >(const string&,
-                                               vector<string>&, const string&);
-template bool stringToStrings<set<string> >(const string&,
-                                            set<string>&, const string&);
-template bool stringToStrings<std::unordered_set<string> >
-(const string&, std::unordered_set<string>&, const string&);
-
 template <class T> void stringsToString(const T& tokens, string& s)
 {
     for (auto it = tokens.begin();
@@ -347,20 +288,13 @@ template <class T> void stringsToString(const T& tokens, string& s)
         }
     }
 }
-template void stringsToString<list<string> >(const list<string>&, string&);
-template void stringsToString<vector<string> >(const vector<string>&, string&);
-template void stringsToString<set<string> >(const set<string>&, string&);
-template void stringsToString<unordered_set<string> >(const unordered_set<string>&, string&);
+
 template <class T> string stringsToString(const T& tokens)
 {
     string out;
     stringsToString<T>(tokens, out);
     return out;
 }
-template string stringsToString<list<string> >(const list<string>&);
-template string stringsToString<vector<string> >(const vector<string>&);
-template string stringsToString<set<string> >(const set<string>&);
-template string stringsToString<unordered_set<string> >(const unordered_set<string>&);
 
 template <class T> void stringsToCSV(const T& tokens, string& s,
                                      char sep)
@@ -392,9 +326,30 @@ template <class T> void stringsToCSV(const T& tokens, string& s,
         }
     }
 }
+
+#ifdef SMALLUT_EXTERNAL_INSTANTIATIONS
+#include "smallut_instantiate.h"
+#else
+template bool stringToStrings<list<string> >(const string&,
+                                             list<string>&, const string&);
+template bool stringToStrings<vector<string> >(const string&,
+                                               vector<string>&, const string&);
+template bool stringToStrings<set<string> >(const string&,
+                                            set<string>&, const string&);
+template bool stringToStrings<std::unordered_set<string> >
+(const string&, std::unordered_set<string>&, const string&);
+template void stringsToString<list<string> >(const list<string>&, string&);
+template void stringsToString<vector<string> >(const vector<string>&, string&);
+template void stringsToString<set<string> >(const set<string>&, string&);
+template void stringsToString<unordered_set<string> >(const unordered_set<string>&, string&);
+template string stringsToString<list<string> >(const list<string>&);
+template string stringsToString<vector<string> >(const vector<string>&);
+template string stringsToString<set<string> >(const set<string>&);
+template string stringsToString<unordered_set<string> >(const unordered_set<string>&);
 template void stringsToCSV<list<string> >(const list<string>&, string&, char);
 template void stringsToCSV<vector<string> >(const vector<string>&, string&,
                                             char);
+#endif
 
 void stringToTokens(const string& str, vector<string>& tokens,
                     const string& delims, bool skipinit)
@@ -1203,61 +1158,7 @@ void catstrerror(string *reason, const char *what, int _errno)
 #endif
 }
 
-
-static const std::unordered_map<string, string> lang_to_code {
-    {"be", "cp1251"},
-    {"bg", "cp1251"},
-    {"cs", "iso-8859-2"},
-    {"el", "iso-8859-7"},
-    {"he", "iso-8859-8"},
-    {"hr", "iso-8859-2"},
-    {"hu", "iso-8859-2"},
-    {"ja", "eucjp"},
-    {"kk", "pt154"},
-    {"ko", "euckr"},
-    {"lt", "iso-8859-13"},
-    {"lv", "iso-8859-13"},
-    {"pl", "iso-8859-2"},
-    {"rs", "iso-8859-2"},
-    {"ro", "iso-8859-2"},
-    {"ru", "koi8-r"},
-    {"sk", "iso-8859-2"},
-    {"sl", "iso-8859-2"},
-    {"sr", "iso-8859-2"},
-    {"th", "iso-8859-11"},
-    {"tr", "iso-8859-9"},
-    {"uk", "koi8-u"},
-        };
-static const string cstr_cp1252("CP1252");
-
-string langtocode(const string& lang)
-{
-    const auto it = lang_to_code.find(lang);
-
-    // Use cp1252 by default...
-    if (it == lang_to_code.end()) {
-        return cstr_cp1252;
-    }
-
-    return it->second;
-}
-
-string localelang()
-{
-    const char *lang = getenv("LANG");
-
-    if (lang == nullptr || *lang == 0 || !strcmp(lang, "C") ||
-        !strcmp(lang, "POSIX")) {
-        return "en";
-    }
-    string locale(lang);
-    string::size_type under = locale.find_first_of('_');
-    if (under == string::npos) {
-        return locale;
-    }
-    return locale.substr(0, under);
-}
-
+#ifndef SMALLUT_NO_REGEX
 #ifdef USE_STD_REGEX
 
 class SimpleRegexp::Internal {
@@ -1281,6 +1182,17 @@ bool SimpleRegexp::simpleMatch(const string& val) const
     if (!ok())
         return false;
     return regex_search(val, m->res, m->expr);
+}
+
+// Substitute one instance of regular expression
+std::string SimpleRegexp::simpleSub(
+    const std::string& in, const std::string& repl)
+{
+    if (!ok()) {
+        return std::string();
+    }
+    return regex_replace(
+        in, m->expr, repl, std::regex_constants::format_first_only);
 }
 
 string SimpleRegexp::getMatch(const string&, int i) const
@@ -1309,6 +1221,36 @@ public:
     vector<regmatch_t> matches;
 };
 
+// Substitute one instance of regular expression
+std::string SimpleRegexp::simpleSub(
+    const std::string& in, const std::string& repl)
+{
+    if (!ok()) {
+        return std::string();
+    }
+
+    int err;
+    if ((err = regexec(&m->expr, in.c_str(),
+                       m->nmatch + 1, &m->matches[0], 0))) {
+#if SIMPLESUB_DBG
+        const int ERRSIZE = 200;
+        char errbuf[ERRSIZE + 1];
+        regerror(err, &expr, errbuf, ERRSIZE);
+        std::cerr << "simpleSub: regexec(" << sexp << ") failed: "
+                  <<  errbuf << "\n";
+#endif
+        return in;
+    }
+    if (m->matches[0].rm_so == -1) {
+        // No match
+        return in;
+    }
+    string out = in.substr(0, m->matches[0].rm_so);
+    out += repl;
+    out += in.substr(m->matches[0].rm_eo);
+    return out;
+}
+
 bool SimpleRegexp::simpleMatch(const string& val) const
 {
     if (!ok())
@@ -1325,7 +1267,7 @@ string SimpleRegexp::getMatch(const string& val, int i) const
                       m->matches[i].rm_eo - m->matches[i].rm_so);
 }
 
-#endif // win/notwinf
+#endif // !windows, using C regexps
 
 SimpleRegexp::SimpleRegexp(const string& exp, int flags, int nmatch)
     : m(new Internal(exp, flags, nmatch))
@@ -1346,6 +1288,7 @@ bool SimpleRegexp::operator() (const string& val) const
 {
     return simpleMatch(val);
 }
+#endif // SMALLUT_NO_REGEX
 
 string flagsToString(const vector<CharFlags>& flags, unsigned int val)
 {
@@ -1386,29 +1329,8 @@ string valToString(const vector<CharFlags>& flags, unsigned int val)
     return out;
 }
 
-unsigned int stringToFlags(const vector<CharFlags>& flags,
-                           const string& input, const char *sep)
-{
-    unsigned int out = 0;
-
-    vector<string> toks;
-    stringToTokens(input, toks, sep);
-    for (auto& tok: toks) {
-        trimstring(tok);
-        out = std::accumulate(
-            flags.begin(), flags.end(), out,
-            [&](unsigned int o, CharFlags flag) {
-                return tok == flag.yesname ? o | flag.value : o;
-            });
-    }
-    return out;
-}
-
-
 // Initialization for static stuff to be called from main thread before going
 // multiple
 void smallut_init_mt()
 {
-    // Init langtocode() static table
-    langtocode("");
 }
