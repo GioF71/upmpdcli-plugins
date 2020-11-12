@@ -329,7 +329,7 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     status["NextAVTransportURI"] = "NOT_IMPLEMENTED";
     status["NextAVTransportURIMetaData"] = "NOT_IMPLEMENTED";
 #else
-    status["NextAVTransportURI"] = m_nexturi;
+    status["NextAVTransportURI"] = m_nextUri;
     if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         status["NextAVTransportURIMetaData"] = m_nextMetadata;
     } else {
