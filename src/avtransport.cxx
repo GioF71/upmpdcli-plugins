@@ -242,6 +242,9 @@ static string mpdsToTState(const MpdStatus &mpds)
 //    CurrentTrack
 //    CurrentTrackDuration
 //    CurrentMediaDuration
+// Note: currentTrackXX could be different from AVTransportURI if the
+// latter points to an object with multiple tracks (the currentTrack
+// is for the active one). We don't support this at the moment.
 //    CurrentTrackMetaData
 //    CurrentTrackURI
 //    AVTransportURI
@@ -284,19 +287,19 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
         m_curMetadata = didlmake(mpds.currentsong);
         LOGDEB2("TPSTATEMTOU: RADIO OR MPD: FROM MPD:\n");
     } else {
-        if (!uri.compare(m_nextUri)) {
+        if (!uri.empty() && !uri.compare(m_nextUri)) {
             LOGDEB2("TPSTATEMTOU m_uri is m_nextUri. -> nextMetadata\n");
             m_uri = m_nextUri;
             m_curMetadata = m_nextMetadata;
             m_nextUri.clear();
             m_nextMetadata.clear();
-        } else if (uri.compare(m_uri)) {
+        } else if (!uri.empty() && uri.compare(m_uri)) {
             // Someone else is controlling mpd. Maybe our own ohplaylist.
             m_nextMetadata.clear();
             m_nextUri.clear();
             m_uri = uri;
             if (!m_ohp || !m_ohp->cacheFind(uri, m_curMetadata)) {
-                m_curMetadata = didlmake(mpds.currentsong);
+                m_curMetadata = is_song ? didlmake(mpds.currentsong) : "";
                 LOGDEB2("TPSTATEMTOU: FROM MPDS\n");
             } else {
                 LOGDEB2("TPSTATEMTOU: FROM OHCACHE\n");
@@ -307,16 +310,16 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     status["CurrentTrack"] = "1";
     string playmedium("NONE");
     if (is_song)
-        playmedium = uri.find("http://") == 0 ?    "HDD" : "NETWORK";
+        playmedium = m_uri.find("http://") == 0 ? "HDD" : "NETWORK";
     status["NumberOfTracks"] = "1";
     status["CurrentMediaDuration"] = is_song?
         upnpduration(mpds.songlenms):"00:00:00";
     status["CurrentTrackDuration"] = is_song?
         upnpduration(mpds.songlenms):"00:00:00";
-    status["CurrentTrackURI"] = uri;
-    status["AVTransportURI"] = uri;
+    status["CurrentTrackURI"] = m_uri;
+    status["AVTransportURI"] = m_uri;
     status["AVTransportURIMetaData"] = status["CurrentTrackMetaData"] =
-        is_song ? m_curMetadata : "";
+        m_curMetadata;
     status["RelativeTimePosition"] = is_song?
         upnpduration(mpds.songelapsedms):"0:00:00";
     status["AbsoluteTimePosition"] = is_song?
@@ -326,9 +329,9 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     status["NextAVTransportURI"] = "NOT_IMPLEMENTED";
     status["NextAVTransportURIMetaData"] = "NOT_IMPLEMENTED";
 #else
-    status["NextAVTransportURI"] = mpds.nextsong.rsrc.uri;
+    status["NextAVTransportURI"] = m_nexturi;
     if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
-        status["NextAVTransportURIMetaData"] = is_song ? m_nextMetadata : "";
+        status["NextAVTransportURIMetaData"] = m_nextMetadata;
     } else {
         status["NextAVTransportURIMetaData"] = is_song ?
             didlmake(mpds.nextsong) : "";
@@ -565,46 +568,15 @@ int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
-
-    if (is_song) {
-        data.addarg("Track", "1");
-    } else {
-        data.addarg("Track", "0");
-    }
-
-    if (is_song) {
-        data.addarg("TrackDuration", upnpduration(mpds.songlenms));
-        LOGDEB1("UpMpdAVTransport::getPositionInfo: trackduration " <<
-                upnpduration(mpds.songlenms) << endl);
-    } else {
-        data.addarg("TrackDuration", "00:00:00");
-        LOGDEB1("UpMpdAVTransport::getPositionInfo: trackduration 00:00:00\n");
-    }
-
-    if (is_song) {
-        data.addarg("TrackMetaData", m_curMetadata);
-    } else {
-        data.addarg("TrackMetaData", "");
-    }
-
-    const string& uri = mpds.currentsong.rsrc.uri;
-    if (is_song && !uri.empty()) {
-        data.addarg("TrackURI", SoapHelp::xmlQuote(uri));
-    } else {
-        data.addarg("TrackURI", "");
-    }
-    if (is_song) {
-        data.addarg("RelTime", upnpduration(mpds.songelapsedms));
-    } else {
-        data.addarg("RelTime", "0:00:00");
-    }
-
-    if (is_song) {
-        data.addarg("AbsTime", upnpduration(mpds.songelapsedms));
-    } else {
-        data.addarg("AbsTime", "0:00:00");
-    }
-
+    data.addarg("Track", is_song ? "1" : "0");
+    data.addarg("TrackDuration",
+                is_song ? upnpduration(mpds.songlenms) : "00:00:00");
+    data.addarg("TrackMetaData", m_curMetadata);
+    data.addarg("TrackURI", SoapHelp::xmlQuote(m_uri));
+    data.addarg("RelTime",
+                is_song ? upnpduration(mpds.songelapsedms) : "0:00:00");
+    data.addarg("AbsTime",
+                is_song ? upnpduration(mpds.songelapsedms) : "0:00:00");
     data.addarg("RelCount", "0");
     data.addarg("AbsCount", "0");
     return UPNP_E_SUCCESS;
@@ -641,41 +613,29 @@ int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
         (mpds.state == MpdStatus::MPDS_PAUSE);
 
     data.addarg("NrTracks", "1");
-    if (is_song) {
-        data.addarg("MediaDuration", upnpduration(mpds.songlenms));
-    } else {
-        data.addarg("MediaDuration", "00:00:00");
-    }
+    data.addarg("MediaDuration",
+                is_song ? upnpduration(mpds.songlenms) : "00:00:00");
 
-    const string& thisuri = mpds.currentsong.rsrc.uri;
-    if (is_song && !thisuri.empty()) {
-        data.addarg("CurrentURI", SoapHelp::xmlQuote(thisuri));
-    } else {
-        data.addarg("CurrentURI", "");
-    }
-    if (is_song) {
-        data.addarg("CurrentURIMetaData", m_curMetadata);
-    } else {
-        data.addarg("CurrentURIMetaData", "");
-    }
+    data.addarg("CurrentURI", SoapHelp::xmlQuote(m_uri));
+    data.addarg("CurrentURIMetaData", m_curMetadata);
     if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
-        data.addarg("NextURI", m_nextUri);
-        data.addarg("NextURIMetaData", is_song ? m_nextMetadata : "");
+        data.addarg("NextURI", SoapHelp::xmlQuote(m_nextUri));
+        data.addarg("NextURIMetaData", m_nextMetadata);
     } else {
-        data.addarg("NextURI", mpds.nextsong.rsrc.uri);
+        data.addarg("NextURI", SoapHelp::xmlQuote(mpds.nextsong.rsrc.uri));
         data.addarg("NextURIMetaData", is_song ? didlmake(mpds.nextsong) : "");
     }
     string playmedium("NONE");
-    if (is_song)
-        playmedium = thisuri.find("http://") == 0 ?    "HDD" : "NETWORK";
+    if (!m_uri.empty())
+        playmedium = m_uri.find("http://") == 0 ? "HDD" : "NETWORK";
     data.addarg("PlayMedium", playmedium);
-
     data.addarg("RecordMedium", "NOT_IMPLEMENTED");
     data.addarg("WriteStatus", "NOT_IMPLEMENTED");
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, int what)
+int UpMpdAVTransport::playcontrol(
+    const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
     LOGDEB("UpMpdAVTransport::playcontrol State: " << mpds.state <<
@@ -714,7 +674,8 @@ int UpMpdAVTransport::playcontrol(const SoapIncoming& sc, SoapOutgoing& data, in
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
-int UpMpdAVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int what)
+int UpMpdAVTransport::seqcontrol(
+    const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
     LOGDEB("UpMpdAVTransport::seqcontrol State: " << mpds.state << " what "
