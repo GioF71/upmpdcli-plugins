@@ -253,10 +253,7 @@ UpMpd::~UpMpd()
 
 const MpdStatus& UpMpd::getMpdStatus()
 {
-    if (nullptr == m_mpds || m_mpdchron.restart() > 2000) {
-        m_mpds = &m_mpdcli->getStatus();
-    }
-    return *m_mpds;
+    return m_mpdcli->getStatus();
 }
 
 int UpMpd::getvolume()

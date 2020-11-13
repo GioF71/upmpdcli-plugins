@@ -491,7 +491,8 @@ bool MPDCli::checkForCommand(const string& cmdname)
 const MpdStatus& MPDCli::getStatus()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
-    updStatus();
+    // We used to updstatus() here, but the status should now be
+    // always up to date because of the idle loop.
     return m_stat;
 }
 

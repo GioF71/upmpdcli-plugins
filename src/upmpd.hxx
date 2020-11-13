@@ -25,7 +25,6 @@
 #include "libupnpp/device/device.hxx"
 
 #include "main.hxx"
-#include "chrono.h"
 
 class MPDCli;
 class MpdStatus;
@@ -181,8 +180,6 @@ public:
 
 private:
     MPDCli *m_mpdcli{0};
-    const MpdStatus *m_mpds{0};
-    Chrono m_mpdchron;
     Options m_allopts;
     std::string m_mcachefn;
     bool m_radioplaying{false};
