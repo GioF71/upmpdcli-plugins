@@ -337,7 +337,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 {
     st.clear();
 
-    MpdStatus mpds = m_dev->getMpdStatusNoUpdate();
+    MpdStatus mpds = m_dev->getMpdStatus();
 
     st["ChannelsMax"] = SoapHelp::i2s(o_radios.size());
     st["Id"] = SoapHelp::i2s(m_id);
@@ -740,7 +740,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
-        const MpdStatus& mpds =  m_dev->getMpdStatusNoUpdate();
+        const MpdStatus& mpds =  m_dev->getMpdStatus();
         bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) ||
             (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
@@ -757,7 +757,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
 int OHRadio::transportState(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHRadio::transportState" << endl);
-    const MpdStatus& mpds = m_dev->getMpdStatusNoUpdate();
+    const MpdStatus& mpds = m_dev->getMpdStatus();
     string tstate;
     switch (mpds.state) {
     case MpdStatus::MPDS_PLAY:

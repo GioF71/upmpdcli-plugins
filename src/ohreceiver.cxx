@@ -100,7 +100,7 @@ static const string o_protocolinfo("ohz:*:*:*,ohm:*:*:*,ohu:*.*.*");
 bool OHReceiver::makestate(unordered_map<string, string> &st)
 {
     if (m_pm == OHReceiverParams::OHRP_MPD) {
-        const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+        const MpdStatus &mpds = m_dev->getMpdStatus();
         if (m_cmd && mpds.state != MpdStatus::MPDS_PLAY && 
             mpds.state != MpdStatus::MPDS_PAUSE) {
             // playing was stopped through ohplaylist or

@@ -36,7 +36,7 @@ struct mpd_connection;
 class MpdStatus {
 public:
     MpdStatus() : state(MPDS_UNK), trackcounter(0), detailscounter(0) {}
-
+    std::string dump() const;
     enum State {MPDS_UNK, MPDS_STOP, MPDS_PLAY, MPDS_PAUSE};
 
     unsigned int versmajor;

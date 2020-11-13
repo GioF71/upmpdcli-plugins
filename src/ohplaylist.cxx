@@ -147,7 +147,7 @@ static string translateIdArray(const vector<UpSong>& in)
 bool OHPlaylist::makeIdArray(string& out)
 {
     //LOGDEB1("OHPlaylist::makeIdArray\n");
-    const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds = m_dev->getMpdStatus();
 
     if (mpds.qvers == m_mpdqvers) {
         out = m_idArrayCached;
@@ -281,7 +281,7 @@ bool OHPlaylist::makestate(unordered_map<string, string> &st)
     if (m_active) {
         st.clear();
 
-        const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+        const MpdStatus &mpds = m_dev->getMpdStatus();
 
         st["TransportState"] =  mpdstatusToTransportState(mpds.state);
         st["Repeat"] = SoapHelp::i2s(mpds.rept);
@@ -414,7 +414,7 @@ int OHPlaylist::repeat(const SoapIncoming& sc, SoapOutgoing& data)
         return 409; // HTTP Conflict
     }
     LOGDEB("OHPlaylist::repeat" << endl);
-    const MpdStatus &mpds =  m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds =  m_dev->getMpdStatus();
     data.addarg("Value", mpds.rept? "1" : "0");
     return UPNP_E_SUCCESS;
 }
@@ -444,7 +444,7 @@ int OHPlaylist::shuffle(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INTERNAL_ERROR;
     }
     LOGDEB("OHPlaylist::shuffle" << endl);
-    const MpdStatus &mpds =  m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds =  m_dev->getMpdStatus();
     data.addarg("Value", mpds.random ? "1" : "0");
     return UPNP_E_SUCCESS;
 }
@@ -475,7 +475,7 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
-        const MpdStatus &mpds =  m_dev->getMpdStatusNoUpdate();
+        const MpdStatus &mpds =  m_dev->getMpdStatus();
         bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
             (mpds.state == MpdStatus::MPDS_PAUSE);
         if (is_song) {
@@ -492,7 +492,7 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
 int OHPlaylist::transportState(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::transportState" << endl);
-    const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds = m_dev->getMpdStatus();
     string tstate;
     switch(mpds.state) {
     case MpdStatus::MPDS_PLAY: 
@@ -566,7 +566,7 @@ int OHPlaylist::id(const SoapIncoming& sc, SoapOutgoing& data)
     }
     LOGDEB("OHPlaylist::id" << endl);
 
-    const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds = m_dev->getMpdStatus();
     data.addarg("Value", mpds.songid == -1 ? "0" : SoapHelp::i2s(mpds.songid));
     return UPNP_E_SUCCESS;
 }
@@ -858,7 +858,7 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
     idarray = st["IdArray"];
     if (token) {
         if (m_active) {
-            const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+            const MpdStatus &mpds = m_dev->getMpdStatus();
             LOGDEB("OHPlaylist::idArray: qvers " << mpds.qvers << endl);
             *token = mpds.qvers;
         } else {
@@ -910,7 +910,7 @@ int OHPlaylist::idArrayChanged(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("OHPlaylist::idArrayChanged" << endl);
     int qvers;
     bool ok = sc.get("Token", &qvers);
-    const MpdStatus &mpds = m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds = m_dev->getMpdStatus();
     
     LOGDEB("OHPlaylist::idArrayChanged: query qvers " << qvers << 
            " mpd qvers " << mpds.qvers << endl);

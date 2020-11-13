@@ -57,7 +57,7 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
 void OHInfo::urimetadata(string& uri, string& metadata)
 {
     const MpdStatus &mpds =  m_updstatus ?
-        m_dev->getMpdStatus() : m_dev->getMpdStatusNoUpdate();
+        m_dev->getMpdStatus() : m_dev->getMpdStatus();
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
 
@@ -85,7 +85,7 @@ void OHInfo::urimetadata(string& uri, string& metadata)
 void OHInfo::makedetails(string &duration, string& bitrate, 
                          string& bitdepth, string& samplerate)
 {
-    const MpdStatus &mpds =  m_dev->getMpdStatusNoUpdate();
+    const MpdStatus &mpds =  m_dev->getMpdStatus();
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -104,9 +104,9 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
 {
     st.clear();
 
-    st["TrackCount"] = SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().trackcounter);
+    st["TrackCount"] = SoapHelp::i2s(m_dev->getMpdStatus().trackcounter);
     st["DetailsCount"] =
-        SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().detailscounter);
+        SoapHelp::i2s(m_dev->getMpdStatus().detailscounter);
     st["MetatextCount"] = SoapHelp::i2s(m_metatextcnt);
     string uri, metadata;
     urimetadata(uri, metadata);
@@ -124,9 +124,9 @@ int OHInfo::counters(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("OHInfo::counters" << endl);
     
     data.addarg("TrackCount",
-                SoapHelp::i2s(m_dev->getMpdStatusNoUpdate().trackcounter));
+                SoapHelp::i2s(m_dev->getMpdStatus().trackcounter));
     data.addarg("DetailsCount", SoapHelp::i2s(
-                    m_dev->getMpdStatusNoUpdate().detailscounter));
+                    m_dev->getMpdStatus().detailscounter));
     data.addarg("MetatextCount", SoapHelp::i2s(m_metatextcnt));
     return UPNP_E_SUCCESS;
 }

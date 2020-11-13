@@ -68,7 +68,7 @@ public:
     bool iscontainer{false};
     bool searchable{false};
 
-    std::string dump() {
+    std::string dump() const {
         return std::string("class [" + upnpClass + "] Artist [" + artist +
                            "] Album [" +  album + " Title [" + title +
                            "] Tno [" + tracknum + "] Uri [" + rsrc.uri + "]");

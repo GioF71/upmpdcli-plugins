@@ -1090,8 +1090,38 @@ int MPDCli::curpos()
     return m_stat.songpos;
 }
 
+std::string MpdStatus::dump() const
+{
+    static const std::vector<CharFlags> stf {
+        CHARFLAGENTRY(MPDS_UNK),
+            CHARFLAGENTRY(MPDS_STOP),
+            CHARFLAGENTRY(MPDS_PLAY),
+            CHARFLAGENTRY(MPDS_PAUSE),
+            };
+    std::ostringstream str;
+    
+    enum State {MPDS_UNK, MPDS_STOP, MPDS_PLAY, MPDS_PAUSE};
+    str << "V. " << versmajor << "." << versminor << "." << verspatch << "\n";
+    str << "vol " << volume << " rept|random|single|consume " << 
+        rept << "|" << random << "|" << single << "|" << consume << "\n";
+    str << "qlen " << qlen << " qvers " << qvers << "\n";
+    str << "state: " << valToString(stf, state) << "\n";
+    str << "cf/rampdb/rampdelay " << crossfade << "/" << mixrampdb << "/" <<
+        mixrampdelay  << "\n";
+    str << "songpos " << songpos << " songid " << songid << " elpsed " << 
+        songelapsedms << " len " << songlenms << "\n";
+    str << "kbrate " << kbrate << " samprate " << sample_rate << " depth " <<
+        bitdepth << " chans " << channels << "\n";
+    str << "error: " << errormessage << "\n";
+    str << "cursong " << currentsong.dump() << "\n";
+    str << "nextsong " << nextsong.dump() << "\n";
+    return str.str();
+}
 
 #ifdef MPDCLI_TEST
+
+
+// c++ -o trmpdcli -DMPDCLI_TEST /path/to/upmpdcli/src/mpdcli.cxx src/closefrom.o src/conftree.o src/pathut.o src/smallut.o src/execmd.o src/netcon.o -lupnpp -lmpdclient -lpthread
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1113,9 +1143,12 @@ static char usage [] =
 static void
 Usage(void)
 {
-    fprintf(stderr, "%s: usage:\n%s", thisprog, usage);
+    fprintf(stderr, "Usage: %s <configfile>\n%s", thisprog, usage);
     exit(1);
 }
+
+ConfSimple *g_config;
+std::string g_configfilename;
 
 static int     op_flags;
 #define OPT_MOINS 0x1
@@ -1147,21 +1180,24 @@ int main(int argc, char **argv)
     b1: argc--; argv++;
     }
 
-    if (argc != 0)
+    if (argc != 1)
         Usage();
-
+    g_configfilename = *argv++;argc--;
+    g_config = new ConfSimple(g_configfilename.c_str(), 1, true);
     MPDCli cli("localhost");
     if (!cli.ok()) {
         cerr << "Cli connection failed" << endl;
         return 1;
     }
     const MpdStatus& status = cli.getStatus();
-  
+
+    std::cout << status.dump();
+
+#if 0
     if (status.state != MpdStatus::MPDS_PLAY) {
         cerr << "Not playing" << endl;
         return 1;
     }
-
     unsigned int seektarget = (status.songlenms - 4500)/1000;
     cerr << "songpos " << status.songpos << " songid " << status.songid <<
         " seeking to " << seektarget << " seconds" << endl;
@@ -1170,6 +1206,7 @@ int main(int argc, char **argv)
         cerr << "Seek failed" << endl;
         return 1;
     }
+#endif
     return 0;
 }
 
