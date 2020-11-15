@@ -50,7 +50,10 @@
 # value, which is automatically discovered.</descr></var>
 #upnpport = 
 
-
+# <var name="useipv6" type="bool">
+# <brief>Enable use of IPV6.</brief>
+# <descr>By default we only use IPV4.</descr></var>
+#useipv6 = false
 
 # <grouptitle>Media Renderer parameters</grouptitle>
 
@@ -132,7 +135,13 @@
 # HTTP server). Default: '$pkgdatadir/presentation.html'.</descr></var>
 #presentationhtml = /usr/share/upmpdcli/presentation.html
 
-
+# <var name="enablel16" type="bool">
+# <brief>Advertise L16 format support</brief>
+# <descr>L16 is a raw linear 16 bits audio stream and the source of many
+# issues because it does not include identifying information. It is 
+# disabled by default, only enable it if you know that you need it.</descr>
+# </var>
+#enablel16 = false
 
 # <grouptitle>MPD parameters</grouptitle>
 

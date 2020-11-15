@@ -26,6 +26,8 @@
 #upnpip =
 # Port number used for UPnP.
 #upnpport =
+# Enable use of IPV6.
+#useipv6 = false
 
 # Media Renderer parameters
 
@@ -51,6 +53,8 @@
 #cachedir = /var/cache/upmpdcli
 # Path to the presentation HTML document
 #presentationhtml = /usr/share/upmpdcli/presentation.html
+# Advertise L16 format support
+#enablel16 = false
 
 # MPD parameters
 

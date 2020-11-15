@@ -643,7 +643,17 @@ int main(int argc, char *argv[])
         const MpdStatus& mpdstat = mpdclip->getStatus();
         // Only the "special" upmpdcli 0.19.16 version has patch != 0
         g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 ||
-            mpdstat.verspatch >= 16; 
+            mpdstat.verspatch >= 16;
+        // Also L16 is a major source of issues when playing with
+        // win10 'cast to device', inciting it to transcode for some
+        // reason, with very bad results. So for the future (new in
+        // 1.5), only enable it if it's explicitely required by the
+        // config.
+        bool confl16{false};
+        if (g_config) {
+            confl16 = g_config->getBool("enablel16", false);
+        }
+        g_enableL16 = g_enableL16 && confl16;
     }
     
     // Initialise lower upnp lib logging. Static so can be done before
@@ -664,23 +674,31 @@ int main(int argc, char *argv[])
     LibUPnP *mylib = 0;
     string hwaddr;
     int libretrysecs = 10;
+    int flags = LibUPnP::UPNPPINIT_FLAG_SERVERONLY;;
+    if (!g_config->getBool("useipv6", false)) {
+        flags |= LibUPnP::UPNPPINIT_FLAG_NOIPV6;
+    }
     for (;;) {
         // Libupnp init fails if we're started at boot and the network
         // is not ready yet. So retry this forever
-        mylib = LibUPnP::getLibUPnP(true, &hwaddr, iface, upnpip, upport);
-        if (mylib) {
+        if (LibUPnP::init(flags,
+                          LibUPnP::UPNPPINIT_OPTION_IFNAMES, &iface,
+                          LibUPnP::UPNPPINIT_OPTION_IPV4, &upnpip,
+                          LibUPnP::UPNPPINIT_OPTION_PORT, upport,
+                          LibUPnP::UPNPPINIT_OPTION_END)) {
             break;
         }
         sleep(libretrysecs);
         libretrysecs = MIN(2*libretrysecs, 120);
     }
-
-    if (!mylib->ok()) {
+    mylib = LibUPnP::getLibUPnP();
+    if (!mylib || !mylib->ok()) {
         LOGFAT("Lib init failed: " <<
                mylib->errAsString("main", mylib->getInitError()) << endl);
         return 1;
     }
-
+    hwaddr = mylib->hwaddr();
+    
     // Create unique IDs for renderer and possible media server
     if (!g_config || !g_config->get("msfriendlyname", fnameMS)) {
         fnameMS = friendlyname + "-mediaserver";
