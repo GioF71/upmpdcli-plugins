@@ -161,7 +161,7 @@ help from the closely related *sc2mpd* package, for processing the audio
 streams).
 
 - Upmpdcli provides a Media Server interface, mostly used for accessing
-external streaming services (Google Music, Spotify, Highresaudio,
+external streaming services (Spotify, Highresaudio, Tidal,
 Qobuz). The *uprcl* module provides a local Media Server based on the
 link:https://www.recoll.org[Recoll] medata extraction and search functions.
 The motivation for the latter is that I see none which is both open-source
@@ -569,7 +569,7 @@ the Receivers can be out of sync by several seconds.
 
 === Streaming Services and UPnP
 
-Streaming services like Google Music or Spotify give access to a huge
+Streaming services like Highresaudio Spotify give access to a huge
 catalog of music through a WEB programming interface which is also usable
 by programs other than their own applications.
 
@@ -617,7 +617,7 @@ framework, and knowing which way you are using will avoid confusion:
 === Accessing Streaming Services through the upmpdcli Media Server
   
 The Media Server function in Upmpdcli gives access to external streaming
-services: Google Music, Spotify, and Highresaudio currently work
+services: Spotify, and Highresaudio currently work
 unconditionally (1.4.11). Tidal and Qobuz are still supported by the code,
 but the access will only be possible if you can find a working application
 token (Tidal) or appid/secret pair (Qobuz), to authorize access by the
@@ -641,9 +641,9 @@ Two conditions must be true for the Media Server to appear with an entry
 for a streaming service:
 
  - The code for the service plugin must be installed. This comes generally
-   in a separate package (e.g _upmpdcli-gmusic_).
+   in a separate package (e.g _upmpdcli-tidal_).
  - The user variable for the service must be present in the configuration
-   file (e.g `gmusicuser`).
+   file (e.g `tidaluser`).
 
 Some other parameters (e.g. a password) may be needed for the access to
 work, depending on the specific service. See the service-specific notes below.
@@ -651,11 +651,7 @@ work, depending on the specific service. See the service-specific notes below.
 NOTE: The streaming services passwords are stored in the upmpdcli
 configuration file ('/etc/upmpdcli.conf'). The installer does not make this
 file r/w by owner only. You should probably change the mode after setting
-the password: `chmod&#160;600&#160;/etc/upmpdcli.conf` Actually, it would
-quite probably be a good idea not to use the same account for your mail and
-music uses. Especially, for Google Music you can and should use an
-application-specific password, or the newer oauth method (see the
-<<upmpdcli.googlemusicnotes,gmusic section>>).
+the password: `chmod&#160;600&#160;/etc/upmpdcli.conf`.
 
 NOTE: I have no reason to believe that upmpdcli is technically mis-using
 the streaming services in any way, but it is definitely not approved by any
@@ -760,64 +756,6 @@ You need a valid Qobuz subscription.
 
 The configuration parameters are described in the
 <<qobuzuser,configuration section>>
-
-
-[[upmpdcli.googlemusicnotes]]
-=== Using Google Music through the Upmpdcli Media Server
-
-You will need to install the upmpdcli-gmusic module and the external
-*gmusicapi* Python package.
-link:http://unofficial-google-music-api.readthedocs.io/en/latest/usage.html#usage[See
-the installation notes here].
-
-The upmpdcli module is based on the Mobileclient interface from the
-link:https://github.com/simon-weber/gmusicapi[gmusicapi] Python package by
-Simon Weber, with upper-level code from the Tidal Kodi add-on. As for the
-other services, the API used is not officially supported and may stop to
-work one day. 
-
-You will need a valid subscription for most functions.
-
-As of version 1.4.8, upmpdcli supports the oauth method for signing in to
-your gmusic account, and this is the recommended method, as it avoids
-storing your password on the upmpdcli machine.
-
-Before you can log in with oauth, you will need to manually generate and
-install the credentials file (this will need to be done only once).
-
-- Go to the `/usr/share/upmpdcli/cdplugins/gmusic` directory.
-- Execute the oauth credentials creation script. This will request that you
-  log in to your google account in a browser, and paste some value back
-  into the script:
-----
- python3 gmusic-init-oauth.py /tmp/gmusic-mobile.cred
-----
-- Create the upmpdcli gmusic cache directory if it does not
-  exist yet, and install the credentials there. 
-----
-sudo mkdir -p /var/cache/upmpdcli/gmusic
-sudo mv /tmp/gmusic-mobile.cred /var/cache/upmpdcli/gmusic
-sudo chown -R upmpdcli /var/cache/upmpdcli
-----
-
-You will still need to have a `gmusicuser` in the upmpdcli configuration
-file, but the value can be bogus (e.g. `oauth`), and no password is needed.
-
-The configuration parameters are described in the
-<<gmusicuser,configuration section>>
-
-.Other gmusic login methods
-
-I'm a little lost in the different google authentication/sign-in methods,
-but anyway:
-
-- If you are using two way authentication, you will need to 
-link:https://www.lesbonscomptes.com/upmpdcli/github-issues/upmpdcli-html/issue-87.html[create
-and use an app password].
-- The interface needs an actual Android Device Id from a registered device
-  to fetch audio streams (but not to browse). The software will try to get
-  one from the list of registered devices, but if this does not work, you
-  may have to set it explicitely in the configuration.
 
 
 [[upmpdcli.spotifynotes]]
@@ -985,7 +923,7 @@ C++11 support, and the development packages for the supporting libraries:
 
 Also the Python modules for streaming service support use the
 *python-requests* package, so you may need to install it (it is only needed
-at run time). Also *gmusicapi* for Google Music.
+at run time). 
 
 If you are using the source from the git repository, you will also need the
 *autoconf*, *automake*, *libtool* trio. Use the `autogen.sh` script to set

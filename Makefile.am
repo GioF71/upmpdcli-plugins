@@ -207,12 +207,6 @@ dist_cdpluginshra_DATA = \
                   src/mediaserver/cdplugins/hra/hraapi.py \
                   src/mediaserver/cdplugins/hra/session.py
 
-cdpluginsgmusicdir = $(pkgdatadir)/cdplugins/gmusic
-dist_cdpluginsgmusic_DATA = \
-                  src/mediaserver/cdplugins/gmusic/gmusic-app.py \
-                  src/mediaserver/cdplugins/gmusic/gmusic-init-oauth.py \
-                  src/mediaserver/cdplugins/gmusic/session.py 
-
 cdpluginsspotifydir = $(pkgdatadir)/cdplugins/spotify
 dist_cdpluginsspotify_DATA = \
                   src/mediaserver/cdplugins/spotify/spotify-app.py \
@@ -280,7 +274,6 @@ install-data-hook:
 	(cd $(DESTDIR)$(pkgdatadir); test -d src_scripts || mkdir src_scripts)
 	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsgmusicdir); chmod a+x gmusic-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 

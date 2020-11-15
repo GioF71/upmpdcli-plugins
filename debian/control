@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 9.0.0), dh-systemd, autotools-dev, dh-autoreconf,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
                qt5-default, qt5-qmake, qtbase5-dev,
-               libupnpp6-dev
+               libupnpp6-dev (>= 0.20.0)
 Standards-Version: 3.9.8
 Homepage: http://www.lesbonscomptes.com/upmpdcli
 
@@ -53,14 +53,6 @@ Section: contrib/sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Tidal plugin
  upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
- streaming service.
-
-Package: upmpdcli-gmusic
-Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Google Play Music plugin
- upmpdcli-gmusic allows upmpdcli to proxy access to the Google Play Music
  streaming service.
 
 Package: upmpdcli-spotify

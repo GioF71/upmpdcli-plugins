@@ -326,7 +326,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #plgmicrohttphost = 
 
 # <var name="plgmicrohttpport" type="int" values="1 65535 49149">
-# <brief>IP port for the tidal/qobuz/gmusic local HTTP service.</brief>
+# <brief>IP port for the tidal/qobuz local HTTP service.</brief>
 # <descr>The URLs for tracks streamed from these services point to a local
 # microhttpd server running on this port (it uses redirection to the actual
 # service URL when actually streaming). The default is 49149.</descr></var>
@@ -338,27 +338,6 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # but the proxy has a facility to retry when a stream is dropped by the
 # service, which seems to happen esp. with Qobuz.</descr></var>
 #plgproxymethod = redirect
-
-# <grouptitle>Google Music streaming service parameters</grouptitle>
-
-# <var name="gmusicuser" type="string"><brief>Google Music user name.</brief>
-# <descr>Your Google Music login name (probably a gmail address).</descr></var>
-#gmusicuser = me@gmail.com
-# <var name="gmusicpass" type="string"><brief>Google Music password.</brief>
-# <descr>The password for your Google Music account.</descr></var>
-#gmusicpass = agoodpassword
-# <var name="gmusicquality" type="cstr" values="hi med low">
-# <brief>Google Music stream quality.</brief> <descr>'hi' for mp3/320, 'med'
-# for mp3/160, 'low' for mp3/128.</descr></var>
-#gmusicquality = med
-# <var name="gmusicdeviceid" type="string"> <brief>Google Music device
-# id.</brief> <descr>Your system MAC address will be used by default, but
-# it seems that this does not work any more and that an Android deviceid is
-# needed. upmpdcli will try to get one from the list of registered
-# devices. If this does not work, you will need to set the gmusicdeviceid
-# value to the device ID from a phone or tablet on which you also use
-# Google Play Music (look up "Android deviceid" for help).</descr></var>
-#gmusicdeviceid =
 
 # <grouptitle>Highresaudio streaming service parameters</grouptitle>
 

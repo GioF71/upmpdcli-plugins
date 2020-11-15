@@ -48,12 +48,3 @@ Description: upmpdcli Tidal plugin
  upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
  streaming service.
 
-
-Package: upmpdcli-gmusic
-Architecture: all
-Section: contrib/sound
-Depends: python, upmpdcli, ${python:Depends}, ${misc:Depends}
-Description: upmpdcli Google Play Music plugin
- upmpdcli-gmusic allows upmpdcli to proxy access to the Google Play Music
- streaming service.
-

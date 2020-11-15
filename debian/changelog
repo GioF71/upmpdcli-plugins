@@ -1,3 +1,13 @@
+upmpdcli (1.5.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Separate the OpenHome and UPnP/AV UPnP devices.
+  * New event management method allows more timely generation
+    of events and no process activity whatsoever when not playing.
+  * Add off by default configuration options for L16 support and IPV6 operation.
+  * Remove the gmusic plugin from the documentation and distribution.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 15 Nov 2020 12:40:00 +0100
+
 upmpdcli (1.4.14-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix build for microhttpd versions 0.9.71 and later (MHD_Result enum)
