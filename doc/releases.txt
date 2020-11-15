@@ -1,5 +1,53 @@
 = Upmpdcli release notes
 
+== 2020-11-15 upplay 1.4.6
+
+- Create the GUI even if the library initialisation fails so that the
+  network parameters can be changed.
+- Fix operation with gmediarender.
+- Misc small fixes.
+
+== 2020-11-15 upmpdcli 1.5.0
+
+- Separate the OpenHome and UPnP/AV UPnP devices. The latter will now show
+  up as <friendlyname>-UPnP/AV. Set upnpav=0 in the configuration if it
+  bothers you. This makes upmpdcli more standard, having separate devices
+  for the different sets of services instead of hosting them all under the
+  same device.
+- Use the new libupnpp event management method by using the MPD idle
+  interface for generating events. Will both provide more timely generation
+  of events and no process activity whatsoever when not playing.
+- Add configuration options for L16 support and IPV6 operation. These are
+  now off by default as they less useful than they are sources of trouble.
+  Especially, the UPnP/AV upmpdcli device now works well with Windows "Cast
+  to device" feature.
+- Removed the gmusic plugin from the documentation and distribution. The Tidal
+  and Qobuz modules are still around, but untested.
+  
+== 2020-11-15 libupnpp 0.20.0
+
+- Allow alternate method of event generation by letting the device code
+  run its event loop instead of polling the services for changes.
+- Add new initialization method allowing easier extensibility of options.
+
+== 2020-11-15 libnpupnp 4.0.14
+
+- Fix parsing of UPnP description with multiple embedded devices.
+- Small changes to improve performance and memory usage. Avoid std::regex use.
+- Do not force the network to be above the application default of 49152. 
+  There was no reason to do this, the bug was inherited from libupnp. 
+
+== 2020-11-02 libnpupnp 4.0.13
+
+- Fix major performance degradation in XML quoting, which could for example
+  make reading big playlists very slow.
+  
+== 2020-10-04 libnpupnp 4.0.12
+
+- By default, run with IPV4 only if IPV6 is unavailable (the previous
+  default was to fail if IPV4-only operation was not specified by setting
+  an ip address in the configuration.
+  
 == 2020-09-03 libnpupnp 4.0.11, libupnpp 0.19.4
 
 - Install the include files in /usr/include/npupnp instead of
