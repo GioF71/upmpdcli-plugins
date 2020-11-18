@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <unistd.h>
+
 namespace UPnPClient {
     class UPnPDirObject;
 };
