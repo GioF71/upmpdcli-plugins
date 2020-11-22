@@ -1,3 +1,9 @@
+upmpdcli (1.5.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix lacking subscription of OHInfo resulting in missing metadata
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 22 Nov 2020 19:12:00 +0100
+
 upmpdcli (1.5.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Separate the OpenHome and UPnP/AV UPnP devices.
