@@ -193,7 +193,7 @@ public:
             m_clients_waiting--;
         }
 
-        LOGINFO(""  << m_name << ": tasks "  << m_tottasks << " nowakes "  <<
+        LOGDEB(""  << m_name << ": tasks "  << m_tottasks << " nowakes "  <<
                 m_nowake << " wsleeps "  << m_workersleeps << " csleeps "  <<
                 m_clientsleeps << "\n");
         // Perform the thread joins and compute overall status

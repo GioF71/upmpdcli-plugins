@@ -217,17 +217,12 @@ UpMpdOpenHome::UpMpdOpenHome(
     m_services.push_back(m_ohpr);
 }
 
-// Note: if we ever need this to work without cxx11, there is this:
-// http://www.tutok.sk/fastgl/callback.html
 UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
              ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts)
     : m_mpdcli(mpdcli),
       m_allopts(opts),
       m_mcachefn(opts.cachefn)
 {
-    // Note: the order is significant here as it will be used when
-    // calling the getStatus() methods, and we want AVTransport to
-    // update the mpd status for everybody
     if (0 == (opts.options & upmpdNoAV)) {
         std::string avfname{friendlyname + "-UPnP/AV"};
         g_config->get("avfriendlyname", avfname);

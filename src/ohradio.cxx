@@ -637,7 +637,7 @@ string OHRadio::metaForId(unsigned int id)
     string meta;
     if (id >= 0 && id  < o_radios.size()) {
         if (false && id == m_id) {
-            LOGDEB1("OHRadio::metaForId: using Metatext\n");
+            LOGDEB1("OHRadio::metaForId: using Metadata\n");
             meta = m_state["Metadata"];
         } else {
             LOGDEB1("OHRadio::metaForId: using list data\n");
