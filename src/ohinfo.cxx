@@ -52,12 +52,13 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
                            bind(&OHInfo::details, this, _1, _2));
     udev->addActionMapping(this, "Metatext", 
                            bind(&OHInfo::metatext, this, _1, _2));
+    m_dev->getmpdcli()->subscribe(
+        MPDCli::MpdQueueEvt, std::bind(&OHService::onEvent, this, _1));
 }
 
 void OHInfo::urimetadata(string& uri, string& metadata)
 {
-    const MpdStatus &mpds =  m_updstatus ?
-        m_dev->getMpdStatus() : m_dev->getMpdStatus();
+    const MpdStatus &mpds =  m_dev->getMpdStatus();
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
 
@@ -115,7 +116,7 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
     makedetails(st["Duration"], st["BitRate"], st["BitDepth"],st["SampleRate"]);
     st["Lossless"] = "0";
     st["CodecName"] = "";
-    st["Metatext"] = m_metatext;
+    st["Metatext"] = m_metatext.empty() ? metadata : m_metatext;
     return true;
 }
 
