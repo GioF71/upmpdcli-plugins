@@ -21,6 +21,7 @@
 #include <unordered_map>  
 #include <vector>         
 #include <functional>
+#include <mutex>
 
 #include "libupnpp/device/device.hxx"
 #include "libupnpp/log.h"
@@ -52,7 +53,8 @@ public:
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values) {
         //LOGDEB("OHService::getEventData" << std::endl);
-
+        std::unique_lock<std::mutex> loc;
+            
         std::unordered_map<std::string, std::string> state, changed;
         makestate(state);
         if (all) {
@@ -89,6 +91,7 @@ protected:
     std::unordered_map<std::string, std::string> m_state;
     UpMpd *m_dev;
     UpMpdOpenHome *m_udev;
+    std::mutex m_statemutex;
 };
 
 #endif /* _OHSERVICE_H_X_INCLUDED_ */
