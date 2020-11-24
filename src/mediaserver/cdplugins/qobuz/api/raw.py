@@ -10,39 +10,45 @@
     :license: GPLv3, see LICENSE for more details.
 '''
 import sys
-from time import time
+import time
 import math
 import hashlib
 import socket
 import binascii
 from itertools import cycle
 import requests
-
-from qobuz.exception import QobuzXbmcError
-from qobuz.debug import warn, info
+from . import spoofbuz
 
 socket.timeout = 5
+
+_loglevel = 3
+def debug(s):
+    if _loglevel >= 2:
+        print("%s" %s, file=sys.stderr)
+def warn(s):
+    if _loglevel >= 3:
+        print("%s" %s, file=sys.stderr)
 
 class RawApi(object):
 
     def __init__(self, appid, configvalue):
-        self.appid = appid
-        #print("app_id: %s"% self.appid, file=sys.stderr)
-        self.configvalue = configvalue.encode('ASCII')
-        self.bappid = self.appid.encode('ASCII')
+        if appid and configvalue:
+            self.configvalue = configvalue
+            self.appid = appid
+            self.__set_s4()
+        else:
+            self.spoofer = spoofbuz.Spoofer()
+            self.appid = self.spoofer.getAppId()
+            
         self.version = '0.2'
         self.baseUrl = 'http://www.qobuz.com/api.json/'
-
         self.user_auth_token = None
         self.user_id = None
         self.error = None
         self.status_code = None
         self._baseUrl = self.baseUrl + self.version
         self.session = requests.Session()
-        self.statContentSizeTotal = 0
-        self.statTotalRequest = 0
         self.error = None
-        self.__set_s4()
 
     def _api_error_string(self, request, url='', params={}, json=''):
         return '{reason} (code={status_code})\n' \
@@ -56,19 +62,14 @@ class RawApi(object):
         '''Checking parameters before sending our request
         - if mandatory parameter is missing raise error
         - if a given parameter is neither in mandatory or allowed
-        raise error (Creating exception class like MissingParameter
-        may be a good idea)
+        raise error
         '''
         for label in mandatory:
             if not label in ka:
-                raise QobuzXbmcError(who=self,
-                                     what='missing_parameter',
-                                     additional=label)
+                raise Exception("Qobuz: missing parameter [%s]" % label)
         for label in ka:
             if label not in mandatory and label not in allowed:
-                raise QobuzXbmcError(who=self,
-                                     what='invalid_parameter',
-                                     additional=label)
+                raise Exception("Qobuz: invalid parameter [%s]" % label)
 
     def __set_s4(self):
         '''appid and associated secret is for this app usage only
@@ -76,9 +77,10 @@ class RawApi(object):
         General Terms and Conditions
         (http://www.qobuz.com/apps/api/QobuzAPI-TermsofUse.pdf)
         '''
-        s3b = self.configvalue
+        s3b = self.configvalue.encode('ASCII')
         s3s = binascii.a2b_base64(s3b)
-        a = cycle(self.bappid)
+        bappid = self.appid.encode('ASCII')
+        a = cycle(bappid)
         b = zip(s3s, a)
         self.s4 = b''.join((x ^ y).to_bytes(1, byteorder='big') for (x, y) in b)
         #print("S4: %s"% self.s4.decode('ASCII'), file=sys.stderr)
@@ -114,50 +116,45 @@ class RawApi(object):
             Error: [200]
             Error: Bad Request [400]
         '''
-        self.statTotalRequest += 1
         self.error = ''
         self.status_code = None
         url = self._baseUrl + uri
         useToken = False if (opt and 'noToken' in opt) else True
-        headers = {}
+        headers = {
+            "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0"
+        }
         if useToken and self.user_auth_token:
-            headers['x-user-auth-token'] = self.user_auth_token
-        headers['x-app-id'] = self.appid
-        '''DEBUG'''
-        import copy
-        _copy_params = copy.deepcopy(params)
-        if 'password' in _copy_params:
-            _copy_params['password'] = '***'
-        info(self, 'URI {} POST PARAMS: {} HEADERS: {}', uri,
-             str(_copy_params), str(headers))
-        '''END / DEBUG'''
+            headers['X-User-Auth-Token'] = self.user_auth_token
+        headers['X-App-Id'] = self.appid
         r = None
+        #debug("POST %s params %s headers %s" % (url, params, headers))
         try:
             r = self.session.post(url, data=params, headers=headers)
         except:
             self.error = 'Post request fail'
-            warn(self, self.error)
+            warn(self.error)
             return None
         self.status_code = int(r.status_code)
         if self.status_code != 200:
-            self.error = self._api_error_string(r, url, _copy_params)
-            warn(self, self.error)
+            self.error = self._api_error_string(r, url, params)
+            warn(self.error)
             return None
         if not r.content:
             self.error = 'Request return no content'
-            warn(self, self.error)
+            warn(self.error)
             return None
-        self.statContentSizeTotal += sys.getsizeof(r.content)
+
         '''Retry get if connexion fail'''
         try:
             response_json = r.json()
         except Exception as e:
-            warn(self, 'Json loads failed to load... retrying!\n{}', repr(e))
+            warn('Json loads failed to load... retrying!\n{}', repr(e))
             try:
                 response_json = r.json()
             except:
                 self.error = "Failed to load json two times...abort"
-                warn(self, self.error)
+                warn(self.error)
                 return None
         status = None
         try:
@@ -165,19 +162,16 @@ class RawApi(object):
         except:
             pass
         if status == 'error':
-            self.error = self._api_error_string(r, url, _copy_params,
+            self.error = self._api_error_string(r, url, params,
                                                 response_json)
-            warn(self, self.error)
+            warn(self.error)
             return None
         return response_json
 
     def set_user_data(self, user_id, user_auth_token):
         if not (user_id and user_auth_token):
-            raise QobuzXbmcError(who=self, what='missing_argument',
-                                 additional='uid|token')
-        self.user_auth_token = user_auth_token
-        self.user_id = user_id
-        self.logged_on = time()
+            raise Exception("Qobuz: missing argument uid|token")
+        self.logged_on = time.time()
 
     def logout(self):
         self.user_auth_token = None
@@ -185,28 +179,37 @@ class RawApi(object):
         self.logged_on = None
 
     def user_login(self, **ka):
-        data = self._user_login(**ka)
-        if not data:
-            self.logout()
-            return None
-        self.set_user_data(data['user']['id'], data['user_auth_token'])
-        return data
-
-    def _user_login(self, **ka):
         self._check_ka(ka, ['username', 'password'], ['email'])
         data = self._api_request(ka, '/user/login', noToken=True)
-        if not data:
+        if not data or not 'user' in data or not 'credential' in data['user'] \
+           or not 'id' in data['user'] \
+           or not 'parameters' in data['user']['credential']:
+            warn("/user/login returns %s" % data)
+            self.logout()
             return None
-        if not 'user' in data:
+        if not data["user"]["credential"]["parameters"]:
+            warn("Free accounts are not eligible to download tracks.")
             return None
-        if not 'id' in data['user']:
-            return None
-        if not data['user']['id']:
-            return None
+        self.user_id = data['user']['id']
+        self.user_auth_token = data["user_auth_token"]
+        self.label = data["user"]["credential"]["parameters"]["short_label"]
+        debug("Membership: {}".format(self.label))
         data['user']['email'] = ''
         data['user']['firstname'] = ''
         data['user']['lastname'] = ''
+        self.setSec()
         return data
+
+    def setSec(self):
+        global _loglevel
+        savedlevel = _loglevel
+        _loglevel = 1
+        for value in self.spoofer.getSecrets().values():
+            self.s4 = value.encode('utf-8')
+            if self.userlib_getAlbums(sec=self.s4) is not None:
+                #debug("SECRET [%s]"%self.s4)
+                _loglevel = savedloglevel
+                return
 
     def user_update(self, **ka):
         self._check_ka(ka, [], ['player_settings'])
@@ -218,22 +221,34 @@ class RawApi(object):
 
     def track_getFileUrl(self, intent="stream", **ka):
         self._check_ka(ka, ['format_id', 'track_id'])
-        ka['request_ts'] = time()
-        stringvalue = 'trackgetFileUrlformat_id' \
-                      + str(ka['format_id']) \
-                      + 'intent'+intent \
-                      + 'track_id' \
-                      + str(ka['track_id']) \
-                      + str(ka['request_ts'])
+        ts = str(time.time())
+        track_id = str(ka['track_id'])
+        fmt_id = str(ka['format_id'])
+        stringvalue = 'trackgetFileUrlformat_id' + fmt_id \
+                      + 'intent' + intent \
+                      + 'track_id' + track_id + ts
         stringvalue = stringvalue.encode('ASCII')
         stringvalue  += self.s4
-        params = {'format_id': str(ka['format_id']),
+        rq_sig = str(hashlib.md5(stringvalue).hexdigest())
+        params = {'format_id': fmt_id,
                   'intent': intent,
-                  'request_ts': ka['request_ts'],
-                  'request_sig': str(hashlib.md5(stringvalue).hexdigest()),
-                  'track_id': str(ka['track_id'])
+                  'request_ts': ts,
+                  'request_sig': rq_sig,
+                  'track_id': track_id
                   }
         return self._api_request(params, '/track/getFileUrl')
+
+    def userlib_getAlbums(self, **ka):
+        ts = str(time.time())
+        r_sig = "userLibrarygetAlbumsList" + str(ts) + str(ka["sec"])
+        r_sig_hashed = hashlib.md5(r_sig.encode("utf-8")).hexdigest()
+        params = {
+            "app_id": self.appid,
+            "user_auth_token": self.user_auth_token,
+            "request_ts": ts,
+            "request_sig": r_sig_hashed,
+        }
+        return self._api_request(params, '/userLibrary/getAlbumsList')
 
     def track_search(self, **ka):
         self._check_ka(ka, ['query'], ['limit'])
@@ -260,14 +275,14 @@ class RawApi(object):
     def track_resportStreamingEnd(self, track_id, duration):
         duration = math.floor(int(duration))
         if duration < 5:
-            info(self, 'Duration lesser than 5s, abort reporting')
+            warn(self, 'Duration lesser than 5s, abort reporting')
             return None
         # @todo ???
         user_auth_token = ''  # @UnusedVariable
         try:
             user_auth_token = self.user_auth_token  # @UnusedVariable
         except:
-            warn(self, 'No authentification token')
+            warn('No authentification token')
             return None
         params = {'user_id': self.user_id,
                   'track_id': track_id,
@@ -289,13 +304,7 @@ class RawApi(object):
         return self._api_request(ka, '/purchase/getUserPurchases')
 
     def search_getResults(self, **ka):
-        self._check_ka(ka, ['query'], ['type', 'limit', 'offset'])
-        mandatory = ['query', 'type']
-        for label in mandatory:
-            if not label in ka:
-                raise QobuzXbmcError(who=self,
-                                     what='missing_parameter',
-                                     additional=label)
+        self._check_ka(ka, ['query', 'type'], ['limit', 'offset'])
         return self._api_request(ka, '/search/getResults')
 
     def favorite_getUserFavorites(self, **ka):
@@ -309,8 +318,7 @@ class RawApi(object):
             if label in ka:
                 found = label
         if not found:
-            raise QobuzXbmcError(who=self, what='missing_parameter',
-                                 additional='artist_ids|albums_ids|track_ids')
+           raise Exception("Qobuz: missing parameter: artist_ids|albums_ids|track_ids")
         return self._api_request(ka, '/favorite/create')
 
     def favorite_delete(self, **ka):
@@ -320,8 +328,7 @@ class RawApi(object):
             if label in ka:
                 found = label
         if not found:
-            raise QobuzXbmcError(who=self, what='missing_parameter',
-                                 additional='artist_ids|albums_ids|track_ids')
+            raise Exception("Qobuz: missing parameter: artist_ids|albums_ids|track_ids")
         return self._api_request(ka, '/favorite/delete')
 
     def playlist_get(self, **ka):
@@ -348,14 +355,7 @@ class RawApi(object):
         return self._api_request(ka, '/playlist/deleteTracks')
 
     def playlist_subscribe(self, **ka):
-        mandatory = ['playlist_id']
-        found = None
-        for label in mandatory:
-            if label in ka:
-                found = label
-        if not found:
-            raise QobuzXbmcError(
-                who=self, what='missing_parameter', additional='playlist_id')
+        self._check_ka(ka, ['playlist_id'], ['playlist_track_ids'])
         return self._api_request(ka, '/playlist/subscribe')
 
     def playlist_unsubscribe(self, **ka):
@@ -373,9 +373,6 @@ class RawApi(object):
 
     def playlist_delete(self, **ka):
         self._check_ka(ka, ['playlist_id'])
-        if not 'playlist_id' in ka:
-            raise QobuzXbmcError(
-                who=self, what='missing_parameter', additional='playlist_id')
         return self._api_request(ka, '/playlist/delete')
 
     def playlist_update(self, **ka):

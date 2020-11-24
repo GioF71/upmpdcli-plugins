@@ -71,11 +71,7 @@ def maybelogin(a={}):
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     formatid = upconfig.get('qobuzformatid')
     appid = upconfig.get('qobuzappid')
-    if not appid:
-        appid = '285473059'
     cfvalue = upconfig.get('qobuzcfvalue')
-    if not cfvalue:
-        cfvalue = 'Bg8HAA5XAFBYV15UAlVVBAZYCw0MVwcKUVRaVlpWUQ8='
     if 'user' in a:
         username = a['user']
         password = a['password']

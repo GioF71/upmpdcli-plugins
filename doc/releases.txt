@@ -1,5 +1,18 @@
 = Upmpdcli release notes
 
+== 2020-11-24 upmpdcli 1.5.2
+
+- Modify a few things which should not have mattered but which prevented
+  Lumin to work with upmpdcli
+- Qobuz plugin working again (for now), by identifying itself as the
+  web client (thanks to qobuz-dl on github).
+- Fixed crash.
+- Will now generate events for bitrate changes when playing.
+
+== 2020-11-22 upmpdcli 1.5.1
+
+- Fix small issue resulting in missing metadata in ohinfo
+
 == 2020-11-15 upplay 1.4.6
 
 - Create the GUI even if the library initialisation fails so that the
