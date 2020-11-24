@@ -52,7 +52,7 @@ static const string sIdProduct("urn:av-openhome-org:serviceId:Product");
 
 static const string cstr_stsrcnmkey("ohproduct.sourceName");
 
-static string csxml("<SourceList>\n");
+static string csxml("<SourceList>");
 static string csattrs("Info Time Volume");
 
 // This can be replaced by config data in listScripts()
@@ -80,7 +80,7 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
         csattrs.append(" Credentials");
     }
     if (m_udev->getohrcv()) {
-        o_sources.push_back(pair<string,string>("Receiver", "Receiver"));
+        o_sources.push_back(pair<string,string>("Receiver", "Songcast"));
         csattrs.append(" Receiver");        
         if (m_udev->getsndrcv() &&
             m_udev->getohrcv()->playMethod() == OHReceiverParams::OHRP_ALSA) {
@@ -109,15 +109,16 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
         // source lists. Newer versions filters it out because you
         // can't do anything useful by selecting the receiver source
         // (no way to specify the sender), so it is confusing
-        string visible = "1";//entry.first.compare("Receiver") ? "1" : "0";
-        csxml += string(" <Source>\n") +
-            "  <Name>" + entry.second + "</Name>\n" +
-            "  <Type>" + entry.first + "</Type>\n" +
-            "  <Visible>" + visible + "</Visible>\n" +
-            "  <SystemName>" + entry.second + "</SystemName>\n" +
-            "  </Source>\n";
+        // Note: only the UPNP/AV source has visible==false in Linn ohplayer
+        string visible = "true";
+        csxml += string("<Source>") +
+            "<Name>" + entry.second + "</Name>" +
+            "<Type>" + entry.first + "</Type>" +
+            "<Visible>" + visible + "</Visible>" +
+            "<SystemName>" + entry.second + "</SystemName>" +
+            "</Source>";
     }
-    csxml += string("</SourceList>\n");
+    csxml += string("</SourceList>");
     LOGDEB0("OHProduct::OHProduct: sources: " << csxml << endl);
 
     g_config->get("onstandby", m_standbycmd);
@@ -419,7 +420,7 @@ int OHProduct::source(const SoapIncoming& sc, SoapOutgoing& data)
     data.addarg("SystemName", o_sources[sindex].second);
     data.addarg("Type", o_sources[sindex].first);
     data.addarg("Name", o_sources[sindex].second);
-    string visible = o_sources[sindex].first.compare("Receiver") ? "1" : "0";
+    string visible = "true";
     data.addarg("Visible", visible);
     return UPNP_E_SUCCESS;
 }
