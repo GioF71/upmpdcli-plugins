@@ -383,7 +383,9 @@ int main(int argc, char *argv[])
         g_config->get("ohmodelname", ohProductDesc.model.name);
         g_config->get("ohmodelinfo", ohProductDesc.model.info);
         g_config->get("ohmodelurl", ohProductDesc.model.url);
+        // imageUri was mistake, keep compat and override with imageuri if set
         g_config->get("ohmodelimageUri", ohProductDesc.model.imageUri);
+        g_config->get("ohmodelimageuri", ohProductDesc.model.imageUri);
         g_config->get("ohproductname", ohProductDesc.product.name);
         g_config->get("ohproductinfo", ohProductDesc.product.info);
         g_config->get("ohproducturl", ohProductDesc.product.url);
