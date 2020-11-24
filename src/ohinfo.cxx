@@ -53,7 +53,8 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     udev->addActionMapping(this, "Metatext", 
                            bind(&OHInfo::metatext, this, _1, _2));
     m_dev->getmpdcli()->subscribe(
-        MPDCli::MpdQueueEvt, std::bind(&OHService::onEvent, this, _1));
+        MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt,
+        std::bind(&OHService::onEvent, this, _1));
 }
 
 void OHInfo::urimetadata(string& uri, string& metadata)
