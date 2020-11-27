@@ -1,4 +1,180 @@
-= Upmpdcli Media Server notes
+= Anatomy of the upmpdcli UPnP Media Server
+
+== UPnP Crash Course
+
+UPnP is a set of protocols used to provide services across a network,
+designed so that no manual configuration is necessary, because the clients
+can discover the servers they need.
+
+An UPnP server is called a device. Devices are primarily identified with a
+unique identifier (UDN/UUID). They also have a user-friendly name used for
+display to humans, but which is not necessarily unique.
+
+Devices have types (Media Server, Media Renderer), but these are not very
+useful. Actually, devices are just a way to group a number of services under
+a given UDN, and list them through an XML document named the device description.
+
+UPnP services are the really interesting entities. The group of provided
+services is what really makes a device what it is (UPnP is
+duck-typed?). For example there are two families of services which provide
+services for rendering music: UPnP-AV and OpenHome. UPnP-AV renderer devices
+are supposedly typed as 'MediaRenderer' and OpenHome ones as 'Source'. This
+will not prevent, for example, a Control Point seeing a 'MediaRenderer'
+also implementing the set of OpenHome services to use it as an OpenHome device.
+
+So, a device is just a UUID, and a description. The TCP endpoint association
+with the device is very loose: it can change with a restart, and multiple
+devices can share one.
+
+A UPnP service is defined by an XML document which describes the set of
+'State Variables' and 'Actions' which it provides. An Action is a remote
+callable which either performs changes on the device or returns state
+values. Additionally, Events, which are asynchronous callbacks from the
+service to the client, provide information about autonomous State Variable
+changes.
+
+All Actions and Events are provided through HTTP connections (SOAP), which
+means that both the client and the server run an HTTP server. On the device
+side, the port used by the server is communicated by to client during the
+initial discovery phase (client broadcasts "who is there", all devices
+respond, and clients choses which it wants to talk to). The client port to
+use for event connections from the Device is sent to the Device through a
+'Subscription Request'.
+
+=== UPnP and media services
+
+There are two families of UPnP services implementing multimedia function:
+UPnP-AV and OpenHome. UPnP-AV is part of the standard. OpenHome is a later
+addition from the Linn company.
+
+The overall structure of both frameworks is similar. There are three roles:
+
+- The Media Server device presents a catalog of media object and their
+  attributes.
+- The Media Renderer devices actually plays or displays.
+- The Control Point has the user interface. It retrieves data from the
+  Content Directory, accepts user instructions and translates them to the
+  Media Renderer for action.
+
+Once it is instructed what to play, the Media Renderer fetches the needed
+data directly from where it is stored. The Control Point only has a role of
+status display (and switching to the next track in the playlist in the case
+of UPnP-AV). This is true in all cases, but somewhat muddied by the fact
+that some Control Point implementation may coexist with a hidden Media
+Server implementation, e.g. for playing local data without needing to set
+up a separate Media Server.
+
+
+=== Media Server services.
+
+A Media Server device presents audio data to Control Points. Its main
+service is the Content Directory service which manages the catalog (it also
+has a mandatory Connection Manager service, which is not of much use).
+
+Most Media Server implementations also have the capability to serve the
+media data (through HTTP or something else). This is not mandatory in any
+way. The end result of catalog traversal is an URL which can point
+anywhere. It is just the case that, in practise, it often points to an HTTP
+server inside the Media Server implementation.
+
+==== The Content Directory service
+
+The Content Directory service implements a mandatory action: Browse, and an
+optional one: Search. The exact functionality of the Search action can be
+retrieved through another action: GetSearchCapabilities.
+
+The contents of the directory are presented much like a traditional file
+system, with Containers (directories), and Items (leaf objects, files). All
+objects are primarily identified by Object IDs, not names/titles, which are
+just there for presentation to the user. The root of the content hierarchy
+has a well-known ID (the "0" string). The form of all other IDs are up to
+the Content Directory implementation: object IDs just need to be unique,
+they can have a hierarchical structure matching the tree or not at all. For
+example a Minimserver Object ID may look something like
+`0$folders$f1982$f2153$f2155$*i12024` while one from MiniDLNA could just be
+a number.
+
+Each object in the hierarchy also has a ParentID, which allows reverse
+traversal.
+
+NOTE: The lack of enforced consistency between the Object IDs and the
+visible structure of the tree (name hierarchy), and the absence of guaranty
+of stability across rebuilds means that it's difficult to build
+client-side playlists of UPnP items.
+
+The Browse action can either list the contents of a container, or return
+the attributes of a given object, depending on the value of a flag. In
+practise, only the "list" operation is commonly used.
+
+The Search action returns the results in the form of a container listing.
+
+Containers contain Items (leaf objects) and other containers. Both are
+represented by XML fragments with a schema named DIDL-Lite. Example element
+names are "dc:title" or "upnp:author".
+
+Most object properties are described as XML elements.
+
+Items which actually describe a media object contain one or several
+resource (<res>) elements. The data in a resource element is the URL from which
+the media can be retrieved. Element attributes are used to describe the
+characteristics of the content: format, bitrate, etc.
+
+Having several resource elements (with different formats/bitrates) allows
+the Control Point to choose the right one for the Renderer device.
+
+Both 'Browse' and 'Search' return XML data describing one or several items
+and containers.
+
+Example of an item element, with only one resource in this case. Some
+values are elided for compactness
+
+----
+<item id="0$folders$f57..." parentID="0$folders..." restricted="1">
+  <dc:title>Rolling In The Deep</dc:title>
+  <upnp:genre>Pop</upnp:genre>
+  <dc:date>2011-01-01</dc:date>
+  <upnp:album>21</upnp:album>
+  <upnp:artist role="AlbumArtist">Adele</upnp:artist>
+  <upnp:artist>Adele</upnp:artist>
+  <dc:creator>Adele</dc:creator>
+  <upnp:originalTrackNumber>1</upnp:originalTrackNumber>
+  <upnp:albumArtURI dlna:profileID="PNG_MED">
+  http://192.168.4.4:9790/minimserver/.../picture-...png</upnp:albumArtURI>
+  <res duration="0:03:49.331" size="9515008" bitrate="40000"
+       sampleFrequency="44100" nrAudioChannels="2"
+       protocolInfo="http-get:*:audio/mpeg:DLNA.ORG_PN...">
+  http://192.168.4.4:9790/minimserver/...Deep.mp3</res>
+  <upnp:class>object.item.audioItem.musicTrack</upnp:class>
+</item>
+----
+
+See Section "2.8 Theory of operation" in the following document for
+illustrative examples:
+http://upnp.org/specs/av/UPnP-av-ContentDirectory-v1-Service.pdf 
+
+
+== Upmpdcli Media Server implementation
+
+Upmpdcli implements both Media Renderer and Media Server UPnP devices.
+
+Until recently the venerable libupnp library on which it is based (through
+the libupnpp C++ layer) could only support one UPnP device per instance
+(process).
+
+In consequence upmpdcli mostly implements the Media Server and the Media
+Renderer in separate processes (the main process which reads the
+configuration forks the Media Server process if it is needed).
+
+NOTE: UPnP also has the concept of an embedded device (which libupnp
+supports), and upmpdcli can also run the Media Server as an embedded device
+inside the root Media Renderer, then needing only one process. This has a
+tendancy to confuse control points, so it is not done by default.
+
+Recent libupnp code supports multiple root devices, so it is also now
+possible to run a single process with two root devices, but this is still
+not the default.
+
+== The Upmpdcli Media Server
 
 A Media Server instance is created by the main upmpdcli process if a call
 to ContentDirectory::mediaServerNeeded() returns true, which occurs if the
@@ -17,12 +193,12 @@ and Media Server in the same process. This is still not the default.
 
 The process set up is done in the src/main.cxx file.
 
-== ContentDirectory.cxx
+=== ContentDirectory.cxx
 
 This file contains the libupnpp callbacks, and the root directory creation
 code, together with plugin activation and dispatch code.
 
-=== Root directory creation
+==== Root directory creation
 
 It was originally thought that ContentDirectory.cxx would see several
 different provider modules, so that it would be natural that it builds the
@@ -59,7 +235,7 @@ If the plugin is configured, makerootdir() creates an entry named Plgname
 (capitalized), with objid 0$plgname$
 
 
-=== Plugin activation and dispatch
+==== Plugin activation and dispatch
 
 When the browse method is called for an object Id beginning with
 0$plgname$, the code looks up (Internal::pluginforapp(), and possibly
@@ -71,14 +247,14 @@ it can use to request information from the ContentDirectory.
 The knowledge that all of a plugin's object IDs must begin with 0$plgname$
 is spread in multiple places in the C++ and Python code.
 
-=== ContentDirectory service interface
+==== ContentDirectory service interface
 
 ContentDirectory provides a number of service methods to its
 providers. They are defined in cdplugins/cdplugin.hxx:CDPluginServices, an
 instance of which is passed to the plugin constructor. See the file for
 more details.
 
-=== Notes
+==== Notes
 
 At the moment, the interface between ContentDirectory and the plgwithslave
 plugin is a bit of a mess:
@@ -104,7 +280,7 @@ libupnp miniserver, which we don't, because miniserver can't do redirects.
 The uprcl local media server plugin does not use UPMPD_HTTPHOSTPORT at all,
 because it uses its own HTTP server (started on uprclhostport)
 
-== Audio data access
+=== Audio data access
 
 The actual media data access can be obtained in three different ways:
 
@@ -126,7 +302,7 @@ The actual media data access can be obtained in three different ways:
 - Uprcl, the local Media Server, uses a Python HTTP server to send the
   data, the C++ code is not used for the transfer.
 
-== HTTP server
+=== HTTP server
 
 The resource URLs are initially generated by the plugins, and possibly
 transformed when they are actually requested.
@@ -141,7 +317,7 @@ In all current cases, the miniserver port value which the plgwithslave
 constructor receives and stores in upnpport is not used, as the miniserver
 itself.
 
-=== Tidal, Qobuz, Gmusic
+==== Tidal, Qobuz, Gmusic
 
 The Tidal, Qobuz, and Gmusic modules currently work in the same way:
 
@@ -156,14 +332,14 @@ The Tidal, Qobuz, and Gmusic modules currently work in the same way:
  - No configuration data is required (the microhttpd port could be
    configured with plgmicrohttpport, default 49149).
 
-=== Spotify
+==== Spotify
 
 The Spotify plugin is similar to the three above, but the microhttpd
 instance actually proxies the data instead of doing a redirect, because
 Spotify data is encrypted and needs to be decoded before sending to the
 Renderer.
 
-=== Uprcl (local media server)
+==== Uprcl (local media server)
 
 The uprcl plugin uses a separate http service, which began as a completely
 external server (e.g. an Apache server), but is now more conveniently the
@@ -197,7 +373,7 @@ configured to serve the media directories. The internal server uses the
 config data.
 
 
-== The complicated travels of a metadata bundle
+=== The complicated travels of a metadata bundle
 
 All streaming services present a WEB API where HTTP POST operations send
 selection and authorization parameters and retrieve metadata in JSON form.
