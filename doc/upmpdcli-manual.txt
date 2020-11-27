@@ -386,10 +386,11 @@ NOTE: When using _mpd_, from a Mac (24 bits audio) you need an
 appropriately configured and recent MPD version (usually configured with
 `--disable-audiofile`), else you risk producing high volume noise.  As
 Debian and Ubuntu tend to lag quite bit on MPD progresses, I have set up
-link:downloads.html#mpd[backport repositories] for appropriately configured
-recent mpd versions, for Ubuntu, Debian i386/amd64 and
-Raspbian. Unfortunately, not only the MPD version is significant, there are
-sometimes also problems in the input plugins libraries.
+link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html#mpd[backport
+repositories] for appropriately configured recent mpd versions, for Ubuntu,
+Debian i386/amd64 and Raspbian. Unfortunately, not only the MPD version is
+significant, there are sometimes also problems in the input plugins
+libraries.
 
 Given the bufferisation and delay control issues when going through MPD,
 only the _alsa_ method is usable in multi-room configurations. Even with a
@@ -905,7 +906,7 @@ include::upmpdcli-config.txt[]
 [[UPMPDCLI-PACKAGES]]
 == Installation from packages
 
-The link:https://www.lesbonscomptes.com/upmpdcli/downloads.html[upmpdcli
+The link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli
 downloads page] has a number of pointers to binary packages for a number of
 common distributions (Debian, Raspbian, Ubuntu, Fedora) and architectures
 (ARM and x86).
@@ -936,7 +937,7 @@ So you need to either clone 3 git repositories:
 - https://framagit.org/medoc92/upmpdcli
 
 or download the release tar files from the the
-link:https://www.lesbonscomptes.com/upmpdcli/downloads.html[upmpdcli
+link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli
 download page]
 
 For upmpdcli, there are two specific configure options. Each needs the
@@ -1021,7 +1022,7 @@ There are two parts in building *sc2mpd*:
 - Building *sc2mpd* proper
 
 First download a
-link:http://www.lesbonscomptes.com/upmpdcli/downloads.html[*sc2mpd*
+link:http://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[*sc2mpd*
 release] or clone the *sc2mpd*
 https://framagit.org/medoc92/sc2mpd[Git repository].
 
@@ -1225,7 +1226,7 @@ connection tool (no multiroom).
 
 Download and install the *upmpdcli* and *sc2mpd* packages for your Linux
 system. See
-link:http://www.lesbonscomptes.com/upmpdcli/downloads.html#packages[the
+link:http://www.lesbonscomptes.com/upmpdcli/pages/downloads.html#packages[the
 download page here].
 
 When using a single Receiver, things should just work, the _UpMpd_

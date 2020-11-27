@@ -1,9 +1,19 @@
 = Upmpdcli release notes
 
+== 2020-11-26 upplay 1.4.7
+
+- Fix "close to tray" not working on Linux KDE.
+- Clean up exit when tray is not available.
+- Compilation warnings.
+
+== 2020-11-26 libupnpp 0.20.1
+
+- Adjust excessively noisy messages.
+
 == 2020-11-24 upmpdcli 1.5.2
 
 - Modify a few things which should not have mattered but which prevented
-  Lumin to work with upmpdcli
+  Lumin to work with upmpdcli.
 - Qobuz plugin working again (for now), by identifying itself as the
   web client (thanks to qobuz-dl on github).
 - Fixed crash.
