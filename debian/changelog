@@ -1,6 +1,5 @@
 upmpdcli (1.5.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Disable Credentials by default.
   * Fix issue with removing tracks from the playlist.
   * Fix bad locking causing multiple execs of radio scripts.
   

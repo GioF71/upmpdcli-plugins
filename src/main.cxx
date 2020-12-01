@@ -161,7 +161,7 @@ string g_configfilename;
 ConfSimple *g_config;
 ConfSimple *g_state;
 bool g_enableL16 = false;
-bool g_lumincompat = true;
+bool g_lumincompat = false;
 
 static void onsig(int)
 {
@@ -404,7 +404,7 @@ int main(int argc, char *argv[])
         if (g_config->get("scsendermpdport", value))
             sendermpdport = atoi(value.c_str());
 
-        g_lumincompat = g_config->getBool("lumincompat", false);
+        g_lumincompat = g_config->getBool("lumincompat", g_lumincompat);
     } else {
         // g_configfilename is empty. Create an empty config anyway
         g_config = new ConfSimple(string(), 1, true);

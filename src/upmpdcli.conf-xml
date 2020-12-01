@@ -85,10 +85,11 @@
 #
 # <descr>At some point, this was necessary to enable Lumin to see upmpdcli
 # instances: for some unknown reason, Lumin 1.10 did not discover
-# upmpdcli with Credentials enabled. Now set by default as Credentials does
-# not work at this point anyway (12/2020), and is a source of trouble.</descr>
+# upmpdcli with Credentials enabled. Credentials does
+# not work at this point anyway (12/2020), but it is enabled anyway,
+# because some Kazoo versions crash if it is not enabled.</descr>
 # </var>
-#lumincompat = 1
+#lumincompat = 0
 
 # <var name="saveohcredentials" type="bool"><brief>Save the streaming
 # services login parameters to disk.</brief><descr>This allows sharing the
