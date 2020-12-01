@@ -402,13 +402,6 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     return true;
 }
 
-void OHRadio::maybeWakeUp(bool ok)
-{
-    if (ok) {
-        onEvent(nullptr);
-    }
-}
-
 int OHRadio::setPlaying()
 {
     if (m_id > o_radios.size()) {
@@ -487,7 +480,7 @@ void OHRadio::setActive(bool onoff)
                 m_dev->getmpdcli()->restoreState(m_mpdsavedstate);
             }
         }
-        maybeWakeUp(true);
+        onEvent(nullptr);
     } else {
         m_dev->getmpdcli()->saveState(m_mpdsavedstate);
         m_dev->getmpdcli()->clearQueue();
@@ -498,7 +491,6 @@ void OHRadio::setActive(bool onoff)
 int OHRadio::iPlay()
 {
     int ret = setPlaying();
-    maybeWakeUp(ret == UPNP_E_SUCCESS);
     return ret;
 }
 
@@ -516,7 +508,6 @@ int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("OHRadio::pause" << endl);
     bool ok = m_dev->getmpdcli()->pause(true);
     m_playpending = false;
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -524,7 +515,6 @@ int OHRadio::iStop()
 {
     bool ok = m_dev->getmpdcli()->stop();
     m_playpending = false;
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 int OHRadio::stop(const SoapIncoming& sc, SoapOutgoing& data)
@@ -554,7 +544,6 @@ int OHRadio::setChannel(const SoapIncoming& sc, SoapOutgoing& data)
         uMetaToUpSong(metadata, &ups);
         o_radios[0].title = ups.album + " " + ups.title;
     }
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -581,7 +570,6 @@ int OHRadio::setId(const SoapIncoming& sc, SoapOutgoing& data)
         g_state->set(cstr_sturlkey, refstr);
     }
     
-    maybeWakeUp(true);
     return UPNP_E_SUCCESS;
 }
 
@@ -729,7 +717,6 @@ int OHRadio::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
     bool ok = sc.get("Value", &seconds);
     if (ok) {
         ok = m_dev->getmpdcli()->seek(seconds);
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -749,7 +736,6 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
         } else {
             ok = false;
         }
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }

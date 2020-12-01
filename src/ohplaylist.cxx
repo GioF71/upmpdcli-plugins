@@ -305,13 +305,6 @@ void OHPlaylist::refreshState()
     makestate(st);
 }
 
-void OHPlaylist::maybeWakeUp(bool ok)
-{
-    if (ok && m_dev) {
-        onEvent(nullptr);
-    }
-}
-
 void OHPlaylist::setActive(bool onoff)
 {
     if (onoff) {
@@ -321,7 +314,7 @@ void OHPlaylist::setActive(bool onoff)
             m_dev->getmpdcli()->consume(false);
         m_dev->getmpdcli()->single(false);
         refreshState();
-        maybeWakeUp(true);
+        onEvent(nullptr);
         m_active = true;
     } else {
         m_mpdqvers = -1;
@@ -343,7 +336,6 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
         m_dev->getmpdcli()->consume(false);
     m_dev->getmpdcli()->single(false);
     ok = m_dev->getmpdcli()->play();
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UpnpService::UPNP_ACTION_FAILED;
 }
 
@@ -351,14 +343,12 @@ int OHPlaylist::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::pause" << endl);
     bool ok = m_dev->getmpdcli()->pause(true);
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
 int OHPlaylist::iStop()
 {
     bool ok = m_dev->getmpdcli()->stop();
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 int OHPlaylist::stop(const SoapIncoming& sc, SoapOutgoing& data)
@@ -375,7 +365,6 @@ int OHPlaylist::next(const SoapIncoming& sc, SoapOutgoing& data)
     }
     LOGDEB("OHPlaylist::next" << endl);
     bool ok = m_dev->getmpdcli()->next();
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -387,7 +376,6 @@ int OHPlaylist::previous(const SoapIncoming& sc, SoapOutgoing& data)
     }
     LOGDEB("OHPlaylist::previous" << endl);
     bool ok = m_dev->getmpdcli()->previous();
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -402,7 +390,6 @@ int OHPlaylist::setRepeat(const SoapIncoming& sc, SoapOutgoing& data)
     bool ok = sc.get("Value", &onoff);
     if (ok) {
         ok = m_dev->getmpdcli()->repeat(onoff);
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -432,7 +419,6 @@ int OHPlaylist::setShuffle(const SoapIncoming& sc, SoapOutgoing& data)
         // Note that mpd shuffle shuffles the playlist, which is different
         // from playing at random
         ok = m_dev->getmpdcli()->random(onoff);
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -460,7 +446,6 @@ int OHPlaylist::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
     bool ok = sc.get("Value", &seconds);
     if (ok) {
         ok = m_dev->getmpdcli()->seek(seconds);
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -484,7 +469,6 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
         } else {
             ok = false;
         }
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -531,7 +515,6 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
         m_dev->getmpdcli()->consume(false);
     m_dev->getmpdcli()->single(false);
     bool ok = m_dev->getmpdcli()->playId(id);
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -552,7 +535,6 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
             m_dev->getmpdcli()->consume(false);
         m_dev->getmpdcli()->single(false);
         ok = m_dev->getmpdcli()->play(pos);
-        maybeWakeUp(ok);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -769,7 +751,6 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
         data.addarg("NewId", SoapHelp::i2s(newid));
         LOGDEB("OHPlaylist::insert: new id: " << newid << endl);
     }
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -826,7 +807,6 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
     }
     bool ok = m_dev->getmpdcli()->deleteId(id);
     m_mpdqvers = -1;
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -838,7 +818,6 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
     }
     bool ok = m_dev->getmpdcli()->clearQueue();
     m_mpdqvers = -1;
-    maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 

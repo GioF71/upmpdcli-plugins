@@ -74,7 +74,6 @@ private:
     // Private internal non-soap versions of some of the interface +
     // utility methods
     bool makeIdArray(std::string&);
-    void maybeWakeUp(bool ok);
     void refreshState();
     bool insertUri(int afterid, const std::string& uri, 
                    const std::string& metadata, int *newid, bool nocheck);

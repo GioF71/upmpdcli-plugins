@@ -72,7 +72,6 @@ private:
     bool readRadios();
     int setPlaying();
     bool makeIdArray(std::string&);
-    void maybeWakeUp(bool ok);
     void maybeExecMetaScript(RadioMeta& radio, MpdStatus &);
 
     bool m_active{false};

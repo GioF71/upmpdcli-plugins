@@ -285,10 +285,12 @@ bool MPDCli::showError(const string& who)
         LOGERR(who << " server error: " << 
                mpd_connection_get_server_error(m_conn) << endl);
     }
-
     if (error == MPD_ERROR_CLOSED)
         if (openconn())
             return true;
+
+    if (!mpd_connection_clear_error(m_conn))
+        openconn();
     return false;
 }
 
