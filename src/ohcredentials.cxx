@@ -637,6 +637,7 @@ int OHCredentials::actSetEnabled(const SoapIncoming& sc, SoapOutgoing& data)
            in_Enabled << endl);
     if (m->setEnabled(in_Id, in_Enabled)) {
         m->seq++;
+        onEvent(nullptr);
         return UPNP_E_SUCCESS;
     } else {
         return 800;

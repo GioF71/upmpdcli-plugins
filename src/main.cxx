@@ -161,7 +161,7 @@ string g_configfilename;
 ConfSimple *g_config;
 ConfSimple *g_state;
 bool g_enableL16 = false;
-bool g_lumincompat = false;
+bool g_lumincompat = true;
 
 static void onsig(int)
 {
