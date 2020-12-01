@@ -1,3 +1,11 @@
+upmpdcli (1.5.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Disable Credentials by default.
+  * Fix issue with removing tracks from the playlist.
+  * Fix bad locking causing multiple execs of radio scripts.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 01 Dec 2020 18:15:00 +0100
+
 upmpdcli (1.5.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix crash, Lumin, Qobuz
