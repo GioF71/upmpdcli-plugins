@@ -52,8 +52,8 @@ public:
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values) {
+        std::unique_lock<std::mutex> lock(m_statemutex);
         //LOGDEB("OHService::getEventData" << std::endl);
-        std::unique_lock<std::mutex> loc;
             
         std::unordered_map<std::string, std::string> state, changed;
         makestate(state);
