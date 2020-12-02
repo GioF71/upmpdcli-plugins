@@ -39,7 +39,7 @@
 #upnpav = 1
 # Enable OpenHome services (0/1).
 #openhome = 1
-# For upmpdcli version 1.3: enable Lumin compatibility mode (lose ohcredentials) (0/1).
+# Disable the OpenHome Credentials service.
 #lumincompat = 0
 # Save the streaming services login parameters to disk.
 #saveohcredentials = 1
