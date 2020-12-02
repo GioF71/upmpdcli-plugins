@@ -143,7 +143,8 @@ diffmaps(const unordered_map<string, string>& old,
         ss << "<" #TAG ">" << SoapHelp::xmlQuote(DEF) << "</" #TAG ">"; \
     }
 
-static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
+static void didlPrintResource(ostringstream& ss, const UpSong::Res& res,
+                              bool nobitrate) {
     ss << "<res";
     if (res.duration_secs) {
         ss << " duration=\"" << upnpduration(res.duration_secs * 1000) << "\"";
@@ -151,7 +152,7 @@ static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
     if (res.size) {
         ss << " size=\"" << lltodecstr(res.size) << "\"";
     }
-    if (res.bitrate) {
+    if (!nobitrate && res.bitrate) {
         ss << " bitrate=\"" << SoapHelp::i2s(res.bitrate) << "\"";
     }
     if (res.samplefreq) {
@@ -169,7 +170,7 @@ static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
     ss << ">" << SoapHelp::xmlQuote(res.uri) << "</res>";
 }
 
-string UpSong::didl() const
+string UpSong::didl(bool nobitrate) const
 {
     ostringstream ss;
     string typetag;
@@ -204,9 +205,9 @@ string UpSong::didl() const
         UPNPXMLD(upnpClass, upnp:class, "object.item.audioItem.musicTrack");
         UPNPXML(album, upnp:album);
         UPNPXML(tracknum, upnp:originalTrackNumber);
-        didlPrintResource(ss, rsrc);
+        didlPrintResource(ss, rsrc, nobitrate);
         for (const auto& res : resources) {
-            didlPrintResource(ss, res);
+            didlPrintResource(ss, res, nobitrate);
         }
     }
     UPNPXML(genre, upnp:genre);
@@ -241,9 +242,9 @@ string wrapDIDL(const std::string& data)
     return headDIDL() + data + tailDIDL();
 }
 
-string didlmake(const UpSong& song)
+string didlmake(const UpSong& song, bool nobitrate)
 {
-    return wrapDIDL(song.didl());
+    return wrapDIDL(song.didl(nobitrate));
 }
 
 bool dirObjToUpSong(const UPnPDirObject& dobj, UpSong *ups)

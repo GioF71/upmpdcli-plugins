@@ -76,7 +76,7 @@ public:
                            "] Tno [" + tracknum + "] Uri [" + rsrc.uri + "]");
     }
     // Format to DIDL fragment 
-    std::string didl() const;
+    std::string didl(bool nobitrate = false) const;
 
     static UpSong container(const std::string& id, const std::string& pid,
                             const std::string& title, bool sable = true,
@@ -115,7 +115,7 @@ extern const std::string& mapget(
     const std::string& k);
 
 // Format a didl fragment from MPD status data. Used by the renderer
-extern std::string didlmake(const UpSong& song);
+extern std::string didlmake(const UpSong& song, bool nobitrate = false);
 
 // Wrap DIDL entries in header / trailer
 extern const std::string& headDIDL();
