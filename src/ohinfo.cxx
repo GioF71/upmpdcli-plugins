@@ -40,6 +40,9 @@ using namespace std::placeholders;
 static const string sTpProduct("urn:av-openhome-org:service:Info:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Info");
 
+// Do we copy metadata to metatext ? We used to, but this was wrong probably.
+static const bool metatotextcopy{false};
+
 OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
@@ -110,10 +113,6 @@ void OHInfo::makedetails(string &duration, string& bitrate,
 // Kazoo relies on the metadata value, not metatext. So it would be
 // enough to fix upplay and Bubble to use metadata, and we can get rid
 // of the metatext hack.
-// ** The Upplay change also needs a libupnpp change because only the
-//    Info::metatext() CP interface is implemented at the moment, not
-//    Info::track() which would be needed to access the Metadata state
-//    variable. Or implement it inside upplay?
 bool OHInfo::makestate(unordered_map<string, string> &st)
 {
     st.clear();
@@ -125,7 +124,8 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
     urimetadata(uri, metadata);
     st["Uri"] = uri;
     st["Metadata"] = metadata;
-    st["Metatext"] = m_metatext.empty() ? metadata : m_metatext;
+    st["Metatext"] = (metatotextcopy && m_metatext.empty()) ?
+        metadata : m_metatext;
     makedetails(st["Duration"], st["BitRate"], st["BitDepth"],st["SampleRate"]);
     st["Lossless"] = "0";
     st["CodecName"] = "";
@@ -186,7 +186,8 @@ void OHInfo::setMetadata(const string& metadata)
         m_metadata = metadata;
         // As we will actually send out metadata for metatext, it
         // seems logical to increase the count here.
-        m_metatextcnt++;
+        if (metatotextcopy)
+            m_metatextcnt++;
         onEvent(nullptr);
     }
 }
