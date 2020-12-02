@@ -65,10 +65,10 @@ void OHInfo::urimetadata(string& uri, string& metadata)
 
     if (is_song) {
         uri = mpds.currentsong.rsrc.uri;
-        // If somebody (e.g. ohradio) took care to set the metatext, use it.
-        // Metatext is reset by OHProduct::setSourceIndex.
-        if (!m_metatext.empty()) {
-            metadata = m_metatext;
+        // If somebody (e.g. ohradio) took care to set the metadata, use it.
+        // Metadata is reset by OHProduct::setSourceIndex.
+        if (!m_metadata.empty()) {
+            metadata = m_metadata;
         } else {
             // Playlist or AVTransport playing, probably.
             // Prefer metadata from cache (copy from media server) to
@@ -102,22 +102,33 @@ void OHInfo::makedetails(string &duration, string& bitrate,
     }
 }
 
+// I made the mistake of setting the radio metadata in metatext, and
+// now this is relied on by both Upplay and Bubble. I should have
+// used metadata. I'm not sure of what metatext is good for anyway,
+// so, for now, we send metadata in lieu of metatext if metatext is
+// empty (and metatext is always empty as we don't set it).
+// Kazoo relies on the metadata value, not metatext. So it would be
+// enough to fix upplay and Bubble to use metadata, and we can get rid
+// of the metatext hack.
+// ** The Upplay change also needs a libupnpp change because only the
+//    Info::metatext() CP interface is implemented at the moment, not
+//    Info::track() which would be needed to access the Metadata state
+//    variable. Or implement it inside upplay?
 bool OHInfo::makestate(unordered_map<string, string> &st)
 {
     st.clear();
 
     st["TrackCount"] = SoapHelp::i2s(m_dev->getMpdStatus().trackcounter);
-    st["DetailsCount"] =
-        SoapHelp::i2s(m_dev->getMpdStatus().detailscounter);
+    st["DetailsCount"] = SoapHelp::i2s(m_dev->getMpdStatus().detailscounter);
     st["MetatextCount"] = SoapHelp::i2s(m_metatextcnt);
     string uri, metadata;
     urimetadata(uri, metadata);
     st["Uri"] = uri;
     st["Metadata"] = metadata;
+    st["Metatext"] = m_metatext.empty() ? metadata : m_metatext;
     makedetails(st["Duration"], st["BitRate"], st["BitDepth"],st["SampleRate"]);
     st["Lossless"] = "0";
     st["CodecName"] = "";
-    st["Metatext"] = m_metatext.empty() ? metadata : m_metatext;
     return true;
 }
 
@@ -159,6 +170,7 @@ int OHInfo::details(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
+// See note above about metatext/metadata, this is wrong.
 int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHInfo::metatext" << endl);
@@ -166,11 +178,14 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-void OHInfo::setMetatext(const string& metatext)
+// Called from ohradio only at the moment. Should we call it from playlist?
+void OHInfo::setMetadata(const string& metadata)
 {
-    //LOGDEB1("OHInfo::setMetatext: " << metatext << endl);
-    if (metatext.compare(m_metatext)) {
-        m_metatext = metatext;
+    //LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
+    if (metadata.compare(m_metadata)) {
+        m_metadata = metadata;
+        // As we will actually send out metadata for metatext, it
+        // seems logical to increase the count here.
         m_metatextcnt++;
         onEvent(nullptr);
     }

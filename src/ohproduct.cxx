@@ -297,7 +297,7 @@ int OHProduct::iSetSourceIndex(int sindex)
         return UPNP_E_SUCCESS;
     }
 
-    m_udev->getohif()->setMetatext("");
+    m_udev->getohif()->resetMetadata();
 
     bool ok = true;
     string curtp = o_sources[m_sourceIndex].first;

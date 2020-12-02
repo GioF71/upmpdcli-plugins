@@ -91,9 +91,15 @@ struct RadioMeta {
         }
         preferScript = stringToBool(ps);
     }
+
+    // The static title, URI and icon (from the radios configuration or
+    // setChannel) are always used in the ohradio interface. The
+    // dynamic currently playing title and metadata are only sent to
+    // OHInfo and obtainable from there.
     string title;
-    // Static playlist URI (from config)
     string uri;
+    string artUri;
+    
     // Script to retrieve current art
     vector<string> artScript; 
     // Script to retrieve all metadata
@@ -102,7 +108,6 @@ struct RadioMeta {
     // uri, which will normally be empty if the metascript is used for
     // audio).
     string currentAudioUri;
-    string artUri;
     // Keep values from script over mpd's (from icy)
     bool preferScript{true};
     // Time after which we should re-fire the metadata script
@@ -112,6 +117,10 @@ struct RadioMeta {
     string dynArtist;
 };
 
+
+// Our radio channels. The Id is an index is this. Channel 0 is
+// reserved for externally set Uri/Metadata from SetChannel. Our
+// preset channels (from the config) begin at 1
 static vector<RadioMeta> o_radios;
 
 OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
@@ -128,7 +137,7 @@ OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
         return;
     }
 
-    // Try to restore the current preset channel if this was memorized.
+    // Try to restore the channel if this was memorized.
     string refstr;
     if (g_state && g_state->get(cstr_sturlkey, refstr)) {
         for (unsigned int i = 0; i < o_radios.size(); i++) {
@@ -211,7 +220,7 @@ static void getRadiosFromConf(ConfSimple* conf)
 
 bool OHRadio::readRadios()
 {
-    // Id 0 means no selection
+    // Id 0 means no selection /  externally set channel from setChannel()
     o_radios.push_back(RadioMeta("Unknown radio", "", "", "", "", ""));
     
     getRadiosFromConf(g_config);
@@ -335,6 +344,7 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
 
 bool OHRadio::makestate(unordered_map<string, string>& st)
 {
+    LOGDEB1("OHRadio::makestate\n");
     st.clear();
 
     MpdStatus mpds = m_dev->getMpdStatus();
@@ -344,27 +354,35 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     makeIdArray(st["IdArray"]);
     st["ProtocolInfo"] = Protocolinfo::the()->gettext();
     st["TransportState"] =  mpdstatusToTransportState(mpds.state);
-    st["Uri"] = mpds.currentsong.rsrc.uri;
-
     st["Metadata"] =  "";
+    st["Uri"] = "";
 
     if (!m_active) {
         st["TransportState"] =  "Stopped";
-        st["Uri"] = "";
         return true;
     }
 
     if (m_id < 0 || m_id >= o_radios.size()) {
         // ??
-        LOGDEB("OHRadio::makestate: bad m_id " << m_id << endl);
+        LOGERR("OHRadio::makestate: bad m_id " << m_id << endl);
         return true;
     }
         
-    if (mpds.currentsong.album.empty()) {
-        mpds.currentsong.album = o_radios[m_id].title;
-    }
-
     RadioMeta& radio = o_radios[m_id];
+
+    // In any case, Uri and Metadata are fixed and come from the channel.
+    // The dynamic data is sent to ohinfo.
+    st["Metadata"] = radio.title;
+    // We used to set this to mpds.currentsong.rsrc.uri. From
+    // re-reading the spec, using the radio uri seems more appropriate
+    st["Uri"] = radio.uri.empty() ? radio.currentAudioUri:radio.uri;
+
+    /////////////
+    // Compute dynamic metadata for ohinfo
+
+    if (mpds.currentsong.album.empty()) {
+        mpds.currentsong.album = radio.title;
+    }
 
     // Some radios do not insert icy metadata in the stream, but rather
     // provide a script to retrieve it.
@@ -396,15 +414,17 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     mpds.currentsong.artUri = radio.dynArtUri.empty() ? radio.artUri :
         radio.dynArtUri;
 
-    string meta = didlmake(mpds.currentsong);
-    st["Metadata"] =  meta;
-    m_udev->getohif()->setMetatext(meta);
+    // Don't report the ever changing bitrate, this causes unnecessary
+    // events. CPs interested in bitrate changes can get them from the
+    // Info service Details state variable
+    string meta = didlmake(mpds.currentsong, true);
+    m_udev->getohif()->setMetadata(meta);
     return true;
 }
 
 int OHRadio::setPlaying()
 {
-    if (m_id > o_radios.size()) {
+    if (m_id >= o_radios.size()) {
         LOGERR("OHRadio::setPlaying: called with bad id (" << m_id << ")\n");
         return UPNP_E_INTERNAL_ERROR;
     }
@@ -421,8 +441,8 @@ int OHRadio::setPlaying()
         // We count on the metascript to also return an audio URI,
         // which will be sent to MPD during makestate().
         radio.currentAudioUri.clear();
-        m_dev->getmpdcli()->clearQueue();
         m_playpending = true;
+        m_dev->getmpdcli()->clearQueue();
         return UPNP_E_SUCCESS;
     }
     
@@ -617,21 +637,14 @@ static string radioDidlMake(const string& title, const string& uri,
 // This is called from read, and readlist. Don't send current metadata
 // (including dynamic art and song title) for the current channel,
 // else the radio logo AND name are replaced by the song's in channel
-// selection interfaces. Only send the song metadata with
-// OHRadio::Channel and Info:Metatext
+// selection interfaces. Only send the song metadata from the Info service
 string OHRadio::metaForId(unsigned int id)
 {
     LOGDEB1("OHRadio::metaForId: id " << id << " m_id " << m_id << endl);
     string meta;
     if (id >= 0 && id  < o_radios.size()) {
-        if (false && id == m_id) {
-            LOGDEB1("OHRadio::metaForId: using Metadata\n");
-            meta = m_state["Metadata"];
-        } else {
-            LOGDEB1("OHRadio::metaForId: using list data\n");
-            meta = radioDidlMake(o_radios[id].title, o_radios[id].uri, 
-                                 o_radios[id].artUri);
-        }
+        meta = radioDidlMake(o_radios[id].title, o_radios[id].uri, 
+                             o_radios[id].artUri);
     }
     return meta;
 }
@@ -667,7 +680,6 @@ int OHRadio::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string sids;
-    UpSong song;
 
     bool ok = sc.get("IdList", &sids);
     LOGDEB("OHRadio::readList: [" << sids << "]" << endl);
@@ -676,15 +688,15 @@ int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
     string out("<ChannelList>");
     if (ok) {
         stringToTokens(sids, ids);
-        for (auto it = ids.begin(); it != ids.end(); it++) {
-            int id = atoi(it->c_str());
+        for (auto strid : ids) {
+            int id = atoi(strid.c_str());
             if (id <= 0 || id >= int(o_radios.size())) {
                 LOGDEB("OHRadio::readlist: bad id " << id << endl);
                 continue;
             }
             string meta = metaForId(id);
             out += "<Entry><Id>";
-            out += *it;
+            out += strid;
             out += "</Id><Metadata>";
             out += SoapHelp::xmlQuote(meta);
             out += "</Metadata></Entry>";

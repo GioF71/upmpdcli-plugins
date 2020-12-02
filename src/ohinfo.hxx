@@ -37,8 +37,11 @@ public:
     // cached data.
     OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus);
 
-    void setMetatext(const std::string& metatext);
-
+    void setMetadata(const std::string& metadata);
+    void resetMetadata() {
+        m_metatext = m_metadata = "";
+        m_metatextcnt++;
+    }
     void setOHPL(OHPlaylist *ohp) {
         m_ohpl = ohp;
     }
@@ -56,6 +59,7 @@ private:
     void makedetails(std::string &duration, std::string& bitrate,
                      std::string& bitdepth, std::string& samplerate);
 
+    std::string m_metadata;
     std::string m_metatext;
     int m_metatextcnt{0};
     bool m_updstatus{false};
