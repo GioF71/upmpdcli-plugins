@@ -69,13 +69,11 @@ for most usages. There should be little reason to turn it
 off.
 
 [[lumincompat]]
-lumincompat:: For upmpdcli
-version 1.3: enable Lumin compatibility mode (lose ohcredentials)
-(0/1). For some unknown reason, Lumin 1.10 can't discover
-upmpdcli when the OpenHome Credentials service is enabled. Setting this
-allows upmpdcli to work with Lumin, at the cost of losing the use of the
-Credentials service (normally used for logging in to Qobuz or Tidal inside
-Kazoo).
+lumincompat:: Disable the OpenHome Credentials service. At some point, this was necessary to enable Lumin to see upmpdcli
+instances: for some unknown reason, Lumin 1.10 did not discover
+upmpdcli with Credentials enabled. Credentials does
+not work at this point anyway (12/2020), but it is enabled anyway,
+because some Kazoo versions crash if it is not enabled.
 
 [[saveohcredentials]]
 saveohcredentials:: Save the streaming
