@@ -372,7 +372,9 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
     // In any case, Uri and Metadata are fixed and come from the channel.
     // The dynamic data is sent to ohinfo.
-    st["Metadata"] = radio.title;
+    UpSong rdsong;
+    rdsong.album = radio.title;
+    st["Metadata"] = didlmake(rdsong);
     // We used to set this to mpds.currentsong.rsrc.uri. From
     // re-reading the spec, using the radio uri seems more appropriate
     st["Uri"] = radio.uri.empty() ? radio.currentAudioUri:radio.uri;
