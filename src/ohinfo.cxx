@@ -179,7 +179,7 @@ void OHInfo::setMetadata(const string& metadata, const string& metatext)
     if (metatext != m_metatext) {
         m_metatext = metatext;
         m_metatextcnt++;
-        needevent++;
+        needevent = true;
     }
     if (needevent) {
         onEvent(nullptr);

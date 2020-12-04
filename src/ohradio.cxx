@@ -372,9 +372,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
     // In any case, Uri and Metadata are fixed and come from the channel.
     // The dynamic data is sent to ohinfo.
-    UpSong rdsong;
-    rdsong.album = radio.title;
-    st["Metadata"] = didlmake(rdsong);
+    st["Metadata"] = metaForId(m_id);
     // We used to set this to mpds.currentsong.rsrc.uri. From
     // re-reading the spec, using the radio uri seems more appropriate
     st["Uri"] = radio.uri.empty() ? radio.currentAudioUri:radio.uri;
@@ -420,7 +418,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     // events. CPs interested in bitrate changes can get them from the
     // Info service Details state variable
     string meta = didlmake(mpds.currentsong, true);
-    m_udev->getohif()->setMetadata(radio.title, meta);
+    m_udev->getohif()->setMetadata(st["Metadata"], meta);
     return true;
 }
 
@@ -606,13 +604,13 @@ int OHRadio::id(const SoapIncoming& sc, SoapOutgoing& data)
 static string radioDidlMake(const string& title, const string& uri,
                             const string& artUri)
 {
-    string out("<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\n"
-               "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"\n"
-               "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">\n"
-               "<item id=\"\" parentID=\"\" restricted=\"True\">\n"
+    string out("<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
+               "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
+               "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">"
+               "<item id=\"\" parentID=\"\" restricted=\"True\">"
                "<dc:title>");
     out += SoapHelp::xmlQuote(title);
-    out += "</dc:title>\n"
+    out += "</dc:title>"
         "<res protocolInfo=\"*:*:*:*\" bitrate=\"6000\">";
     if (uri.empty()) {
         // Kazoo absolutely does not want uri to be empty, else it
@@ -624,15 +622,15 @@ static string radioDidlMake(const string& title, const string& uri,
     } else {
         out += SoapHelp::xmlQuote(uri);
     }
-    out += "</res>\n";
+    out += "</res>";
     if (!artUri.empty()) {
         out +=  "<upnp:albumArtURI>";
         out += SoapHelp::xmlQuote(artUri);
-        out += "</upnp:albumArtURI>\n";
+        out += "</upnp:albumArtURI>";
     }
-    out +=  "<upnp:class>object.item.audioItem</upnp:class>\n"
-        "</item>\n"
-        "</DIDL-Lite>\n";
+    out +=  "<upnp:class>object.item.audioItem</upnp:class>"
+        "</item>"
+        "</DIDL-Lite>";
     return out;
 }
 
