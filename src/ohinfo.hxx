@@ -37,7 +37,10 @@ public:
     // cached data.
     OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus);
 
-    void setMetadata(const std::string& metadata);
+    // When set from a radio, metadata is the static channel name and
+    // metatext is the dynamic current title info. Both are
+    // didl-encoded
+    void setMetadata(const std::string& metadata, const std::string& metatext);
     void resetMetadata() {
         m_metatext = m_metadata = "";
         m_metatextcnt++;

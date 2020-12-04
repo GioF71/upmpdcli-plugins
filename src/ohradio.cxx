@@ -420,7 +420,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     // events. CPs interested in bitrate changes can get them from the
     // Info service Details state variable
     string meta = didlmake(mpds.currentsong, true);
-    m_udev->getohif()->setMetadata(meta);
+    m_udev->getohif()->setMetadata(radio.title, meta);
     return true;
 }
 

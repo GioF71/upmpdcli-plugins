@@ -40,9 +40,6 @@ using namespace std::placeholders;
 static const string sTpProduct("urn:av-openhome-org:service:Info:1");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Info");
 
-// Do we copy metadata to metatext ? We used to, but this was wrong probably.
-static const bool metatotextcopy{false};
-
 OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
@@ -105,18 +102,11 @@ void OHInfo::makedetails(string &duration, string& bitrate,
     }
 }
 
-// I made the mistake of setting the radio metadata in metatext, and
-// now this is relied on by both Upplay and Bubble. I should have
-// used metadata. I'm not sure of what metatext is good for anyway,
-// so, for now, we send metadata in lieu of metatext if metatext is
-// empty (and metatext is always empty as we don't set it).
-// Kazoo relies on the metadata value, not metatext. So it would be
-// enough to fix upplay and Bubble to use metadata, and we can get rid
-// of the metatext hack.
+// For radios: Metadata is for the static channel name. Metatext is
+// for the current song. Both are didl.
 bool OHInfo::makestate(unordered_map<string, string> &st)
 {
     st.clear();
-
     st["TrackCount"] = SoapHelp::i2s(m_dev->getMpdStatus().trackcounter);
     st["DetailsCount"] = SoapHelp::i2s(m_dev->getMpdStatus().detailscounter);
     st["MetatextCount"] = SoapHelp::i2s(m_metatextcnt);
@@ -124,8 +114,7 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
     urimetadata(uri, metadata);
     st["Uri"] = uri;
     st["Metadata"] = metadata;
-    st["Metatext"] = (metatotextcopy && m_metatext.empty()) ?
-        metadata : m_metatext;
+    st["Metatext"] = m_metatext;
     makedetails(st["Duration"], st["BitRate"], st["BitDepth"],st["SampleRate"]);
     st["Lossless"] = "0";
     st["CodecName"] = "";
@@ -179,15 +168,20 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 }
 
 // Called from ohradio only at the moment. Should we call it from playlist?
-void OHInfo::setMetadata(const string& metadata)
+void OHInfo::setMetadata(const string& metadata, const string& metatext)
 {
     //LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
-    if (metadata.compare(m_metadata)) {
+    bool needevent{false};
+    if (metadata != m_metadata) {
         m_metadata = metadata;
-        // As we will actually send out metadata for metatext, it
-        // seems logical to increase the count here.
-        if (metatotextcopy)
-            m_metatextcnt++;
+        needevent = true;
+    }
+    if (metatext != m_metatext) {
+        m_metatext = metatext;
+        m_metatextcnt++;
+        needevent++;
+    }
+    if (needevent) {
         onEvent(nullptr);
     }
 }
