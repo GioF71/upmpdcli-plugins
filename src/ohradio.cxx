@@ -417,8 +417,12 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     // Don't report the ever changing bitrate, this causes unnecessary
     // events. CPs interested in bitrate changes can get them from the
     // Info service Details state variable
-    string meta = didlmake(mpds.currentsong, true);
-    m_udev->getohif()->setMetadata(st["Metadata"], meta);
+    if (st["TransportState"] == "Stopped") {
+        m_udev->getohif()->setMetadata(st["Metadata"], st["Metadata"]);
+    } else {
+        string meta = didlmake(mpds.currentsong, true);
+        m_udev->getohif()->setMetadata(st["Metadata"], meta);
+    }
     return true;
 }
 
@@ -601,52 +605,28 @@ int OHRadio::id(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-static string radioDidlMake(const string& title, const string& uri,
-                            const string& artUri)
-{
-    string out("<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
-               "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
-               "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">"
-               "<item id=\"\" parentID=\"\" restricted=\"True\">"
-               "<dc:title>");
-    out += SoapHelp::xmlQuote(title);
-    out += "</dc:title>"
-        "<res protocolInfo=\"*:*:*:*\" bitrate=\"6000\">";
-    if (uri.empty()) {
-        // Kazoo absolutely does not want uri to be empty, else it
-        // does not display anything in the radio list (not even the
-        // entries with uris). So fill up with bogus value. This is
-        // not used anyway because setId/setPlaying use the value from
-        // the radio array or from the metascript
-        out += SoapHelp::xmlQuote("http://www.bogus.com/bogus.mp3");
-    } else {
-        out += SoapHelp::xmlQuote(uri);
-    }
-    out += "</res>";
-    if (!artUri.empty()) {
-        out +=  "<upnp:albumArtURI>";
-        out += SoapHelp::xmlQuote(artUri);
-        out += "</upnp:albumArtURI>";
-    }
-    out +=  "<upnp:class>object.item.audioItem</upnp:class>"
-        "</item>"
-        "</DIDL-Lite>";
-    return out;
-}
-
 // This is called from read, and readlist. Don't send current metadata
 // (including dynamic art and song title) for the current channel,
 // else the radio logo AND name are replaced by the song's in channel
-// selection interfaces. Only send the song metadata from the Info service
+// selection interfaces. Only send the song metadata from the Info
+// service metatext variable
 string OHRadio::metaForId(unsigned int id)
 {
     LOGDEB1("OHRadio::metaForId: id " << id << " m_id " << m_id << endl);
-    string meta;
-    if (id >= 0 && id  < o_radios.size()) {
-        meta = radioDidlMake(o_radios[id].title, o_radios[id].uri, 
-                             o_radios[id].artUri);
+    if (id  >= o_radios.size()) {
+        return string();
     }
-    return meta;
+    UpSong usong;
+    usong.title = o_radios[id].title;
+    // Kazoo absolutely does not want uri to be empty, else it
+    // does not display anything in the radio list (not even the
+    // entries with uris). So fill up with bogus value. This is
+    // not used anyway because setId/setPlaying use the value from
+    // the radio array or from the metascript
+    usong.rsrc.uri = o_radios[id].uri.empty() ?
+        "http://www.bogus.com/bogus.mp3" : o_radios[id].uri;
+    usong.artUri = o_radios[id].artUri;
+    return didlmake(usong);
 }
 
 // Report the metadata for a given channel id.
