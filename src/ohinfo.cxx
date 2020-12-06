@@ -63,13 +63,13 @@ void OHInfo::urimetadata(string& uri, string& metadata)
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
 
-    if (is_song) {
-        uri = mpds.currentsong.rsrc.uri;
-        // If somebody (e.g. ohradio) took care to set the metadata, use it.
-        // Metadata is reset by OHProduct::setSourceIndex.
-        if (!m_metadata.empty()) {
-            metadata = m_metadata;
-        } else {
+    // If somebody (e.g. ohradio) took care to set the metadata, use it.
+    // Metadata is reset by OHProduct::setSourceIndex.
+    if (!m_metadata.empty()) {
+        metadata = m_metadata;
+    } else {
+        if (is_song) {
+            uri = mpds.currentsong.rsrc.uri;
             // Playlist or AVTransport playing, probably.
             // Prefer metadata from cache (copy from media server) to
             // whatever comes from mpd.
@@ -77,10 +77,10 @@ void OHInfo::urimetadata(string& uri, string& metadata)
                 return;
             }
             metadata = didlmake(mpds.currentsong);
+        } else {
+            uri.clear();
+            metadata.clear();
         }
-    } else {
-        uri.clear();
-        metadata.clear();
     }
 }
 
@@ -171,17 +171,9 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 void OHInfo::setMetadata(const string& metadata, const string& metatext)
 {
     //LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
-    bool needevent{false};
-    if (metadata != m_metadata) {
-        m_metadata = metadata;
-        needevent = true;
-    }
+    m_metadata = metadata;
     if (metatext != m_metatext) {
         m_metatext = metatext;
         m_metatextcnt++;
-        needevent = true;
-    }
-    if (needevent) {
-        onEvent(nullptr);
     }
 }

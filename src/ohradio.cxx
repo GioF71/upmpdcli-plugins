@@ -420,8 +420,8 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     if (st["TransportState"] == "Stopped") {
         m_udev->getohif()->setMetadata(st["Metadata"], st["Metadata"]);
     } else {
-        string meta = didlmake(mpds.currentsong, true);
-        m_udev->getohif()->setMetadata(st["Metadata"], meta);
+        string metatext = didlmake(mpds.currentsong, true);
+        m_udev->getohif()->setMetadata(st["Metadata"], metatext);
     }
     return true;
 }
