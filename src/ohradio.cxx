@@ -394,7 +394,10 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
         mpds.currentsong.title = radio.dynTitle;
         mpds.currentsong.artist = radio.dynArtist;
     }
-
+    if (mpds.currentsong.title.empty()) {
+        mpds.currentsong.title = radio.title;
+    }
+        
     // Some radios provide a url to the art for the current song. 
     // Execute script to retrieve it if the current title+artist changed
     if (radio.artScript.size()) {
@@ -418,7 +421,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     // events. CPs interested in bitrate changes can get them from the
     // Info service Details state variable
     if (st["TransportState"] == "Stopped") {
-        m_udev->getohif()->setMetadata(st["Metadata"], "");
+        m_udev->getohif()->setMetadata(st["Metadata"], st["Metadata"]);
     } else {
         string metatext = didlmake(mpds.currentsong, true);
         m_udev->getohif()->setMetadata(st["Metadata"], metatext);
