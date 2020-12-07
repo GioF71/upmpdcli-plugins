@@ -420,8 +420,8 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
     // Don't report the ever changing bitrate, this causes unnecessary
     // events. CPs interested in bitrate changes can get them from the
     // Info service Details state variable
-    if (st["TransportState"] == "Stopped") {
-        m_udev->getohif()->setMetadata(st["Metadata"], st["Metadata"]);
+    if (st["TransportState"] != "Playing") {
+        m_udev->getohif()->setMetadata(st["Metadata"], "");
     } else {
         string metatext = didlmake(mpds.currentsong, true);
         m_udev->getohif()->setMetadata(st["Metadata"], metatext);

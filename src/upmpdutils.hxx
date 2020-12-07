@@ -115,7 +115,7 @@ extern const std::string& mapget(
     const std::string& k);
 
 // Format a didl fragment from MPD status data. Used by the renderer
-extern std::string didlmake(const UpSong& song, bool nobitrate = false);
+extern std::string didlmake(const UpSong& song, bool noresource = false);
 
 // Wrap DIDL entries in header / trailer
 extern const std::string& headDIDL();

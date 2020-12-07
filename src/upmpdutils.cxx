@@ -143,8 +143,7 @@ diffmaps(const unordered_map<string, string>& old,
         ss << "<" #TAG ">" << SoapHelp::xmlQuote(DEF) << "</" #TAG ">"; \
     }
 
-static void didlPrintResource(ostringstream& ss, const UpSong::Res& res,
-                              bool nobitrate) {
+static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
     ss << "<res";
     if (res.duration_secs) {
         ss << " duration=\"" << upnpduration(res.duration_secs * 1000) << "\"";
@@ -152,7 +151,7 @@ static void didlPrintResource(ostringstream& ss, const UpSong::Res& res,
     if (res.size) {
         ss << " size=\"" << lltodecstr(res.size) << "\"";
     }
-    if (!nobitrate && res.bitrate) {
+    if (res.bitrate) {
         ss << " bitrate=\"" << SoapHelp::i2s(res.bitrate) << "\"";
     }
     if (res.samplefreq) {
@@ -170,7 +169,7 @@ static void didlPrintResource(ostringstream& ss, const UpSong::Res& res,
     ss << ">" << SoapHelp::xmlQuote(res.uri) << "</res>";
 }
 
-string UpSong::didl(bool nobitrate) const
+string UpSong::didl(bool noresource) const
 {
     ostringstream ss;
     string typetag;
@@ -205,9 +204,11 @@ string UpSong::didl(bool nobitrate) const
         UPNPXMLD(upnpClass, upnp:class, "object.item.audioItem.musicTrack");
         UPNPXML(album, upnp:album);
         UPNPXML(tracknum, upnp:originalTrackNumber);
-        didlPrintResource(ss, rsrc, nobitrate);
-        for (const auto& res : resources) {
-            didlPrintResource(ss, res, nobitrate);
+        if (!noresource) {
+            didlPrintResource(ss, rsrc);
+            for (const auto& res : resources) {
+                didlPrintResource(ss, res);
+            }
         }
     }
     UPNPXML(genre, upnp:genre);
@@ -242,9 +243,9 @@ string wrapDIDL(const std::string& data)
     return headDIDL() + data + tailDIDL();
 }
 
-string didlmake(const UpSong& song, bool nobitrate)
+string didlmake(const UpSong& song, bool noresource)
 {
-    return wrapDIDL(song.didl(nobitrate));
+    return wrapDIDL(song.didl(noresource));
 }
 
 bool dirObjToUpSong(const UPnPDirObject& dobj, UpSong *ups)
