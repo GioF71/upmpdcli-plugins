@@ -341,6 +341,15 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # service, which seems to happen esp. with Qobuz.</descr></var>
 #plgproxymethod = redirect
 
+# <var name="msiconpath" type="fn">
+# <brief>Path to the Media Server icon.</brief>
+# <descr>The image will be displayed by Control Points which support
+# it. Due to current (and probably permanent) *upmpdcli* limitations, the
+# image file *must* be a 64x64 32 bits-per-pixel png file. Default:
+# '$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
+# starts up.</descr></var>
+#msiconpath = /usr/share/upmpdcli/icon.png
+
 # <grouptitle>Highresaudio streaming service parameters</grouptitle>
 
 # <var name="hrauser" type="string"><brief>Hra user name.</brief>

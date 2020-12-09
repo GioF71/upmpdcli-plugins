@@ -20,17 +20,67 @@
 #include "main.hxx"
 #include "conman.hxx"
 #include "contentdirectory.hxx"
+#include "pathut.h"
+#include "readfile.h"
+#include "conftree.h"
+#include "libupnpp/log.h"
 
 using namespace std;
+
+static const string iconDesc(
+    "<iconList>"
+    "  <icon>"
+    "    <mimetype>image/png</mimetype>"
+    "    <width>64</width>"
+    "    <height>64</height>"
+    "    <depth>32</depth>"
+    "    <url>@PATH@</url>"
+    "  </icon>"
+    "</iconList>"
+    );
+
+static std::string get_iconpath()
+{
+    string iconpath(DATADIR "/icon.png");
+    if (nullptr != g_config) {
+        if (!g_config->get("msiconpath", iconpath)) {
+            std::string datadir;
+            if (g_config->get("pkgdatadir", datadir)) {
+                iconpath = path_cat(datadir, "icon.png");
+            }
+        }
+    }
+    if (!path_exists(iconpath)) {
+        iconpath.clear();
+    }
+    return iconpath;
+}
 
 bool MediaServer::readLibFile(const string& name, string& contents)
 {
     if (name.empty()) {
+        // Description content
         if (!::readLibFile("MS-description.xml", contents)) {
             return false;
         }
         contents = regsub1("@UUIDMEDIA@", contents, getDeviceId());
         contents = regsub1("@FRIENDLYNAMEMEDIA@", contents, m_fname);
+
+        std::string iconpath = get_iconpath();
+        if (!iconpath.empty()) {
+            string icondata, path, reason;
+            if (!file_to_string(iconpath, icondata, &reason)) {
+                if (iconpath !=  "/usr/share/upmpdcli/icon.png") {
+                    LOGERR("Failed reading "<< iconpath<<" : "<< reason <<"\n");
+                } else {
+                    LOGDEB("Failed reading "<< iconpath<<" : "<< reason <<"\n");
+                }
+            }
+            if (!icondata.empty()) {
+                addVFile("icon.png", icondata, "image/png", path);
+                contents += regsub1("@PATH@", iconDesc, path);
+            }
+        }
         return true;
     } else {
         return ::readLibFile(name, contents);
