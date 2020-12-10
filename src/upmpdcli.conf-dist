@@ -138,6 +138,8 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #plgmicrohttpport = 49149
 # Decide if we proxy (copy: fetch/serve), or redirect the streaming services streams.
 #plgproxymethod = redirect
+# Path to the Media Server icon.
+#msiconpath = /usr/share/upmpdcli/icon.png
 
 # Highresaudio streaming service parameters
 

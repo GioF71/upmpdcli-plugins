@@ -161,11 +161,9 @@ help from the closely related *sc2mpd* package, for processing the audio
 streams).
 
 - Upmpdcli provides a Media Server interface, mostly used for accessing
-external streaming services (Spotify, Highresaudio, Tidal,
-Qobuz). The *uprcl* module provides a local Media Server based on the
+external streaming services (Spotify, Highresaudio, Qobuz). The *uprcl*
+module provides a local Media Server based on the
 link:https://www.recoll.org[Recoll] medata extraction and search functions.
-The motivation for the latter is that I see none which is both open-source
-and really satisfying (MinimServer is great but not open-source).
 
 Upmpdcli can be installed on most Linux systems. It is frequently used on
 small single board computers like the Raspberry Pi. As far as I know, all
@@ -279,7 +277,7 @@ Upmpdcli implements an OpenHome Radio service which allows selecting and
 listening to internet radio stations when using an OpenHome-compatible
 Control Point (e.g. Kazoo, Lumin, Bubble UPnP, etc.).
 
-This facility uses Python 2.x, which must be available on the system for
+This facility uses Python 3.x, which must be available on the system for
 the radio links to work.
 
 Radio channels can be accessed by using the Control Point application to
@@ -570,7 +568,7 @@ the Receivers can be out of sync by several seconds.
 
 === Streaming Services and UPnP
 
-Streaming services like Highresaudio Spotify give access to a huge
+Streaming services like Highresaudio or Spotify give access to a huge
 catalog of music through a WEB programming interface which is also usable
 by programs other than their own applications.
 
@@ -600,8 +598,9 @@ framework, and knowing which way you are using will avoid confusion:
   favourites). The CP also mediates the HTTP access to the audio streams
   (the URIs the CP sends to the Renderer point to itself, and it arranges
   to forward the data from the service). This is implemented, for example,
-  by Bubble UPnP. The drawback of this approach is that the CP can't go to
-  sleep or out of reach, else the music will stop (maybe at the next track).
+  by Bubble UPnP. The drawback of this approach is that the Control Point
+  device must not go to sleep or out of reach, else the music will stop
+  (maybe at the next track).
 
 - The third approach is to distribute the function between CP and
   Renderer. The Control Point performs the browsing and access to special
@@ -610,20 +609,19 @@ framework, and knowing which way you are using will avoid confusion:
   at the price of complexity and compatibility issues. This method is
   implemented by the Linn Kazoo Control Point, and a number of Renderers,
   the Linn and Lumin ones of course, but also,
-  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. At the moment, the Lumin
-  Control Point does not work with upmpdcli except when the Credentials
-  service is disabled by setting the `lumincompat` configuration variable.
+  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
+  * At the moment, the upmpdcli implementation is not useful any more, as
+    changes in services access methods have made it such that none of them
+    is currently usable with upmpdcli through this method.
 
 [[UPMPDCLI-MS-STR-MS]]
 === Accessing Streaming Services through the upmpdcli Media Server
   
 The Media Server function in Upmpdcli gives access to external streaming
-services: Spotify, and Highresaudio currently work
-unconditionally (1.4.11). Tidal and Qobuz are still supported by the code,
-but the access will only be possible if you can find a working application
-token (Tidal) or appid/secret pair (Qobuz), to authorize access by the
-Upmpdcli application. This is completely independant from your service
-subscription, which is needed in all cases.
+services: Spotify, Highresaudio and Qobuz currently work unconditionally
+(1.5.5). I am not sure about Tidal support: in any case it will only work
+if you can find a working application token (Tidal), and even then, maybe
+not as their access control API is evolving.
 
 You will need a valid subscription for any service that you want to use
 (for Spotify, this means a premium account, the free ones will not work).
@@ -642,9 +640,9 @@ Two conditions must be true for the Media Server to appear with an entry
 for a streaming service:
 
  - The code for the service plugin must be installed. This comes generally
-   in a separate package (e.g _upmpdcli-tidal_).
+   in a separate package (e.g _upmpdcli-qobuz_).
  - The user variable for the service must be present in the configuration
-   file (e.g `tidaluser`).
+   file (e.g `qobuzuser`).
 
 Some other parameters (e.g. a password) may be needed for the access to
 work, depending on the specific service. See the service-specific notes below.
@@ -658,6 +656,7 @@ NOTE: I have no reason to believe that upmpdcli is technically mis-using
 the streaming services in any way, but it is definitely not approved by any
 of them, and you are using it under your own responsibility.
 
+////
 [[UPMPDCLI-MS-STR-CRED]]
 === Accessing the streaming services with OpenHome from Kazoo
 
@@ -698,7 +697,6 @@ For reference, this method is *not* usable with *Upplay*
 The notes which follow relate to accessing the services through the
 Upmpdcli Media Server.
 
-
 === Using Tidal through the Upmpdcli Media Server
 
 [NOTE]
@@ -732,21 +730,18 @@ which you must set in the `tidalapitoken` configuration variable.
 The configuration parameters are described in the
 <<tidaluser,configuration section>>
 
+
+////
+
+
 [[upmpdcli.qobuznotes]]
 === Using Qobuz through the Upmpdcli Media Server
-
-Upmpdcli Qobuz access does not work any more, because Qobuz revoked the
-access key, so this is just kept as a historical note... Also, if you are
-lucky enough to have a valid app key/secret pair, you can use it with the
-module.
 
 This is based on the service API from the
 link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
 Basmaison and Cyril Leclerc, with the upper-level code adapted from the
 Tidal add-on. The WEB API is not officially supported by Qobuz, and may
-just stop to work one day. On the other hand, Qobuz is the only service to
-actually publish the documentation for their API, so it is quite likely to
-remain available.
+just stop to work one day.
 
 NOTE: the Qobuz search does not allow searching a specific field (like the
 artist name or song title). All objects matching a query in any field are
@@ -799,7 +794,7 @@ authorization annex>>.
 
 You will need to install the upmpdcli-uprcl module.
 
-The current (2019-04) upmpdcli code base includes a Media Server function
+The current (2020-12) upmpdcli code base includes a Media Server function
 for local music files, analog to MinimServer or ReadyMedia/MiniDLNA. The
 plugin module is named *uprcl*.
 
@@ -843,8 +838,8 @@ now. I'd love feedback about what is missing most.
 Installation and configuration: have a look at the
 xref:uprcluser[configuration variables]
 
-NOTE: uprcl needs Python 3.5. This means that it does not work on Debian
-Jessie (8.x)
+NOTE: uprcl needs Python 3.5 at least. This means that it does not work on
+Debian Jessie (8.x)
 
 NOTE: 'python-mutagen' which is optional for default Recoll installations is
 required for uprcl (this is for the case where you install by hand, the
@@ -1466,20 +1461,19 @@ subdirectory inside the *upmpdcli* source tree.
 
 The server is based on the 
 link:http://bottlepy.org/docs/dev/index.html[Bottle Python Web Framework]
-and it only depends on Python (version 2 and 3 are supported by *Bottle*,
-but the current app only works with Python 2).
+and it only depends on Python 3.
 
 You can use the `scweb-standalone.py` script to manually start the
 interface:
     
-    python2 ./scweb-standalone.py
+    python3 ./scweb-standalone.py
 
 This will start a server on localhost, on port 8680 by default which is
 good for testing, but not very useful. Use the -a 0.0.0.0 option to let the
 server answer on all local addresses (or specify the address to use a
 specific interface):
 
-    python2 ./scweb-standalone.py -a 0.0.0.0
+    python3 ./scweb-standalone.py -a 0.0.0.0
 
 -p can be used to specify a port.
 

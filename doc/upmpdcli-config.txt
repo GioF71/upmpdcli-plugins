@@ -316,6 +316,13 @@ services streams. Using redirect is much more efficient,
 but the proxy has a facility to retry when a stream is dropped by the
 service, which seems to happen esp. with Qobuz.
 
+[[msiconpath]]
+msiconpath:: Path to the Media Server icon. The image will be displayed by Control Points which support
+it. Due to current (and probably permanent) *upmpdcli* limitations, the
+image file *must* be a 64x64 32 bits-per-pixel png file. Default:
+'$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
+starts up.
+
 === Highresaudio streaming service parameters 
 
 [[hrauser]]
