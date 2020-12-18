@@ -32,6 +32,10 @@
 #    Container: $d<diridx> where <diridx> indexes into _dirvec
 #    Item: $i<docidx> where <docidx> indexes into _rcldocs
 #
+# Note: this is very different from what Minim does. Minim uses actual
+#   objid paths as objids. E.g. 0$folders$f1589$f1593$f1604$*i11609
+#   Must make pwd and any walk up the tree much easier.
+#
 # Each _dirvec entry is a Python dict, mapping the directory entries'
 # names to a pair (diridx,docidx), where:
 #
@@ -47,6 +51,10 @@
 # Note: docidx is usually set in the pair for a directory, but I don't
 # think that it is ever used. The Recoll doc for a directory has
 # nothing very interesting in it.
+#
+# Note: We could probably use a single value, with a convention
+# saying, e.g., that > 0 is for docs and < -1 for folders. Check if
+# this saves a significant amount of memory.
 #
 # Each directory has a special ".." entry with a diridx pointing to
 # the parent directory. This allows building a path from a container
@@ -69,12 +77,7 @@
 import os
 import shlex
 import sys
-PY3 = sys.version > '3'
-if PY3:
-    from urllib.parse import quote as urlquote
-else:
-    from urllib import quote as urlquote
-
+from urllib.parse import quote as urlquote
 import time
 from timeit import default_timer as timer
 
@@ -133,7 +136,7 @@ class Folders(object):
             pldoc = self._rcldocs[pldocidx]
             arturi = uprclutils.docarturi(pldoc, self._httphp,self._pprefix)
             if arturi:
-                pldoc.albumarturi = arturi
+                pldoc["albumarturi"] = arturi
             plpath = uprclutils.docpath(pldoc)
             try:
                 m3u = uprclutils.M3u(plpath)
@@ -144,16 +147,16 @@ class Folders(object):
                 if m3u.urlRE.match(url):
                     # Actual URL (usually http). Create bogus doc
                     doc = recoll.Doc()
-                    doc.setbinurl(bytearray(url))
+                    doc["url"] = url
                     elt = os.path.split(url)[1]
-                    doc.title = elt.decode('utf-8', errors='ignore')
-                    doc.mtype = "audio/mpeg"
+                    doc["title"] = elt.decode('utf-8', errors='ignore')
+                    doc["mtype"] = "audio/mpeg"
                     self._rcldocs.append(doc)
                     docidx = len(self._rcldocs) -1
                     self._dirvec[diridx][elt] = (-1, docidx)
                 else:
                     doc = recoll.Doc()
-                    doc.setbinurl(bytearray(b'file://' + url))
+                    doc["url"] = b'file://' + url
                     fathidx, docidx = self._stat(doc)
                     if docidx >= 0 and docidx < len(self._rcldocs):
                         elt = os.path.split(url)[1]
@@ -191,10 +194,10 @@ class Folders(object):
         # If there is a contentgroup field, just add it as a virtual
         # directory in the path. This only affects the visible tree,
         # not the 'real' URLs of course.
-        if doc.contentgroup:
+        if doc["contentgroup"]:
             a = os.path.dirname(url1)
             b = os.path.basename(url1)
-            url1 = os.path.join(a, doc.contentgroup, b)
+            url1 = os.path.join(a, doc["contentgroup"], b)
             
         # Split path. The caller will walk the list (possibly creating
         # directory entries as needed, or doing something else).
@@ -245,20 +248,20 @@ class Folders(object):
             
             # Only include selected mtypes: tracks, playlists,
             # directories etc.
-            if doc.mtype not in audiomtypes:
+            if doc["mtype"] not in audiomtypes:
                 continue
 
             # For linking item search results to the main
             # array. Deactivated for now as it does not seem to be
             # needed.
-            #self._xid2idx[doc.xdocid] = docidx
+            #self._xid2idx[doc["xdocid"]] = docidx
             
             # Possibly enrich the doc entry with a cover art uri.
             arturi = docarturi(doc, self._httphp, self._pprefix)
             if arturi:
                 # The uri is quoted, so it's ascii and we can just store
                 # it as a doc attribute
-                doc.albumarturi = arturi
+                doc["albumarturi"] = arturi
 
             fathidx, path = self._pathbeyondtopdirs(doc)
             if not fathidx:
@@ -286,9 +289,9 @@ class Folders(object):
                         fathidx = self._createdir(fathidx, -1, elt)
                     else:
                         # Last element. If directory, needs a self._dirvec entry
-                        if doc.mtype == 'inode/directory':
+                        if doc["mtype"] == 'inode/directory':
                             fathidx = self._createdir(fathidx, docidx, elt)
-                        elif doc.mtype == 'audio/x-mpegurl':
+                        elif doc["mtype"] == 'audio/x-mpegurl':
                             fathidx = self._createpldir(fathidx, docidx,doc,elt)
                         else:
                             self._dirvec[fathidx][elt] = (-1, docidx)
@@ -325,10 +328,10 @@ class Folders(object):
         for doc in rclq:
             if tagaliases:
                 for orig, target, rep in tagaliases:
-                    val = doc.get(orig)
+                    val = doc[orig]
                     #uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
-                    #      (rep, orig, val, target, doc.get(target)))
-                    if val and (rep or not doc.get(target)):
+                    #      (rep, orig, val, target, doc[target]))
+                    if val and (rep or not doc[target]):
                         setattr(doc, target, val)
 
             self._rcldocs.append(doc)
@@ -397,8 +400,8 @@ class Folders(object):
         for nm,ids in self._dirvec[diridx].items():
             if ids[1] >= 0:
                 doc = self._rcldocs[ids[1]]
-                if doc.mtype != 'inode/directory' and doc.albumarturi:
-                    return doc.albumarturi
+                if doc["mtype"] != 'inode/directory' and doc["albumarturi"]:
+                    return doc["albumarturi"]
               
 
     # Folder hierarchy browse method.
@@ -444,8 +447,8 @@ class Folders(object):
                 if len(self._dirvec[thisdiridx]) == 1:
                     continue
                 id = self._idprefix + '$d' + str(thisdiridx)
-                if doc and doc.albumarturi:
-                    arturi = doc.albumarturi
+                if doc and doc["albumarturi"]:
+                    arturi = doc["albumarturi"]
                 else:
                     arturi = self._arturifordir(thisdiridx)
                 entries.append(rcldirentry(id, pid, os.path.basename(nm),
@@ -519,9 +522,9 @@ class Folders(object):
     # Compute object id for doc out of recoll search. Not used at the moment.
     # and _xid2idx is not built
     def _objidforxdocid(self, doc):
-        if doc.xdocid not in self._xid2idx:
+        if doc["xdocid"] not in self._xid2idx:
             return None
-        return self._idprefix + '$i' + str(self._xid2idx[doc.xdocid])
+        return self._idprefix + '$i' + str(self._xid2idx[doc["xdocid"]])
 
 
     def _stat(self, doc):
@@ -546,7 +549,7 @@ class Folders(object):
 
 
     def objidfordoc(self, doc):
-        if doc.mtype == 'inode/directory':
+        if doc["mtype"] == 'inode/directory':
             id = self._objidforpath(doc)
         else:
             id = self._objidforxdocid(doc)

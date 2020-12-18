@@ -16,13 +16,8 @@
 from __future__ import print_function
 
 import sys
-PY3 = sys.version > '3'
-if PY3:
-    from urllib.parse import quote as urlquote
-    import functools
-else:
-    from urllib import quote as urlquote
-    
+from urllib.parse import quote as urlquote, unquote_to_bytes as urlunquotetobytes
+import functools
 import glob
 import io
 import locale
@@ -31,6 +26,7 @@ import os
 import re
 import traceback
 
+from recoll import recoll
 from upmplgutils import uplog
 
 # This must be consistent with what contentdirectory.cxx does
@@ -100,15 +96,15 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
         A dict representing an UPnP item, with the
         keys as expected in the plgwithslave.cxx resultToEntries() function. 
     """
-    #uplog("rcldoctoentry:  pid %s id %s mtype %s" % (pid, id, doc.mtype))
+    #uplog("rcldoctoentry:  pid %s id %s mtype %s" % (pid, id, doc["mtype"]))
     
     li = {}
-    if doc.mtype not in audiomtypes:
+    if doc["mtype"] not in audiomtypes:
         return li
 
     li['pid'] = pid
     li['id'] = id
-    if doc.mtype == 'inode/directory':
+    if doc["mtype"] == 'inode/directory':
         li['tp'] = 'ct'
         li['upnp:class'] = 'object.container'
     else:
@@ -121,8 +117,8 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
         if val:
             li[oname] = val
 
-    if 'upnp:artist' not in li and doc.albumartist:
-        li['upnp:artist'] = doc.albumartist
+    if 'upnp:artist' not in li and doc["albumartist"]:
+        li['upnp:artist'] = doc["albumartist"]
 
     # TBD Date format ?
     #comment=
@@ -207,25 +203,28 @@ def basename(path):
         
 # Compute fs path for URL. All Recoll URLs are like file://xx
 def docpath(doc):
-    return doc.getbinurl()[7:]
+    p = urlunquotetobytes(doc["url"])
+    if len(p) > 7:
+        return p[7:]
+    else:
+        return b''
 
 def docfolder(doc):
     path = docpath(doc)
-    if doc.mtype != 'inode/directory':
+    if doc["mtype"] != 'inode/directory':
         path = os.path.dirname(path)
     if path[-1] != b'/'[0]:
         path += b'/'
     return path
 
 def embdimgurl(doc, httphp, pathprefix):
-    if doc.embdimg == 'jpg':
+    if doc["embdimg"] == 'jpg':
         ext = b'.jpg'
-    elif doc.embdimg == '.png':
+    elif doc["embdimg"] == '.png':
         ext = b'png'
     else:
         return None
-    path = doc.getbinurl()
-    path = path[7:]
+    path = docpath(doc)
     path = os.path.join(pathprefix.encode('utf-8'), path+ext)
     query =  "?embed=1"
     return _httpurl(httphp, path, query)
@@ -248,7 +247,7 @@ def tag2fn(s):
            replace(b'|', b'')
     
 ##########################
-# Find cover art for doc.
+# Find cover art for doc
 #
 # We return a special uri if the file has embedded image data, else an
 # uri for for the directory cover art (if any).
@@ -283,15 +282,16 @@ def docarturi(doc, httphp, pathprefix):
             return _httpurl(httphp, os.path.join(bpp, artpath))
 
     # Else try to use an embedded img
-    if doc.embdimg:
+    if doc["embdimg"]:
         arturi = embdimgurl(doc, httphp, pathprefix)
         if arturi:
             #uplog("docarturi: embedded: %s"%printable(arturi))
             return arturi
 
     # won't work for the virtual group directory itself: it has no doc
-    if doc.contentgroup:
-        base = os.path.join(os.path.dirname(objpath), tag2fn(doc.contentgroup))
+    if doc["contentgroup"]:
+        base = os.path.join(os.path.dirname(objpath),
+                            tag2fn(doc["contentgroup"]))
         for artpath in _artnamegen(base):
             #uplog("docarturi: testing %s" % artpath)
             if os.path.exists(artpath):
@@ -330,7 +330,7 @@ def docarturi(doc, httphp, pathprefix):
     arturi = _foldercache[folder]
     if arturi:
         #uplog("folder %s arturi %s"% (printable(folder), arturi))
-        if doc.mtype == 'inode/directory':
+        if doc["mtype"] == 'inode/directory':
             #uplog("docarturi: external: %s->%s" %
             #      (printable(folder), printable(arturi)))
             pass

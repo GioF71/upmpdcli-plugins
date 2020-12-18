@@ -15,7 +15,6 @@
 from __future__ import print_function
 
 import sys
-PY3 = sys.version > '3'
 
 import re
 from recoll import recoll
@@ -255,7 +254,7 @@ def search(foldersobj, rclconfdir, objid, upnps, idprefix, httphp, pathprefix):
             if arturi:
                 # The uri is quoted, so it's ascii and we can just store
                 # it as a doc attribute
-                doc.albumarturi = arturi
+                doc["albumarturi"] = arturi
             id = foldersobj.objidfordoc(doc)
             e = uprclutils.rcldoctoentry(id, objid, httphp, pathprefix, doc)
             if e:

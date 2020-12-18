@@ -22,7 +22,6 @@
 #  inside the global document vector.
 
 import os, sys
-PY3 = sys.version > '3'
 
 from upmplgutils import uplog
 from uprclutils import rcldoctoentry, rcldirentry, cmpentries
@@ -46,7 +45,7 @@ class Playlists(object):
     
         for docidx in range(len(rcldocs)):
             doc = rcldocs[docidx]
-            if doc.mtype == 'audio/x-mpegurl':
+            if doc["mtype"] == 'audio/x-mpegurl':
                 self.utidx.append(docidx)
 
     # Compute index into our entries vector by 'parsing' the objid.
@@ -89,7 +88,7 @@ class Playlists(object):
             for i in range(len(self.utidx))[1:]:
                 doc = rcldocs[self.utidx[i]]
                 id = self._idprefix + '$p' + str(i)
-                title = doc.title if doc.title else doc.filename
+                title = doc["title"] if doc["title"] else doc["filename"]
                 e = rcldirentry(id, pid, title,
                                 upnpclass='object.container.playlistContainer')
                 if e:
@@ -109,15 +108,15 @@ class Playlists(object):
                 doc = recoll.Doc()
                 if m3u.urlRE.match(url):
                     # Actual URL (usually http). Create bogus doc
-                    doc.setbinurl(bytearray(url))
+                    doc["url"] = url
                     elt = os.path.split(url)[1]
-                    doc.title = elt.decode('utf-8', errors='ignore')
-                    doc.mtype = "audio/mpeg"
+                    doc["title"] = elt.decode('utf-8', errors='ignore')
+                    doc["mtype"] = "audio/mpeg"
                 else:
-                    doc.setbinurl(bytearray(b'file://' + url))
+                    doc["url"] = b'file://' + url
                     fathidx, docidx = folders._stat(doc)
                     if docidx < 0:
-                        uplog("playlists: can't stat %s"%doc.getbinurl())
+                        uplog("playlists: can't stat %s"%doc["url"])
                         continue
                     doc = rcldocs[docidx]
 

@@ -23,7 +23,6 @@
 # Object Ids inside the subsections: complicated
 
 import sys
-PY3 = sys.version > '3'
 import os
 import sqlite3
 import time

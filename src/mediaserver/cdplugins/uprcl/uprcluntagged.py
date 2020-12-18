@@ -51,9 +51,10 @@ class Untagged(object):
     
         for docidx in range(len(rcldocs)):
             doc = rcldocs[docidx]
-            if doc.mtype == 'inode/directory' or doc.mtype == 'audio/x-mpegurl':
+            if doc["mtype"] == 'inode/directory' or \
+               doc["mtype"] == 'audio/x-mpegurl':
                 continue
-            if not doc.title:
+            if not doc["title"]:
                 self.utidx.append(docidx)
 
     # Compute index into our entries vector by 'parsing' the objid.

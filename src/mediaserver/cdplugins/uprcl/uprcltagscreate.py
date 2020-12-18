@@ -36,7 +36,7 @@ import uprclinit
 # The keys must stay same as what Minim uses as we filter them with
 # indexTags from minim config
 #
-# Note: artist is actually doc.albumartist if set, else doc.artist and
+# Note: artist is actually doc["albumartist"] if set, else doc["artist"] and
 # is processed separately
 #
 # Only a smaller set of entries is normally used, as filtered by indexTags
@@ -198,10 +198,10 @@ def _auxtableinsert(conn, tb, value):
 # should not arrive here, but let's play it safe.
 def _tracknofordoc(doc):
     try:
-        return int(doc.tracknumber.split('/')[0])
+        return int(doc["tracknumber"].split('/')[0])
     except:
-        #uplog("_tracknofordoc: doc.tracknumber %s title %s url %s" %
-        #      (doc.tracknumber, doc.title, doc.url))
+        #uplog("_tracknofordoc: doc["tracknumber"] %s title %s url %s" %
+        #      (doc["tracknumber"], doc["title"], doc["url"]))
         return 1
 
 
@@ -220,19 +220,19 @@ def _maybecreatealbum(conn, doc, trackartid):
     album = getattr(doc, 'album', None)
     if not album:
         album = uprclutils.basename(folder)
-        #uplog("Using %s for alb MIME %s title %s" % (album,doc.mtype,doc.url))
+        #uplog("Using %s for alb MIME %s title %s" % (album,doc["mtype"],doc["url"]))
 
-    if doc.albumartist:
-        albartist_id = _auxtableinsert(conn, 'artist', doc.albumartist)
+    if doc["albumartist"]:
+        albartist_id = _auxtableinsert(conn, 'artist', doc["albumartist"])
     else:
         albartist_id = None
 
     # See if there is a discnumber, either explicit or from album
     # title
     discnumber = None
-    if doc.discnumber:
+    if doc["discnumber"]:
         try:
-            discnumber = int(doc.discnumber)
+            discnumber = int(doc["discnumber"])
             #uplog("discnumber %d folder %s" % (discnumber, folder))
         except:
             pass
@@ -288,8 +288,8 @@ def _maybecreatealbum(conn, doc, trackartid):
         c.execute('''INSERT INTO
             albums(albtitle, albfolder, artist_id, albdate, albarturi,
             albtdisc, albartok, albtartist) VALUES (?,?,?,?,?,?,?,?)''',
-                  (album, folder, albartist_id, doc.date,
-                   doc.albumarturi, discnumber, 1, trackartid))
+                  (album, folder, albartist_id, doc["date"],
+                   doc["albumarturi"], discnumber, 1, trackartid))
         album_id = c.lastrowid
         #uplog("Created album %d %s disc %s artist %s folder %s" %
         #      (album_id, album, discnumber, albartist_id, folder))
@@ -455,30 +455,30 @@ def recolltosql(conn, rcldocs):
             time.sleep(0)
         
         # No need to include non-audio or non-tagged types
-        if doc.mtype not in audiomtypes or doc.mtype == 'inode/directory' \
-               or doc.mtype == 'audio/x-mpegurl':
+        if doc["mtype"] not in audiomtypes or doc["mtype"] == 'inode/directory' \
+               or doc["mtype"] == 'audio/x-mpegurl':
             continue
 
         # Do the artist apart from the other attrs, as we need the
         # value for album creation.
-        if doc.albumartist:
-            trackartid = _auxtableinsert(conn, 'artist', doc.albumartist)
-        elif doc.artist:
-            trackartid = _auxtableinsert(conn, 'artist', doc.artist)
+        if doc["albumartist"]:
+            trackartid = _auxtableinsert(conn, 'artist', doc["albumartist"])
+        elif doc["artist"]:
+            trackartid = _auxtableinsert(conn, 'artist', doc["artist"])
         else:
             trackartid = None
         album_id, albartist_id = _maybecreatealbum(conn, doc, trackartid)
         
         trackno = _tracknofordoc(doc)
 
-        if doc.url.find('file://') == 0:
-            path = doc.url[7:]
+        if doc["url"].find('file://') == 0:
+            path = doc["url"][7:]
         else:
             path = ''
 
         # Set base values for column names, values list, placeholders
         columns = ['docidx','album_id','trackno','title','path','artist_id']
-        values = [docidx, album_id, trackno, doc.title, path, trackartid]
+        values = [docidx, album_id, trackno, doc["title"], path, trackartid]
         placehold = ['?', '?', '?', '?', '?', '?']
         # Append data for each auxiliary table if the doc has a value
         # for the corresponding field (else let SQL set a dflt/null value)
@@ -497,7 +497,7 @@ def recolltosql(conn, rcldocs):
         stmt='INSERT INTO tracks(' + ','.join(columns) + \
               ') VALUES(' + ','.join(placehold) + ')'
         c.execute(stmt, values)
-        #uplog(doc.title)
+        #uplog(doc["title"])
 
     ## End Big doc loop
 
