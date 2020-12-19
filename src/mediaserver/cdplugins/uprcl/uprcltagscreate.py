@@ -285,11 +285,14 @@ def _maybecreatealbum(conn, doc, trackartid):
                 c.execute('''UPDATE albums SET albtartist = ?
                     WHERE album_id = ?''', (trackartid, album_id))
     else:
+        arturi = uprclutils.docarturi(doc, uprclinit.g_httphp,
+                                      uprclinit.g_pathprefix)
+
         c.execute('''INSERT INTO
             albums(albtitle, albfolder, artist_id, albdate, albarturi,
             albtdisc, albartok, albtartist) VALUES (?,?,?,?,?,?,?,?)''',
                   (album, folder, albartist_id, doc["date"],
-                   doc["albumarturi"], discnumber, 1, trackartid))
+                   arturi, discnumber, 1, trackartid))
         album_id = c.lastrowid
         #uplog("Created album %d %s disc %s artist %s folder %s" %
         #      (album_id, album, discnumber, albartist_id, folder))

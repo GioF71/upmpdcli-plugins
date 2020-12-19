@@ -113,10 +113,15 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
         li['upnp:class'] = 'object.item.audioItem.musicTrack'
 
     for oname,dname in upnp2rclfields.items():
-        val = getattr(doc, dname)
+        val = doc[dname]
         if val:
             li[oname] = val
 
+    if 'upnp:albumArtURI' not in li:
+        arturi = docarturi(doc, httphp, pathprefix)
+        if arturi:
+            li['upnp:albumArtURI'] = arturi
+        
     if 'upnp:artist' not in li and doc["albumartist"]:
         li['upnp:artist'] = doc["albumartist"]
 
@@ -139,14 +144,14 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
     # Compute the url. We use the URL from recoll, stripped of file://
     # and with the pathprefix prepended (the pathprefix is used by our
     # parent process to match urls to plugins)
-    path = doc.getbinurl()
-    ssidx = path.find(b'//')
-    if path.find(b'file://') == 0:
+    path = doc["url"]
+    ssidx = path.find('//')
+    if path.find('file://') == 0:
         path = path[7:]
-        path = os.path.join(pathprefix.encode('ascii'), path)
+        path = os.path.join(pathprefix.encode('ascii'), urlunquotetobytes(path))
         li['uri'] = _httpurl(httphp, path)
     else:
-        li['uri'] = path[:ssidx+2].decode('ascii', errors='replace') +\
+        li['uri'] = path[:ssidx+2].decode('ascii', errors='replace') + \
                     urlquote(path[ssidx+1:])
     #uplog("rcldoctoentry: uri: %s" % li['uri'])
 

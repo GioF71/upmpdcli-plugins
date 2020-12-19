@@ -250,11 +250,6 @@ def search(foldersobj, rclconfdir, objid, upnps, idprefix, httphp, pathprefix):
     while True:
         docs = rclq.fetchmany()
         for doc in docs:
-            arturi = uprclutils.docarturi(doc, httphp, pathprefix)
-            if arturi:
-                # The uri is quoted, so it's ascii and we can just store
-                # it as a doc attribute
-                doc["albumarturi"] = arturi
             id = foldersobj.objidfordoc(doc)
             e = uprclutils.rcldoctoentry(id, objid, httphp, pathprefix, doc)
             if e:

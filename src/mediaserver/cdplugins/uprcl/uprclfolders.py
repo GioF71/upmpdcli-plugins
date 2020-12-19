@@ -82,10 +82,10 @@ import time
 from timeit import default_timer as timer
 
 from upmplgutils import uplog
-from uprclutils import docarturi, audiomtypes, rcldirentry, \
+from uprclutils import audiomtypes, rcldirentry, \
      rcldoctoentry, cmpentries
 import uprclutils
-from recoll import recoll
+from recoll import recoll, qresultstore
 from recoll import rclconfig
 import uprclinit
 
@@ -134,9 +134,6 @@ class Folders(object):
         for diridx in self._playlists:
             pldocidx = self._dirvec[diridx]["."][1]
             pldoc = self._rcldocs[pldocidx]
-            arturi = uprclutils.docarturi(pldoc, self._httphp,self._pprefix)
-            if arturi:
-                pldoc["albumarturi"] = arturi
             plpath = uprclutils.docpath(pldoc)
             try:
                 m3u = uprclutils.M3u(plpath)
@@ -256,13 +253,6 @@ class Folders(object):
             # needed.
             #self._xid2idx[doc["xdocid"]] = docidx
             
-            # Possibly enrich the doc entry with a cover art uri.
-            arturi = docarturi(doc, self._httphp, self._pprefix)
-            if arturi:
-                # The uri is quoted, so it's ascii and we can just store
-                # it as a doc attribute
-                doc["albumarturi"] = arturi
-
             fathidx, path = self._pathbeyondtopdirs(doc)
             if not fathidx:
                 continue
@@ -301,7 +291,7 @@ class Folders(object):
                 uplog("%s" % ent)
 
 
-        self._initplaylists()
+#        self._initplaylists()
                     
         end = timer()
         uplog("_rcl2folders took %.2f Seconds" % (end - start))
@@ -324,20 +314,25 @@ class Folders(object):
         if uprclinit.g_minimconfig:
             tagaliases = uprclinit.g_minimconfig.gettagaliases()
 
-        self._rcldocs = []
-        for doc in rclq:
-            if tagaliases:
-                for orig, target, rep in tagaliases:
-                    val = doc[orig]
-                    #uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
-                    #      (rep, orig, val, target, doc[target]))
-                    if val and (rep or not doc[target]):
-                        setattr(doc, target, val)
-
-            self._rcldocs.append(doc)
-            if self._maxrclcnt > 0 and len(self._rcldocs) >= self._maxrclcnt:
-                break
-            time.sleep(0)
+        self._rcldocs = qresultstore.QResultStore()
+        self._rcldocs.storeQuery(rclq,
+                                 fieldspec=
+                                 ("author", "ipath", "rcludi", "relevancyrating",
+                                  "sig", "abstract", "caption", "filename",
+                                  "origcharset", "sig"))
+#        for i in range(len(self._rcldocs)):
+#            doc = self._rcldocs[i]
+#            if tagaliases:
+#                for orig, target, rep in tagaliases:
+#                    val = doc[orig]
+#                    #uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
+#                    #      (rep, orig, val, target, doc[target]))
+#                    if val and (rep or not doc[target]):
+#                        setattr(doc, target, val)
+#            self._rcldocs.append(doc)
+#            if self._maxrclcnt > 0 and len(self._rcldocs) >= self._maxrclcnt:
+#                break
+#            time.sleep(0)
         end = timer()
         uplog("Retrieved %d docs in %.2f Seconds" %
               (len(self._rcldocs), end - start))
@@ -385,23 +380,24 @@ class Folders(object):
 
 
     # Look all non-directory docs inside directory, and return the
-    # cover art we find. The doc albumarturi field has been set during
-    # the initial walk by call to uprclutils.docarturi()
+    # cover art we find. 
     #
     # TBD In the case where this is a contentgroup directory, we'd
     # need to go look into the file system for a group.xxx
-    # image. Actually, the best approach would probably be to create
-    # virtual doc records for such directories, and set their
-    # albumarturi during the tree setup. As it is things work if the
-    # tracks rely on the group pic (instead of having an embedded pic
-    # or track pic) Also: playlists: need to look at the physical dir
-    # for a e.g. playlistname.jpg. 
+    # image.
+    # As it is things work if the tracks rely on the group pic
+    # (instead of having an embedded pic or track pic) Also:
+    # playlists: need to look at the physical dir for a
+    # e.g. playlistname.jpg.
     def _arturifordir(self, diridx):
         for nm,ids in self._dirvec[diridx].items():
             if ids[1] >= 0:
                 doc = self._rcldocs[ids[1]]
-                if doc["mtype"] != 'inode/directory' and doc["albumarturi"]:
-                    return doc["albumarturi"]
+                if doc["mtype"] != 'inode/directory':
+                    arturi = uprclutils.docarturi(doc, self._httphp,
+                                                  self._pprefix)
+                    if arturi:
+                        return arturi
               
 
     # Folder hierarchy browse method.
@@ -447,10 +443,7 @@ class Folders(object):
                 if len(self._dirvec[thisdiridx]) == 1:
                     continue
                 id = self._idprefix + '$d' + str(thisdiridx)
-                if doc and doc["albumarturi"]:
-                    arturi = doc["albumarturi"]
-                else:
-                    arturi = self._arturifordir(thisdiridx)
+                arturi = self._arturifordir(thisdiridx)
                 entries.append(rcldirentry(id, pid, os.path.basename(nm),
                                            arturi=arturi))
             else:
