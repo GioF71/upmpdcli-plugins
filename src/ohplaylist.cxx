@@ -581,10 +581,7 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
             LOGERR("OHPlaylist::ohread: statsong failed for " << id << endl);
             return UPNP_E_INTERNAL_ERROR;
         }
-        auto cached = m_metacache.find(song.rsrc.uri);
-        if (cached != m_metacache.end()) {
-            metadata = cached->second;
-        } else {
+        if (!cacheFind(song.rsrc.uri, metadata)) {
             metadata = didlmake(song);
             m_metacache[song.rsrc.uri] = metadata;
             m_cachedirty = true;
@@ -602,7 +599,7 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
             return UPNP_E_INTERNAL_ERROR;
         }
     }
-    data.addarg("Uri", SoapHelp::xmlQuote(song.rsrc.uri));
+    data.addarg("Uri", song.rsrc.uri);
     data.addarg("Metadata", metadata);
     return UPNP_E_SUCCESS;
 }
@@ -770,11 +767,16 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
                " metadata " << metadata);
         return false;
     }
+
+    // Always update the metacache before inserting, else it may
+    // happen that the mpd event triggers before we can do it, and
+    // causes us to use MPD data to update the cache before we can do
+    // it.
+    m_metacache[uri] = metadata;
+    m_cachedirty = true;
+    m_mpdqvers = -1;
     int id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
     if (id != -1) {
-        m_metacache[uri] = metadata;
-        m_cachedirty = true;
-        m_mpdqvers = -1;
         if (newid)
             *newid = id;
         return true;
