@@ -1,3 +1,10 @@
+upmpdcli (1.5.6pre1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * OHPlaylist insert: update the metadata cache before changing the MPD
+    playlist.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 07 Dec 2020 18:00:00 +0100
+
 upmpdcli (1.5.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * More small radio channels metadata adjustments for improving
