@@ -46,7 +46,9 @@
 using namespace std;
 using namespace UPnPP;
 
-static const int minVolumeDelta = 5;
+// This used to be set to 5, and I can't remember why. Seems to work
+// fine without a minimum step
+static const int minVolumeDelta = 1;
 
 static const string iconDesc(
     "<iconList>"
