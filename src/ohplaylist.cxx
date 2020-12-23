@@ -567,6 +567,7 @@ bool OHPlaylist::cacheFind(const string& uri, string& meta)
 // Returns a 800 fault code if the given id is not in the playlist. 
 int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 {
+    std::unique_lock<std::mutex> lock(m_statemutex);
     int id;
     bool ok = sc.get("Id", &id);
     if (!ok) {
@@ -618,6 +619,7 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 // Any ids not in the playlist are ignored. 
 int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 {
+    std::unique_lock<std::mutex> lock(m_statemutex);
     string sids;
     bool ok = sc.get("IdList", &sids);
     LOGDEB("OHPlaylist::readList: [" << sids << "]" << endl);
@@ -710,6 +712,7 @@ bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
 int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::insert" << endl);
+    std::unique_lock<std::mutex> lock(m_statemutex);
     int afterid;
     string uri, metadata;
     bool ok = sc.get("AfterId", &afterid);
@@ -768,15 +771,11 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
         return false;
     }
 
-    // Always update the metacache before inserting, else it may
-    // happen that the mpd event triggers before we can do it, and
-    // causes us to use MPD data to update the cache before we can do
-    // it.
-    m_metacache[uri] = metadata;
-    m_cachedirty = true;
-    m_mpdqvers = -1;
     int id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
     if (id != -1) {
+        m_metacache[uri] = metadata;
+        m_cachedirty = true;
+        m_mpdqvers = -1;
         if (newid)
             *newid = id;
         return true;
