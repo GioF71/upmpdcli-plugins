@@ -1,9 +1,11 @@
-upmpdcli (1.5.6pre2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.5.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * OHPlaylist insert: use locking when updating the metadata cache to
     avoid races with mpd events.
-  
- -- Jean-Francois Dockes <jf@dockes.org>  Wed, 23 Dec 2020 15:20:00 +0100
+  * OHRadio/OHinfo: try to ensure that transport events are emitted before
+    metadata ones.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 24 Dec 2020 16:54:00 +0100
 
 upmpdcli (1.5.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
