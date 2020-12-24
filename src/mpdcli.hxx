@@ -137,8 +137,11 @@ public:
     bool subscribe(int mask, evtFunc);
     
 private:
+    // General reentrancy mutex: only one method call from our user at a time.
     std::mutex m_mutex;
-    // Main connection for sending commands
+    // Connection for sending commands, and its mutex protection
+    // (the connection can be used by our internal threads in addition
+    // to user calls)
     std::mutex m_connmutex;
     struct mpd_connection *m_conn{nullptr};
     // Connection for the event loop
@@ -154,7 +157,10 @@ private:
     bool m_dopoll{false};
     // Event subscriptions
     std::vector<std::pair<int, evtFunc>> m_subs;
-
+    // Event call mutex: they can be called from the time poll thread
+    // or the mpd idle thread, only one at a time.
+    std::mutex m_callbackmutex;
+    
     MpdStatus m_stat;
     // Saved volume while muted.
     int m_premutevolume{0};

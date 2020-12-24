@@ -217,9 +217,12 @@ bool MPDCli::eventLoop()
             updStatus();
         }
         pollerCtl(m_stat.state);
-        for (auto& sub : m_subs) {
-            if (sub.first & mask) {
-                sub.second(&m_stat);
+        {
+            std::unique_lock<std::mutex> lock(m_callbackmutex);
+            for (auto& sub : m_subs) {
+                if (sub.first & mask) {
+                    sub.second(&m_stat);
+                }
             }
         }
     }
@@ -239,9 +242,12 @@ void MPDCli::timepoller()
             std::unique_lock<std::mutex> lock(m_mutex);
             updStatus();
         }
-        for (auto& sub : m_subs) {
-            if (sub.first & MpdPlayerEvt) {
-                sub.second(&m_stat);
+        {
+            std::unique_lock<std::mutex> lock(m_callbackmutex);
+            for (auto& sub : m_subs) {
+                if (sub.first & MpdPlayerEvt) {
+                    sub.second(&m_stat);
+                }
             }
         }
 
