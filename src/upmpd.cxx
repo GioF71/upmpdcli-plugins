@@ -163,8 +163,6 @@ UpMpdOpenHome::UpMpdOpenHome(
                   "urn:av-openhome-org:device:Source:1")
 {
     bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
-    m_ohif = new OHInfo(m_upmpd, this, noavt);
-    m_services.push_back(m_ohif);
 
     m_services.push_back(new OHTime(m_upmpd, this));
     m_services.push_back(new OHVolume(m_upmpd, this));
@@ -186,6 +184,10 @@ UpMpdOpenHome::UpMpdOpenHome(
     }
     if (m_ohrd)
         m_services.push_back(m_ohrd);
+
+    m_ohif = new OHInfo(m_upmpd, this, noavt);
+    m_services.push_back(m_ohif);
+
     if (m_upmpd->getopts().options & UpMpd::upmpdOhReceiver) {
         struct OHReceiverParams parms;
         if (m_upmpd->getopts().schttpport)
