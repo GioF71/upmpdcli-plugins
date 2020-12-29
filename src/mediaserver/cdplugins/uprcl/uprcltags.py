@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 J.F.Dockes
+# Copyright (C) 2017-2020 J.F.Dockes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,11 +37,18 @@ from uprcltagscreate import recolltosql, _clid, g_tagtotable, \
 
 # The browseable object which defines the tree of tracks organized by tags.
 class Tagged(object):
+    # We maintain a cache for the total count of query statements
+    # which are expensive to compute when we are returning a partial
+    # slice (which we currently only do when displaying the top-level
+    # items list, so the cache can actually never have more than 1 element...)
+    _stmt_cnt_cachesize = 20
     def __init__(self, rcldocs, httphp, pathprefix):
         self._httphp = httphp
         self._pprefix = pathprefix
         self._conn = None
         self._init_sqconn()
+        self._stmt_cnt_cache = {}
+        self._stmt_cnt_cachequeue = []
         recolltosql(self._conn, rcldocs)
         
 
@@ -103,18 +110,57 @@ class Tagged(object):
                 tags.append(tt)
         return tags
 
-
+    def _stmt_total(self, stmt, values):
+        try:
+            total = self._stmt_cnt_cache[stmt]
+        except:
+            c = self._conn.cursor()
+            c.execute(stmt, values)
+            ids = [r[0] for r in c]
+            total = len(ids)
+            self._stmt_cnt_cache[stmt] = total
+            self._stmt_cnt_cachequeue.append(stmt)
+            if len(self._stmt_cnt_cachequeue) > self._stmt_cnt_cachesize:
+                del(self._stmt_cnt_cache[self._stmt_cnt_cachequeue[0]])
+                self._stmt_cnt_cachequeue = self._stmt_cnt_cachequeue[1:]
+        return total
+        
     # Build a list of track directory entries for an SQL statement
     # which selects docidxs (SELECT docidx,... FROM tracks WHERE...)
-    def _trackentriesforstmt(self, stmt, values, pid):
+    #
+    # NOTE: setting offset or cnt currently precludes sorting, which
+    # is unavoidable if we don't cache the whole result (which would
+    # use a lot of memory for big collections, around 100MB for 10k
+    # songs, significant on a small SBC). At the moment, we only do
+    # this for the full top-level items list, which is not really
+    # useful anyway.
+    def _trackentriesforstmt(self, stmt, values, pid, offset=0, count=0):
+        uplog("trackentries: offset %d count %d" % (offset, count))
+        if offset != 0 or count != 0:
+            total = self._stmt_total(stmt, values)
+        if total < 1000:
+            # Then return the full set: this is acceptable in terms of
+            # performances, and will allow the result to be sorted.
+            # plgwithslave knows how to deal with a full set returned
+            # from a partial request.
+            count = 0
+            offset = 0
+        if count != 0:
+            stmt += " LIMIT %d " % count
+        if offset != 0:
+            stmt += " OFFSET %d " % offset
         rcldocs = uprclinit.g_trees['folders'].rcldocs()
         c = self._conn.cursor()
         c.execute(stmt, values)
         entries = [rcldoctoentry(pid + '$i' + str(r[0]),
                                  pid, self._httphp, self._pprefix,
                                  rcldocs[r[0]]) for r in c]
-        return sorted(entries, key=cmpentries)
-    
+        uplog("trackentries: stmt returns %d entries" % len(entries))
+        if offset != 0 or count != 0:
+            return (offset, total, entries)
+        else:
+            return sorted(entries, key=cmpentries)
+
 
     # Return a list of trackids as selected by the current
     # path <selwhere> is like: WHERE col1_id = ? AND col2_id = ? [...], and
@@ -485,13 +531,13 @@ class Tagged(object):
 
 
     # Implement the common part of browse() and browseFolder()
-    def _dobrowse(self, pid, flag, qpath, folder=''):
+    def _dobrowse(self, pid, flag, qpath, folder='', offset=0, count=0):
         uplog("Tags:browsFolder: qpath %s"%qpath)
         if qpath[0] == 'items':
             args = (folder + '%',) if folder else ()
             folderwhere = ' WHERE tracks.path LIKE ? ' if folder else ' '
             stmt = 'SELECT docidx FROM tracks' + folderwhere
-            entries = self._trackentriesforstmt(stmt, args, pid)
+            entries = self._trackentriesforstmt(stmt, args, pid, offset, count)
         elif qpath[0] == 'albums':
             entries = self._albumsbrowse(pid, qpath, flag, folder)
         elif qpath[0].startswith('='):
@@ -516,12 +562,11 @@ class Tagged(object):
         
     # Top level browse routine. Handle the special cases and call the
     # appropriate worker routine.
-    def browse(self, pid, flag):
+    def browse(self, pid, flag, offset, count):
         idpath = pid.replace(g_myprefix, '', 1)
         uplog('tags:browse: idpath <%s>' % idpath)
-        entries = []
         qpath = idpath.split('$')
-        return self._dobrowse(pid, flag, qpath)
+        return self._dobrowse(pid, flag, qpath, offset=offset, count=count)
 
 
 

@@ -84,11 +84,12 @@ def _rootentries():
     return entries
 
 
-def _browsedispatch(objid, bflg):
+def _browsedispatch(objid, bflg, offset, count):
     for id,treename in rootmap.items():
         #uplog("Testing %s against %s" % (objid, id))
         if objid.startswith(id):
-            return uprclinit.g_trees[treename].browse(objid, bflg)
+            return uprclinit.g_trees[treename].browse(objid, bflg,
+                                                      offset, count)
     raise Exception("Browse: dispatch: bad objid not in rootmap: " + objid)
 
 
@@ -100,7 +101,14 @@ def browse(a):
 
     objid = a['objid']
     bflg = a['flag'] if 'flag' in a else 'children'
-    
+
+    offset = 0
+    if 'offset' in a:
+        offset = int(a['offset'])
+    count = 0
+    if 'count' in a:
+        count = int(a['count'])
+        
     if not objid.startswith(g_myprefix):
         raise Exception("bad objid <%s>" % objid)
 
@@ -119,13 +127,20 @@ def browse(a):
             elif not idpath:
                 entries = _rootentries()
             else:
-                entries = _browsedispatch(objid, bflg)
+                entries = _browsedispatch(objid, bflg, offset, count)
         finally:
             uprclinit.g_dblock.release_read()
 
+    total = -1
+    resoffs = 0
+    if type(entries) == type(()):
+        resoffs = entries[0]
+        total = entries[1]
+        entries = entries[2]
     #msgproc.log("%s" % entries)
     encoded = json.dumps(entries)
-    return {"entries" : encoded, "nocache":nocache}
+    return {"entries" : encoded, "nocache" : nocache,
+            "offset" : str(resoffs), "total" : str(total)}
 
 
 @dispatcher.record('search')

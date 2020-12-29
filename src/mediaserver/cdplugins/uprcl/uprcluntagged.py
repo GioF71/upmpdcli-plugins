@@ -83,7 +83,7 @@ class Untagged(object):
     # Browse method
     # objid is like untagged$u<index>
     # flag is meta or children.
-    def browse(self, pid, flag):
+    def browse(self, pid, flag, offset, count):
         idx = self._objidtoidx(pid)
 
         entries = []

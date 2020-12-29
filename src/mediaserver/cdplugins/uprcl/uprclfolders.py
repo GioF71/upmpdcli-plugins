@@ -404,7 +404,7 @@ class Folders(object):
     # Folder hierarchy browse method.
     # objid is like folders$index
     # flag is meta or children.
-    def browse(self, pid, flag):
+    def browse(self, pid, flag, offset, count):
         
         diridx,pthremain = self._objidtodiridx(pid)
 

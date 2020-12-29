@@ -78,7 +78,7 @@ class Playlists(object):
     # Browse method
     # objid is like playlists$p<index>
     # flag is meta or children.
-    def browse(self, pid, flag):
+    def browse(self, pid, flag, offset, count):
         idx = self._objidtoidx(pid)
 
         folders = uprclinit.g_trees['folders']
