@@ -558,9 +558,19 @@ bool OHPlaylist::cacheFind(const string& uri, string& meta)
     auto cached = m_metacache.find(uri);
     if (cached != m_metacache.end()) {
         meta = cached->second;
+        LOGDEB1("OHPlaylist::cacheFind: " << uri << " -> " << meta << "\n");
         return true;
     }
+    LOGDEB1("OHPlaylist::cacheFind: " << uri << " not found\n");
     return false;
+}
+
+bool OHPlaylist::cacheSet(const string& uri, const string& meta)
+{
+    LOGDEB1("OHPlaylist::cacheSet: " << uri << " -> " << meta << "\n");
+    m_metacache[uri] = meta;
+    m_cachedirty = true;
+    return true;
 }
 
 // Report the uri and metadata for a given track id. 
@@ -584,8 +594,7 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
         }
         if (!cacheFind(song.rsrc.uri, metadata)) {
             metadata = didlmake(song);
-            m_metacache[song.rsrc.uri] = metadata;
-            m_cachedirty = true;
+            cacheSet(song.rsrc.uri, metadata);
         }
     } else {
         LOGDEB("OHPlaylist::read: not active: using saved queue\n");
@@ -638,33 +647,20 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
             UpSong song;
             if (m_active) {
                 if (!m_dev->getmpdcli()->statSong(song, id, true)) {
-                    LOGDEB("OHPlaylist::readList:stat failed for " <<
-                           id <<endl);
+                    LOGDEB("OHPlaylist::readList:stat failed for " << id <<"\n");
                     continue;
                 }
-                auto mit = m_metacache.find(song.rsrc.uri);
-                if (mit != m_metacache.end()) {
-                    LOGDEB1("OHPlaylist::readList: meta for id " << id << " uri "
-                            << song.rsrc.uri << " found in cache " << endl);
-                    metadata = SoapHelp::xmlQuote(mit->second);
-                } else {
-                    LOGDEB("OHPlaylist::readList: meta for id " << id << " uri "
-                           << song.rsrc.uri << " not found " << endl);
+                if (!cacheFind(song.rsrc.uri, metadata)) {
                     metadata = didlmake(song);
-                    m_metacache[song.rsrc.uri] = metadata;
-                    m_cachedirty = true;
-                    metadata = SoapHelp::xmlQuote(metadata);
+                    cacheSet(song.rsrc.uri, metadata);
                 }
             } else {
                 LOGDEB("OHPlaylist::readList: not active: using saved queue\n");
                 for (const auto& entry : m_mpdsavedstate.queue) {
                     if (entry.mpdid == id) {
                         song = entry;
-                        auto mit = m_metacache.find(song.rsrc.uri);
-                        if (mit != m_metacache.end()) {
-                            metadata = SoapHelp::xmlQuote(mit->second);
-                        } else {
-                            metadata = SoapHelp::xmlQuote(didlmake(song));
+                        if (!cacheFind(song.rsrc.uri, metadata)) {
+                            metadata = didlmake(song);
                         }
                     }
                 }
@@ -678,7 +674,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
             out += "</Id><Uri>";
             out += SoapHelp::xmlQuote(song.rsrc.uri);
             out += "</Uri><Metadata>";
-            out += metadata;
+            out += SoapHelp::xmlQuote(metadata);
             out += "</Metadata></Entry>";
         }
         out += "</TrackList>";
@@ -771,10 +767,10 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
         return false;
     }
 
+    cacheSet(uri, metadata);
+
     int id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
     if (id != -1) {
-        m_metacache[uri] = metadata;
-        m_cachedirty = true;
         m_mpdqvers = -1;
         if (newid)
             *newid = id;

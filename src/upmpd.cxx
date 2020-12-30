@@ -175,8 +175,7 @@ UpMpdOpenHome::UpMpdOpenHome(
     m_ohpl = new OHPlaylist(m_upmpd, this, m_upmpd->getopts().ohmetasleep);
     m_services.push_back(m_ohpl);
     m_upmpd->setohpl(m_ohpl);
-    if (m_ohif)
-        m_ohif->setOHPL(m_ohpl);
+
     m_ohrd = new OHRadio(m_upmpd, this);
     if (m_ohrd && !m_ohrd->ok()) {
         delete m_ohrd;
@@ -186,6 +185,7 @@ UpMpdOpenHome::UpMpdOpenHome(
         m_services.push_back(m_ohrd);
 
     m_ohif = new OHInfo(m_upmpd, this, noavt);
+    m_ohif->setOHPL(m_ohpl);
     m_services.push_back(m_ohif);
 
     if (m_upmpd->getopts().options & UpMpd::upmpdOhReceiver) {

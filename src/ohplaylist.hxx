@@ -36,7 +36,7 @@ public:
     OHPlaylist(UpMpd *dev, UpMpdOpenHome *udev, unsigned int cachesavesleep);
 
     // These are used by other services (ohreceiver etc.)
-    bool cacheFind(const std::string& uri, std:: string& meta);
+    bool cacheFind(const std::string& uri, std::string& meta);
     bool urlMap(std::unordered_map<int, std::string>& umap);
     int iStop();
     // When changing sources
@@ -70,6 +70,8 @@ private:
     int idArray(const SoapIncoming& sc, SoapOutgoing& data);
     int idArrayChanged(const SoapIncoming& sc, SoapOutgoing& data);
     int protocolInfo(const SoapIncoming& sc, SoapOutgoing& data);
+
+    bool cacheSet(const std::string& uri, const std::string& meta);
 
     // Private internal non-soap versions of some of the interface +
     // utility methods

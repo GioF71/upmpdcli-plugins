@@ -37,6 +37,7 @@
 #include "execmd.h"
 #include "sysvshm.h"
 #include "mediaserver/cdplugins/cmdtalk.h"
+#include "upmpd.hxx"
 
 #include "libupnpp/log.hxx"
 #include "libupnpp/base64.hxx"

@@ -170,7 +170,7 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 // Called from ohradio only at the moment. Should we call it from playlist?
 void OHInfo::setMetadata(const string& metadata, const string& metatext)
 {
-    //LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
+    LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
     m_metadata = metadata;
     if (metatext != m_metatext) {
         m_metatext = metatext;

@@ -83,6 +83,7 @@ upmpdcli_SOURCES = \
      src/ohreceiver.cxx \
      src/ohreceiver.hxx \
      src/ohservice.hxx \
+     src/ohservice.cxx \
      src/ohsndrcv.cxx \
      src/ohsndrcv.hxx \
      src/ohtime.cxx \
