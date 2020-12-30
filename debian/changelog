@@ -1,3 +1,11 @@
+upmpdcli (1.5.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * OHInfo issue resulted in no album art display in kazoo "now playing" screen
+  * Pause/Unpause caused by other controller was not detected if the pause
+    was long enough for the mpd connection to time out (60S).
+    
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 30 Dec 2020 15:24:00 +0100
+
 upmpdcli (1.5.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * OHPlaylist insert: use locking when updating the metadata cache to
