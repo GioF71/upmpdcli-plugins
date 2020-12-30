@@ -129,6 +129,7 @@ bool MPDCli::openconn()
     LOGDEB("MPDCLi::openconn: mpd protocol version: " << m_stat.versmajor
            << "." << m_stat.versminor << "." << m_stat.verspatch << endl);
 
+    startEventLoop();
     return true;
 }
 
@@ -136,6 +137,9 @@ bool MPDCli::startEventLoop()
 {
     LOGDEB("MPDCli::startEventLoop\n");
     if (nullptr == m_idleconn) {
+        if (m_idlethread.joinable()) {
+            m_idlethread.join();
+        }
         m_idlethread = std::thread(bind(&MPDCli::eventLoop, this));
     } else {
         LOGINF("MPDCli::startEventLoop: already started\n");
@@ -352,8 +356,8 @@ bool MPDCli::updStatus()
             if (mpds == 0) {
                 LOGERR("MPDCli::updStatus: can't get status" << endl);
                 showError("MPDCli::updStatus");
+                return false;
             }
-            return false;
         }
     }
     

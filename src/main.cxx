@@ -780,7 +780,6 @@ int main(int argc, char *argv[])
     if (!msonly) {
         LOGDEB("Renderer event loop" << endl);
         mediarenderer->startnoloops();
-        mpdclip->startEventLoop();
     }
 
     pause();
