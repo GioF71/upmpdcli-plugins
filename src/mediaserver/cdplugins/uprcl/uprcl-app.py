@@ -90,7 +90,7 @@ def _browsedispatch(objid, bflg, offset, count):
         if objid.startswith(id):
             return uprclinit.g_trees[treename].browse(objid, bflg,
                                                       offset, count)
-    raise Exception("Browse: dispatch: bad objid not in rootmap: " + objid)
+    raise Exception("Browse: dispatch: bad objid not in rootmap: [%s]" % objid)
 
 
 @dispatcher.record('browse')

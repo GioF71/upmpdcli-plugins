@@ -105,21 +105,15 @@ class Playlists(object):
                 return entries
             cnt = 1
             for url in m3u:
-                doc = recoll.Doc()
                 if m3u.urlRE.match(url):
                     # Actual URL (usually http). Create bogus doc
-                    doc["url"] = url
-                    elt = os.path.split(url)[1]
-                    doc["title"] = elt.decode('utf-8', errors='ignore')
-                    doc["mtype"] = "audio/mpeg"
+                    doc = folders.docforurl(url)
                 else:
-                    doc["url"] = b'file://' + url
-                    fathidx, docidx = folders._stat(doc)
-                    if docidx < 0:
-                        uplog("playlists: can't stat %s"%doc["url"])
+                    docidx = folders.statpath(plpath, url)
+                    if not docidx:
                         continue
                     doc = rcldocs[docidx]
-
+                        
                 id = pid + '$e' + str(len(entries))
                 e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
                 if e:

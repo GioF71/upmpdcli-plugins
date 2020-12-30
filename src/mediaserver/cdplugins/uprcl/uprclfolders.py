@@ -85,9 +85,33 @@ from upmplgutils import uplog
 from uprclutils import audiomtypes, rcldirentry, \
      rcldoctoentry, cmpentries
 import uprclutils
-from recoll import recoll, qresultstore
+from recoll import recoll
+try:
+    from recoll import qresultstore
+    _has_resultstore = True
+except:
+    _has_resultstore = False
 from recoll import rclconfig
 import uprclinit
+
+# All Doc fields which we may want to access (reserve slots in the
+# resultstore). We use an inclusion list, and end up with a smaller
+# store than by using an exclusion list, but it's a bit more difficult
+# to manage.
+#
+# +  possibly 'xdocid' if/when needed?
+#
+# tagaliases: because the storage is frozen after storing, there is no
+# way to modify the records after storing, even if the field names are
+# provisionned. Either we add the function to recoll and pyrecoll
+# resultstore, or we need to apply the aliases at the point of doc
+# field use, probably by replacing at least some doc['somefield']
+# accesses with a function taking the aliases into account.
+_otherneededfields = [
+    'albumartist', 'allartists', 'comment', 'composer', 'conductor',
+    'contentgroup', 'date', 'discnumber', 'embdimg', 'filename',
+    'genre', 'label', 'lyricist', 'orchestra', 'performer',
+]
 
 class Folders(object):
 
@@ -98,11 +122,14 @@ class Folders(object):
         self._pprefix = pathprefix
         # Debug : limit processed recoll entries for speed
         self._maxrclcnt = 0
+        # Overflow storage for synthetic records created for playlists
+        # url entries. Uses docidx values starting at len(_rcldocs),
+        # with actual index value - len(_rcldocs)
+        self._moredocs = []
         self._fetchalldocs(confdir)
         self._rcl2folders(confdir)
-        self._enabletags = uprclinit.g_minimconfig.getboolvalue("showExtras",
-                                                                True)
-
+        self._enabletags = \
+            uprclinit.g_minimconfig.getboolvalue("showExtras", True)
 
     def rcldocs(self):
         return self._rcldocs
@@ -129,6 +156,33 @@ class Folders(object):
         return myidx
     
 
+    # Find the doc index for a filesystem path.
+    # We use a temporary doc to call _stat()
+    def statpath(self, plpath, path):
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(plpath), path)
+        doc = recoll.Doc()
+        doc["url"] = b'file://' + path
+        fathidx, docidx = self._stat(doc)
+        if docidx >= 0 and docidx < len(self._rcldocs):
+            return docidx
+        uplog("No track found for playlist %s entry %s" % (plpath, path))
+        return None
+
+
+    # Create bogus doc for external (http) url. This is for playlists.
+    def docforurl(self, url):
+        doc = recoll.Doc()
+        doc["url"] = url
+        elt = os.path.split(url)[1]
+        tt = elt.decode('utf-8', errors='ignore')
+        doc["title"] = tt
+        # Temp workaround for recoll 1.28.2 not setting values in meta
+        doc["text"] = tt
+        doc["mtype"] = "audio/mpeg"
+        return doc
+    
+
     # Initialize all playlists after the tree is otherwise complete
     def _initplaylists(self):
         for diridx in self._playlists:
@@ -143,26 +197,22 @@ class Folders(object):
             for url in m3u:
                 if m3u.urlRE.match(url):
                     # Actual URL (usually http). Create bogus doc
-                    doc = recoll.Doc()
-                    doc["url"] = url
-                    elt = os.path.split(url)[1]
-                    doc["title"] = elt.decode('utf-8', errors='ignore')
-                    doc["mtype"] = "audio/mpeg"
-                    self._rcldocs.append(doc)
-                    docidx = len(self._rcldocs) -1
-                    self._dirvec[diridx][elt] = (-1, docidx)
+                    doc = self.docforurl(url)
+                    self._moredocs.append(doc)
+                    docidx = len(self._rcldocs) + len(self._moredocs) - 1
+                    tt = doc["title"]
+                    if not tt:
+                        # Temp workaround for recoll 1.28.2 not
+                        # setting values in meta
+                        tt = doc["text"]
+                    self._dirvec[diridx][tt] = (-1, docidx)
                 else:
-                    doc = recoll.Doc()
-                    doc["url"] = b'file://' + url
-                    fathidx, docidx = self._stat(doc)
-                    if docidx >= 0 and docidx < len(self._rcldocs):
+                    docidx = self.statpath(plpath, url)
+                    if docidx:
                         elt = os.path.split(url)[1]
                         self._dirvec[diridx][elt] = (-1, docidx)
-                    else:
-                        #uplog("No track found: playlist %s entry %s" %
-                        #      (plpath,url))
-                        pass
         del self._playlists
+
 
     # The root entry (diridx 0) is special because its keys are the
     # topdirs paths, not simple names. We look with what topdir path
@@ -290,11 +340,11 @@ class Folders(object):
             for ent in self._dirvec:
                 uplog("%s" % ent)
 
-
-#        self._initplaylists()
+        self._initplaylists()
                     
         end = timer()
         uplog("_rcl2folders took %.2f Seconds" % (end - start))
+
 
     # Fetch all the docs by querying Recoll with [mime:*], which is
     # guaranteed to match every doc without overflowing the query size
@@ -302,6 +352,7 @@ class Folders(object):
     # title:* would overflow. This creates the main doc array, which is
     # then used by all modules.
     def _fetchalldocs(self, confdir):
+        #uplog("_fetchalldocs: has_resultstore: %s" % _has_resultstore)
         start = timer()
 
         rcldb = recoll.connect(confdir=confdir)
@@ -314,25 +365,29 @@ class Folders(object):
         if uprclinit.g_minimconfig:
             tagaliases = uprclinit.g_minimconfig.gettagaliases()
 
-        self._rcldocs = qresultstore.QResultStore()
-        self._rcldocs.storeQuery(rclq,
-                                 fieldspec=
-                                 ("author", "ipath", "rcludi", "relevancyrating",
-                                  "sig", "abstract", "caption", "filename",
-                                  "origcharset", "sig"))
-#        for i in range(len(self._rcldocs)):
-#            doc = self._rcldocs[i]
-#            if tagaliases:
-#                for orig, target, rep in tagaliases:
-#                    val = doc[orig]
-#                    #uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
-#                    #      (rep, orig, val, target, doc[target]))
-#                    if val and (rep or not doc[target]):
-#                        setattr(doc, target, val)
-#            self._rcldocs.append(doc)
-#            if self._maxrclcnt > 0 and len(self._rcldocs) >= self._maxrclcnt:
-#                break
-#            time.sleep(0)
+        if _has_resultstore:
+            fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
+            fields += _otherneededfields
+            fields = list(set(fields))
+            
+            self._rcldocs = qresultstore.QResultStore()
+            self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc = True)
+        else:
+            self._rcldocs = []
+            for doc in rclq:
+                if tagaliases:
+                    for orig, target, rep in tagaliases:
+                        val = doc[orig]
+                        #uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
+                        #      (rep, orig, val, target, doc[target]))
+                        if val and (rep or not doc[target]):
+                            setattr(doc, target, val)
+
+                self._rcldocs.append(doc)
+                if self._maxrclcnt > 0 and len(self._rcldocs) >= self._maxrclcnt:
+                    break
+                time.sleep(0)
+
         end = timer()
         uplog("Retrieved %d docs in %.2f Seconds" %
               (len(self._rcldocs), end - start))
@@ -391,11 +446,12 @@ class Folders(object):
     # e.g. playlistname.jpg.
     def _arturifordir(self, diridx):
         for nm,ids in self._dirvec[diridx].items():
-            if ids[1] >= 0:
-                doc = self._rcldocs[ids[1]]
+            docidx = ids[1]
+            if docidx >= 0 and docidx < len(self._rcldocs):
+                doc = self._rcldocs[docidx]
                 if doc["mtype"] != 'inode/directory':
-                    arturi = uprclutils.docarturi(doc, self._httphp,
-                                                  self._pprefix)
+                    arturi = uprclutils.docarturi(
+                        doc, self._httphp, self._pprefix)
                     if arturi:
                         return arturi
               
@@ -422,7 +478,7 @@ class Folders(object):
             diridx = 1
         
         #uplog("Folders browse: diridx %d content: [%s]" %
-        #    (diridx,self._dirvec[diridx]))
+        #      (diridx,self._dirvec[diridx]))
 
         entries = []
         # The basename call is just for diridx==0 (topdirs). Remove it if
@@ -432,12 +488,6 @@ class Folders(object):
                 continue
             thisdiridx = ids[0]
             thisdocidx = ids[1]
-            if thisdocidx >= 0:
-                doc = self._rcldocs[thisdocidx]
-            else:
-                # uplog("No doc for %s" % pid)
-                doc = None
-            
             if thisdiridx >= 0:
                 # Skip empty directories
                 if len(self._dirvec[thisdiridx]) == 1:
@@ -451,7 +501,10 @@ class Folders(object):
                 if thisdocidx == -1:
                     uplog("folders:docidx -1 for non-dir entry %s"%nm)
                     continue
-                doc = self._rcldocs[thisdocidx]
+                if thisdocidx < len(self._rcldocs):
+                    doc = self._rcldocs[thisdocidx]
+                else:
+                    doc = self._moredocs[thisdocidx - len(self._rcldocs)]
                 id = self._idprefix + '$i' + str(thisdocidx)
                 e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
                 if e:

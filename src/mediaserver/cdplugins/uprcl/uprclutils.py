@@ -151,13 +151,11 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
         path = os.path.join(pathprefix.encode('ascii'), urlunquotetobytes(path))
         li['uri'] = _httpurl(httphp, path)
     else:
-        li['uri'] = path[:ssidx+2].decode('ascii', errors='replace') + \
-                    urlquote(path[ssidx+1:])
+        li['uri'] = path[:ssidx+2] + urlquote(path[ssidx+1:])
     #uplog("rcldoctoentry: uri: %s" % li['uri'])
 
     if 'tt' not in li:
-        li['tt'] = os.path.basename(path[ssidx+1:].decode('UTF-8',
-                                                          errors = 'replace'))
+        li['tt'] = os.path.basename(path[ssidx+1:])
 
     return li
 
