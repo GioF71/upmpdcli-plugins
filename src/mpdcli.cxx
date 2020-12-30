@@ -241,7 +241,7 @@ bool MPDCli::eventLoop()
 void MPDCli::timepoller()
 {
     for (;;) {
-        LOGDEB0("MPDCli::timepoller\n");
+        LOGDEB1("MPDCli::timepoller\n");
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             updStatus();
