@@ -298,13 +298,6 @@ bool OHPlaylist::makestate(unordered_map<string, string> &st)
     return true;
 }
 
-void OHPlaylist::refreshState()
-{
-    m_mpdqvers = -1;
-    unordered_map<string, string> st;
-    makestate(st);
-}
-
 void OHPlaylist::setActive(bool onoff)
 {
     if (onoff) {
@@ -313,10 +306,11 @@ void OHPlaylist::setActive(bool onoff)
         if (!keepconsume)
             m_dev->getmpdcli()->consume(false);
         m_dev->getmpdcli()->single(false);
-        refreshState();
+        m_mpdqvers = -1;
         onEvent(nullptr);
         m_active = true;
     } else {
+        std::lock_guard<std::mutex> lock(m_statemutex);
         m_mpdqvers = -1;
         makestate(m_upnpstate);
         m_dev->getmpdcli()->saveState(m_mpdsavedstate);
@@ -577,7 +571,7 @@ bool OHPlaylist::cacheSet(const string& uri, const string& meta)
 // Returns a 800 fault code if the given id is not in the playlist. 
 int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    std::unique_lock<std::mutex> lock(m_statemutex);
+    std::lock_guard<std::mutex> lock(m_statemutex);
     int id;
     bool ok = sc.get("Id", &id);
     if (!ok) {
@@ -628,7 +622,7 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 // Any ids not in the playlist are ignored. 
 int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    std::unique_lock<std::mutex> lock(m_statemutex);
+    std::lock_guard<std::mutex> lock(m_statemutex);
     string sids;
     bool ok = sc.get("IdList", &sids);
     LOGDEB("OHPlaylist::readList: [" << sids << "]" << endl);
@@ -684,20 +678,6 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
-bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
-{
-    for (auto it = ids.begin(); it != ids.end(); it++) {
-        UpSong song;
-        if (!m_dev->getmpdcli()->statSong(song, *it, true)) {
-            LOGDEB("OHPlaylist::readList:stat failed for " << *it << endl);
-            continue;
-        }
-        songs.push_back(song);
-    }
-    return true;
-}
-
-
 // Adds the given uri and metadata as a new track to the playlist. 
 // Set the AfterId argument to 0 to insert a track at the start of the
 // playlist.
@@ -708,7 +688,7 @@ bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
 int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::insert" << endl);
-    std::unique_lock<std::mutex> lock(m_statemutex);
+    std::lock_guard<std::mutex> lock(m_statemutex);
     int afterid;
     string uri, metadata;
     bool ok = sc.get("AfterId", &afterid);
@@ -803,6 +783,7 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
         m_dev->getmpdcli()->stop();
     }
     bool ok = m_dev->getmpdcli()->deleteId(id);
+    std::lock_guard<std::mutex> lock(m_statemutex);
     m_mpdqvers = -1;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -814,6 +795,7 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
         m_udev->getohpr()->iSetSourceIndexByName("Playlist");
     }
     bool ok = m_dev->getmpdcli()->clearQueue();
+    std::lock_guard<std::mutex> lock(m_statemutex);
     m_mpdqvers = -1;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -825,7 +807,7 @@ int OHPlaylist::tracksMax(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-
+// Call with state lock held
 bool OHPlaylist::iidArray(string& idarray, int *token)
 {
     LOGDEB("OHPlaylist::idArray (internal)" << endl);
@@ -849,6 +831,7 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
 // base-64-encoded. 
 int OHPlaylist::idArray(const SoapIncoming& sc, SoapOutgoing& data)
 {
+    std::lock_guard<std::mutex> lock(m_statemutex);
     LOGDEB("OHPlaylist::idArray" << endl);
     string idarray;
     int token;
@@ -860,9 +843,22 @@ int OHPlaylist::idArray(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_INTERNAL_ERROR;
 }
 
+bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
+{
+    for (auto it = ids.begin(); it != ids.end(); it++) {
+        UpSong song;
+        if (!m_dev->getmpdcli()->statSong(song, *it, true)) {
+            LOGDEB("OHPlaylist::readList:stat failed for " << *it << endl);
+            continue;
+        }
+        songs.push_back(song);
+    }
+    return true;
+}
 
 bool OHPlaylist::urlMap(unordered_map<int, string>& umap)
 {
+    std::lock_guard<std::mutex> lock(m_statemutex);
     LOGDEB1("OHPlaylist::urlMap\n");
     string sarray; 
     if (iidArray(sarray, 0)) {
