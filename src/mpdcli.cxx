@@ -109,7 +109,9 @@ bool MPDCli::openconn()
     }
 
     if (mpd_connection_get_error(m_conn) != MPD_ERROR_SUCCESS) {
-        showError("MPDCli::openconn");
+        // Don't call showError() from here it calls us back !
+        LOGERR("MPDCli::openconn: mpd_connection_new failed: "
+               <<  mpd_connection_get_error_message(m_conn) << "\n");
         closeconn();
         return false;
     }
