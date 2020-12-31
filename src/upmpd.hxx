@@ -149,7 +149,7 @@ public:
     void startloops();
     void startnoloops();
     
-    const MpdStatus& getMpdStatus();
+    MpdStatus getMpdStatus();
 
     const std::string& getMetaCacheFn() const {
         return m_mcachefn;

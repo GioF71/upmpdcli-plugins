@@ -250,7 +250,7 @@ UpMpd::~UpMpd()
 //    }
 }
 
-const MpdStatus& UpMpd::getMpdStatus()
+MpdStatus UpMpd::getMpdStatus()
 {
     return m_mpdcli->getStatus();
 }

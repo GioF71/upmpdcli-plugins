@@ -27,6 +27,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 #include "upmpdutils.hxx"
 
@@ -109,7 +110,7 @@ public:
     bool getQueueData(std::vector<UpSong>& vdata);
     bool statSong(UpSong& usong, int pos = -1, bool isId = false);
     UpSong& mapSong(UpSong& usong, struct mpd_song *song);
-    const MpdStatus& getStatus();
+    MpdStatus getStatus();
     // Copy complete mpd state. If seekms is > 0, this is the value to
     // save (sometimes useful if mpd was stopped)
     bool saveState(MpdState& st, int seekms = 0);
@@ -146,6 +147,9 @@ private:
     struct mpd_connection *m_conn{nullptr};
     // Connection for the event loop
     struct mpd_connection *m_idleconn{nullptr};
+    // Protect idleconn: We need to use it from the main thread to
+    // tell the idle thread to stop.
+    std::mutex m_idlemutex;
     // thread to listen to MPD events.
     std::thread m_idlethread;
     // MPD does not report idle events for play time change. We poll

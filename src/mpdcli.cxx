@@ -45,11 +45,6 @@ MPDCli::MPDCli(const string& host, int port, const string& pass)
     std::unique_lock<std::mutex> lock(m_mutex);
 
     regcomp(&m_tpuexpr, "^[[:alpha:]]+://.+", REG_EXTENDED|REG_NOSUB);
-    if (!openconn()) {
-        return;
-    }
-    m_have_addtagid = checkForCommand("addtagid");
-
     g_config->get("onstart", m_onstart);
     g_config->get("onplay", m_onplay);
     g_config->get("onpause", m_onpause);
@@ -61,6 +56,11 @@ MPDCli::MPDCli(const string& host, int port, const string& pass)
     stringToStrings(scratch, m_getexternalvolume);
     m_timeoutms = g_config->getInt("mpdtimeoutms", 2000);
     m_externalvolumecontrol = g_config->getBool("externalvolumecontrol", false);
+
+    if (!openconn()) {
+        return;
+    }
+    m_have_addtagid = checkForCommand("addtagid");
     updStatus();
 }
 
@@ -138,6 +138,7 @@ bool MPDCli::openconn()
 bool MPDCli::startEventLoop()
 {
     LOGDEB("MPDCli::startEventLoop\n");
+    std::lock_guard<std::mutex> lck(m_idlemutex);
     if (nullptr == m_idleconn) {
         if (m_idlethread.joinable()) {
             m_idlethread.join();
@@ -152,8 +153,10 @@ bool MPDCli::startEventLoop()
 void MPDCli::stopEventLoop()
 {
     LOGDEB("MPDCli::stopEventLoop\n");
+    std::unique_lock<std::mutex> lck(m_idlemutex);
     if (m_idleconn) {
         mpd_send_noidle(m_idleconn);
+        lck.unlock();
         m_idlethread.join();
         m_idlethread = std::thread{};
     }
@@ -199,16 +202,21 @@ static int o_idle_mask =
 
 bool MPDCli::eventLoop()
 {
-    m_idleconn = mpd_connection_new(m_host.c_str(), m_port, m_timeoutms);
-    if (nullptr == m_idleconn) {
-        LOGERR("MPDCli::eventloop: could not open connection\n");
-        return false;
+    {
+        std::lock_guard<std::mutex> lck(m_idlemutex);
+        m_idleconn = mpd_connection_new(m_host.c_str(), m_port, m_timeoutms);
+        if (nullptr == m_idleconn) {
+            LOGERR("MPDCli::eventloop: could not open connection\n");
+            return false;
+        }
     }
+    MpdStatus::State st;
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         updStatus();
+        st = m_stat.state;
     }
-    pollerCtl(m_stat.state);
+    pollerCtl(st);
     for (;;) {
         enum mpd_idle mask = 
             mpd_run_idle_mask(m_idleconn, (enum mpd_idle)o_idle_mask);
@@ -221,22 +229,22 @@ bool MPDCli::eventLoop()
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             updStatus();
+            st = m_stat.state;
         }
-        pollerCtl(m_stat.state);
-        {
-            std::unique_lock<std::mutex> lock(m_callbackmutex);
-            for (auto& sub : m_subs) {
-                if (sub.first & mask) {
-                    sub.second(&m_stat);
-                }
+        pollerCtl(st);
+
+        std::lock_guard<std::mutex> lock(m_callbackmutex);
+        for (auto& sub : m_subs) {
+            if (sub.first & mask) {
+                sub.second(&m_stat);
             }
         }
     }
     pollerCtl(MpdStatus::MPDS_STOP);
-    if (m_idleconn) {
-        mpd_connection_free(m_idleconn);
-        m_idleconn = nullptr;
-    }
+
+    std::lock_guard<std::mutex> lck(m_idlemutex);
+    mpd_connection_free(m_idleconn);
+    m_idleconn = nullptr;
     return false;
 }
 
@@ -249,7 +257,7 @@ void MPDCli::timepoller()
             updStatus();
         }
         {
-            std::unique_lock<std::mutex> lock(m_callbackmutex);
+            std::lock_guard<std::mutex> lock(m_callbackmutex);
             for (auto& sub : m_subs) {
                 if (sub.first & MpdPlayerEvt) {
                     sub.second(&m_stat);
@@ -274,6 +282,7 @@ void MPDCli::shouldExit()
 
 bool MPDCli::subscribe(int mask, evtFunc func)
 {
+    std::lock_guard<std::mutex> lock(m_callbackmutex);
     m_subs.push_back({mask, func});
     return true;
 }
@@ -502,11 +511,12 @@ bool MPDCli::checkForCommand(const string& cmdname)
     return found;
 }
 
-const MpdStatus& MPDCli::getStatus()
+MpdStatus MPDCli::getStatus()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
     // We used to updstatus() here, but the status should now be
     // always up to date because of the idle loop.
+    // We have to return a copy, as we are going to release the lock.
     return m_stat;
 }
 
