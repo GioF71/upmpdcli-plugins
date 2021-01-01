@@ -72,6 +72,16 @@ public:
         }
     }
 
+    /** Task deleter
+     * If put() is called with the flush option, and the tasks allocate memory,
+     * you need to set this function, which will be called on each task popped 
+     * from the queue. Tasks which go through normally must be freed by the 
+     * worker function.
+     */
+    void setTaskFreeFunc(void (*func)(T&)) {
+        m_taskfreefunc = func;
+    }
+
     /** Start the worker threads.
      *
      * @param nworkers number of threads copies to start.
@@ -120,6 +130,10 @@ public:
         }
         if (flushprevious) {
             while (!m_queue.empty()) {
+                if (m_taskfreefunc) {
+                    T& d = m_queue.front();
+                    m_taskfreefunc(d);
+                }
                 m_queue.pop();
             }
         }
@@ -325,6 +339,7 @@ private:
 #endif
     };
     
+    void (*m_taskfreefunc)(T&){nullptr};
     // Configuration
     std::string m_name;
     size_t m_high;

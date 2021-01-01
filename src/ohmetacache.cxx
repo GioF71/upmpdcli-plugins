@@ -47,6 +47,11 @@ public:
 };
 static WorkQueue<SaveCacheTask*> saveQueue("SaveQueue");
 
+void freeSaveCacheTask(SaveCacheTask*& t)
+{
+    delete t;
+}
+
 // Encode uris and values so that they can be decoded (escape %, =, and eol)
 static string encode(const string& in)
 {
@@ -169,6 +174,7 @@ bool dmcacheRestore(const string& fn, mcache_type& cache)
 {
     // Restore is called once at startup, so seize the opportunity to start the
     // save thread
+    saveQueue.setTaskFreeFunc(freeSaveCacheTask);
     if (!saveQueue.start(1, dmcacheSaveWorker, 0)) {
         LOGERR("dmcacheRestore: could not start save thread" << endl);
         return false;
