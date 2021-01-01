@@ -239,7 +239,12 @@ bool MPDCli::eventLoop()
                 sub.second(&m_stat);
             }
         }
+        // Rate-limiting the events we trigger improves big list
+        // insertion performance a lot because it decreases the number
+        // of times we have to update the list
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
+    
     pollerCtl(MpdStatus::MPDS_STOP);
 
     std::lock_guard<std::mutex> lck(m_idlemutex);
@@ -1068,7 +1073,8 @@ bool MPDCli::getQueueSongs(vector<mpd_song*>& songs)
     }
     
     if (!mpd_response_finish(m_conn)) {
-        LOGERR("MPDCli::getQueueSongs: mpd_list_queue_meta failed"<< endl);
+        showError("MPDCli::getQueueSongs: mpd_list_queue_meta:finish");
+        freeSongs(songs);
         return false;
     }
     LOGDEB("MPDCli::getQueueSongs: " << songs.size() << " songs " << endl);
