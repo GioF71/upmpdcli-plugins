@@ -129,7 +129,14 @@ static const int tracksmax = 16384;
 static string translateIdArray(const vector<UpSong>& in)
 {
     string out1;
+    out1.reserve(in.size() * 4);
+
+#undef TIA_SHOW_PLAIN_ARRAY
+#ifdef TIA_SHOW_PLAIN_ARRAY
     string sdeb;
+    sdeb.reserve(in.size() * 7);
+#endif // TIA_SHOW_PLAIN_ARRAY
+    
     for (auto us = in.begin(); us != in.end(); us++) {
         unsigned int val = us->mpdid;
         if (val) {
@@ -138,15 +145,19 @@ static string translateIdArray(const vector<UpSong>& in)
             out1 += (unsigned char) ((val & 0x0000ff00) >> 8);
             out1 += (unsigned char) ((val & 0x000000ff));
         }
+#ifdef TIA_SHOW_PLAIN_ARRAY
         sdeb += SoapHelp::i2s(val) + " ";
+#endif
     }
-    LOGDEB("OHPlaylist::translateIdArray: current ids: " << sdeb << endl);
+#ifdef TIA_SHOW_PLAIN_ARRAY
+    LOGINF("OHPlaylist::translateIdArray: current ids: " << sdeb << endl);
+#endif
     return base64_encode(out1);
 }
 
 bool OHPlaylist::makeIdArray(string& out)
 {
-    //LOGDEB1("OHPlaylist::makeIdArray\n");
+    LOGDEB1("OHPlaylist::makeIdArray\n");
     const MpdStatus &mpds = m_dev->getMpdStatus();
 
     if (mpds.qvers == m_mpdqvers) {
@@ -303,15 +314,10 @@ void OHPlaylist::setActive(bool onoff)
     if (onoff) {
         m_dev->getmpdcli()->clearQueue();
         m_dev->getmpdcli()->restoreState(m_mpdsavedstate);
-        if (!keepconsume)
-            m_dev->getmpdcli()->consume(false);
-        m_dev->getmpdcli()->single(false);
-        m_mpdqvers = -1;
         onEvent(nullptr);
         m_active = true;
     } else {
         std::lock_guard<std::mutex> lock(m_statemutex);
-        m_mpdqvers = -1;
         makestate(m_upnpstate);
         m_dev->getmpdcli()->saveState(m_mpdsavedstate);
         iStop();
@@ -549,6 +555,7 @@ int OHPlaylist::id(const SoapIncoming& sc, SoapOutgoing& data)
 
 bool OHPlaylist::cacheFind(const string& uri, string& meta)
 {
+    std::lock_guard<std::mutex> lock(m_statemutex);
     auto cached = m_metacache.find(uri);
     if (cached != m_metacache.end()) {
         meta = cached->second;
@@ -561,6 +568,7 @@ bool OHPlaylist::cacheFind(const string& uri, string& meta)
 
 bool OHPlaylist::cacheSet(const string& uri, const string& meta)
 {
+    std::lock_guard<std::mutex> lock(m_statemutex);
     LOGDEB1("OHPlaylist::cacheSet: " << uri << " -> " << meta << "\n");
     m_metacache[uri] = meta;
     m_cachedirty = true;
@@ -571,7 +579,6 @@ bool OHPlaylist::cacheSet(const string& uri, const string& meta)
 // Returns a 800 fault code if the given id is not in the playlist. 
 int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    std::lock_guard<std::mutex> lock(m_statemutex);
     int id;
     bool ok = sc.get("Id", &id);
     if (!ok) {
@@ -622,7 +629,6 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
 // Any ids not in the playlist are ignored. 
 int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    std::lock_guard<std::mutex> lock(m_statemutex);
     string sids;
     bool ok = sc.get("IdList", &sids);
     LOGDEB("OHPlaylist::readList: [" << sids << "]" << endl);
@@ -688,7 +694,6 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::insert" << endl);
-    std::lock_guard<std::mutex> lock(m_statemutex);
     int afterid;
     string uri, metadata;
     bool ok = sc.get("AfterId", &afterid);
@@ -751,7 +756,6 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
 
     int id = m_dev->getmpdcli()->insertAfterId(uri, afterid, metaformpd);
     if (id != -1) {
-        m_mpdqvers = -1;
         if (newid)
             *newid = id;
         return true;
@@ -783,8 +787,6 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
         m_dev->getmpdcli()->stop();
     }
     bool ok = m_dev->getmpdcli()->deleteId(id);
-    std::lock_guard<std::mutex> lock(m_statemutex);
-    m_mpdqvers = -1;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -795,8 +797,6 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
         m_udev->getohpr()->iSetSourceIndexByName("Playlist");
     }
     bool ok = m_dev->getmpdcli()->clearQueue();
-    std::lock_guard<std::mutex> lock(m_statemutex);
-    m_mpdqvers = -1;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
@@ -812,7 +812,10 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
 {
     LOGDEB("OHPlaylist::idArray (internal)" << endl);
     unordered_map<string, string> st;
-    makestate(st);
+    {
+        std::lock_guard<std::mutex> lock(m_statemutex);
+        makestate(st);
+    }
     idarray = st["IdArray"];
     if (token) {
         if (m_active) {
@@ -831,7 +834,6 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
 // base-64-encoded. 
 int OHPlaylist::idArray(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    std::lock_guard<std::mutex> lock(m_statemutex);
     LOGDEB("OHPlaylist::idArray" << endl);
     string idarray;
     int token;
