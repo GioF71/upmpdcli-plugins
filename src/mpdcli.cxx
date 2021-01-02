@@ -233,10 +233,12 @@ bool MPDCli::eventLoop()
         }
         pollerCtl(st);
 
-        std::lock_guard<std::mutex> lock(m_callbackmutex);
-        for (auto& sub : m_subs) {
-            if (sub.first & mask) {
-                sub.second(&m_stat);
+        {
+            std::lock_guard<std::mutex> lock(m_callbackmutex);
+            for (auto& sub : m_subs) {
+                if (sub.first & mask) {
+                    sub.second(&m_stat);
+                }
             }
         }
         // Rate-limiting the events we trigger improves big list
