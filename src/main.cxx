@@ -167,6 +167,10 @@ static void onsig(int)
 {
     LOGDEB("Got sig" << endl);
     for (auto& dev : devs) {
+        // delete has a tendancy to crash (it works most of the time
+        // though). Anyway, we're exiting, so just call shouldExit()
+        // which will send the byebyes.
+        //delete dev;
         dev->shouldExit();
     }
     if (mpdclip) {
