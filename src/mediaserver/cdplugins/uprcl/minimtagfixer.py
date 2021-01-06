@@ -16,15 +16,23 @@
 #   Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+
+# This is imported from rclaudio when the audiotagfixerscript variable
+# is set in the recoll configuration (uprcl sets it). It then operates
+# transformations on audio tag sets, as prescribed in the minimserver
+# configuration, which is pointed to by the uprclminimconfig upmpdcli
+# configuration variable.
+
 import sys
 import os
 
 import conftree
+import minimconfig
 
 def uplog(s):
     if not type(s) == type(b''):
         s = ("%s: %s" % ('uprcl:minimtagfixer', s)).encode('utf-8')
-        sys.stderr.buffer.write(s + b'\n')
+    sys.stderr.buffer.write(s + b'\n')
     sys.stderr.flush()
 
 
@@ -41,25 +49,31 @@ class TagUpdateData(object):
     def __init__(self):
         self.tgupfile = None
         upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-        self.minimcnffn = upconfig.get("uprclminimconfig")
-        if self.minimcnffn:
-            conf = conftree.ConfSimple(self.minimcnffn)
-            self.tgupfile = conf.get("minimserver.tagUpdate")
-            #uplog("Minim config read: tagUpdate: %s" % self.tgupfile)
-            self.tgupfile = self._makeabs(self.tgupfile)
-            if not os.path.exists(self.tgupfile):
-                uplog("gettagupdate: %s does not exist" % self.tgupfile)
-                return
-            wlogfn = conf.get("minimserver.writeTagChanges")
-            wlogfn = self._makeabs(wlogfn)
-            #uplog("gettagupdate: log file: %s" % wlogfn)
-            if wlogfn:
-                global _logfp
-                try:
-                    _logfp = open(wlogfn, "a")
-                except Exception as ex:
-                    uplog("can't open %s : %s" % (wlogfn, ex))
+        self.tgupfile = None
+        self.aliastags = None
 
+        self.minimcnffn = upconfig.get("uprclminimconfig")
+        if not self.minimcnffn:
+            return
+
+        self.minimconfig = minimconfig.MinimConfig(self.minimcnffn)
+        self.tgupfile = self.minimconfig.getsimplevalue("minimserver.tagUpdate")
+        #uplog("Minim config read: tagUpdate: %s" % self.tgupfile)
+        self.tgupfile = self._makeabs(self.tgupfile)
+        if not os.path.exists(self.tgupfile):
+            uplog("gettagupdate: %s does not exist" % self.tgupfile)
+            return
+        wlogfn = self.minimconfig.getsimplevalue("minimserver.writeTagChanges")
+        wlogfn = self._makeabs(wlogfn)
+        #uplog("gettagupdate: log file: %s" % wlogfn)
+        if wlogfn:
+            global _logfp
+            try:
+                _logfp = open(wlogfn, "a")
+            except Exception as ex:
+                uplog("can't open %s : %s" % (wlogfn, ex))
+        self.aliastags = self.minimconfig.getaliastags()
+        self.tagvalue = self.minimconfig.gettagvalue()
 
     # The defs and log files are to be found in the same dir as the
     # logs (see minim doc). So compute minimserver/etc/xx.conf/../../data/fn
@@ -73,6 +87,7 @@ class TagUpdateData(object):
 
 
     # https://minimserver.com/ug-other.html#Tag%20update
+    # Tag value replacement specs, e.g. "Johann Sebastian Bach" -> "Bach J.S."
     def gettagupdate(self):
         if not self.tgupfile:
             return ()
@@ -137,10 +152,9 @@ class TagUpdateData(object):
 
 tud = TagUpdateData()
 groups = tud.gettagupdate()
-# uplog("minimtagfixer: groups %s" % groups)
+#uplog("minimtagfixer: groups %s" % groups)
 
-def tagfix(tags):
-    #uplog("tagfix: tags: %s" % tags)
+def tagupdate(tags):
     for group in groups:
         # Must match at least one element of group[0]
         sel = False
@@ -165,3 +179,28 @@ def tagfix(tags):
         for tag,val in group[3]:
             _logchange("Clearing [%s]" % tag)
             del tags[tag]
+
+
+def tagvalue(tags):
+    pass
+
+
+def aliastags(tags):
+    if tud.aliastags:
+        for orig, target, rep in tud.aliastags:
+            try:
+                val = tags[orig]
+                #uplog("aliastags: Rep %s tags[%s]=[%s] tags[%s]=[%s]"%
+                #      (rep, orig, val, target, tags[target]))
+                if val and (rep or not tags[target]):
+                    #uplog("tags[%s] -> %s" % (target,val))
+                    tags[target] = val
+            except:
+                pass
+
+
+def tagfix(tags={}):
+    #uplog("tagfix(%s)"%tags)
+    tagvalue(tags)
+    aliastags(tags)
+    tagupdate(tags)

@@ -361,10 +361,6 @@ class Folders(object):
         #rclq.execute('album:a* OR album:b* OR album:c*', stemming=0)
         uplog("Estimated alldocs query results: %d" % (rclq.rowcount))
 
-        tagaliases = None
-        if uprclinit.g_minimconfig:
-            tagaliases = uprclinit.g_minimconfig.gettagaliases()
-
         if _has_resultstore:
             fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
             fields += _otherneededfields
@@ -373,6 +369,9 @@ class Folders(object):
             self._rcldocs = qresultstore.QResultStore()
             self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc = True)
         else:
+            tagaliases = None
+            if uprclinit.g_minimconfig:
+                tagaliases = uprclinit.g_minimconfig.getaliastags()
             self._rcldocs = []
             for doc in rclq:
                 if tagaliases:

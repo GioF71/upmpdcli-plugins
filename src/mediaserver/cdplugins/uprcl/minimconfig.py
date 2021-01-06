@@ -1,4 +1,4 @@
-# Copyright (C) 2019 J.F.Dockes
+# Copyright (C) 2019-2020 J.F.Dockes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,6 +53,8 @@ class MinimConfig(object):
         out = []
         if not str:
             return out
+        # For some reason, the active colons are backslash-escaped in
+        # the file
         lst = str.replace('\\:', ':').split(',')
         for e in lst:
             l = e.split(':')
@@ -69,6 +71,49 @@ class MinimConfig(object):
         return out
 
 
+    # Comma-separated list. Each element maybe a simple tagname.option
+    # value or an \= assignement, with a comma-separated list of values in
+    # braces. Returns a list of quadruplet: (tag, neg, optname, values)
+    def minimsplitbraceslist(self, value):
+        # Split everything on commas
+        l1 = value.split(',')
+        # Re-join parts inside braces, creating list of options
+        inbraces=False
+        accum = ''
+        l2 = []
+        for e in l1:
+            if inbraces:
+                accum += ', ' + e
+                if e.find('}'):
+                    inbraces = False
+                    l2.append(accum)
+                    accum=''
+                continue
+            if e.find('{') != -1 and e.find('}') == -1:
+                inbraces = True
+                accum = e
+                continue
+            l2.append(e)
+        # Parse each option [-]tag.option={tag1,tag2} or [-]tag.option
+        alloptions = []
+        for e in l2:
+            lhsrhs=e.split('''\=''')
+            if len(lhsrhs) == 2:
+                values = [v.strip().lower() for v in lhsrhs[1].lstrip('{').rstrip('}').split(',')]
+            else:
+                values = []
+            tagopt = lhsrhs[0].split('.')
+            tag = tagopt[0].strip()
+            if tag.startswith('-'):
+                neg = True
+                tag = tag[1:]
+            else:
+                neg = False
+            opt = '.'.join(tagopt[1:])
+            alloptions.append((tag, neg, opt, values))
+        return alloptions
+
+
     def getexcludepatterns(self):
         spats = self.conf.get("minimserver.excludePattern")
         if spats:
@@ -81,20 +126,28 @@ class MinimConfig(object):
         return spats
 
 
-    def gettagaliases(self):
+    def gettagvalue(self):
+        stagv = self.conf.get("minimserver.tagValue")
+        tagvalue = None
+        if stagv:
+            tagvalue = self.minimsplitbraceslist(stagv)
+        return tagvalue
+    
+
+    def getaliastags(self):
         aliases = []
         saliases = self.conf.get("minimserver.aliasTags")
-        uplog("Minim:gettagaliases:in: [%s]" % saliases)
+        #uplog("Minim:getaliastags:in: [%s]" % saliases)
         lst = self.minimsplitsplit(saliases)
         for orig,target in lst:
             orig = orig.lower()
             target = target.lower()
-            rep = True
-            if target[0] == '-'[0]:
-                rep = False
+            rep = False
+            if target.startswith('-'):
+                rep = True
                 target = target[1:]
             aliases.append((orig, target, rep))
-        uplog("Minim:gettagaliases:out: %s" % aliases)
+        #uplog("Minim:getaliastags:out: %s" % aliases)
         return aliases
 
         
