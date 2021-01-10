@@ -1,3 +1,11 @@
+upmpdcli (1.5.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix a number of memory leak and locking issues detected by valgrind/helgrind
+  * Improve performance of big playlist insert by rate-limiting events.
+  * Fix possible crash when started while mpd is not running.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 10 Jan 2021 19:24:00 +0100
+
 upmpdcli (1.5.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * OHInfo issue resulted in no album art display in kazoo "now playing" screen
