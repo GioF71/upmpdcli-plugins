@@ -127,6 +127,8 @@ def browse(a):
             elif not idpath:
                 entries = _rootentries()
             else:
+                if len(rootmap) == 0:
+                    _rootentries()
                 entries = _browsedispatch(objid, bflg, offset, count)
         finally:
             uprclinit.g_dblock.release_read()

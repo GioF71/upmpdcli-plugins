@@ -136,6 +136,7 @@ class Tagged(object):
     # useful anyway.
     def _trackentriesforstmt(self, stmt, values, pid, offset=0, count=0):
         uplog("trackentries: offset %d count %d" % (offset, count))
+        total = 0
         if offset != 0 or count != 0:
             total = self._stmt_total(stmt, values)
         if total < 1000:
