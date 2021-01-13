@@ -32,6 +32,11 @@ from upmplgutils import uplog
 # This must be consistent with what contentdirectory.cxx does
 g_myprefix = '0$uprcl$'
 
+_has_resultstore = False
+def sethasresultstore(v):
+    global _has_resultstore
+    _has_resultstore = v
+    
 audiomtypes = frozenset([
     'audio/mpeg',
     'audio/flac',
@@ -147,15 +152,26 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
     path = doc["url"]
     ssidx = path.find('//')
     if path.find('file://') == 0:
-        path = path[7:]
-        path = os.path.join(pathprefix.encode('ascii'), urlunquotetobytes(path))
-        li['uri'] = _httpurl(httphp, path)
+        # Versions of recoll with the resultstore urlencode the url
+        # field (and we actually store it in the resultstore, not in
+        # an rcl::doc), we decode it to binary. For older
+        # versions, we need to call doc.getbinurl() In any case, we
+        # take a lot of care to preserve non-decodable (e.g. iso88859
+        # in an utf-8 locale) paths, but bottle currently can't stream
+        # them. For reference, minim does not process them at all. At
+        # least we're almost there...
+        # Cf beethovem/p-s-g/vol1/cd3 path('e)tique
+        if _has_resultstore:
+            bpath = urlunquotetobytes(path[ssidx+2:])
+        else:
+            bpath = doc.getbinurl()[ssidx+2:]
+        li['uri'] = _httpurl(httphp, bpath)
     else:
-        li['uri'] = path[:ssidx+2] + urlquote(path[ssidx+1:])
+        li['uri'] = path[:ssidx+2] + urlquote(path[ssidx+2:])
     #uplog("rcldoctoentry: uri: %s" % li['uri'])
 
     if 'tt' not in li:
-        li['tt'] = os.path.basename(path[ssidx+1:])
+        li['tt'] = os.path.basename(path[ssidx+2:])
 
     return li
 

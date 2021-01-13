@@ -91,6 +91,8 @@ try:
     _has_resultstore = True
 except:
     _has_resultstore = False
+uprclutils.sethasresultstore(_has_resultstore)
+
 from recoll import rclconfig
 import uprclinit
 
@@ -162,7 +164,10 @@ class Folders(object):
         if not os.path.isabs(path):
             path = os.path.join(os.path.dirname(plpath), path)
         doc = recoll.Doc()
-        doc["url"] = b'file://' + path
+        if _has_resultstore:
+            doc["url"] = b'file://' + path
+        else:
+            doc.setbinurl(bytearray(b'file://' + path))
         fathidx, docidx = self._stat(doc)
         if docidx >= 0 and docidx < len(self._rcldocs):
             return docidx
@@ -173,13 +178,13 @@ class Folders(object):
     # Create bogus doc for external (http) url. This is for playlists.
     def docforurl(self, url):
         doc = recoll.Doc()
-        doc["url"] = url
+        doc.url = url
         elt = os.path.split(url)[1]
         tt = elt.decode('utf-8', errors='ignore')
-        doc["title"] = tt
+        doc.title = tt
         # Temp workaround for recoll 1.28.2 not setting values in meta
-        doc["text"] = tt
-        doc["mtype"] = "audio/mpeg"
+        doc.text = tt
+        doc.mtype = "audio/mpeg"
         return doc
     
 
