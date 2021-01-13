@@ -85,18 +85,31 @@ class Streamer(object):
             bottle.response.set_header("Content-type", ctype)
             bottle.response.set_header("Content-Length", size)
             return f
+        # Binary paths: transmitted as follows (See bottle._handle())
+        #   binarypath->binarypath.decode('latin1')->urlquote()->NETWORK->
+        #   urlunquote()->encode('latin1').decode('utf-8', 'ignore')
+        # If there are non utf-8 characters in the path, the result is
+        # missing them, and file access fails. However, we get the
+        # binary result from urlunquote)_ in the 'bottle.raw_path'
+        # request environment variable, and try to use it if the
+        # normal path is not accessible.
         fullpath = os.path.join(self.root, filepath)
+        root = '/'
         if not os.path.exists(fullpath):
-            uplog("uprcl: no such file: %s" % fullpath)
-            return bottle.HTTPResponse(status=404)
+            fullpath = bottle.request.environ.get('bottle.raw_path')
+            fullpath = fullpath.encode('latin1')
+            root = b'/'
+            if not os.path.exists(fullpath):
+                uplog("uprcl: no such file: %s" % fullpath)
+                return bottle.HTTPResponse(status=404)
         uplog("Streaming: %s " % fullpath)
         mutf = mutagen.File(fullpath)
             
         if mutf:
-            return bottle.static_file(filepath, root=self.root,
+            return bottle.static_file(fullpath, root=root,
                                       mimetype=mutf.mime[0])
         else:
-            return bottle.static_file(filepath, root=self.root)
+            return bottle.static_file(fullpath, root=root)
     
 
 # Bottle handle both the streaming and control requests.

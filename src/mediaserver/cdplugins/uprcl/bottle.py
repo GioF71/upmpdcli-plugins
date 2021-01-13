@@ -2866,9 +2866,12 @@ def static_file(filename, root,
         check or continue partial downloads) are also handled automatically.
 
     """
-
-    root = os.path.join(os.path.abspath(root), '')
-    filename = os.path.abspath(os.path.join(root, filename.strip('/\\')))
+    if type(filename) == type(''):
+        root = os.path.join(os.path.abspath(root), '')
+        filename = os.path.abspath(os.path.join(root, filename.strip('/\\')))
+    else:
+        root = os.path.join(os.path.abspath(root), b'')
+        filename = os.path.abspath(os.path.join(root, filename.strip(b'/\\')))
     headers = dict()
 
     if not filename.startswith(root):
