@@ -37,6 +37,8 @@
 #ifdef _WIN32
 // needed for localtime_r under mingw?
 #define _POSIX_THREAD_SAFE_FUNCTIONS
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
 #ifdef _MSC_VER
 #define localtime_r(a,b) localtime_s(b,a)
 #endif /* _MSC_VER */

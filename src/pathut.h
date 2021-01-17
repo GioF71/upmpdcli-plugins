@@ -123,6 +123,7 @@ extern int path_fileprops(const std::string path, struct PathStat *stp,
 extern std::string path_PATHsep();
 
 #ifdef _WIN32
+#include <memory>
 bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
 std::string wchartoutf8(const wchar_t *in, size_t len = 0);
 bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
