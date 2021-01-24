@@ -122,7 +122,8 @@ extern const std::string& headDIDL();
 extern const std::string& tailDIDL();
 extern std::string wrapDIDL(const std::string& data);
 
-// Convert UPnP metadata to UpSong for mpdcli to use
+// Convert UPnP metadata to UpSong for mpdcli to use. Parse string as
+// didl fragment, and use dirObjToUpSong() to convert the first item.
 extern bool uMetaToUpSong(const std::string&, UpSong *ups);
 // Convert UPnP content directory entry object to UpSong
 bool dirObjToUpSong(const UPnPClient::UPnPDirObject& dobj, UpSong *ups);
