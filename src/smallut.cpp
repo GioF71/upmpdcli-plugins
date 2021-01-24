@@ -264,20 +264,18 @@ template <class T> bool stringToStrings(const string& s, T& tokens,
 
 template <class T> void stringsToString(const T& tokens, string& s)
 {
-    for (auto it = tokens.begin();
-         it != tokens.end(); it++) {
-        bool hasblanks = false;
-        if (it->find_first_of(" \t\n") != string::npos) {
-            hasblanks = true;
+    if (tokens.empty())
+        return;
+    for (const auto& tok : tokens) {
+        if (tok.empty()) {
+            s.append("\"\" ");
+            continue;
         }
-        if (it != tokens.begin()) {
-            s.append(1, ' ');
-        }
+        bool hasblanks = tok.find_first_of(" \t\n") != string::npos;
         if (hasblanks) {
             s.append(1, '"');
         }
-        for (unsigned int i = 0; i < it->length(); i++) {
-            char car = it->at(i);
+        for (auto car : tok) {
             if (car == '"') {
                 s.append(1, '\\');
                 s.append(1, car);
@@ -288,7 +286,9 @@ template <class T> void stringsToString(const T& tokens, string& s)
         if (hasblanks) {
             s.append(1, '"');
         }
+        s.append(1, ' ');
     }
+    s.resize(s.size()-1);
 }
 
 template <class T> string stringsToString(const T& tokens)

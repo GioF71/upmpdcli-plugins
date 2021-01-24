@@ -91,6 +91,18 @@
 # </var>
 #lumincompat = 0
 
+# <var name="ohinfotexttodata" type="bool" values="1">
+# <brief>Store metadata into the OpenHome "metatext" variable.</brief>
+#
+# <descr>The OpenHome Info service are supposed to hold different data,
+# mostly for radios, with permanent radio data (icon, url, radio name) set
+# in the "Metadata" variable, and information about the current title recorded
+# in the "Metatext" variable. Setting this option will have upmpdcli store
+# any non-empty Metatext data in the Metadata variable. This will help some
+# players display the album art for the current title (e.g. Kazoo).</descr>
+# </var>
+#ohinfotexttodata = 1
+
 # <var name="saveohcredentials" type="bool"><brief>Save the streaming
 # services login parameters to disk.</brief><descr>This allows sharing the
 # password with the upmpdcli media server streaming service proxy, if you

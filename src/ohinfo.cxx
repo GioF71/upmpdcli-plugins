@@ -33,6 +33,7 @@
 #include "upmpd.hxx"
 #include "upmpdutils.hxx"
 #include "ohplaylist.hxx"
+#include "conftree.h"
 
 using namespace std;
 using namespace std::placeholders;
@@ -44,6 +45,8 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
 {
+    m_meta_text_into_data = g_config->getBool("ohinfotexttodata", true);
+
     udev->addActionMapping(this, "Counters", 
                            bind(&OHInfo::counters, this, _1, _2));
     udev->addActionMapping(this, "Track", 
@@ -170,8 +173,14 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 // Called from ohradio only at the moment. Should we call it from playlist?
 void OHInfo::setMetadata(const string& metadata, const string& metatext)
 {
-    LOGDEB1("OHInfo::setMetadata: " << metadata << endl);
-    m_metadata = metadata;
+    LOGDEB0("OHInfo::setMetadata: metadata [" << metadata <<
+            "] metatext [" << metatext << "]\n");
+
+    if (m_meta_text_into_data && !metatext.empty()) {
+        m_metadata = metatext;
+    } else {
+        m_metadata = metadata;
+    }
     if (metatext != m_metatext) {
         m_metatext = metatext;
         m_metatextcnt++;
