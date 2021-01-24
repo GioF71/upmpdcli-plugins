@@ -424,7 +424,17 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
         m_udev->getohif()->setMetadata(st["Metadata"], "");
     } else {
         string metatext = didlmake(mpds.currentsong, true);
-        m_udev->getohif()->setMetadata(st["Metadata"], metatext);
+        string metadata;
+        UpSong temp;
+        if (uMetaToUpSong(st["Metadata"], &temp) &&
+            !mpds.currentsong.artUri.empty()) {
+            temp.artUri = mpds.currentsong.artUri;
+            metadata = didlmake(temp, true);
+        } else {
+            metadata = st["Metadata"];
+        }
+
+        m_udev->getohif()->setMetadata(metadata, metatext);
     }
     return true;
 }

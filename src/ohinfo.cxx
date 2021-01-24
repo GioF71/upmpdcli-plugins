@@ -45,7 +45,7 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
 {
-    m_meta_text_into_data = g_config->getBool("ohinfotexttodata", true);
+    m_meta_text_into_data = g_config->getBool("ohinfotexttodata", false);
 
     udev->addActionMapping(this, "Counters", 
                            bind(&OHInfo::counters, this, _1, _2));

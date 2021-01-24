@@ -67,7 +67,7 @@ private:
     int m_metatextcnt{0};
     bool m_updstatus{false};
     OHPlaylist *m_ohpl{0};
-    bool m_meta_text_into_data{true};
+    bool m_meta_text_into_data{false};
 };
 
 #endif /* _OHINFO_H_X_INCLUDED_ */

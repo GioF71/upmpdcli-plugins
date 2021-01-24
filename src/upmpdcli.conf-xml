@@ -101,7 +101,7 @@
 # any non-empty Metatext data in the Metadata variable. This will help some
 # players display the album art for the current title (e.g. Kazoo).</descr>
 # </var>
-#ohinfotexttodata = 1
+#ohinfotexttodata = 0
 
 # <var name="saveohcredentials" type="bool"><brief>Save the streaming
 # services login parameters to disk.</brief><descr>This allows sharing the
