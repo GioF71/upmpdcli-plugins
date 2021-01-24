@@ -132,7 +132,7 @@ dist_pkgdata_DATA = src/description.xml src/AVTransport.xml \
                   src/OHRadio.xml src/mediaserver/ContentDirectory.xml \
                   src/mediaserver/MS-description.xml \
                   src/protocolinfo.txt src/presentation.html \
-                  src/upmpdcli.conf-dist src/upmpdcli.conf-xml
+                  src/icon.png src/upmpdcli.conf-dist src/upmpdcli.conf-xml
 
 rdpl2streamdir = $(pkgdatadir)/rdpl2stream
 dist_rdpl2stream_DATA = \
