@@ -14,7 +14,7 @@ performer    =  XYTPP
 tracknumber  =  XYTRK
 
 [stored]
-# Vorbis tags, output by rclaudio. Note that
+# Vorbis tags, output by rclaudio.
 album=
 albumartist=
 albumartistsort=
@@ -34,6 +34,7 @@ discnumber=
 discsubtitle=
 encodedby=
 genre=
+group=
 isrc=
 label=
 language=

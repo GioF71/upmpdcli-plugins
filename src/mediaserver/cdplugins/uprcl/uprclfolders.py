@@ -24,9 +24,9 @@
 #
 # The _dirvec list has one entry for each directory. Directories are
 # created as needed by splitting the paths/urls from _rcldocs (and
-# possibly adding some for contentgroups). Directories have no
-# direct relation with the index objects, they are identified by their
-# _dirvec index
+# possibly adding some for groupings defined by the Group
+# tag). Directories have no direct relation with the index objects,
+# they are identified by their _dirvec index
 #
 # Obect ids inside the section:
 #    Container: $d<diridx> where <diridx> indexes into _dirvec
@@ -44,7 +44,7 @@
 #     - There is no _rcldocs entry, which could possibly happen if
 #       there is no result for an intermediary element in a path,
 #       because of some recoll issue, or because this is a synthetic
-#       'contentgroup' entry.
+#       'Group' entry.
 #     - Or, while we build the structure, temporarily, if the doc was
 #       not yet seen. The value will then be updated when we see it.
 #
@@ -103,16 +103,10 @@ import uprclinit
 #
 # +  possibly 'xdocid' if/when needed?
 #
-# tagaliases: because the storage is frozen after storing, there is no
-# way to modify the records after storing, even if the field names are
-# provisionned. Either we add the function to recoll and pyrecoll
-# resultstore, or we need to apply the aliases at the point of doc
-# field use, probably by replacing at least some doc['somefield']
-# accesses with a function taking the aliases into account.
 _otherneededfields = [
     'albumartist', 'allartists', 'comment', 'composer', 'conductor',
-    'contentgroup', 'date', 'discnumber', 'embdimg', 'filename',
-    'genre', 'label', 'lyricist', 'orchestra', 'performer',
+    'contentgroup', 'date', 'dmtime', 'discnumber', 'embdimg', 'filename',
+    'genre', 'group', 'label', 'lyricist', 'orchestra', 'performer',
 ]
 
 class Folders(object):
@@ -243,13 +237,13 @@ class Folders(object):
         if len(url1) == 0:
             return None,None
 
-        # If there is a contentgroup field, just add it as a virtual
+        # If there is a Group field, just add it as a virtual
         # directory in the path. This only affects the visible tree,
         # not the 'real' URLs of course.
-        if doc["contentgroup"]:
+        if doc["group"]:
             a = os.path.dirname(url1)
             b = os.path.basename(url1)
-            url1 = os.path.join(a, doc["contentgroup"], b)
+            url1 = os.path.join(a, doc["group"], b)
             
         # Split path. The caller will walk the list (possibly creating
         # directory entries as needed, or doing something else).
@@ -370,7 +364,7 @@ class Folders(object):
             fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
             fields += _otherneededfields
             fields = list(set(fields))
-            
+            #uplog("_fetchalldocs: store fields: %s" % fields)
             self._rcldocs = qresultstore.QResultStore()
             self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc = True)
         else:
@@ -441,19 +435,29 @@ class Folders(object):
     # Look all non-directory docs inside directory, and return the
     # cover art we find. 
     #
-    # TBD In the case where this is a contentgroup directory, we'd
-    # need to go look into the file system for a group.xxx
-    # image.
-    # As it is things work if the tracks rely on the group pic
-    # (instead of having an embedded pic or track pic) Also:
-    # playlists: need to look at the physical dir for a
-    # e.g. playlistname.jpg.
+    # TBD In the case where this is a Group directory, we'd
+    # need to go look into the file system for a group.xxx image.  As
+    # it is, things work if the tracks rely on the group pic (instead
+    # of having an embedded pic or track pic) Also: playlists: need to
+    # look at the physical dir for a e.g. playlistname.jpg.  And also:
+    # currently, we won't look at possible art for a folder with no
+    # music (e.g. top folder of a multi-cd). We'd need to look at the
+    # fs directory, but we don't have the path at this point. We'd
+    # need a '.' entry with a doc record containing the
+    # path. Currently this works if one of the subdirs has an audio
+    # file with an external cover.
     def _arturifordir(self, diridx):
         for nm,ids in self._dirvec[diridx].items():
             docidx = ids[1]
             if docidx >= 0 and docidx < len(self._rcldocs):
                 doc = self._rcldocs[docidx]
-                if doc["mtype"] != 'inode/directory':
+                # We used to only look for art for direct children
+                # tracks, but we now also look at subdirs. This will
+                # yield an image from the first subdir which has an
+                # image file in it, so somewhat random, but nice
+                # anyway. The condition is kept around to show how to
+                # change our minds or make it optional.
+                if True or doc["mtype"] != 'inode/directory':
                     arturi = uprclutils.docarturi(
                         doc, self._httphp, self._pprefix)
                     if arturi:

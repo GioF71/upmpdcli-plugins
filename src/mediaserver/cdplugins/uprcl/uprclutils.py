@@ -293,7 +293,8 @@ def docarturi(doc, httphp, pathprefix):
 
     bpp = pathprefix.encode('utf-8')
     objpath = docpath(doc)
-
+    #uplog("docarturi, looking for cover for %s" % objpath)
+    
     # Check for an image specific to the track file
     base,ext = os.path.splitext(objpath)
     for artpath in _artnamegen(base):
@@ -308,9 +309,9 @@ def docarturi(doc, httphp, pathprefix):
             return arturi
 
     # won't work for the virtual group directory itself: it has no doc
-    if doc["contentgroup"]:
+    if doc["group"]:
         base = os.path.join(os.path.dirname(objpath),
-                            tag2fn(doc["contentgroup"]))
+                            tag2fn(doc["group"]))
         for artpath in _artnamegen(base):
             #uplog("docarturi: testing %s" % artpath)
             if os.path.exists(artpath):

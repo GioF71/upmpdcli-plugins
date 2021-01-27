@@ -49,7 +49,7 @@ _alltagtotable = {
     'Conductor' : 'conductor',
     'Date' : 'date',
     'Genre' : 'genre',
-    'Group' : 'contentgroup',
+    'Group' : 'cgroup', # can't have a table named group
     'Label' : 'label',
     'Lyricist' : 'lyricist',
     'Orchestra' : 'orchestra',
@@ -68,6 +68,22 @@ g_tagtotable = {}
 
 def _clid(table):
     return table + '_id'
+
+# Partly duplicated from rclaudio, see comments about date formats
+# there.  The date field is a bit of a mess because up to some point
+# recoll had an alias from date to dmtime, which resulted in no date
+# field and a calendar date (instead of uxtime) in dmtime. So we take
+# the date value from 'date' if set, else 'dmtime', and then process
+# it here. All reasonable date formats begin with YYYY[-MM[-DD]] and
+# this is the part we keep.
+def parsedate(dt):
+    if len(dt) > 10:
+        dt = dt[0:10]
+    l = dt.split('-')
+    if len(l) > 3 or len(l) == 2 or len(l[0]) != 4 or l[0] == '0000':
+        return None
+    #uplog("parsedate: -> %s" % dt)
+    return dt
 
 # Create an empty db.
 #
@@ -217,7 +233,7 @@ def _maybecreatealbum(conn, doc, trackartid):
     c = conn.cursor()
     folder = docfolder(doc).decode('utf-8', errors = 'replace')
 
-    album = getattr(doc, 'album', None)
+    album = doc["album"]
     if not album:
         album = uprclutils.basename(folder)
         #uplog("Using %s for alb MIME %s title %s" % (album,doc["mtype"],doc["url"]))
@@ -446,6 +462,7 @@ def recolltosql(conn, rcldocs):
 
     _createsqdb(conn)
     tabtorclfield = _prepareTags()
+    #uplog("Tagscreate: tabtorclfield: %s"%tabtorclfield)
 
     maxcnt = 0
     totcnt = 0
@@ -488,7 +505,14 @@ def recolltosql(conn, rcldocs):
         for tb, rclfld in tabtorclfield:
             if tb == 'artist': # already done
                 continue
-            value = getattr(doc, rclfld, None)
+            value = doc[rclfld]
+            # See comment in parsedate
+            if rclfld == 'date':
+                if not value:
+                    value = doc['dmtime']
+                if value:
+                    value = parsedate(value)
+
             if not value:
                 continue
             rowid = _auxtableinsert(conn, tb, value)
