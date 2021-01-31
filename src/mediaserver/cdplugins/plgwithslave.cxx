@@ -44,8 +44,6 @@
 #endif
 
 using namespace std;
-using namespace std::placeholders;
-//using json = nlohmann::json;
 using namespace UPnPProvider;
 
 class StreamHandle {
@@ -407,7 +405,7 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries)
             decodeResource(decoded[i], song.rsrc);
             // Possibly add resources from resource array if present
             const Json::Value &resources = decoded[i]["resources"];
-            LOGDEB0("decoded['resources'] is type " << resources.type() << endl);
+            LOGDEB1("decoded['resources'] is type " << resources.type() << endl);
             if (resources.isArray()) {
                 for (unsigned int i = 0; i < resources.size(); i++) {
                     song.resources.push_back(UpSong::Res());
@@ -503,7 +501,9 @@ std::shared_ptr<ContentCacheEntry> ContentCache::get(const string& key)
     purge();
     auto it = m_cache.find(key);
     if (it != m_cache.end()) {
-        LOGDEB0("ContentCache::get: found " << key << endl);
+        ContentCacheEntry& entry = it->second;
+        LOGDEB0("ContentCache::get: found " << key << " offset " << entry.m_offset <<
+            " count " << entry.m_results.size() << "\n");
         // we return a copy of the vector. Make our multi-access life simpler...
         return std::make_shared<ContentCacheEntry>(it->second);
     }
@@ -513,9 +513,10 @@ std::shared_ptr<ContentCacheEntry> ContentCache::get(const string& key)
 
 ContentCacheEntry& ContentCache::set(const string& key, ContentCacheEntry &entry)
 {
-    LOGDEB0("ContentCache::set: " << key << endl);
+    LOGDEB0("ContentCache::set: " << key << " offset " << entry.m_offset <<
+            " count " << entry.m_results.size() << "\n");
     m_cache[key] = entry;
-    return entry;
+    return m_cache[key];
 }
 
 // Cache for searches
