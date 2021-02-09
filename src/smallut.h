@@ -43,6 +43,13 @@ void smallut_init_mt();
 #ifndef PRETEND_USE
 #define PRETEND_USE(var) ((void)(var))
 #endif
+#ifndef VERSION_AT_LEAST
+#define VERSION_AT_LEAST(LIBMAJ,LIBMIN,LIBREV,TARGMAJ,TARGMIN,TARGREV)  \
+    ((LIBMAJ) > (TARGMAJ) ||                                            \
+     ((LIBMAJ) == (TARGMAJ) &&                                          \
+      ((LIBMIN) > (TARGMIN) ||                                          \
+       ((LIBMIN) == (TARGMIN) && (LIBREV) >= (TARGREV)))))
+#endif
 #endif /* SMALLUT_DISABLE_MACROS */
 
 // Case-insensitive compare. ASCII ONLY !

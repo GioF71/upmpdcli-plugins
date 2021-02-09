@@ -234,13 +234,17 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
         std::string deviceid =  std::string("uuid:") +
             LibUPnP::makeDevUUID(avfname + "xy3vhst39", hwaddr);
         m_av = new UpMpdMediaRenderer(this, deviceid, avfname);
+#if LIBUPNPP_AT_LEAST(0,21,0)
         m_av->setProductVersion("Upmpdcli", g_upmpdcli_package_version.c_str());
+#endif
     }
     if (opts.options & upmpdDoOH) {
         std::string deviceid =  std::string("uuid:") +
             LibUPnP::makeDevUUID(friendlyname, hwaddr);
         m_oh = new UpMpdOpenHome(this, deviceid, friendlyname, ohProductDesc);
+#if LIBUPNPP_AT_LEAST(0,21,0)
         m_oh->setProductVersion("Upmpdcli", g_upmpdcli_package_version.c_str());
+#endif
     }
 }
 
