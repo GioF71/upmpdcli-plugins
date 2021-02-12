@@ -32,7 +32,7 @@ import uprclindex
 from uprclhttp import runbottle
 import minimconfig
 
-from upmplgutils import uplog, findmyip
+from upmplgutils import uplog, findmyip, getcachedir
 from conftree import stringToStrings
 
 # Once initialization (not on imports)
@@ -131,10 +131,12 @@ def _uprcl_init_worker():
 
     global g_rclconfdir
     g_rclconfdir = g_upconfig.get("uprclconfdir")
-    if g_rclconfdir is None:
-        uplog("uprclconfdir not in config, using /var/cache/upmpdcli/uprcl")
-        g_rclconfdir = "/var/cache/upmpdcli/uprcl"
-
+    if g_rclconfdir:
+        os.makedirs(g_rclconfdir)
+    else:
+        g_rclconfdir = getcachedir(g_upconfig, "uprcl")
+    uplog("uprcl: cachedir: %s" % g_rclconfdir)
+        
     global g_rcltopdirs
     g_rcltopdirs = g_upconfig.get("uprclmediadirs")
     if not g_rcltopdirs:
