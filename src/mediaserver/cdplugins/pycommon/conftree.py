@@ -219,7 +219,7 @@ class ConfTree(ConfSimple):
 class ConfStack(object):
     """ A ConfStack manages the superposition of a list of Configuration
     objects. Values are looked for in each object from the list until found.
-    This typically provides for defaults overriden by sparse values in the
+    This typically provides for defaults overridden by sparse values in the
     topmost file."""
 
     def __init__(self, nm, dirs, tp = 'simple'):
