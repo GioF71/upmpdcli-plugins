@@ -193,6 +193,12 @@ class DeezerAPI(object):
         data = self._api_request('user', self.user_id, 'albums')
         return data
 
+    def getArtistAlbums(self, artid):
+        if not self.isloggedin():
+            return {}
+        data = self._api_request('artist', artid, 'albums')
+        return data
+
     def getUserPlaylist(self, id):
         if not self.isloggedin():
             return None

@@ -42,6 +42,10 @@ class Session(object):
         data = self.api.getUserAlbums()
         return [_parse_album(p) for p in data['data']]
 
+    def get_artist_albums(self, artid):
+        data = self.api.getArtistAlbums(artid)
+        return [_parse_album(p) for p in data['data']]
+
     def get_user_playlist(self, id):
         data = self.api.getUserPlaylist(id)
         if not data:

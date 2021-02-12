@@ -207,6 +207,12 @@ dist_cdpluginshra_DATA = \
                   src/mediaserver/cdplugins/hra/hraapi.py \
                   src/mediaserver/cdplugins/hra/session.py
 
+cdpluginsdeezerdir = $(pkgdatadir)/cdplugins/deezer
+dist_cdpluginsdeezer_DATA = \
+                  src/mediaserver/cdplugins/deezer/deezer-app.py \
+                  src/mediaserver/cdplugins/deezer/deezerapi.py \
+                  src/mediaserver/cdplugins/deezer/deezersession.py
+
 cdpluginsspotifydir = $(pkgdatadir)/cdplugins/spotify
 dist_cdpluginsspotify_DATA = \
                   src/mediaserver/cdplugins/spotify/spotify-app.py \
@@ -277,6 +283,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
 	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py)
