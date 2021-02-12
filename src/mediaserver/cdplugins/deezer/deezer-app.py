@@ -88,10 +88,10 @@ def urls_from_id(view_func, items):
     return [plugin.url_for(view_func, item.id)
             for item in items if str(item.id).find('http') != 0]
 
+
 def view(data_items, urls, end=True):
     for item, url in zip(data_items, urls):
         title = item.name
-
         try:
             image = item.image if item.image else None
         except:
@@ -114,28 +114,50 @@ def track_list(tracks):
                                        xbmcplugin.objid, tracks)
 
 
-
-
-
 @plugin.route('/')
 def root():
     if not maybelogin():
         return []
-    items = sess.get_alluserplaylists()
+    add_directory('Favourites', my_music)
+
+@plugin.route('/my_music')
+def my_music():
+    add_directory('Albums', favourite_albums)
+    add_directory('Playlists', favourite_playlists)
+    xbmcplugin.endOfDirectory(plugin.handle)
+
+@plugin.route('/favourite_playlists')
+def favourite_playlists():
+    items = sess.get_favourite_playlists()
     view(items, urls_from_id(userplaylist_view, items))
 
-@plugin.route('/userplaylist_view/<id>')
+@plugin.route('/favourite_albums')
+def favourite_albums():
+    items = sess.get_favourite_albums()
+    view(items, urls_from_id(album_view, items))
+
+@plugin.route('/userplaylist/<id>')
 def userplaylist_view(id):
     track_list(sess.get_user_playlist(id))
 
 @plugin.route('/artist/<artist_id>')
 def artist_view(artist_id):
-    albums = session.get_artist_albums(artist_id) 
+    albums = sess.get_artist_albums(artist_id) 
     view(albums, urls_from_id(album_view, albums))
 
 @plugin.route('/album/<album_id>')
 def album_view(album_id):
-    track_list(session.get_album_tracks(album_id))
+    track_list(sess.get_album_tracks(album_id))
+
+@dispatcher.record('trackuri')
+def trackuri(a):
+    global pathprefix
+    msgproc.log("trackuri: [%s]" % a)
+    maybelogin()
+    trackid = trackid_from_urlpath(pathprefix, a)
+    url = sess.get_media_url(trackid) or ""
+    #msgproc.log("%s" % media_url)
+    return {'media_url' : url}
 
 @dispatcher.record('browse')
 def browse(a):

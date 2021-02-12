@@ -72,7 +72,7 @@ class DeezerAPI(object):
 
     def __init__(self):
         self.apiUrl = "http://api.deezer.com/2.0/{service}/{id}/{method}"
-        self.streamUrl = "http://tv.deezer.com/smarttv/streaming.php"
+        self.streamingUrl = "http://tv.deezer.com/smarttv/streaming.php"
         self.authUrl = "http://tv.deezer.com/smarttv/authentication.php"
         self.username = None
         self.passmd5 = None
@@ -108,7 +108,7 @@ class DeezerAPI(object):
             return None
         time2 = time.time()
         log.info('Request took {:.3f} ms'.format((time2-time1)*1000.0))
-        #log.debug("DeezerAPI: response: %s" % r.text)
+        log.debug("DeezerAPI: response: %s" % r.text)
         self.status_code = int(r.status_code)
         if self.status_code != 200:
             log.warn("status code !200. data: %s" % r.content)
@@ -124,6 +124,16 @@ class DeezerAPI(object):
             # Do something if it is "need login again"
             return None
         return js
+
+    def request_stream(self, id='', type='track'):
+        response = self.session.get(self.streamingUrl, params={
+            'access_token': self.access_token,
+            "{}_id".format(type): id,
+            'device': 'panasonic'
+        })
+        if type.startswith('radio') or type.startswith('artist'):
+            return response.json()
+        return response.text
 
 
     def isloggedin(self):
@@ -171,22 +181,31 @@ class DeezerAPI(object):
         return False
 
 
-    def getAllUserPlaylists(self, **ka):
+    def getUserPlaylists(self, **ka):
         if not self.isloggedin():
             return {}
         data = self._api_request('user', self.user_id, 'playlists')
         return data
 
-    def getUserPlaylist(self, **ka):
+    def getUserAlbums(self, **ka):
+        if not self.isloggedin():
+            return {}
+        data = self._api_request('user', self.user_id, 'albums')
+        return data
+
+    def getUserPlaylist(self, id):
         if not self.isloggedin():
             return None
-        self._check_ka(ka, ['playlist_id'])
-        data = self._api_request('playlist', ka['playlist_id'], 'tracks')
-        return None
+        data = self._api_request('playlist', id, 'tracks')
+        return data
 
     def search(self, query, filter, offset=0):
         if not self.isloggedin():
             return None
         data = self._api_request('search', method=filter,
                                  params={'q': query, 'index': offset})
+        return data
+
+    def getAlbum(self, id):
+        data = self._api_request('album', id)
         return data

@@ -29,19 +29,35 @@ class Session(object):
     def isloggedin(self):
         return self.api.isloggedin()
     
+    def get_media_url(self, trackid):
+        return self.api.request_stream(id=trackid)
 
-    def get_alluserplaylists(self):
-        data = self.api.getAllUserPlaylists()
+    def get_favourite_playlists(self):
+        data = self.api.getUserPlaylists()
         if not data:
             return []
         return [_parse_playlist(p) for p in data['data']]
 
+    def get_favourite_albums(self):
+        data = self.api.getUserAlbums()
+        return [_parse_album(p) for p in data['data']]
 
     def get_user_playlist(self, id):
-        data = self.api.getUserPlaylist(playlist_id=id)
+        data = self.api.getUserPlaylist(id)
         if not data:
             return []
-        return [_parse_track(t) for t in data]
+        return [_parse_track(t) for t in data['data']]
+
+    def get_album_tracks(self, albumid):
+        data = self.api.getAlbum(albumid)
+        album = _parse_album(data)
+        if 'tracks' in data:
+            tracks = [_parse_track(t, album) for t in data['tracks']['data']]
+            for i in range(len(tracks)):
+                if tracks[i].track_num == 0:
+                    tracks[i].track_num = i+1
+            return tracks
+
 
     def _search1(self, query, tp):
         uplog("_search1: query [%s] tp [%s]" % (query, tp))
@@ -96,7 +112,10 @@ class Session(object):
             res = self._search1(query, 'track')
             cplt.tracks = res.tracks
             return cplt
-        
+
+
+
+
 
 def _parse_playlist(data, artist=None, artists=None):
     kwargs = {
@@ -108,19 +127,6 @@ def _parse_playlist(data, artist=None, artists=None):
     return Playlist(**kwargs)
 
     
-def encode_prefix(p):
-    return base64.urlsafe_b64encode(p.encode('utf-8')).decode('utf-8')
-
-def decode_prefix(p):
-    return base64.urlsafe_b64decode(p.encode('utf-8')).decode('utf-8')
-
-def _parse_category(data):
-    return Category(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
-
-def _parse_genre(data):
-    return Genre(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
-
-
 def _parse_artist(data):
     return Artist(id=data['id'], name=data['name'])
 
@@ -152,7 +158,7 @@ def _parse_track(data, albumarg = None):
         'name': data['title'],
         'duration': data['duration'],
         'artist': artist,
-        'available': True
+        'available': data['readable']
     }
 
     if 'track_position' in data:
