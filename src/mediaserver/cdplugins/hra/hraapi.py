@@ -200,7 +200,7 @@ class HRAAPI(object):
         if not data or 'user_id' not in data or 'session_id' not in data or \
           not data['user_id'] or not data['session_id']:
           log.warn("login failed")
-          self.clean_login()
+          self._clear_login()
           return None
         self.session_id = data['session_id']
         self.user_id = data['user_id']
