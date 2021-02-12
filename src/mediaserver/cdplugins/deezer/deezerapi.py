@@ -53,7 +53,7 @@ from upmplgutils import *
 class MLog(object):
     def __init__(self):
         self.f = sys.stderr
-        self.level = 3
+        self.level = 2
     def _doprint(self, msg):
         print("DeezerAPI: %s" % msg, file=self.f)
     def debug(self, msg):
