@@ -60,6 +60,10 @@ static string find_script(const string& icmd)
     if (path_isabsolute(icmd))
         return icmd;
 
+    std::string scriptsdir;
+    if (!g_config->get("radioscripts", scriptsdir)) {
+        scriptsdir = path_cat(g_datadir, "radio_scripts");
+    }
     // Append the radio scripts dir to the PATH. Put at the end so
     // that the user can easily override a script by putting the
     // modified version in the PATH env variable
@@ -67,7 +71,7 @@ static string find_script(const string& icmd)
     if (!cp) //??
         cp = "";
     string PATH(cp);
-    PATH = PATH + path_PATHsep() + path_cat(g_datadir, "radio_scripts");
+    PATH = PATH + path_PATHsep() + scriptsdir;
     string cmd;
     if (ExecCmd::which(icmd, cmd, PATH.c_str())) {
         return cmd;

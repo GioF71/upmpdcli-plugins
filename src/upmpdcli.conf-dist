@@ -41,6 +41,8 @@
 #openhome = 1
 # Disable the OpenHome Credentials service.
 #lumincompat = 0
+# Store metadata into the OpenHome "metatext" variable.
+#ohinfotexttodata = 0
 # Save the streaming services login parameters to disk.
 #saveohcredentials = 1
 # Check that input format is supported.
@@ -99,6 +101,8 @@
 #ohproductroom = Main Room
 # Path to an external file with radio definitions.
 radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
+# Radio metadata scripts directory.
+#radioscripts = /usr/share/upmpdcli/radio_scripts
 # Manufacturer name. 
 #ohmanufacturername = UpMPDCli heavy industries Co.
 # Manufacturer information. 

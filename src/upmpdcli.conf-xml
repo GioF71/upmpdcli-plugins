@@ -278,6 +278,17 @@
 # </var>
 radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 
+# <var name="radioscripts" type="fn">
+# <brief>Radio metadata scripts directory.</brief>
+#
+# <descr>Path of a directory where the scripts used for fetching the
+# channel metadata are located. The default is
+# /usr/share/upmpdcli/radio_scripts. Note that the scripts are always first
+# looked for in the locations defined by $PATH.</descr>
+#
+# </var>
+#radioscripts = /usr/share/upmpdcli/radio_scripts
+
 # <var name="ohmanufacturername" type="string"><brief>Manufacturer
 # name. </brief></var>
 #ohmanufacturername = UpMPDCli heavy industries Co.

@@ -75,6 +75,14 @@ upmpdcli with Credentials enabled. Credentials does
 not work at this point anyway (12/2020), but it is enabled anyway,
 because some Kazoo versions crash if it is not enabled.
 
+[[ohinfotexttodata]]
+ohinfotexttodata:: Store metadata into the OpenHome "metatext" variable. The OpenHome Info service are supposed to hold different data,
+mostly for radios, with permanent radio data (icon, url, radio name) set
+in the "Metadata" variable, and information about the current title recorded
+in the "Metatext" variable. Setting this option will have upmpdcli store
+any non-empty Metatext data in the Metadata variable. This will help some
+players display the album art for the current title (e.g. Kazoo).
+
 [[saveohcredentials]]
 saveohcredentials:: Save the streaming
 services login parameters to disk. This allows sharing the
@@ -233,6 +241,12 @@ information on how to define a radio station. In case you want to define
 radios in the main configuration file, they MUST occur at the end of the
 file (because they are defined as subsections, the last of which extends
 to the end of the file).
+
+[[radioscripts]]
+radioscripts:: Radio metadata scripts directory. Path of a directory where the scripts used for fetching the
+channel metadata are located. The default is
+/usr/share/upmpdcli/radio_scripts. Note that the scripts are always first
+looked for in the locations defined by $PATH.
 
 [[ohmanufacturername]]
 ohmanufacturername:: Manufacturer
