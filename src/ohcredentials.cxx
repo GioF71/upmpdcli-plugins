@@ -116,7 +116,7 @@ bool OHCredsMaybeMorphSpecialUri(string& uri, bool& isStreaming)
         uri = string("http://") + upnphost + ":" + sport + path;
         isStreaming = true;
     }
-    return found;
+    return true;
 }
 
 // We might want to derive this into ServiceCredsQobuz,
