@@ -209,11 +209,13 @@ bool MPDCli::eventLoop()
             LOGERR("MPDCli::eventloop: could not open connection\n");
             return false;
         }
-        if (!mpd_run_password(m_idleconn, m_password.c_str())) {
-            LOGERR("MPDCli::eventloop: password wrong ?\n");
-            mpd_connection_free(m_idleconn);
-            m_idleconn = nullptr;
-            return false;
+        if (!m_password.empty()) {
+            if (!mpd_run_password(m_idleconn, m_password.c_str())) {
+                LOGERR("MPDCli::eventloop: password wrong ?\n");
+                mpd_connection_free(m_idleconn);
+                m_idleconn = nullptr;
+                return false;
+            }
         }
     }
     MpdStatus::State st;
