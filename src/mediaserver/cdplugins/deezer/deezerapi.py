@@ -22,7 +22,6 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
-
 # Deezer low level interface and session management. We return barely
 # prepared json objects
 
@@ -181,16 +180,41 @@ class DeezerAPI(object):
         return False
 
 
-    def getUserPlaylists(self, **ka):
+    def getUserFollowings(self):
         if not self.isloggedin():
             return {}
-        data = self._api_request('user', self.user_id, 'playlists')
+        return self._api_request('user', self.user_id, 'followings')
+
+    def getUserPlaylists(self, id='me'):
+        if not self.isloggedin():
+            return {}
+        if id == 'me':
+            id = self.user_id
+        data = self._api_request('user', id, 'playlists')
         return data
 
-    def getUserAlbums(self, **ka):
+    def getUserAlbums(self, id='me'):
         if not self.isloggedin():
             return {}
-        data = self._api_request('user', self.user_id, 'albums')
+        if id == 'me':
+            id = self.user_id
+        data = self._api_request('user', id, 'albums')
+        return data
+
+    def getUserArtists(self, id='me'):
+        if not self.isloggedin():
+            return {}
+        if id == 'me':
+            id = self.user_id
+        data = self._api_request('user', id, 'artists')
+        return data
+
+    def getUserTracks(self, id='me'):
+        if not self.isloggedin():
+            return {}
+        if id == 'me':
+            id = self.user_id
+        data = self._api_request('user', id, 'tracks')
         return data
 
     def getArtistAlbums(self, artid):

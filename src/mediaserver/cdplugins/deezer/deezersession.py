@@ -1,18 +1,39 @@
-# defined to emulate the session object from the tidal module, which is
-# defined in the tidalapi part (we want to keep the qobuz api/ dir as
-# much alone as possible.
+#
+# Copyright (C) 2021 Jean-Francois Dockes
+#
+# A lot of code strongly inspired or copied from the Kodi Deezer API,
+# the copyright of which is not too clear (but it's GPL):
+#     Copyright (C) 2016 Jakub Gawron
+#     Copyright (C) 2020 Valentin271 (Github.com)
+# 
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the
+#  Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+#
+# Performs some massaging of the data out from the lower level api
+# interface and creates objects defined in the upmplgmodels.py module.
+#
+
 from __future__ import print_function
 
 import sys
-import json
 from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
-     Category, Genre, Model
+     Category, Genre, Model, User
 from upmplgutils import *
 import deezerapi
-import urllib
-import datetime
-import traceback
-import base64
 
 class Session(object):
     def __init__(self):
@@ -25,22 +46,33 @@ class Session(object):
         else:
             return False
 
-
     def isloggedin(self):
         return self.api.isloggedin()
     
     def get_media_url(self, trackid):
         return self.api.request_stream(id=trackid)
 
-    def get_favourite_playlists(self):
-        data = self.api.getUserPlaylists()
+    def get_followings(self):
+        data = self.api.getUserFollowings()
+        return [_parse_user(p) for p in data['data']]
+    
+    def get_favourite_playlists(self, id='me'):
+        data = self.api.getUserPlaylists(id=id)
         if not data:
             return []
         return [_parse_playlist(p) for p in data['data']]
 
-    def get_favourite_albums(self):
-        data = self.api.getUserAlbums()
+    def get_favourite_albums(self, id='me'):
+        data = self.api.getUserAlbums(id=id)
         return [_parse_album(p) for p in data['data']]
+
+    def get_favourite_artists(self, id='me'):
+        data = self.api.getUserArtists(id=id)
+        return [_parse_artist(p) for p in data['data']]
+
+    def get_favourite_tracks(self, id='me'):
+        data = self.api.getUserTracks(id=id)
+        return [_parse_track(p) for p in data['data']]
 
     def get_artist_albums(self, artid):
         data = self.api.getArtistAlbums(artid)
@@ -134,11 +166,11 @@ def _parse_playlist(data, artist=None, artists=None):
 def _parse_artist(data):
     return Artist(id=data['id'], name=data['name'])
 
+def _parse_user(data):
+    return User(id=data['id'], name=data['name'], image=data['picture'])
+
 
 def _parse_album(data):
-    #uplog(data)
-    #uplog("-_"*30)
-
     kwargs = {
         'id': data['id'],
         'name': data['title']
@@ -181,4 +213,3 @@ def _parse_track(data, albumarg = None):
         kwargs['image'] = data['picture_big']
 
     return Track(**kwargs)
-

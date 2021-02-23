@@ -89,7 +89,7 @@ def urls_from_id(view_func, items):
             for item in items if str(item.id).find('http') != 0]
 
 
-def view(data_items, urls, end=True):
+def view(data_items, urls):
     for item, url in zip(data_items, urls):
         title = item.name
         try:
@@ -118,28 +118,68 @@ def track_list(tracks):
 def root():
     if not maybelogin():
         return []
-    add_directory('Favourites', my_music)
+    add_directory('My Favourites Albums', my_favourite_albums)
+    add_directory('My Favourites Playlists', my_favourite_playlists)
+    add_directory('My Favourites Tracks', my_favourite_tracks)
+    add_directory('My Favourites Artists', my_favourite_artists)
+    add_directory('My Favourites Playlists', my_favourite_playlists)
+    add_directory('Family', my_family)
 
-@plugin.route('/my_music')
-def my_music():
-    add_directory('Albums', favourite_albums)
-    add_directory('Playlists', favourite_playlists)
-    xbmcplugin.endOfDirectory(plugin.handle)
+@plugin.route('/my_family')
+def my_family():
+    items = sess.get_followings()
+    view(items, urls_from_id(user_view, items))
 
-@plugin.route('/favourite_playlists')
-def favourite_playlists():
-    items = sess.get_favourite_playlists()
-    view(items, urls_from_id(userplaylist_view, items))
-
-@plugin.route('/favourite_albums')
-def favourite_albums():
+@plugin.route('/my_favourite_albums')
+def my_favourite_albums():
     items = sess.get_favourite_albums()
     view(items, urls_from_id(album_view, items))
 
+@plugin.route('/my_favourite_playlists')
+def my_favourite_playlists():
+    items = sess.get_favourite_playlists()
+    view(items, urls_from_id(playlist_view, items))
+
+@plugin.route('/my_favourite_artists')
+def my_favourite_artists():
+    items = sess.get_favourite_artists()
+    view(items, urls_from_id(artist_view, items))
+
+@plugin.route('/my_favourite_tracks')
+def my_favourite_tracks():
+    track_list(sess.get_favourite_tracks())
+    
+
+@plugin.route('/favourite_albums/<id>')
+def favourite_albums(id):
+    items = sess.get_favourite_albums(id)
+    view(items, urls_from_id(album_view, items))
+
+@plugin.route('/favourite_playlists/<id>')
+def favourite_playlists(id):
+    items = sess.get_favourite_playlists(id)
+    view(items, urls_from_id(playlist_view, items))
+
+@plugin.route('/favourite_artists/<id>')
+def favourite_artists(id):
+    items = sess.get_favourite_artists(id)
+    view(items, urls_from_id(artist_view, items))
+
+@plugin.route('/favourite_tracks/<id>')
+def favourite_tracks(id):
+    track_list(sess.get_favourite_tracks(id))
+
 @plugin.route('/userplaylist/<id>')
-def userplaylist_view(id):
+def playlist_view(id):
     track_list(sess.get_user_playlist(id))
 
+@plugin.route('/user/<id>')
+def user_view(id):
+    add_directory('Albums', plugin.url_for(favourite_albums, id))
+    add_directory('Playlists', plugin.url_for(favourite_playlists, id))
+    add_directory('Tracks', plugin.url_for(favourite_tracks, id))
+    add_directory('Artists', plugin.url_for(favourite_artists, id))
+    
 @plugin.route('/artist/<artist_id>')
 def artist_view(artist_id):
     albums = sess.get_artist_albums(artist_id) 
@@ -207,10 +247,10 @@ def search(a):
 
     if (not objkind or objkind == 'artist') and searchresults.artists:
         view(searchresults.artists,
-             urls_from_id(artist_view, searchresults.artists), end=False)
+             urls_from_id(artist_view, searchresults.artists))
     if (not objkind or objkind == 'album') and searchresults.albums:
         view(searchresults.albums,
-             urls_from_id(album_view, searchresults.albums), end=False)
+             urls_from_id(album_view, searchresults.albums))
     if (not objkind or objkind == 'track') and searchresults.tracks:
         track_list(searchresults.tracks)
 

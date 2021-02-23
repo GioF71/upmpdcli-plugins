@@ -30,7 +30,11 @@ class Model(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-
+class User(Model):
+    upnpclass = "object.container"
+    name = "Unknown"
+    image = None
+    
 class Album(Model):
     upnpclass = "object.container.album.musicAlbum"
     name = "Unknown"
