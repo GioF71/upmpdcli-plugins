@@ -122,7 +122,6 @@ def root():
     add_directory('My Favourites Playlists', my_favourite_playlists)
     add_directory('My Favourites Tracks', my_favourite_tracks)
     add_directory('My Favourites Artists', my_favourite_artists)
-    add_directory('My Favourites Playlists', my_favourite_playlists)
     add_directory('Family', my_family)
 
 @plugin.route('/my_family')
@@ -218,7 +217,7 @@ def browse(a):
     plugin.run([idpath])
     #msgproc.log("%s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
-    return {"entries" : encoded}
+    return {"entries" : encoded, "total" : str(len(xbmcplugin.entries))}
 
 @dispatcher.record('search')
 def search(a):
@@ -256,7 +255,7 @@ def search(a):
 
     #msgproc.log("search results: %s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
-    return {"entries" : encoded}
+    return {"entries" : encoded, "total" : str(len(xbmcplugin.entries))}
 
 
 msgproc.log("Deezer running")

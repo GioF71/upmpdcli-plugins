@@ -56,33 +56,36 @@ class Session(object):
         data = self.api.getUserFollowings()
         return [_parse_user(p) for p in data['data']]
     
+    def _loopit(self, id, getfunc, parsefunc, limit):
+        offset = 0
+        all = []
+        while offset < limit:
+            data = getfunc(id, offset=offset)
+            ncnt = len(data['data'])
+            ndata = [parsefunc(i) for i in data['data']]
+            all.extend(ndata)
+            if ncnt == 0:
+                break
+            offset += ncnt
+        return all
+        
     def get_favourite_playlists(self, id='me'):
-        data = self.api.getUserPlaylists(id=id)
-        if not data:
-            return []
-        return [_parse_playlist(p) for p in data['data']]
+        return self._loopit(id, self.api.getUserPlaylists, _parse_playlist, 1000)
 
     def get_favourite_albums(self, id='me'):
-        data = self.api.getUserAlbums(id=id)
-        return [_parse_album(p) for p in data['data']]
+        return self._loopit(id, self.api.getUserAlbums, _parse_album, 1000)
 
     def get_favourite_artists(self, id='me'):
-        data = self.api.getUserArtists(id=id)
-        return [_parse_artist(p) for p in data['data']]
-
-    def get_favourite_tracks(self, id='me'):
-        data = self.api.getUserTracks(id=id)
-        return [_parse_track(p) for p in data['data']]
+        return self._loopit(id, self.api.getUserArtists, _parse_artist, 1000)
 
     def get_artist_albums(self, artid):
-        data = self.api.getArtistAlbums(artid)
-        return [_parse_album(p) for p in data['data']]
+        return self._loopit(artid, self.api.getArtistAlbums, _parse_album, 500)
+
+    def get_favourite_tracks(self, id='me'):
+        return self._loopit(id, self.api.getUserTracks, _parse_track, 2000)
 
     def get_user_playlist(self, id):
-        data = self.api.getUserPlaylist(id)
-        if not data:
-            return []
-        return [_parse_track(t) for t in data['data']]
+        return self._loopit(id, self.api.getUserPlaylist, _parse_track, 2000)
 
     def get_album_tracks(self, albumid):
         data = self.api.getAlbum(albumid)
@@ -100,7 +103,7 @@ class Session(object):
 
         limit = 200
         if tp == 'artist':
-            limit = 20
+            limit = 30
         elif tp == 'album' or tp == 'playlist':
             limit = 50
         offset = 0
@@ -187,13 +190,34 @@ def _parse_album(data):
 
 
 def _parse_track(data, albumarg = None):
-    artist = Artist(id=data['artist']['id'], name=data['artist']['name'])
+
+    if not 'readable' in data or not data['readable'] and \
+       'alternative' in data:
+        data = data['alternative']
+
+    artid = None
+    artname = "Unknown"
+    if 'artist' in data:
+        dt = data['artist']
+        if 'id' in dt:
+            artid = dt['id']
+        else:
+            # Happens for not e.g. the beatles in RS 500 playlist
+            #uplog("_parse_track: artist has no id: %s" % dt)
+            pass
+        if 'name' in dt:
+            artname = dt['name']
+    artist = Artist(id=artid, name=artname)
 
     kwargs = {
         'id': data['id'],
         'name': data['title'],
         'duration': data['duration'],
         'artist': artist,
+        # There is a 'readable' attribute in the track data, it's
+        # sometimes fals,e but this does not seem to actually affect
+        # the accessibility. Don't know what it means. In any case,
+        # always set available to true for now.
         'available': data['readable']
     }
 
@@ -206,7 +230,11 @@ def _parse_track(data, albumarg = None):
         kwargs['album'] = albumarg
     elif 'album' in data:
         alb = data['album']
-        kwargs['album'] = Album(image=alb['cover_big'], name=alb['title'])
+        image = None
+        for k in ('cover_big', 'cover'):
+            if k in alb:
+                image = alb[k]
+        kwargs['album'] = Album(image=image, name=alb['title'])
 
     # If track has own cover, use it (e.g. for multialbum playlists)
     if 'picture_big' in data:

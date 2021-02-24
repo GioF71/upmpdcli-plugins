@@ -52,7 +52,7 @@ from upmplgutils import *
 class MLog(object):
     def __init__(self):
         self.f = sys.stderr
-        self.level = 2
+        self.level = 1
     def _doprint(self, msg):
         print("DeezerAPI: %s" % msg, file=self.f)
     def debug(self, msg):
@@ -185,48 +185,54 @@ class DeezerAPI(object):
             return {}
         return self._api_request('user', self.user_id, 'followings')
 
-    def getUserPlaylists(self, id='me'):
+    def getUserPlaylists(self, id='me', offset=0):
         if not self.isloggedin():
             return {}
         if id == 'me':
             id = self.user_id
-        data = self._api_request('user', id, 'playlists')
+        data = self._api_request('user', id, 'playlists',
+                                 params={'index': offset})
         return data
 
-    def getUserAlbums(self, id='me'):
+    def getUserAlbums(self, id='me', offset=0):
         if not self.isloggedin():
             return {}
         if id == 'me':
             id = self.user_id
-        data = self._api_request('user', id, 'albums')
+        data = self._api_request('user', id, 'albums',
+                                 params={'index': offset})
         return data
 
-    def getUserArtists(self, id='me'):
+    def getUserArtists(self, id='me', offset=0):
         if not self.isloggedin():
             return {}
         if id == 'me':
             id = self.user_id
-        data = self._api_request('user', id, 'artists')
+        data = self._api_request('user', id, 'artists',
+                                 params={'index': offset})
         return data
 
-    def getUserTracks(self, id='me'):
+    def getUserTracks(self, id='me', offset=0):
         if not self.isloggedin():
             return {}
         if id == 'me':
             id = self.user_id
-        data = self._api_request('user', id, 'tracks')
+        data = self._api_request('user', id, 'tracks',
+                                 params={'index': offset})
         return data
 
-    def getArtistAlbums(self, artid):
+    def getArtistAlbums(self, artid, offset=0):
         if not self.isloggedin():
             return {}
-        data = self._api_request('artist', artid, 'albums')
+        data = self._api_request('artist', artid, 'albums',
+                                 params={'index': offset})
         return data
 
-    def getUserPlaylist(self, id):
+    def getUserPlaylist(self, id, offset=0):
         if not self.isloggedin():
             return None
-        data = self._api_request('playlist', id, 'tracks')
+        data = self._api_request('playlist', id, 'tracks',
+                                 params={'index': offset})
         return data
 
     def search(self, query, filter, offset=0):
