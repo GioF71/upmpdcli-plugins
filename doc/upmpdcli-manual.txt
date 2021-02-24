@@ -161,8 +161,8 @@ help from the closely related *sc2mpd* package, for processing the audio
 streams).
 
 - Upmpdcli provides a Media Server interface, mostly used for accessing
-external streaming services (Spotify, Highresaudio, Qobuz). The *uprcl*
-module provides a local Media Server based on the
+external streaming services (Spotify, Highresaudio, Qobuz, Deezer). The
+*uprcl* module provides a local Media Server based on the
 link:https://www.recoll.org[Recoll] medata extraction and search functions.
 
 Upmpdcli can be installed on most Linux systems. It is frequently used on
@@ -574,7 +574,7 @@ by programs other than their own applications.
 
 The only thing that they have in common with UPnP is that most of them use
 HTTP to retrieve the audio stream (as a short-lived URL). Spotify is an
-exception.
+exception, and uses a specific protocol for streaming.
 
 Given the importance of these services for music consumers, many UPnP
 Control Points and Renderers have been extended with specific interfaces to
@@ -622,6 +622,9 @@ services: Spotify, Highresaudio and Qobuz currently work unconditionally
 (1.5.5). I am not sure about Tidal support: in any case it will only work
 if you can find a working application token (Tidal), and even then, maybe
 not as their access control API is evolving.
+
+A plugin for Deezer has been added recently (2021-02-23 git or future
+1.5.9), and currently only provide access to 128 kb/s mp3 streams.
 
 You will need a valid subscription for any service that you want to use
 (for Spotify, this means a premium account, the free ones will not work).
@@ -752,6 +755,23 @@ You need a valid Qobuz subscription.
 
 The configuration parameters are described in the
 <<qobuzuser,configuration section>>
+
+
+[[upmpdcli.deezernotes]]
+=== Using Deezer through the Upmpdcli Media Server
+
+You will need a premium (paid) account.
+
+The plugin is based on code from the
+link:https://github.com/Valentin271/DeezerKodi.git[Kodi add-on], by 
+Jakub Gawron (kubatek94) and ? (Valentin271).
+
+It uses the Deezer "television" API and only provides access to 128 kb/s
+MP3 streams.
+
+The configuration parameters are described in the
+<<deezeruser,configuration section>>. Only `deezeruser` and `deezerpass`
+actually. 
 
 
 [[upmpdcli.spotifynotes]]

@@ -432,6 +432,15 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # allows streaming each of the formats).</descr></var>
 #qobuzformatid = 5
 
+# <grouptitle>Deezer streaming service parameters</grouptitle>
+
+# <var name="deezeruser" type="string"><brief>Deezer user name.</brief>
+# <descr>Your Deezer login name.</descr></var>
+#deezeruser = me@some.place
+# <var name="deezerpass" type="string"><brief>Deezer password.</brief>
+# <descr>The password for your Deezer account.</descr></var>
+#deezerpass = agoodpassword
+
 # <grouptitle>Local Media Server parameters</grouptitle>
 
 # <var name="uprcluser" type="string"><brief>Bogus user name variable.</brief>
