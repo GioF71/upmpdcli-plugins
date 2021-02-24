@@ -559,9 +559,18 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt,
     if (flg == CDPlugin::BFChildren) {
         // Check cache
         auto cep = o_bcache.get(cachekey);
-        if (cep && cep->m_offset <= stidx &&
-            int(cep->m_results.size()) - (stidx - cep->m_offset) >= cnt) {
-            return cep->toResult("", stidx, cnt, entries);
+        if (cep) {
+            LOGDEB("PlgWithSlave::browse: found cache entry: offset " <<
+                   cep->m_offset << " count " << cep->m_results.size() <<
+                   " total " << cep->m_total << "\n");
+            if (cep->m_total > 0 && cnt + stidx > cep->m_total) {
+                cnt = cep->m_total - stidx;
+                LOGDEB("PlgWithSlave::browse: adjusted cnt to " << cnt << "\n");
+            }
+            if (cep->m_offset <= stidx &&
+                int(cep->m_results.size()) - (stidx - cep->m_offset) >= cnt) {
+                return cep->toResult("", stidx, cnt, entries);
+            }
         }
     }
 
