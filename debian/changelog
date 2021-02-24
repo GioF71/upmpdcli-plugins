@@ -1,3 +1,11 @@
+upmpdcli (1.5.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fixed events not working when mpd password was set
+  * Mediaserver support for Deezer
+  * Mediaserver: improved caching, improved uprcl local media module.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 24 Feb 2021 11:19:00 +0100
+
 upmpdcli (1.5.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix a number of memory leak and locking issues detected by valgrind/helgrind
