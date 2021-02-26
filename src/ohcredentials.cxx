@@ -82,8 +82,32 @@ static string upnphost;
 // like qobuz:// tidal:// and expect the renderer to know what to do
 // with them. We transform them so that they point to our media server
 // gateway (which should be running of course for this to work).
+// 
+// Also some control points don't like urls like cdda:///dev/sr0, they
+// want everything to be http. We get these through with
+// http://_protoescape/proto/path which we transform into
+// proto:///path
+
+static const string protoescape{"http://_protoescape/"};
 bool OHCredsMaybeMorphSpecialUri(string& uri, bool& isStreaming)
 {
+    // We accept special cloaked cdda URLs and translate them because
+    // some control points can't grok cdda:///1 and forbid cd-based
+    // playlists
+    std::cerr << "OHCredsMaybe\n";
+    if (uri.find(protoescape) == 0) {
+        auto protoend = uri.find('/', protoescape.size());
+        if (protoend != string::npos) {
+            auto protoname = uri.substr(protoescape.size(),
+                                        protoend-protoescape.size());
+            uri.replace(0, protoescape.size() + protoname.size(),
+                        protoname + "://");
+        }
+        isStreaming = true;
+        return true;
+    }
+
+
     isStreaming = false;
     if (uri.find("http://") == 0 || uri.find("https://") == 0) {
         return true;
