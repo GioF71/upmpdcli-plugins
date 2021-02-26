@@ -94,7 +94,6 @@ bool OHCredsMaybeMorphSpecialUri(string& uri, bool& isStreaming)
     // We accept special cloaked cdda URLs and translate them because
     // some control points can't grok cdda:///1 and forbid cd-based
     // playlists
-    std::cerr << "OHCredsMaybe\n";
     if (uri.find(protoescape) == 0) {
         auto protoend = uri.find('/', protoescape.size());
         if (protoend != string::npos) {
