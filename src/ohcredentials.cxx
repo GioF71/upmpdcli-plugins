@@ -27,7 +27,6 @@
 #include <map>
 #include <utility>
 #include <vector>
-#include <regex>
 #include <sstream>
 
 #include "conftree.h"
@@ -62,85 +61,6 @@ static const map<string, string> idmap {
     {"qobuz.com", "qobuz"}
 };
 
-// The URLs from kazoo look like:
-//   <service>://track?version=2&trackId=<trkid>
-// We translate them to something which points to our proxy server, and
-// that MPD will accept/use:
-//   http://<upnphost>:<sport>/<servicename>/track?version=1&trackId=<trkid>
-// Where upnphost is the host used by libupnp, and sport the port on
-// which the microhttpd listens.
-// We retrieve upnphost from the upnp device during init, and sport by a
-// call to the CDPluginServices.
-//
-// The media server, which is used to run the microhttpd and for
-// getting the real media URLs, must run on this host (for one thing
-// the creds are passed either through shared memory or through a
-// local file).
-static string upnphost;
-
-// Called from OHPlaylist. The CP (Kazoo/Lumin mostly) will send URIs
-// like qobuz:// tidal:// and expect the renderer to know what to do
-// with them. We transform them so that they point to our media server
-// gateway (which should be running of course for this to work).
-// 
-// Also some control points don't like urls like cdda:///dev/sr0, they
-// want everything to be http. We get these through with
-// http://_protoescape/proto/path which we transform into
-// proto:///path
-
-static const string protoescape{"http://_protoescape/"};
-bool OHCredsMaybeMorphSpecialUri(string& uri, bool& isStreaming)
-{
-    // We accept special cloaked cdda URLs and translate them because
-    // some control points can't grok cdda:///1 and forbid cd-based
-    // playlists
-    if (uri.find(protoescape) == 0) {
-        auto protoend = uri.find('/', protoescape.size());
-        if (protoend != string::npos) {
-            auto protoname = uri.substr(protoescape.size(),
-                                        protoend-protoescape.size());
-            uri.replace(0, protoescape.size() + protoname.size(),
-                        protoname + "://");
-        }
-        isStreaming = true;
-        return true;
-    }
-
-
-    isStreaming = false;
-    if (uri.find("http://") == 0 || uri.find("https://") == 0) {
-        return true;
-    }
-
-    // Possibly retrieve the IP port used by our proxy server
-    static string sport;
-    if (sport.empty()) {
-        sport = SoapHelp::i2s(CDPluginServices::microhttpport());
-    }
-
-    // http://wiki.openhome.org/wiki/Av:Developer:Eriskay:StreamingServices
-    // Tidal and qobuz tracks added by Kazoo / Lumin: 
-    //   tidal://track?version=1&trackId=[tidal_track_id]
-    //   qobuz://track?version=2&trackId=[qobuz_track_id]
-    
-    string se =
-        "(tidal|qobuz)://track\\?version=([[:digit:]]+)&trackId=([[:digit:]]+)";
-    std::regex e(se);
-    std::smatch mr;
-    bool found = std::regex_match(uri, mr, e);
-    if (found) {
-        string pathprefix = CDPluginServices::getpathprefix(mr[1]);
-
-        // The microhttpd code actually only cares about getting a
-        // trackId parameter. Make it look what the plugins normally
-        // generate anyway:
-        string path = path_cat(pathprefix,
-                               "track?version=1&trackId=" + mr[3].str());
-        uri = string("http://") + upnphost + ":" + sport + path;
-        isStreaming = true;
-    }
-    return true;
-}
 
 // We might want to derive this into ServiceCredsQobuz,
 // ServiceCredsTidal, there is a lot in common and a few diffs.
@@ -480,9 +400,6 @@ OHCredentials::OHCredentials(UpMpd *dev, UpMpdOpenHome *udev,
     udev->addActionMapping(
         this, "GetSequenceNumber",
         bind(&OHCredentials::actGetSequenceNumber, this, _1, _2));
-
-    unsigned short usport;
-    udev->ipv4(&upnphost, &usport);
 }
 
 OHCredentials::~OHCredentials()

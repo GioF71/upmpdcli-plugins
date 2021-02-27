@@ -50,11 +50,5 @@ private:
     Internal *m{0};
 };
 
-// Check uri for special qobuz/tidal scheme and transform it to point
-// to our proxy in this case.
-// @param[out] isStreaming will be true if the uri was transformed, else false.
-// @return false for error, uri should not be used
-extern bool OHCredsMaybeMorphSpecialUri(std::string& uri, bool& isStreaming);
-
 #endif
 

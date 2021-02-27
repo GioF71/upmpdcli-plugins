@@ -34,6 +34,7 @@
 #include "upmpdutils.hxx"
 #include "smallut.h"
 #include "conftree.h"
+#include "urlmorph.hxx"
 
 // For testing upplay with a dumb renderer.
 // #define NO_SETNEXT
@@ -427,6 +428,13 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
     if (!found) {
         return UPNP_E_INVALID_PARAM;
     }
+
+    bool forcenocheck;
+    if (!morphSpecialUrl(uri, forcenocheck)) {
+        LOGERR("OHPlaylist::insert: bad uri: " << uri << endl);
+        return UPNP_E_INVALID_PARAM;
+    }
+    
     string metadata;
     found = setnext ? sc.get("NextURIMetaData", &metadata) :
         sc.get("CurrentURIMetaData", &metadata);

@@ -106,6 +106,8 @@ upmpdcli_SOURCES = \
      src/upmpd.hxx \
      src/upmpdutils.cxx \
      src/upmpdutils.hxx \
+     src/urlmorph.cxx \
+     src/urlmorph.hxx \
      src/workqueue.h
 
 upmpdcli_LDADD = $(UPMPDCLI_LIBS)

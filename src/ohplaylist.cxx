@@ -42,6 +42,7 @@
 #include "pathut.h"
 #include "conftree.h"
 #include "ohcredentials.hxx"
+#include "urlmorph.hxx"
 
 using namespace std;
 using namespace std::placeholders;
@@ -53,6 +54,12 @@ static const string sIdProduct("urn:av-openhome-org:serviceId:Playlist");
 // really want to keep the mpd playlist 'consume' attribute under
 // mpc/mpd control. If set we don't touch it.
 static bool keepconsume;
+
+// For OHCreds/morphSpecialUrl: the media server, which is used to run
+// the microhttpd and for getting the real media URLs, must run on
+// this host (for one thing the creds are passed either through shared
+// memory or through a local file).
+static string upnphost;
 
 // Playlist is the default oh service, so it's active when starting up
 OHPlaylist::OHPlaylist(UpMpd *dev,  UpMpdOpenHome *udev, unsigned int cssleep)
@@ -120,6 +127,9 @@ OHPlaylist::OHPlaylist(UpMpd *dev,  UpMpdOpenHome *udev, unsigned int cssleep)
     m_dev->getmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
         std::bind(&OHService::onEvent, this, _1));
+
+    unsigned short usport;
+    udev->ipv4(&upnphost, &usport);
 }
 
 static const int tracksmax = 16384;
@@ -707,10 +717,10 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     // Maybe transform a qobuz:// or tidal:// uri if we're doing this
-    // isStreaming is used to disable content format check in this
+    // forcenocheck is used to disable content format check in this
     // case (there is no valid protocolinfo in general).
-    bool isStreaming;
-    if (!OHCredsMaybeMorphSpecialUri(uri, isStreaming)) {
+    bool forcenocheck;
+    if (!morphSpecialUrl(uri, forcenocheck, upnphost)) {
         LOGERR("OHPlaylist::insert: bad uri: " << uri << endl);
         return UPNP_E_INVALID_PARAM;
     }
@@ -727,7 +737,7 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
            uri << " Metadata " << metadata << endl);
 
     int newid;
-    ok = insertUri(afterid, uri, metadata, &newid, isStreaming);
+    ok = insertUri(afterid, uri, metadata, &newid, forcenocheck);
     if (ok) {
         data.addarg("NewId", SoapHelp::i2s(newid));
         LOGDEB("OHPlaylist::insert: new id: " << newid << endl);
