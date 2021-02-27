@@ -32,7 +32,7 @@ class MpdStatus;
 using namespace UPnPProvider;
 
 class UpSong;
-class UpMpdAVTransport;
+class AVTransport;
 class OHInfo;
 class OHPlaylist;
 class OHProduct;
@@ -64,7 +64,7 @@ public:
                        const std::string &friendlyname);
     void setOHP(OHPlaylist *ohpl);
 private:
-    UpMpdAVTransport *m_avt{0};
+    AVTransport *m_avt{0};
 };
 
 class UpMpdOpenHome : public UpMpdDevice {

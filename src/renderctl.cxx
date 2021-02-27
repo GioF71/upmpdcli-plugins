@@ -44,25 +44,25 @@ static const string
 sTpRender("urn:schemas-upnp-org:service:RenderingControl:1");
 static const string sIdRender("urn:upnp-org:serviceId:RenderingControl");
 
-UpMpdRenderCtl::UpMpdRenderCtl(UpMpd *dev, UpMpdMediaRenderer* udev, bool noev)
+RenderingControl::RenderingControl(UpMpd *dev, UpMpdMediaRenderer* udev, bool noev)
     : UpnpService(sTpRender, sIdRender, "RenderingControl.xml", udev, noev),
       m_dev(dev), m_udev(udev)
 {
     m_udev->addActionMapping(this, "SetMute", 
-                            bind(&UpMpdRenderCtl::setMute, this, _1, _2));
+                            bind(&RenderingControl::setMute, this, _1, _2));
     m_udev->addActionMapping(this, "GetMute", 
-                            bind(&UpMpdRenderCtl::getMute, this, _1, _2));
-    m_udev->addActionMapping(this, "SetVolume", bind(&UpMpdRenderCtl::setVolume, 
+                            bind(&RenderingControl::getMute, this, _1, _2));
+    m_udev->addActionMapping(this, "SetVolume", bind(&RenderingControl::setVolume, 
                                               this, _1, _2, false));
-    m_udev->addActionMapping(this, "GetVolume", bind(&UpMpdRenderCtl::getVolume, 
+    m_udev->addActionMapping(this, "GetVolume", bind(&RenderingControl::getVolume, 
                                               this, _1, _2, false));
     m_udev->addActionMapping(this, "ListPresets", 
-                            bind(&UpMpdRenderCtl::listPresets, this, _1, _2));
+                            bind(&RenderingControl::listPresets, this, _1, _2));
     m_udev->addActionMapping(this, "SelectPreset", 
-                            bind(&UpMpdRenderCtl::selectPreset, this, _1, _2));
+                            bind(&RenderingControl::selectPreset, this, _1, _2));
 
     m_dev->getmpdcli()->subscribe(MPDCli::MpdMixerEvt,
-                               bind(&UpMpdRenderCtl::onMpdEvent, this, _1));
+                               bind(&RenderingControl::onMpdEvent, this, _1));
 }
 
 // Rendering Control errors
@@ -71,7 +71,7 @@ enum RDCErrorCode {
   UPNP_AV_RC_INVALID_INSTANCE_ID                    = 702,
 };
 
-const std::string UpMpdRenderCtl::serviceErrString(int error) const
+const std::string RenderingControl::serviceErrString(int error) const
 {
     switch(error) {
     case UPNP_AV_RC_INVALID_PRESET_NAME:
@@ -101,7 +101,7 @@ const std::string UpMpdRenderCtl::serviceErrString(int error) const
 //   </InstanceID>
 // </Event>
 
-bool UpMpdRenderCtl::rdstateMToU(unordered_map<string, string>& status)
+bool RenderingControl::rdstateMToU(unordered_map<string, string>& status)
 {
     int volume = m_dev->getvolume();
     if (volume < 0)
@@ -112,14 +112,14 @@ bool UpMpdRenderCtl::rdstateMToU(unordered_map<string, string>& status)
     return true;
 }
 
-bool UpMpdRenderCtl::getEventData(bool all, std::vector<std::string>& names, 
+bool RenderingControl::getEventData(bool all, std::vector<std::string>& names, 
                                   std::vector<std::string>& values)
 {
     m_dev->flushvolume();
     return getEventDataNoFlush(all, names, values);
 }
 
-bool UpMpdRenderCtl::getEventDataNoFlush(
+bool RenderingControl::getEventDataNoFlush(
     bool all, std::vector<std::string>& names, std::vector<std::string>& values)
 {
     unordered_map<string, string> newstate;
@@ -164,7 +164,7 @@ bool UpMpdRenderCtl::getEventDataNoFlush(
     return true;
 }
 
-void UpMpdRenderCtl::onMpdEvent(const MpdStatus*)
+void RenderingControl::onMpdEvent(const MpdStatus*)
 {
     LOGDEB0("RenderCtl::onMpdEvent()\n");
     std::vector<std::string> names, values;
@@ -190,7 +190,7 @@ void UpMpdRenderCtl::onMpdEvent(const MpdStatus*)
 //   device.
 
 #if 0
-int UpMpdRenderCtl::getVolumeDBRange(const SoapIncoming& sc, SoapOutgoing& data)
+int RenderingControl::getVolumeDBRange(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string channel;
     
@@ -205,7 +205,7 @@ int UpMpdRenderCtl::getVolumeDBRange(const SoapIncoming& sc, SoapOutgoing& data)
 #endif
 
 
-int UpMpdRenderCtl::setMute(const SoapIncoming& sc, SoapOutgoing& data)
+int RenderingControl::setMute(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string channel;
     if (!sc.get("Channel", &channel) || channel.compare("Master")) {
@@ -225,7 +225,7 @@ int UpMpdRenderCtl::setMute(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdRenderCtl::getMute(const SoapIncoming& sc, SoapOutgoing& data)
+int RenderingControl::getMute(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string channel;
     if (!sc.get("Channel", &channel) || channel.compare("Master")) {
@@ -237,7 +237,7 @@ int UpMpdRenderCtl::getMute(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdRenderCtl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
+int RenderingControl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
                               bool isDb)
 {
     string channel;
@@ -262,10 +262,10 @@ int UpMpdRenderCtl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdRenderCtl::getVolume(const SoapIncoming& sc, SoapOutgoing& data,
+int RenderingControl::getVolume(const SoapIncoming& sc, SoapOutgoing& data,
                               bool isDb)
 {
-    // LOGDEB("UpMpdRenderCtl::getVolume" << endl);
+    // LOGDEB("RenderingControl::getVolume" << endl);
     string channel;
     if (!sc.get("Channel", &channel) || channel.compare("Master")) {
         return UPNP_E_INVALID_PARAM;
@@ -279,14 +279,14 @@ int UpMpdRenderCtl::getVolume(const SoapIncoming& sc, SoapOutgoing& data,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdRenderCtl::listPresets(const SoapIncoming& sc, SoapOutgoing& data)
+int RenderingControl::listPresets(const SoapIncoming& sc, SoapOutgoing& data)
 {
     // The 2nd arg is a comma-separated list of preset names
     data.addarg("CurrentPresetNameList", "FactoryDefaults");
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdRenderCtl::selectPreset(const SoapIncoming& sc, SoapOutgoing& data)
+int RenderingControl::selectPreset(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string presetnm;
     

@@ -72,9 +72,9 @@ UpMpdMediaRenderer::UpMpdMediaRenderer(
                   "urn:schemas-upnp-org:device:MediaRenderer:1")
 {
     bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
-    m_avt = new UpMpdAVTransport(upmpd, this, noavt);
+    m_avt = new AVTransport(upmpd, this, noavt);
     m_services.push_back(m_avt);
-    m_services.push_back(new UpMpdRenderCtl(upmpd, this, noavt));
+    m_services.push_back(new RenderingControl(upmpd, this, noavt));
     m_services.push_back(new UpMpdConMan(this));
 }
 

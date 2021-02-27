@@ -32,9 +32,9 @@ class MpdStatus;
 
 using namespace UPnPP;
 
-class UpMpdAVTransport : public UPnPProvider::UpnpService {
+class AVTransport : public UPnPProvider::UpnpService {
 public:
-    UpMpdAVTransport(UpMpd *dev, UpMpdMediaRenderer *udev, bool noev);
+    AVTransport(UpMpd *dev, UpMpdMediaRenderer *udev, bool noev);
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values);

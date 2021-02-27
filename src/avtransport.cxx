@@ -48,52 +48,52 @@ static const string sTpTransport("urn:schemas-upnp-org:service:AVTransport:1");
 static bool m_autoplay{false};
 static bool keepconsume(false);
 
-UpMpdAVTransport::UpMpdAVTransport(
+AVTransport::AVTransport(
     UpMpd *dev, UpMpdMediaRenderer *udev, bool noev)
     : UpnpService(sTpTransport, sIdTransport, "AVTransport.xml", udev, noev),
       m_dev(dev), m_udev(udev), m_ohp(0)
 {
     udev->addActionMapping(this,"SetAVTransportURI", 
-                            bind(&UpMpdAVTransport::setAVTransportURI, 
+                            bind(&AVTransport::setAVTransportURI, 
                                  this,_1,_2, false));
     udev->addActionMapping(this,"SetNextAVTransportURI", 
-                            bind(&UpMpdAVTransport::setAVTransportURI, 
+                            bind(&AVTransport::setAVTransportURI, 
                                  this,_1, _2, true));
     udev->addActionMapping(this,"GetPositionInfo", 
-                            bind(&UpMpdAVTransport::getPositionInfo, 
+                            bind(&AVTransport::getPositionInfo, 
                                  this, _1, _2));
     udev->addActionMapping(this,"GetTransportInfo", 
-                            bind(&UpMpdAVTransport::getTransportInfo, 
+                            bind(&AVTransport::getTransportInfo, 
                                  this, _1, _2));
     udev->addActionMapping(this,"GetMediaInfo", 
-                            bind(&UpMpdAVTransport::getMediaInfo, 
+                            bind(&AVTransport::getMediaInfo, 
                                  this, _1, _2));
     udev->addActionMapping(this,"GetDeviceCapabilities", 
-                            bind(&UpMpdAVTransport::getDeviceCapabilities, 
+                            bind(&AVTransport::getDeviceCapabilities, 
                                  this, _1, _2));
     udev->addActionMapping(this,"SetPlayMode", 
-                            bind(&UpMpdAVTransport::setPlayMode, this, _1, _2));
+                            bind(&AVTransport::setPlayMode, this, _1, _2));
     udev->addActionMapping(this,"GetTransportSettings", 
-                            bind(&UpMpdAVTransport::getTransportSettings, 
+                            bind(&AVTransport::getTransportSettings, 
                                  this, _1, _2));
     udev->addActionMapping(this,"GetCurrentTransportActions", 
-                            bind(&UpMpdAVTransport::getCurrentTransportActions,
+                            bind(&AVTransport::getCurrentTransportActions,
                                  this,_1,_2));
-    udev->addActionMapping(this,"Stop", bind(&UpMpdAVTransport::playcontrol, 
+    udev->addActionMapping(this,"Stop", bind(&AVTransport::playcontrol, 
                                               this, _1, _2, 0));
-    udev->addActionMapping(this,"Play", bind(&UpMpdAVTransport::playcontrol, 
+    udev->addActionMapping(this,"Play", bind(&AVTransport::playcontrol, 
                                               this, _1, _2, 1));
     udev->addActionMapping(this,"Pause", 
-                            bind(&UpMpdAVTransport::playcontrol, 
+                            bind(&AVTransport::playcontrol, 
                                  this, _1, _2, 2));
-    udev->addActionMapping(this,"Seek", bind(&UpMpdAVTransport::seek, 
+    udev->addActionMapping(this,"Seek", bind(&AVTransport::seek, 
                                               this, _1, _2));
 
     // should we get rid of those ? They don't make sense for us
-    udev->addActionMapping(this, "Next", bind(&UpMpdAVTransport::seqcontrol, 
+    udev->addActionMapping(this, "Next", bind(&AVTransport::seqcontrol, 
                                                this, _1, _2, 0));
     udev->addActionMapping(this, "Previous", 
-                            bind(&UpMpdAVTransport::seqcontrol, 
+                            bind(&AVTransport::seqcontrol, 
                                  this, _1, _2, 1));
 
     // This would make our life easier, but it's incompatible if
@@ -109,7 +109,7 @@ UpMpdAVTransport::UpMpdAVTransport(
     keepconsume = g_config->getBool("keepconsume", false);
     m_dev->getmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
-        bind(&UpMpdAVTransport::onMpdEvent, this, _1));
+        bind(&AVTransport::onMpdEvent, this, _1));
 }
 
 // AVTransport Errors
@@ -134,7 +134,7 @@ enum AVTErrorCode {
     UPNP_AV_AVT_INVALID_INSTANCE_ID                   = 718,
 };
 
-const std::string UpMpdAVTransport::serviceErrString(int error) const
+const std::string AVTransport::serviceErrString(int error) const
 {
     switch(error) {
     case UPNP_AV_AVT_INVALID_TRANSITION:
@@ -261,10 +261,10 @@ static string mpdsToTState(const MpdStatus &mpds)
 // To be all bundled inside:    LastChange
 
 // Prepare UPnP AVTransport state variables from our and MPD state.
-bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
+bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
 {
     const MpdStatus &mpds =  m_dev->getMpdStatus();
-    LOGDEB2("UpMpdAVTransport::tpstateMToU: curpos: " << mpds.songpos <<
+    LOGDEB2("AVTransport::tpstateMToU: curpos: " << mpds.songpos <<
             " qlen " << mpds.qlen << endl);
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -282,7 +282,7 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     // Also the current metadata may come from mpd, or be the bogus
     // unknown entry (will have <orig>mpd</orig> in both cases because
     // null id in the song). In these cases, build meta from the mpd song.
-    LOGDEB2("UpMpdAVTransport: curmeta: " << m_curMetadata << endl);
+    LOGDEB2("AVTransport: curmeta: " << m_curMetadata << endl);
     if (m_dev->radioPlaying() ||
         m_curMetadata.find("<orig>mpd</orig>") != string::npos) {
         m_curMetadata = didlmake(mpds.currentsong);
@@ -353,7 +353,7 @@ bool UpMpdAVTransport::tpstateMToU(unordered_map<string, string>& status)
     return true;
 }
 
-bool UpMpdAVTransport::getEventData(bool all, std::vector<std::string>& names, 
+bool AVTransport::getEventData(bool all, std::vector<std::string>& names, 
                                     std::vector<std::string>& values)
 {
     unordered_map<string, string> newtpstate;
@@ -389,7 +389,7 @@ bool UpMpdAVTransport::getEventData(bool all, std::vector<std::string>& names,
     chgdata += "</InstanceID>\n</Event>\n";
 
     if (!changefound) {
-        //LOGDEB1("UpMpdAVTransport::getEventDataTransport: no updates" << endl);
+        //LOGDEB1("AVTransport::getEventDataTransport: no updates" << endl);
         return true;
     }
 
@@ -397,11 +397,11 @@ bool UpMpdAVTransport::getEventData(bool all, std::vector<std::string>& names,
     values.push_back(chgdata);
 
     m_tpstate = newtpstate;
-    LOGDEB1("UpMpdAVTransport::getEventDataTransport: " << chgdata << endl);
+    LOGDEB1("AVTransport::getEventDataTransport: " << chgdata << endl);
     return true;
 }
 
-void UpMpdAVTransport::onMpdEvent(const MpdStatus*)
+void AVTransport::onMpdEvent(const MpdStatus*)
 {
     LOGDEB0("AVTransport::onMpdEvent()\n");
     std::vector<std::string> names, values;
@@ -412,7 +412,7 @@ void UpMpdAVTransport::onMpdEvent(const MpdStatus*)
 }
 
 // http://192.168.4.4:8200/MediaItems/246.mp3
-int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
+int AVTransport::setAVTransportURI(const SoapIncoming& sc,
                                         SoapOutgoing& data, bool setnext)
 {
 #ifdef NO_SETNEXT
@@ -455,7 +455,7 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
     bool is_song = (st == MpdStatus::MPDS_PLAY) || (st == MpdStatus::MPDS_PAUSE);
     UPMPD_UNUSED(is_song);
     int curpos = mpds.songpos;
-    LOGDEB1("UpMpdAVTransport::set" << (setnext?"Next":"") << 
+    LOGDEB1("AVTransport::set" << (setnext?"Next":"") << 
             "AVTransportURI: curpos: " <<
             curpos << " is_song " << is_song << " qlen " << mpds.qlen << endl);
 
@@ -568,10 +568,10 @@ int UpMpdAVTransport::setAVTransportURI(const SoapIncoming& sc,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data)
+int AVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    LOGDEB1("UpMpdAVTransport::getPositionInfo. State: " <<
+    LOGDEB1("AVTransport::getPositionInfo. State: " <<
             mpdsToTState(mpds) << " (" << mpds.state << ")\n");
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
@@ -590,10 +590,10 @@ int UpMpdAVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data)
+int AVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    LOGDEB1("UpMpdAVTransport::getTransportInfo. State: " <<
+    LOGDEB1("AVTransport::getTransportInfo. State: " <<
             mpdsToTState(mpds) << endl);
 
     data.addarg("CurrentTransportState", mpdsToTState(mpds));
@@ -603,7 +603,7 @@ int UpMpdAVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::getDeviceCapabilities(const SoapIncoming& sc,
+int AVTransport::getDeviceCapabilities(const SoapIncoming& sc,
                                             SoapOutgoing& data)
 {
     data.addarg("PlayMedia", "NETWORK,HDD");
@@ -612,10 +612,10 @@ int UpMpdAVTransport::getDeviceCapabilities(const SoapIncoming& sc,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
+int AVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    LOGDEB("UpMpdAVTransport::getMediaInfo. State: " << mpds.state << endl);
+    LOGDEB("AVTransport::getMediaInfo. State: " << mpds.state << endl);
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
         (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -642,11 +642,11 @@ int UpMpdAVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::playcontrol(
+int AVTransport::playcontrol(
     const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    LOGDEB("UpMpdAVTransport::playcontrol State: " << mpds.state <<
+    LOGDEB("AVTransport::playcontrol State: " << mpds.state <<
            " what "<<what<< endl);
 
     if ((what & ~0x3)) {
@@ -682,11 +682,11 @@ int UpMpdAVTransport::playcontrol(
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
-int UpMpdAVTransport::seqcontrol(
+int AVTransport::seqcontrol(
     const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
-    LOGDEB("UpMpdAVTransport::seqcontrol State: " << mpds.state << " what "
+    LOGDEB("AVTransport::seqcontrol State: " << mpds.state << " what "
            <<what<< endl);
 
     if ((what & ~0x1)) {
@@ -710,13 +710,13 @@ int UpMpdAVTransport::seqcontrol(
  * control the mpd play mode though, but any special mode will be reset if
  * set(Next)AVTransport is called.
  */
-int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
+int AVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string playmode;
     if (!sc.get("NewPlayMode", &playmode)) {
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("UpMpdAVTransport::setPlayMode: " << playmode << endl);
+    LOGDEB("AVTransport::setPlayMode: " << playmode << endl);
 
     if ((m_dev->getopts().options & UpMpd::upmpdOwnQueue)) {
         // If we own the queue then none of this makes sense, we're
@@ -757,7 +757,7 @@ int UpMpdAVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
 
-int UpMpdAVTransport::getTransportSettings(const SoapIncoming& sc,
+int AVTransport::getTransportSettings(const SoapIncoming& sc,
                                            SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
@@ -767,7 +767,7 @@ int UpMpdAVTransport::getTransportSettings(const SoapIncoming& sc,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::getCurrentTransportActions(const SoapIncoming& sc, 
+int AVTransport::getCurrentTransportActions(const SoapIncoming& sc, 
                                                  SoapOutgoing& data)
 {
     const MpdStatus &mpds = m_dev->getMpdStatus();
@@ -775,7 +775,7 @@ int UpMpdAVTransport::getCurrentTransportActions(const SoapIncoming& sc,
     return UPNP_E_SUCCESS;
 }
 
-int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
+int AVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string unit;
     if (!sc.get("Unit", &unit)) {
@@ -787,7 +787,7 @@ int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
 
-    //LOGDEB("UpMpdAVTransport::seek: unit " << unit << " target " << target << 
+    //LOGDEB("AVTransport::seek: unit " << unit << " target " << target << 
     //       " current posisition " << mpds.songelapsedms / 1000 << 
     //       " seconds" << endl);
 
@@ -801,7 +801,7 @@ int UpMpdAVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
     } else {
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("UpMpdAVTransport::seek: seeking to " << abs_seconds << 
+    LOGDEB("AVTransport::seek: seeking to " << abs_seconds << 
            " seconds (" << upnpduration(abs_seconds * 1000) << ")" << endl);
 
     return m_dev->getmpdcli()->seek(abs_seconds) ? 

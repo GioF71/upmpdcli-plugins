@@ -30,9 +30,9 @@ class MpdStatus;
 
 using namespace UPnPP;
 
-class UpMpdRenderCtl : public UPnPProvider::UpnpService {
+class RenderingControl : public UPnPProvider::UpnpService {
 public:
-    UpMpdRenderCtl(UpMpd *dev, UpMpdMediaRenderer*udev, bool noev);
+    RenderingControl(UpMpd *dev, UpMpdMediaRenderer*udev, bool noev);
 
     virtual bool getEventData(bool all, std::vector<std::string>& names, 
                               std::vector<std::string>& values);
