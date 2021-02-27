@@ -150,6 +150,7 @@ private:
     // Protect idleconn: We need to use it from the main thread to
     // tell the idle thread to stop.
     std::mutex m_idlemutex;
+    bool m_idleneedstop{false};
     // thread to listen to MPD events.
     std::thread m_idlethread;
     // MPD does not report idle events for play time change. We poll

@@ -155,10 +155,12 @@ void MPDCli::stopEventLoop()
     LOGDEB("MPDCli::stopEventLoop\n");
     std::unique_lock<std::mutex> lck(m_idlemutex);
     if (m_idleconn) {
+        m_idleneedstop = true;
         mpd_send_noidle(m_idleconn);
         lck.unlock();
         m_idlethread.join();
         m_idlethread = std::thread{};
+        m_idleneedstop = false;
     }
 }
 
@@ -202,12 +204,14 @@ static int o_idle_mask =
 
 bool MPDCli::eventLoop()
 {
-    {
+top:
+    for (;;) {
         std::lock_guard<std::mutex> lck(m_idlemutex);
         m_idleconn = mpd_connection_new(m_host.c_str(), m_port, m_timeoutms);
         if (nullptr == m_idleconn) {
-            LOGERR("MPDCli::eventloop: could not open connection\n");
-            return false;
+            LOGINF("MPDCli::eventloop: could not open connection\n");
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            continue;
         }
         if (!m_password.empty()) {
             if (!mpd_run_password(m_idleconn, m_password.c_str())) {
@@ -217,6 +221,7 @@ bool MPDCli::eventLoop()
                 return false;
             }
         }
+        break;
     }
     MpdStatus::State st;
     {
@@ -230,7 +235,15 @@ bool MPDCli::eventLoop()
             mpd_run_idle_mask(m_idleconn, (enum mpd_idle)o_idle_mask);
         if (mask == 0) {
             LOGERR("MPDCli::eventloop: mpd_run_idle_mask returned 0\n");
-            break;
+            // This can happen if mpd went awol, or if we're asked to
+            // stop. In the first case, try to reconnect, else exit
+            // the loop
+            if (m_idleneedstop) {
+                m_idleneedstop = false;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            goto top;
         }
         LOGDEB0("MPDCli::eventloop: mpd_run_idle_mask returned " << std::hex <<
                 mask << std::dec << "\n");
