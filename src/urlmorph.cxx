@@ -29,7 +29,7 @@
 
 using namespace std;
 
-static const string protoescape{"http://_protoescape/"};
+static const string protoescape{"http://upmpdprotoescape/"};
 
 bool morphSpecialUrl(string& url, bool& forcenocheck,
                      const std::string& upnphost)
