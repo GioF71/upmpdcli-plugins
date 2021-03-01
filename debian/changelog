@@ -1,3 +1,9 @@
+upmpdcli (1.5.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Repair event loop after mpd restart.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 01 Mar 2021 15:34:00 +0100
+
 upmpdcli (1.5.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fixed events not working when mpd password was set
