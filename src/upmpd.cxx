@@ -46,10 +46,6 @@
 using namespace std;
 using namespace UPnPP;
 
-// This used to be set to 5, and I can't remember why. Seems to work
-// fine without a minimum step
-static const int minVolumeDelta = 1;
-
 static const string iconDesc(
     "<iconList>"
     "  <icon>"
@@ -263,51 +259,24 @@ MpdStatus UpMpd::getMpdStatus()
 
 int UpMpd::getvolume()
 {
-    return m_desiredvolume >= 0 ? m_desiredvolume : m_mpdcli->getVolume();
+    return m_mpdcli->getVolume();
 }
 
 bool UpMpd::setvolume(int volume)
 {
-    int previous_volume = m_mpdcli->getVolume();
-    int delta = previous_volume - volume;
-    if (delta < 0)
-        delta = -delta;
-    LOGDEB("UpMpd::setVolume: volume " << volume << " delta " << 
-           delta << endl);
-    bool ret{false};
-    if (delta >= minVolumeDelta) {
-        ret = m_mpdcli->setVolume(volume);
-        m_desiredvolume = -1;
-    } else {
-        m_desiredvolume = volume;
-    }
-    return ret;
+    return m_mpdcli->setVolume(volume);
 }
 
 bool UpMpd::flushvolume()
 {
-    bool ret{false};
-    if (m_desiredvolume >= 0) {
-        ret = m_mpdcli->setVolume(m_desiredvolume);
-        m_desiredvolume = -1;
-    }
-    return ret;
+    return true;
 }
 
 bool UpMpd::setmute(bool onoff)
 {
-    bool ret{false};
-    if (onoff) {
-        if (m_desiredvolume >= 0) {
-            m_mpdcli->setVolume(m_desiredvolume);
-            m_desiredvolume = -1;
-        }
-        ret = m_mpdcli->setVolume(0, true);
-    } else {
-        // Restore pre-mute
-        ret = m_mpdcli->setVolume(1, true);
-    }
-    return ret;
+    // See mpdcli.cxx for the special processing when the 2nd arg is true
+    return onoff ? m_mpdcli->setVolume(0, true) :
+        m_mpdcli->setVolume(1, true);
 }
 
 bool UpMpd::checkContentFormat(const string& uri, const string& didl,

@@ -183,9 +183,6 @@ private:
     Options m_allopts;
     std::string m_mcachefn;
     bool m_radioplaying{false};
-    // Desired volume target. We may delay executing small volume
-    // changes to avoid saturating with small requests.
-    int m_desiredvolume{-1};
     UpMpdOpenHome *m_oh{nullptr};
     UpMpdMediaRenderer *m_av{nullptr};
 };
