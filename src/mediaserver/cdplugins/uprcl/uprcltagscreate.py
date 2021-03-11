@@ -66,6 +66,13 @@ g_indextags = []
 g_tagdisplaytag = {}
 g_tagtotable = {}
 
+def getIndexTags():
+    return g_indextags
+def getTagDisplayTag():
+    return g_tagdisplaytag
+def getTagToTable():
+    return g_tagtotable
+
 def _clid(table):
     return table + '_id'
 
@@ -158,6 +165,10 @@ def _prepareTags():
     global g_tagtotable
     global g_indextags
 
+    g_indextags = []
+    g_tagdisplaytag = {}
+    g_tagtotable = {}
+    
     indextagsp = uprclinit.g_minimconfig.getindextags()
     itemtags = uprclinit.g_minimconfig.getitemtags()
     if not indextagsp:
@@ -301,8 +312,7 @@ def _maybecreatealbum(conn, doc, trackartid):
                 c.execute('''UPDATE albums SET albtartist = ?
                     WHERE album_id = ?''', (trackartid, album_id))
     else:
-        arturi = uprclutils.docarturi(doc, uprclinit.g_httphp,
-                                      uprclinit.g_pathprefix)
+        arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix())
 
         c.execute('''INSERT INTO
             albums(albtitle, albfolder, artist_id, albdate, albarturi,

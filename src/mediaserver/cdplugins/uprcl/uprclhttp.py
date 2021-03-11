@@ -53,7 +53,7 @@ def main():
             reloadsecs = ''
 
     return {'title':status, 'status':status, 'reloadsecs':reloadsecs,
-            'friendlyname':uprclinit.g_friendlyname}
+            'friendlyname':uprclinit.getFriendlyname()}
 
 
 @bottle.route('/static/<filepath:path>')

@@ -80,7 +80,7 @@ class Playlists(object):
     def browse(self, pid, flag, offset, count):
         idx = self._objidtoidx(pid)
 
-        folders = uprclinit.g_trees['folders']
+        folders = uprclinit.getTree('folders')
         rcldocs = folders.rcldocs()
         entries = []
         if idx == 0:

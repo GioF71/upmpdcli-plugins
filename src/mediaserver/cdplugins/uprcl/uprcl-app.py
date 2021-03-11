@@ -26,7 +26,7 @@ import uprclsearch
 import uprclindex
 
 from upmplgutils import uplog, setidprefix
-from uprclutils import uplog, g_myprefix, rcldirentry, waitentry
+from uprclutils import rcldirentry, waitentry
 import uprclinit
 
 setidprefix("uprcl")
@@ -75,8 +75,8 @@ def _rootentries():
     # let the different modules return their stuff, and we take note
     # of the objid prefixes for later dispatching
     entries = []
-    for treename in uprclinit.g_trees_order:
-        nents = uprclinit.g_trees[treename].rootentries(g_myprefix)
+    for treename in uprclinit.getTreesOrder():
+        nents = uprclinit.getTree(treename).rootentries(uprclinit.getObjPrefix())
         for e in nents:
             rootmap[e['id']] = treename
         entries += nents
@@ -88,14 +88,14 @@ def _browsedispatch(objid, bflg, offset, count):
     for id,treename in rootmap.items():
         #uplog("Testing %s against %s" % (objid, id))
         if objid.startswith(id):
-            return uprclinit.g_trees[treename].browse(objid, bflg,
+            return uprclinit.getTree(treename).browse(objid, bflg,
                                                       offset, count)
     raise Exception("Browse: dispatch: bad objid not in rootmap: [%s]" % objid)
 
 
 @dispatcher.record('browse')
 def browse(a):
-    msgproc.log("browse: %s. g_httphp [%s]" % (a, uprclinit.g_httphp))
+    msgproc.log("browse: %s. httphp [%s]" % (a, uprclinit.getHttphp()))
     if 'objid' not in a:
         raise Exception("No objid in args")
 
@@ -109,10 +109,10 @@ def browse(a):
     if 'count' in a:
         count = int(a['count'])
         
-    if not objid.startswith(g_myprefix):
+    if not objid.startswith(uprclinit.getObjPrefix()):
         raise Exception("bad objid <%s>" % objid)
 
-    idpath = objid.replace(g_myprefix, '', 1)
+    idpath = objid.replace(uprclinit.getObjPrefix(), '', 1)
     msgproc.log("browse: idpath: <%s>" % idpath)
 
     entries = []
@@ -122,8 +122,7 @@ def browse(a):
     else:
         try:
             if not uprclinit.ready():
-                entries = [waitentry(objid + 'notready', objid,
-                                     uprclinit.g_httphp),]
+                entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
             elif not idpath:
                 entries = _rootentries()
             else:
@@ -157,12 +156,11 @@ def search(a):
 
     try:
         if not uprclinit.ready():
-            entries = [waitentry(objid + 'notready', objid,
-                                 uprclinit.g_httphp),]
+            entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
         else:
             entries = uprclsearch.search(
-                uprclinit.g_trees['folders'], uprclinit.g_rclconfdir, objid,
-                upnps, g_myprefix, uprclinit.g_httphp, uprclinit.g_pathprefix)
+                uprclinit.getTree('folders'), uprclinit.getRclConfdir(), objid,
+                upnps, uprclinit.getObjPrefix(), uprclinit.getHttphp(), uprclinit.getPathPrefix())
     finally:
         uprclinit.g_dblock.release_read()
 

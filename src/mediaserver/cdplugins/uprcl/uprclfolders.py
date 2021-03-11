@@ -476,8 +476,8 @@ class Folders(object):
         if pthremain:
             if not pthremain.find('$tagview.0') == 0:
                 raise Exception("uprclfolders: pid [%s]. bad pthremain"%pid)
-            return uprclinit.g_trees['tags'].browseFolder(pid, flag, pthremain,
-                                                          self.dirpath(pid))
+            return uprclinit.getTree('tags').browseFolder(pid, flag, pthremain,
+                                                             self.dirpath(pid))
         
         # If there is only one entry in root, skip it. This means that 0
         # and 1 point to the same dir, but this does not seem to be an

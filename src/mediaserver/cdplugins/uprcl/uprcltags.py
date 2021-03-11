@@ -29,10 +29,10 @@ import time
 import tempfile
 
 from upmplgutils import uplog
-from uprclutils import g_myprefix, rcldirentry, rcldoctoentry, cmpentries
+from uprclutils import rcldirentry, rcldoctoentry, cmpentries
 import uprclinit
-from uprcltagscreate import recolltosql, _clid, g_tagtotable, \
-     g_tagdisplaytag, g_indextags
+import uprcltagscreate
+from uprcltagscreate import _clid, recolltosql
 
 # The browseable object which defines the tree of tracks organized by tags.
 class Tagged(object):
@@ -85,9 +85,9 @@ class Tagged(object):
         nitems = str(c.fetchone()[0])
         entries.append(rcldirentry(pid + 'items', pid, nitems + ' items'))
         subqs = self._subtreetags(where, args)
+        tagdisplaytag = uprcltagscreate.getTagDisplayTag()
         for tt in subqs:
-            entries.append(rcldirentry(pid + '=' + tt , pid,
-                                       g_tagdisplaytag[tt]))
+            entries.append(rcldirentry(pid + '=' + tt , pid, tagdisplaytag[tt]))
         return entries
 
 
@@ -95,8 +95,10 @@ class Tagged(object):
     def _subtreetags(self, where, values):
         c = self._conn.cursor()
         tags = []
-        for tt in g_indextags:
-            tb = g_tagtotable[tt]
+        indextags = uprcltagscreate.getIndexTags()
+        tagtotable = uprcltagscreate.getTagToTable()
+        for tt in indextags:
+            tb = tagtotable[tt]
             stmt = '''SELECT COUNT(DISTINCT %s) FROM tracks %s''' % \
                    (_clid(tb), where)
             #uplog("subtreetags: stmt: [%s]" % stmt)
@@ -149,7 +151,7 @@ class Tagged(object):
             stmt += " LIMIT %d " % count
         if offset != 0:
             stmt += " OFFSET %d " % offset
-        rcldocs = uprclinit.g_trees['folders'].rcldocs()
+        rcldocs = uprclinit.getTree('folders').rcldocs()
         c = self._conn.cursor()
         c.execute(stmt, values)
         entries = [rcldoctoentry(pid + '$i' + str(r[0]),
@@ -388,7 +390,7 @@ class Tagged(object):
                 el[0]['id'] = id
                 entries.append(el[0])
         if displaytracks:
-            rcldocs = uprclinit.g_trees['folders'].rcldocs()
+            rcldocs = uprclinit.getTree('folders').rcldocs()
             entries += [rcldoctoentry(pid + '$i' + str(docid),
                                       pid, self._httphp, self._pprefix,
                                       rcldocs[docid]) for docid in docids]
@@ -400,6 +402,8 @@ class Tagged(object):
     # records
     def _tagsbrowse(self, pid, qpath, flag, path=''):
         uplog("tagsbrowse. pid %s qpath %s" % (pid, qpath))
+
+        tagdisplaytag = uprcltagscreate.getTagDisplayTag()
 
         # Walk the qpath, which was generated from the objid and
         # defines what tracks are selected and what we want to
@@ -414,6 +418,7 @@ class Tagged(object):
         else:
             selwhere = ''
             values = []
+        tagtotable = uprcltagscreate.getTagToTable()
         i = 0
         while i < qlen:
             elt = qpath[i]
@@ -430,7 +435,7 @@ class Tagged(object):
             # in different ways depending if this is the last element or
             # not.
             if elt.startswith('='):
-                col = g_tagtotable[elt[1:]] 
+                col = tagtotable[elt[1:]] 
 
             selwhere = selwhere + ' AND ' if selwhere else ' WHERE '
             if i == qlen - 1:
@@ -485,9 +490,9 @@ class Tagged(object):
                 entries.append(rcldirentry(id, pid, label % len(docids)))
                 for tt in subqs:
                     id = pid + '$=' + tt
-                    entries.append(rcldirentry(id, pid, g_tagdisplaytag[tt]))
+                    entries.append(rcldirentry(id, pid, tagdisplaytag[tt]))
             elif displaytracks:
-                rcldocs = uprclinit.g_trees['folders'].rcldocs()
+                rcldocs = uprclinit.getTree('folders').rcldocs()
                 for docidx in docids:
                     id = pid + '$*i' + str(docidx)
                     entries.append(rcldoctoentry(id, pid, self._httphp,
@@ -563,7 +568,7 @@ class Tagged(object):
     # Top level browse routine. Handle the special cases and call the
     # appropriate worker routine.
     def browse(self, pid, flag, offset, count):
-        idpath = pid.replace(g_myprefix, '', 1)
+        idpath = pid.replace(uprclinit.getObjPrefix(), '', 1)
         uplog('tags:browse: idpath <%s>' % idpath)
         qpath = idpath.split('$')
         return self._dobrowse(pid, flag, qpath, offset=offset, count=count)

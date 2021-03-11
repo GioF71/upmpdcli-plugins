@@ -29,9 +29,6 @@ import traceback
 from recoll import recoll
 from upmplgutils import uplog
 
-# This must be consistent with what contentdirectory.cxx does
-g_myprefix = '0$uprcl$'
-
 _has_resultstore = False
 def sethasresultstore(v):
     global _has_resultstore

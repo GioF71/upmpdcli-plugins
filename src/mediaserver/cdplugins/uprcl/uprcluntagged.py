@@ -88,7 +88,7 @@ class Untagged(object):
         idx = self._objidtoidx(pid)
 
         entries = []
-        rcldocs = uprclinit.g_trees['folders'].rcldocs()
+        rcldocs = uprclinit.getTree('folders').rcldocs()
         if idx == 0:
             # Browsing root
             for i in range(len(self.utidx))[1:]:
