@@ -27,8 +27,10 @@ import os
 import sqlite3
 import time
 import tempfile
+import time
 
 from upmplgutils import uplog
+import uprclutils
 from uprclutils import rcldirentry, rcldoctoentry, cmpentries
 import uprclinit
 import uprcltagscreate
@@ -48,6 +50,7 @@ class Tagged(object):
         self._init_sqconn()
         self._stmt_cnt_cache = {}
         self._stmt_cnt_cachequeue = []
+        self.hidden = []
         recolltosql(self._conn, rcldocs)
         
 
@@ -537,7 +540,7 @@ class Tagged(object):
 
     # Implement the common part of browse() and browseFolder()
     def _dobrowse(self, pid, flag, qpath, folder='', offset=0, count=0):
-        uplog("Tags:browsFolder: qpath %s"%qpath)
+        uplog("Tags:_dobrowse: qpath %s"%qpath)
         if qpath[0] == 'items':
             args = (folder + '%',) if folder else ()
             folderwhere = ' WHERE tracks.path LIKE ? ' if folder else ' '
@@ -552,16 +555,49 @@ class Tagged(object):
         return entries
         
 
-    # Call from the folders tree when Tag View is selected.
+    # Call from the folders tree when Tag View is selected. Reproduces
+    # the general view by tags, but with selection for only the files
+    # under the specified folder.
+    #
+    # Somewhat like minim: under ">> Tag View", 2 entries, ">> Hide
+    # Contents/" and simplename/ (last elt of folder path). If ">> Hide
+    # Contents/" is visited, like would happen with a CP recursive
+    # walk, simplename/ is marked for 2 S and will be empty if
+    # visited. If ">> Hide Contents/" is not visited, or after 2 S,
+    # simplename/ will contain the local tags subtree.
+    #
     def browseFolder(self, pid, flag, pthremain, folder):
         uplog("Tags:browseFolder: pid %s pth %s fld %s"%(pid,pthremain,folder))
         l = pthremain.split('$')
         # 1st elt in list is empty because pthremain begins with $. so
         # len(l)==2 is the root of tags from this folder
+        entries = []
+        if len(l) < 2:
+            # ??
+            return entries
         if len(l) == 2:
-            return self.rootentries(pid + '$', folder)
+            entries.append(rcldirentry(pid + '$hchide', pid, ">> Hide Contents"))
+            entries.append(rcldirentry(pid + '$hctags', pid, uprclutils.basename(folder)))
+            return entries
+        elif len(l) == 3:
+            ppid = '$'.join(pid.split('$')[:-1])
+            value = l[-1]
+            if value == "hchide":
+                self.hidden.insert(0, (time.time(), ppid))
+                return entries
+            else:
+                now = time.time()
+                for i in range(len(self.hidden)):
+                    #uplog("Browsefolder: hidden: since %d pid %s" %
+                    #      (int(now - self.hidden[i][0]), self.hidden[i][1]))
+                    if self.hidden[i][0] <= now - 2:
+                        self.hidden = self.hidden[:i]
+                        break
+                    elif self.hidden[i][1] == ppid:
+                        return entries
+                return self.rootentries(pid + '$', folder)
         else:
-            qpath = l[2:]
+            qpath = l[3:]
             return self._dobrowse(pid, flag, qpath, folder)
 
         
