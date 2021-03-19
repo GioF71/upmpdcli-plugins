@@ -22,6 +22,7 @@ from recoll import recoll
 from upmplgutils import uplog
 from conftree import stringToStrings
 import uprclutils
+import uprclinit
 
 def _getchar(s, i):
     if i < len(s):
@@ -223,11 +224,12 @@ def _upnpsearchtorecoll(s):
 
     return " ".join(out)
 
-
-def search(foldersobj, rclconfdir, objid, upnps, idprefix, httphp, pathprefix):
+# inobjid is for the container this search is run from.
+def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix):
+    tags = uprclinit.getTree('tags')
     rcls = _upnpsearchtorecoll(upnps)
 
-    filterdir = foldersobj.dirpath(objid)
+    filterdir = foldersobj.dirpath(inobjid)
     if filterdir and filterdir != "/":
         rcls += " dir:\"" + filterdir + "\""
     
@@ -250,8 +252,24 @@ def search(foldersobj, rclconfdir, objid, upnps, idprefix, httphp, pathprefix):
     while True:
         docs = rclq.fetchmany()
         for doc in docs:
-            id = foldersobj.objidfordoc(doc)
-            e = uprclutils.rcldoctoentry(id, objid, httphp, pathprefix, doc)
+            # The doc is either an actual recollindex product from the
+            # FS or a synthetic one from uprcltags creating album
+            # entries. Different processing for either
+            e = None
+            if doc["rcludi"].find("albid") == 0:
+                albid = doc["rcludi"][5:]
+                uplog("rcludi %s albid %s" % (doc["rcludi"], albid))
+                e = tags.direntryforalbid(albid)
+            else:
+                # Objidfordoc uses the path from the url to walk the
+                # _dirvec and determine the right entry if doc is a
+                # container. If doc is an item, the returned id is bogus
+                # (0$uprcl$folders$seeyoulater), because it's not useful
+                # at the moment. Of course, this breaks the recommendation
+                # for the objids to be consistent and unchanging
+                id = foldersobj.objidfordoc(doc)
+                uplog("Search: id [%s] for doc udi [%s]\n" % (id, doc["rcludi"]))
+                e = uprclutils.rcldoctoentry(id, inobjid, httphp, pathprefix, doc)
             if e:
                 entries.append(e)
         if (maxcnt > 0 and len(entries) >= maxcnt) or \

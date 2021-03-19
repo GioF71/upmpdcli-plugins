@@ -101,7 +101,7 @@ import uprclinit
 # store than by using an exclusion list, but it's a bit more difficult
 # to manage.
 #
-# +  possibly 'xdocid' if/when needed?
+# +  possibly 'xdocid' and/or 'rcludi' if/when needed?
 #
 _otherneededfields = [
     'albumartist', 'allartists', 'comment', 'composer', 'conductor',
@@ -220,15 +220,15 @@ class Folders(object):
     def _pathbeyondtopdirs(self, doc):
         url = uprclutils.docpath(doc).decode('utf-8', errors='replace')
         # Determine the root entry (topdirs element). Special because
-        # its path is not a simple name.
-        fathidx = -1
+        # its path is not a simple name. Fathidx is its index in _dirvec
+        firstdiridx = -1
         for rtpath,idx in self._dirvec[0].items():
             #uplog("type(url) %s type(rtpath) %s rtpath %s url %s" %
             # (type(url),type(rtpath),rtpath, url))
             if url.startswith(rtpath):
-                fathidx = idx[0]
+                firstdiridx = idx[0]
                 break
-        if fathidx == -1:
+        if firstdiridx == -1:
             # uplog("No parent in topdirs: %s" % url)
             return None,None
 
@@ -248,7 +248,7 @@ class Folders(object):
         # Split path. The caller will walk the list (possibly creating
         # directory entries as needed, or doing something else).
         path = url1.split('/')[1:]
-        return fathidx, path
+        return firstdiridx, path
     
 
     # Main folders build method: walk the recoll docs array and split
@@ -299,7 +299,8 @@ class Folders(object):
 
             # For linking item search results to the main
             # array. Deactivated for now as it does not seem to be
-            # needed.
+            # needed (and we would need to add xdocid to the
+            # resultstore fields).
             #self._xid2idx[doc["xdocid"]] = docidx
             
             fathidx, path = self._pathbeyondtopdirs(doc)
@@ -409,8 +410,7 @@ class Folders(object):
             pathremain = ''
         else:
             if dirpth[0:2] != '$d':
-                raise Exception("folders:browse: called on non dir objid %s" %
-                                pid)
+                raise Exception("folders:browse: called on non dir objid %s" % pid)
             # Other $sign?
             nextdol = dirpth.find("$", 1)
             if nextdol > 0:
@@ -573,15 +573,22 @@ class Folders(object):
         return path
 
 
-    # Compute object id for doc out of recoll search. Not used at the moment.
-    # and _xid2idx is not built
+    # Compute object id for doc out of recoll search. Not used at the
+    # moment, and _xid2idx is not built.
     def _objidforxdocid(self, doc):
         if doc["xdocid"] not in self._xid2idx:
             return None
         return self._idprefix + '$i' + str(self._xid2idx[doc["xdocid"]])
 
 
+    # Given a doc, we walk its url down from the part in root to find
+    # its directory entry, and return the _dirvec and _rcldocs indices
+    # it holds, either of which can be -1
     def _stat(self, doc):
+        # _pathbeyond... returns the _dirvec index of the root entry
+        # we start from (root is special), and the split rest of path.
+        # That is if the doc url has /av/mp3/classique/bach/ and the root entry is /av/mp3,
+        # we get the _dirvec entry index for /av/mp3 and [classique, bach]
         fathidx, pathl = self._pathbeyondtopdirs(doc)
         if not fathidx:
             return -1,-1
@@ -603,10 +610,13 @@ class Folders(object):
 
 
     def objidfordoc(self, doc):
+        id=None
         if doc["mtype"] == 'inode/directory':
             id = self._objidforpath(doc)
-        else:
-            id = self._objidforxdocid(doc)
+        #else:
+        #    # Note: not currently doing anything, see method comments
+        #    id = self._objidforxdocid(doc)
+
         if not id:
             id = self._idprefix + '$' + 'seeyoulater'
         return id

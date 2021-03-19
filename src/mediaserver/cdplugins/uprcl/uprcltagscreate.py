@@ -18,6 +18,7 @@
 import os
 import time
 import re
+from recoll import recoll
 
 from timeit import default_timer as timer
 from uprclutils import audiomtypes, docfolder, uplog
@@ -353,7 +354,27 @@ def _setalbumartists(conn):
             c1.execute('''UPDATE albums SET artist_id = ?
                 WHERE album_id = ?''', (r[1], r[0]))
 
-
+# Update the recoll index for the albums
+def _albumstorecoll(conn):
+    rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
+    c = conn.cursor()
+    #                 0        1          2          3         4         5
+    stmt = '''SELECT album_id, albfolder, albtitle, albarturi, albdate, artist.value
+      FROM albums LEFT JOIN artist ON artist.artist_id = albums.artist_id
+      WHERE albtdisc is NULL'''
+    c.execute(stmt, ())
+    for r in c:
+        udi = "albid" + str(r[0])
+        doc = recoll.Doc()
+        doc["album"] = r[2]
+        doc["title"] = r[2]
+        doc["mtype"] = "inode/directory"
+        if r[5]:
+            doc["albumartist"] = r[5]
+        doc["url"] = "file://" + r[1]
+        uplog("_albumstorecoll: creating album for: %s" % doc["album"])
+        rcldb.addOrUpdate(udi, doc)
+    
 # Check that the numbers are sequential
 def _checkseq(seq):
     num = seq[0]
@@ -544,4 +565,5 @@ def recolltosql(conn, rcldocs):
     end = timer()
     uplog("recolltosql: processed %d docs in %.2f Seconds" %
           (totcnt, end-start))
-
+    _albumstorecoll(conn)
+    

@@ -316,6 +316,23 @@ class Tagged(object):
                             upnpclass='object.container.album.musicAlbum'))
         return entries
 
+    # Called when the search finds one of our synthetic album search
+    # results. Create a container entry for it
+    def direntryforalbid(self, albid):
+        intalbid = int(albid)
+        c = self._conn.cursor()
+        stmt = '''SELECT album_id, albtitle, albarturi, albdate, artist.value
+        FROM albums LEFT JOIN artist ON artist.artist_id = albums.artist_id
+        WHERE album_id = ? AND albtdisc is NULL  ORDER BY albtitle'''
+        args = (intalbid,)
+        c.execute(stmt, args)
+        for r in c:
+            pid = uprclinit.getObjPrefix() + 'albums'
+            id = pid + '$' + albid
+            return rcldirentry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
+                               upnpclass='object.container.album.musicAlbum')
+        return None
+
 
     # This is called when an 'albums' element is encountered in the
     # selection path. i is the index of the albums element. The tree under
