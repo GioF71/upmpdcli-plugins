@@ -31,8 +31,8 @@ import os
 import shlex
 import sys
 
-from upmplgutils import uplog
-from uprclutils import rcldoctoentry, rcldirentry
+from upmplgutils import uplog, direntry
+from uprclutils import rcldoctoentry
 import uprclinit
 
 class Untagged(object):
@@ -78,7 +78,7 @@ class Untagged(object):
 
     # Return entry to be created in the top-level directory ([untagged]).
     def rootentries(self, pid):
-        return [rcldirentry(pid + 'untagged', pid, '[untagged]'),]
+        return [direntry(pid + 'untagged', pid, '[untagged]'),]
 
 
     # Browse method

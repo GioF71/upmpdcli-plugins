@@ -26,6 +26,7 @@ def sortmodellist(l):
 class Model(object):
     id = None
     name = None
+    image = None
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -33,7 +34,6 @@ class Model(object):
 class User(Model):
     upnpclass = "object.container"
     name = "Unknown"
-    image = None
     
 class Album(Model):
     upnpclass = "object.container.album.musicAlbum"
@@ -43,7 +43,6 @@ class Album(Model):
     num_tracks = -1
     duration = -1
     release_date = None
-    image = None
     available = True
     maxsamprate = "44.1"
     maxbitdepth = "16"
@@ -59,7 +58,6 @@ class Playlist(Model):
     upnpclass = "object.container.album"
     # Using the proper playlistContainer type this confuses e.g. Kazoo
     #upnpclass = "object.container.playlistContainer"
-    name = None
     # We create a bogus artist with the playlist owner name when available
     artist = None
     description = None
@@ -78,23 +76,23 @@ class Track(Model):
     artist = None
     artists = []
     album = None
-    image = None
     available = True
     maxsamprate = "44.1"
     maxbitdepth = "16"
     maxchannels = "2"
 
 
+class Category(Model):
+    upnpclass = "object.container"
+
+
+class Genre(Model):
+    upnpclass = "object.container"
+
+    
 class SearchResult(Model):
     artists = []
     albums = []
     tracks = []
     playlists = []
 
-
-class Category(Model):
-    image = None
-
-
-class Genre(Model):
-    pass

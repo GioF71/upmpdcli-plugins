@@ -173,25 +173,6 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
     return li
 
 
-def rcldirentry(id, pid, title, arturi=None, artist=None, upnpclass=None,
-                searchable='1', date=None):
-    """ Create container entry in format expected by parent """
-    #uplog("rcldirentry: id %s pid %s tt %s dte %s clss %s artist %s arturi %s" %
-    #      (id,pid,title,date,upnpclass,artist,arturi))
-    ret = {'id':id, 'pid':pid, 'tt':title, 'tp':'ct', 'searchable':searchable}
-    if arturi:
-        ret['upnp:albumArtURI'] = arturi
-    if artist:
-        ret['upnp:artist'] = artist
-    if date:
-        ret['dc:date'] = date
-    if upnpclass:
-        ret['upnp:class'] = upnpclass
-    else:
-        ret['upnp:class'] = 'object.container'
-    return ret
-
-
 # Bogus entry for the top directory while the index/db is updating
 def waitentry(id, pid, httphp):
     li = {}

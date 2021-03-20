@@ -29,9 +29,9 @@ import time
 import tempfile
 import time
 
-from upmplgutils import uplog
+from upmplgutils import uplog, direntry
 import uprclutils
-from uprclutils import rcldirentry, rcldoctoentry, cmpentries
+from uprclutils import rcldoctoentry, cmpentries
 import uprclinit
 import uprcltagscreate
 from uprcltagscreate import _clid, recolltosql
@@ -75,7 +75,7 @@ class Tagged(object):
         uplog("rootentries: pid %s path %s" % (pid, path))
         entries = []
         nalbs = self._albcntforfolder(path)
-        entries.append(rcldirentry(pid + 'albums', pid, nalbs + ' albums'))
+        entries.append(direntry(pid + 'albums', pid, nalbs + ' albums'))
         if path:
             where = ' WHERE tracks.path LIKE ? '
             args = (path + '%',)
@@ -86,11 +86,11 @@ class Tagged(object):
         stmt = "SELECT COUNT(*) from tracks"
         c.execute(stmt+where, args)
         nitems = str(c.fetchone()[0])
-        entries.append(rcldirentry(pid + 'items', pid, nitems + ' items'))
+        entries.append(direntry(pid + 'items', pid, nitems + ' items'))
         subqs = self._subtreetags(where, args)
         tagdisplaytag = uprcltagscreate.getTagDisplayTag()
         for tt in subqs:
-            entries.append(rcldirentry(pid + '=' + tt , pid, tagdisplaytag[tt]))
+            entries.append(direntry(pid + '=' + tt , pid, tagdisplaytag[tt]))
         return entries
 
 
@@ -312,7 +312,7 @@ class Tagged(object):
         for r in c:
             id = pid + '$' + str(r[0])
             entries.append(
-                rcldirentry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
+                direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
                             upnpclass='object.container.album.musicAlbum'))
         return entries
 
@@ -329,7 +329,7 @@ class Tagged(object):
         for r in c:
             pid = uprclinit.getObjPrefix() + 'albums'
             id = pid + '$' + albid
-            return rcldirentry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
+            return direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
                                upnpclass='object.container.album.musicAlbum')
         return None
 
@@ -368,7 +368,7 @@ class Tagged(object):
             entries = self._trackentriesforstmt(stmt, rawalbids+docidsl, pid)
             if ntracks != len(entries):
                 id = pid + '$' + 'showca'
-                entries = [rcldirentry(id, pid, '>> Complete Album')] + entries
+                entries = [direntry(id, pid, '>> Complete Album')] + entries
         elif i == len(qpath)-3:
             # 'Complete album' entry
             # Note that minim has an additional level here, probably to
@@ -403,7 +403,7 @@ class Tagged(object):
             # Replace $items with $albums for the album entry
             id = pid.replace('$items', '$albums') + '$' + str(albid) + '$showca'
             if len(tlist) != len(docids):
-                entries.append(rcldirentry(id, pid, '>> Complete Album'))
+                entries.append(direntry(id, pid, '>> Complete Album'))
             else:
                 displaytracks = False
                 el = self._direntriesforalbums(pid, "WHERE album_id = %s"%albid)
@@ -487,7 +487,7 @@ class Tagged(object):
             if len(albids) > 1:
                 id = pid + '$albums'
                 label = '%d albums'
-                entries.append(rcldirentry(id, pid, label % len(albids)))
+                entries.append(direntry(id, pid, label % len(albids)))
             elif len(albids) == 1 and not subqs:
                 # Only display '>> Complete album' if not all tracks
                 # already there. If all tracks are there, we display
@@ -496,7 +496,7 @@ class Tagged(object):
                 tlist = self._trackentriesforalbum(albid, pid)
                 id = pid + '$albums$' + str(albid) + '$showca'
                 if len(tlist) != len(docids):
-                    entries.append(rcldirentry(id, pid, '>> Complete Album'))
+                    entries.append(direntry(id, pid, '>> Complete Album'))
                 else:
                     displaytracks = False
                     el = self._direntriesforalbums(pid,
@@ -507,10 +507,10 @@ class Tagged(object):
             if subqs:
                 id = pid + '$items'
                 label = '%d items'
-                entries.append(rcldirentry(id, pid, label % len(docids)))
+                entries.append(direntry(id, pid, label % len(docids)))
                 for tt in subqs:
                     id = pid + '$=' + tt
-                    entries.append(rcldirentry(id, pid, tagdisplaytag[tt]))
+                    entries.append(direntry(id, pid, tagdisplaytag[tt]))
             elif displaytracks:
                 rcldocs = uprclinit.getTree('folders').rcldocs()
                 for docidx in docids:
@@ -533,7 +533,7 @@ class Tagged(object):
             c.execute(stmt, values)
             for r in c:
                 id = pid + '$' + str(r[0])
-                entries.append(rcldirentry(id, pid, r[1]))
+                entries.append(direntry(id, pid, r[1]))
         return entries
 
 
@@ -593,8 +593,8 @@ class Tagged(object):
             # ??
             return entries
         if len(l) == 2:
-            entries.append(rcldirentry(pid + '$hchide', pid, ">> Hide Contents"))
-            entries.append(rcldirentry(pid + '$hctags', pid, uprclutils.basename(folder)))
+            entries.append(direntry(pid + '$hchide', pid, ">> Hide Contents"))
+            entries.append(direntry(pid + '$hctags', pid, uprclutils.basename(folder)))
             return entries
         elif len(l) == 3:
             ppid = '$'.join(pid.split('$')[:-1])

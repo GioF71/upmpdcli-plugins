@@ -26,7 +26,7 @@ import uprclsearch
 import uprclindex
 
 from upmplgutils import uplog, setidprefix
-from uprclutils import rcldirentry, waitentry
+from uprclutils import waitentry
 import uprclinit
 
 setidprefix("uprcl")

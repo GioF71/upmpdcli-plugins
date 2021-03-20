@@ -23,8 +23,8 @@
 
 import os, sys
 
-from upmplgutils import uplog
-from uprclutils import rcldoctoentry, rcldirentry, cmpentries
+from upmplgutils import uplog, direntry
+from uprclutils import rcldoctoentry, cmpentries
 import uprclutils
 import uprclinit
 from recoll import recoll
@@ -70,7 +70,7 @@ class Playlists(object):
 
     # Return entry to be created in the top-level directory ([playlists]).
     def rootentries(self, pid):
-        return [rcldirentry(pid + 'playlists', pid,
+        return [direntry(pid + 'playlists', pid,
                             str(len(self.utidx) - 1) + ' playlists'),]
 
 
@@ -89,7 +89,7 @@ class Playlists(object):
                 doc = rcldocs[self.utidx[i]]
                 id = self._idprefix + '$p' + str(i)
                 title = doc["title"] if doc["title"] else doc["filename"]
-                e = rcldirentry(id, pid, title,
+                e = direntry(id, pid, title,
                                 upnpclass='object.container.playlistContainer')
                 if e:
                     entries.append(e)

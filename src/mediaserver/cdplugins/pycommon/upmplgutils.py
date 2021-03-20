@@ -165,15 +165,22 @@ def trackid_from_urlpath(pathprefix, a):
     return trackid
 
 
-def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None):
+def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None,
+                searchable='1', date=None):
     """ Create container entry in format expected by parent """
-    ret = {'id':id, 'pid':pid, 'tt':title, 'tp':'ct', 'searchable':'1'}
+    #uplog("rcldirentry: id %s pid %s tt %s dte %s clss %s artist %s arturi %s" %
+    #      (id,pid,title,date,upnpclass,artist,arturi))
+    ret = {'id':id, 'pid':pid, 'tt':title, 'tp':'ct', 'searchable':searchable}
     if arturi:
         ret['upnp:albumArtURI'] = arturi
     if artist:
         ret['upnp:artist'] = artist
+    if date:
+        ret['dc:date'] = date
     if upnpclass:
         ret['upnp:class'] = upnpclass
+    else:
+        ret['upnp:class'] = 'object.container.storageFolder'
     return ret
 
 # Get user and password from service, from the main configuration

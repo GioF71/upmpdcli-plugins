@@ -81,9 +81,8 @@ from urllib.parse import quote as urlquote
 import time
 from timeit import default_timer as timer
 
-from upmplgutils import uplog
-from uprclutils import audiomtypes, rcldirentry, \
-     rcldoctoentry, cmpentries
+from upmplgutils import uplog, direntry
+from uprclutils import audiomtypes, rcldoctoentry, cmpentries
 import uprclutils
 from recoll import recoll
 try:
@@ -429,7 +428,7 @@ class Folders(object):
 
     # Tell the top module what entries we define in the root
     def rootentries(self, pid):
-        return [rcldirentry(pid + 'folders', pid, '[folders]'),]
+        return [direntry(pid + 'folders', pid, '[folders]'),]
 
 
     # Look all non-directory docs inside directory, and return the
@@ -502,7 +501,7 @@ class Folders(object):
                     continue
                 id = self._idprefix + '$d' + str(thisdiridx)
                 arturi = self._arturifordir(thisdiridx)
-                entries.append(rcldirentry(id, pid, os.path.basename(nm),
+                entries.append(direntry(id, pid, os.path.basename(nm),
                                            arturi=arturi))
             else:
                 # Not a directory. docidx had better been set
@@ -523,7 +522,7 @@ class Folders(object):
         # Add "Browse subtree by tags" entry
         if pid != self._idprefix and self._enabletags:
             id = pid + '$tagview.0'
-            entries.insert(0, rcldirentry(id, pid, ">> Tag View"))
+            entries.insert(0, direntry(id, pid, ">> Tag View"))
         return entries
 
     # Return path for objid, which has to be a container.This is good old
