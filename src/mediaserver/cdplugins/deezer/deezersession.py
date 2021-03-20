@@ -154,7 +154,18 @@ class Session(object):
 
 
 
-
+def _set_image(data, target):
+    k = None
+    for base in ('picture', 'cover'):
+        if base + '_big' in data:
+            k = base + '_big'
+            break
+        elif base in data:
+            k = base
+            break
+    if k and k in data:
+        target['image'] = data[k]
+    
 
 def _parse_playlist(data, artist=None, artists=None):
     kwargs = {
@@ -163,11 +174,15 @@ def _parse_playlist(data, artist=None, artists=None):
         'num_tracks': data.get('nb_tracks'),
         'duration': data.get('duration')
     }
+    _set_image(data, kwargs)
     return Playlist(**kwargs)
 
-    
+
 def _parse_artist(data):
-    return Artist(id=data['id'], name=data['name'])
+    kwargs = {'id': data['id'], 'name': data['name']}
+    _set_image(data, kwargs)
+    return Artist(**kwargs)
+
 
 def _parse_user(data):
     return User(id=data['id'], name=data['name'], image=data['picture'])
@@ -180,11 +195,7 @@ def _parse_album(data):
     }
     if 'artist' in data:
         kwargs['artist'] = data['artist']['name']
-    k = 'cover'
-    if 'cover_big' in data:
-        k = 'cover_big'
-    if k in data:
-            kwargs['image'] = data[k]
+    _set_image(data, kwargs)
     a = Album(**kwargs)
     return a
 
@@ -215,7 +226,7 @@ def _parse_track(data, albumarg = None):
         'duration': data['duration'],
         'artist': artist,
         # There is a 'readable' attribute in the track data, it's
-        # sometimes fals,e but this does not seem to actually affect
+        # sometimes false but this does not seem to actually affect
         # the accessibility. Don't know what it means. In any case,
         # always set available to true for now.
         'available': data['readable']
@@ -237,7 +248,6 @@ def _parse_track(data, albumarg = None):
         kwargs['album'] = Album(image=image, name=alb['title'])
 
     # If track has own cover, use it (e.g. for multialbum playlists)
-    if 'picture_big' in data:
-        kwargs['image'] = data['picture_big']
+    _set_image(data, kwargs)
 
     return Track(**kwargs)

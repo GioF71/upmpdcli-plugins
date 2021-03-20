@@ -220,12 +220,17 @@ class Session(object):
             cplt.playlists = res.playlists
             return cplt
 
-def _parse_artist(json_obj):
-    artist = Artist(id=json_obj['id'], name=json_obj['name'])
-    return artist
+def _parse_artist(data):
+    #uplog("_parse_artist: data %s" % data)
+    kwargs = {'id' : data['id'], 'name' : data['name']}
+    if 'image' in data and data['image'] and 'large' in data['image']:
+        kwargs['image'] = data['image']['large']
+    return Artist(**kwargs)
+
 
 def _parse_genre(data):
     return Genre(id=data['id'], name=data['name'])
+
 
 def _parse_album(json_obj, artist=None, artists=None):
     #uplog("Qobuz:_parse_album:DATA:\n%s"%json.dumps(json_obj, indent=4))
@@ -264,14 +269,22 @@ def _parse_album(json_obj, artist=None, artists=None):
     return Album(**kwargs)
 
 
-def _parse_playlist(json_obj, artist=None, artists=None):
+def _parse_playlist(data, artist=None, artists=None):
+    #uplog("_parse_playlist: data %s" % data)
     kwargs = {
-        'id': json_obj['id'],
-        'name': json_obj['name'],
-        'num_tracks': json_obj.get('tracks_count'),
-        'duration': json_obj.get('duration'),
+        'id': data['id'],
+        'name': data['name'],
+        'num_tracks': data.get('tracks_count'),
+        'duration': data.get('duration'),
     }
+    for suff in ('300', '150', ''):
+        try:
+            kwargs['image'] = data['images' + suff][0]
+            break
+        except:
+            pass
     return Playlist(**kwargs)
+
 
 def _parse_track(json_obj, albumarg = None):
     artist = Artist()
