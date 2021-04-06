@@ -168,7 +168,7 @@ public:
     bool waitIdle() {
         std::unique_lock<std::mutex> lock(m_mutex);
         if (!ok()) {
-            LOGERR("WorkQueue::waitIdle:"  << m_name << ": not ok\n");
+            LOGINF("WorkQueue::waitIdle:"  << m_name << ": queue already closed\n");
             return false;
         }
 
