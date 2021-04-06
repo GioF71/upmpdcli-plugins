@@ -21,21 +21,27 @@
 # Obect id inside the section: $p<idx> where <idx> is the document index
 #  inside the global document vector.
 
-import os, sys
+import os, sys, subprocess
 
 from upmplgutils import uplog, direntry
 from uprclutils import rcldoctoentry, cmpentries
 import uprclutils
 import uprclinit
 from recoll import recoll
+import conftree
 
 class Playlists(object):
     def __init__(self, rcldocs, httphp, pathprefix):
         self._idprefix = '0$uprcl$playlists'
         self._httphp = httphp
         self._pprefix = pathprefix
-        self.recoll2playlists(rcldocs)
+        self._radios = []
+        datadir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        self.fetchstream = os.path.join(datadir, "rdpl2stream", "fetchStream.py")
         
+        self.recoll2playlists(rcldocs)
+        self.upradios2playlist()
+
     # Create the untagged entries static vector by filtering the global
     # doc vector, storing the indexes of the playlists.
     # We keep a reference to the doc vector.
@@ -48,7 +54,38 @@ class Playlists(object):
             if doc["mtype"] == 'audio/x-mpegurl':
                 self.utidx.append(docidx)
 
+    def readRadiosFromConf(self, conf):
+        keys = conf.getSubKeys_unsorted()
+        for k in keys:
+            if k.startswith("radio"):
+                title = k[6:]
+                uri = conf.get("url", k)
+                artUri = conf.get("artUrl", k)
+                realluri = None
+                try:
+                    realluri = subprocess.check_output([self.fetchstream, uri])
+                    realluri = realluri.decode('utf-8').strip("\r\n")
+                except Exception as ex:
+                    uplog("fetchStream.py failed for %s: %s" % (title, ex))
+                    pass
+                if realluri:
+                    self._radios.append((title, realluri, uri, artUri))
+                
+    def upradios2playlist(self):
+        self._radios = []
+        self.readRadiosFromConf(uprclinit.g_upconfig)
+        radiolist = uprclinit.g_upconfig.get("radiolist")
+        if radiolist:
+            radioconf = conftree.ConfSimple(radiolist)
+            self.readRadiosFromConf(radioconf)
+        #uplog("Radios: %s" % self._radios)
+                
+
     # Compute index into our entries vector by 'parsing' the objid.
+    # Entry 0 is not attributed (browsing 0 -> our root)
+    # idx == len(ourlist) is valid too and does not point to an rcldoc
+    # built from an actual playlist file, but to our internal radio
+    # playlist
     def _objidtoidx(self, pid):
         #uplog("playlists:objidtoidx: %s" % pid)
         if not pid.startswith(self._idprefix):
@@ -63,7 +100,7 @@ class Playlists(object):
                 raise Exception("playlists:browse: bad objid %s" % pid)
             idx = int(idx[2:])
     
-        if idx >= len(self.utidx):
+        if idx > len(self.utidx):
             raise Exception("playlists:browse: bad pid %s" % pid)
 
         return idx
@@ -72,6 +109,22 @@ class Playlists(object):
     def rootentries(self, pid):
         return [direntry(pid + 'playlists', pid,
                             str(len(self.utidx) - 1) + ' playlists'),]
+
+    def radioToEntry(self, pid, idx, radio):
+        title = radio[0]
+        uri = radio[1]
+        arturi = radio[3]
+        id = pid + '$e' + str(idx)
+        return {
+            'pid': pid,
+            'id': id,
+            'uri': uri,
+            'tp': 'it',
+            'res:mime': "audio/mpeg",
+            'upnp:class': 'object.item.audioItem.musicTrack',
+            'upnp:albumArtURI': arturi,
+            'tt': title
+        }
 
 
     # Browse method
@@ -85,15 +138,22 @@ class Playlists(object):
         entries = []
         if idx == 0:
             # Browsing root
+            # Special entry for our radio list. The id is 1 beyond valid playlist ids
+            id = self._idprefix + '$p' + str(len(self.utidx))
+            title = "*Upmpdcli Radios*"
+            entries.append(direntry(id, pid, title, upnpclass='object.container.playlistContainer'))
+            # Regular playlist entries, from our doc list
             for i in range(len(self.utidx))[1:]:
                 doc = rcldocs[self.utidx[i]]
                 id = self._idprefix + '$p' + str(i)
                 title = doc["title"] if doc["title"] else doc["filename"]
-                e = direntry(id, pid, title,
-                                upnpclass='object.container.playlistContainer')
-                if e:
-                    entries.append(e)
-
+                entries.append(
+                    direntry(id, pid, title, upnpclass='object.container.playlistContainer'))
+        elif idx == len(self.utidx):
+            # Special "upmpdcli radios" playlist. Don't sort, the user chose the order.
+            for radio in self._radios:
+                entries.append(self.radioToEntry(pid, len(entries), radio))
+            return entries
         else:
             pldoc = rcldocs[self.utidx[idx]]
             plpath = uprclutils.docpath(pldoc)
