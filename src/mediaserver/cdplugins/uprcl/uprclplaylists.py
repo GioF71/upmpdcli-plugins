@@ -108,7 +108,7 @@ class Playlists(object):
     # Return entry to be created in the top-level directory ([playlists]).
     def rootentries(self, pid):
         return [direntry(pid + 'playlists', pid,
-                            str(len(self.utidx) - 1) + ' playlists'),]
+                            str(len(self.utidx)) + ' playlists'),]
 
     def radioToEntry(self, pid, idx, radio):
         title = radio[0]
