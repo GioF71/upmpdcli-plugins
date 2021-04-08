@@ -29,18 +29,15 @@ import uprclutils
 import uprclinit
 from recoll import recoll
 import conftree
+import upradioconf
 
 class Playlists(object):
     def __init__(self, rcldocs, httphp, pathprefix):
         self._idprefix = '0$uprcl$playlists'
         self._httphp = httphp
         self._pprefix = pathprefix
-        self._radios = []
-        datadir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        self.fetchstream = os.path.join(datadir, "rdpl2stream", "fetchStream.py")
-        
+        self._radios = upradioconf.UpmpdcliRadios(uprclinit.g_upconfig)
         self.recoll2playlists(rcldocs)
-        self.upradios2playlist()
 
     # Create the untagged entries static vector by filtering the global
     # doc vector, storing the indexes of the playlists.
@@ -54,33 +51,7 @@ class Playlists(object):
             if doc["mtype"] == 'audio/x-mpegurl':
                 self.utidx.append(docidx)
 
-    def readRadiosFromConf(self, conf):
-        keys = conf.getSubKeys_unsorted()
-        for k in keys:
-            if k.startswith("radio"):
-                title = k[6:]
-                uri = conf.get("url", k)
-                artUri = conf.get("artUrl", k)
-                realluri = None
-                try:
-                    realluri = subprocess.check_output([self.fetchstream, uri])
-                    realluri = realluri.decode('utf-8').strip("\r\n")
-                except Exception as ex:
-                    uplog("fetchStream.py failed for %s: %s" % (title, ex))
-                    pass
-                if realluri:
-                    self._radios.append((title, realluri, uri, artUri))
                 
-    def upradios2playlist(self):
-        self._radios = []
-        self.readRadiosFromConf(uprclinit.g_upconfig)
-        radiolist = uprclinit.g_upconfig.get("radiolist")
-        if radiolist:
-            radioconf = conftree.ConfSimple(radiolist)
-            self.readRadiosFromConf(radioconf)
-        #uplog("Radios: %s" % self._radios)
-                
-
     # Compute index into our entries vector by 'parsing' the objid.
     # Entry 0 is not attributed (browsing 0 -> our root)
     # idx == len(ourlist) is valid too and does not point to an rcldoc
@@ -111,19 +82,16 @@ class Playlists(object):
                             str(len(self.utidx)) + ' playlists'),]
 
     def radioToEntry(self, pid, idx, radio):
-        title = radio[0]
-        uri = radio[1]
-        arturi = radio[3]
         id = pid + '$e' + str(idx)
         return {
             'pid': pid,
             'id': id,
-            'uri': uri,
+            'uri': radio["streamUri"],
             'tp': 'it',
             'res:mime': "audio/mpeg",
             'upnp:class': 'object.item.audioItem.musicTrack',
-            'upnp:albumArtURI': arturi,
-            'tt': title
+            'upnp:albumArtURI': radio["artUri"],
+            'tt': radio["title"]
         }
 
 
