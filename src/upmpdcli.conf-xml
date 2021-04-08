@@ -452,7 +452,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # <var name="uprcltitle" type="string"> <brief>Plugin Title.</brief><descr>This
 # will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
-#uprcltitle = Local Music
+uprcltitle = Local Music
 
 # <var name="uprclhostport" type="string"><brief>HTTP host and port for
 # serving media files</brief><descr>The Media Server HTTP server will run
@@ -506,6 +506,19 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # doc tree. If this is not set, uprcl will use a null translation for each
 # of the uprclmediadirs entries.</descr></var>
 #uprclpaths =
+
+# <grouptitle>Upmpdcli Radios plugin parameters</grouptitle>
+
+# <var name="upradiosuser" type="string"><brief>Bogus user name variable.</brief>
+# <descr>Used for consistency with other Media Server plugins to decide if
+# the service should be started (so, do set it if you want to see the radio list).
+# </descr></var>
+#upradiosuser = bugsbunny
+
+# <var name="upradiostitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+upradiostitle = Upmpdcli Radio List
 
 # <grouptitle>Songcast Receiver parameters</grouptitle>
 

@@ -230,6 +230,9 @@ dist_cdpluginsspotifylib_DATA = \
                   src/mediaserver/cdplugins/spotify/spotipy/oauth2.py \
                   src/mediaserver/cdplugins/spotify/spotipy/util.py
 
+cdpluginsradiosdir = $(pkgdatadir)/cdplugins/upradios
+dist_cdpluginsradios_DATA = \
+                 src/mediaserver/cdplugins/upradios/upradios-app.py
 
 cdpluginsuprcldir = $(pkgdatadir)/cdplugins/uprcl
 dist_cdpluginsuprcl_DATA = \
@@ -285,6 +288,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)

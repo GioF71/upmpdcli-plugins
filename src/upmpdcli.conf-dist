@@ -195,7 +195,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Bogus user name variable.
 #uprcluser = bugsbunny
 # Plugin Title.
-#uprcltitle = Local Music
+uprcltitle = Local Music
 # HTTP host and port for serving media files
 #uprclhostport =
 # uprcl Recoll index directory
@@ -208,6 +208,13 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #uprclmediadirs = /tmp
 # Path translations.
 #uprclpaths =
+
+# Upmpdcli Radios plugin parameters
+
+# Bogus user name variable.
+#upradiosuser = bugsbunny
+# Plugin Title.
+upradiostitle = Upmpdcli Radio List
 
 # Songcast Receiver parameters
 

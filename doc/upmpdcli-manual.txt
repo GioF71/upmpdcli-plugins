@@ -808,6 +808,21 @@ You will need to set some configuration parameters, which are described in the
 authorization token: follow the instructions in the <<SPOTIFY-AUTH,Spotify
 authorization annex>>.
 
+[[UPRADIOS]]
+== Upmpdcli radio list plugin
+
+This is a minuscule plugin which just exports the Upmpdcli radio list as a
+playlist, so that other renderer on the network can use it.
+
+Of course, the functionality is reduced when compared to using the list
+through the upmpdcli's own OpenHome Radio service: there will be no dynamic
+art or special metadata features: `artScript` and `metaScript` entries are
+just ignore.
+
+Still the server will convert .pls and other playlist entries into actual
+stream URLs, and it may be convenient for maintaining the radio list in one
+place.
+
 
 [[UPRCL]]
 == Upmpdcli local Media Server: uprcl

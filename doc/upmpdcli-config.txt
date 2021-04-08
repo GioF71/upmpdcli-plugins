@@ -448,6 +448,18 @@ uprclpaths:: Path translations. Translations from real paths to ones relative to
 doc tree. If this is not set, uprcl will use a null translation for each
 of the uprclmediadirs entries.
 
+=== Upmpdcli Radios plugin parameters 
+
+[[upradiosuser]]
+upradiosuser:: Bogus user name variable. Used for consistency with other Media Server plugins to decide if
+the service should be started (so, do set it if you want to see the radio list).
+
+
+[[upradiostitle]]
+upradiostitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
+
 === Songcast Receiver parameters 
 
 [[sclogfilename]]

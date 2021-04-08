@@ -55,6 +55,14 @@ Description: upmpdcli Deezer plugin
  upmpdcli-deezer allows upmpdcli to proxy access to the Deezer music
  streaming service.
 
+Package: upmpdcli-radios
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, ${misc:Depends}
+Description: upmpdcli radio list export plugin
+ upmpdcli-radios exports the upmpdcli OpenHome service radio list through
+ the upmpdcli Media Server.
+
 #Package: upmpdcli-tidal
 #Architecture: all
 #Section: contrib/sound
