@@ -64,23 +64,28 @@ static vector<pair<string, string> > o_sources;
 static const string SndRcvPLName("PL-to-Songcast");
 static const string SndRcvRDName("RD-to-Songcast");
 
-OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
-                     ohProductDesc_t& ohProductDesc, int version)
-    : OHService(sTpProduct + SoapHelp::i2s(version), sIdProduct,
-                "OHProduct.xml", dev, udev),
+const std::string OHPlaylistSourceName{"Playlist"};
+const std::string OHPlaylistSourceType{"Playlist"};
+const std::string OHReceiverSourceName{"Songcast"};
+const std::string OHReceiverSourceType{"Receiver"};
+const std::string OHRadioSourceName{"Radio"};
+const std::string OHRadioSourceType{"Radio"};
+
+OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProductDesc, int version)
+    : OHService(sTpProduct + SoapHelp::i2s(version), sIdProduct, "OHProduct.xml", dev, udev),
       m_ohProductDesc(ohProductDesc), m_sourceIndex(0), m_standby(false)
 {
     // Playlist must stay first.
-    o_sources.push_back(pair<string,string>("Playlist","Playlist"));
+    o_sources.push_back(pair<string,string>(OHPlaylistSourceType, OHPlaylistSourceName));
     if (m_udev->getohrd()) {
-        o_sources.push_back(pair<string, string>("Radio", "Radio"));
+        o_sources.push_back(pair<string, string>(OHRadioSourceType, OHRadioSourceName));
     }
     // version == 1 is for lumin compat, see upmpd.cxx
     if (version != 1) {
         csattrs.append(" Credentials");
     }
     if (m_udev->getohrcv()) {
-        o_sources.push_back(pair<string,string>("Receiver", "Songcast"));
+        o_sources.push_back(pair<string,string>(OHReceiverSourceType, OHReceiverSourceName));
         csattrs.append(" Receiver");        
         if (m_udev->getsndrcv() &&
             m_udev->getohrcv()->playMethod() == OHReceiverParams::OHRP_ALSA) {
@@ -91,11 +96,9 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
                 // original/saved one, not the current one, which is doing
                 // the playing and sending to the fifo, so we'd need to
                 // tell ohreceiver about using the right one.
-                o_sources.push_back(pair<string,string>("Playlist",
-                                                        SndRcvPLName));
+                o_sources.push_back(pair<string,string>(OHPlaylistSourceType, SndRcvPLName));
                 if (m_udev->getohrd()) {
-                    o_sources.push_back(pair<string,string>("Radio",
-                                                            SndRcvRDName));
+                    o_sources.push_back(pair<string,string>(OHRadioSourceType, SndRcvRDName));
                 }
             }
             listScripts(o_sources);
@@ -130,42 +133,32 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
         }
     }
     
-    udev->addActionMapping(this, "Manufacturer", 
-                          bind(&OHProduct::manufacturer, this, _1, _2));
+    udev->addActionMapping(this, "Manufacturer", bind(&OHProduct::manufacturer, this, _1, _2));
     udev->addActionMapping(this, "Model", bind(&OHProduct::model, this, _1, _2));
-    udev->addActionMapping(this, "Product", 
-                          bind(&OHProduct::product, this, _1, _2));
-    udev->addActionMapping(this, "Standby", 
-                          bind(&OHProduct::standby, this, _1, _2));
-    udev->addActionMapping(this, "SetStandby", 
-                          bind(&OHProduct::setStandby, this, _1, _2));
-    udev->addActionMapping(this, "SourceCount", 
-                          bind(&OHProduct::sourceCount, this, _1, _2));
-    udev->addActionMapping(this, "SourceXml", 
-                          bind(&OHProduct::sourceXML, this, _1, _2));
-    udev->addActionMapping(this, "SourceIndex", 
-                          bind(&OHProduct::sourceIndex, this, _1, _2));
-    udev->addActionMapping(this, "SetSourceIndex", 
-                          bind(&OHProduct::setSourceIndex, this, _1, _2));
-    udev->addActionMapping(this, "SetSourceIndexByName", 
-                          bind(&OHProduct::setSourceIndexByName, this, _1, _2));
+    udev->addActionMapping(this, "Product", bind(&OHProduct::product, this, _1, _2));
+    udev->addActionMapping(this, "Standby", bind(&OHProduct::standby, this, _1, _2));
+    udev->addActionMapping(this, "SetStandby", bind(&OHProduct::setStandby, this, _1, _2));
+    udev->addActionMapping(this, "SourceCount", bind(&OHProduct::sourceCount, this, _1, _2));
+    udev->addActionMapping(this, "SourceXml", bind(&OHProduct::sourceXML, this, _1, _2));
+    udev->addActionMapping(this, "SourceIndex", bind(&OHProduct::sourceIndex, this, _1, _2));
+    udev->addActionMapping(this, "SetSourceIndex", bind(&OHProduct::setSourceIndex, this, _1, _2));
+    udev->addActionMapping(this, "SetSourceIndexByName",
+                           bind(&OHProduct::setSourceIndexByName, this, _1, _2));
     udev->addActionMapping(this, "SetSourceBySystemName", 
                           bind(&OHProduct::setSourceBySystemName,this, _1, _2));
-    udev->addActionMapping(this, "Source", 
-                          bind(&OHProduct::source, this, _1, _2));
-    udev->addActionMapping(this, "Attributes", 
-                          bind(&OHProduct::attributes, this, _1, _2));
-    udev->addActionMapping(this, "SourceXmlChangeCount", 
-                          bind(&OHProduct::sourceXMLChangeCount, this, _1, _2));
+    udev->addActionMapping(this, "Source", bind(&OHProduct::source, this, _1, _2));
+    udev->addActionMapping(this, "Attributes", bind(&OHProduct::attributes, this, _1, _2));
+    udev->addActionMapping(this, "SourceXmlChangeCount",
+                           bind(&OHProduct::sourceXMLChangeCount, this, _1, _2));
 
     if (g_state) {
         string savedsrc;
         if (!g_state->get(cstr_stsrcnmkey, savedsrc)) {
-            savedsrc = "Playlist";
+            savedsrc = OHPlaylistSourceName;
         }
-        if (savedsrc.compare("Playlist")) {
+        if (savedsrc.compare(OHPlaylistSourceName)) {
             if (iSetSourceIndexByName(savedsrc) != UPNP_E_SUCCESS) {
-                g_state->set(cstr_stsrcnmkey, "Playlist");
+                g_state->set(cstr_stsrcnmkey, OHPlaylistSourceName);
             }
         }
     }
@@ -302,24 +295,22 @@ int OHProduct::iSetSourceIndex(int sindex)
     bool ok = true;
     string curtp = o_sources[m_sourceIndex].first;
     string curnm = o_sources[m_sourceIndex].second;
-    if (m_udev->getohpl() && !curtp.compare("Playlist") &&
-        !curnm.compare("Playlist")) {
+    if (m_udev->getohpl() && !curtp.compare(OHPlaylistSourceType) &&
+        !curnm.compare(OHPlaylistSourceName)) {
         m_udev->getohpl()->setActive(false);
-    } else if (m_udev->getohrcv() && !curtp.compare("Receiver") &&
-               !curnm.compare("Receiver")) {
+    } else if (m_udev->getohrcv() && !curtp.compare(OHReceiverSourceType) &&
+               !curnm.compare(OHReceiverSourceName)) {
         m_udev->getohrcv()->setActive(false);
-    } else if (m_udev->getohrd() && !curtp.compare("Radio") &&
-               !curnm.compare("Radio")) {
+    } else if (m_udev->getohrd() && !curtp.compare(OHRadioSourceType) &&
+               !curnm.compare(OHRadioSourceName)) {
         m_dev->setRadio(false);
         m_udev->getohrd()->setActive(false);
     } else if (m_udev->getsndrcv() && m_udev->getohpl() &&
-               !curtp.compare("Playlist") &&
-               !curnm.compare(SndRcvPLName)) {
+               !curtp.compare(OHPlaylistSourceType) && !curnm.compare(SndRcvPLName)) {
         m_udev->getohpl()->setActive(false);
         ok = m_udev->getsndrcv()->stop();
     } else if (m_udev->getsndrcv() && m_udev->getohrd() &&
-               !curtp.compare("Radio") &&
-               !curnm.compare(SndRcvRDName)) {
+               !curtp.compare(OHRadioSourceType) && !curnm.compare(SndRcvRDName)) {
         m_dev->setRadio(false);
         m_udev->getohrd()->setActive(false);
         ok = m_udev->getsndrcv()->stop();
@@ -333,11 +324,11 @@ int OHProduct::iSetSourceIndex(int sindex)
 
     string newtp = o_sources[sindex].first;
     string newnm = o_sources[sindex].second;
-    if (m_udev->getohpl() && !newnm.compare("Playlist")) {
+    if (m_udev->getohpl() && !newnm.compare(OHPlaylistSourceName)) {
         m_udev->getohpl()->setActive(true);
-    } else if (m_udev->getohrcv() && !newnm.compare("Receiver")) {
+    } else if (m_udev->getohrcv() && !newnm.compare(OHReceiverSourceName)) {
         m_udev->getohrcv()->setActive(true);
-    } else if (m_udev->getohrd() && !newnm.compare("Radio")) {
+    } else if (m_udev->getohrd() && !newnm.compare(OHRadioSourceName)) {
         m_dev->setRadio(true);
         m_udev->getohrd()->setActive(true);
     } else if (m_udev->getohpl() && m_udev->getsndrcv() &&

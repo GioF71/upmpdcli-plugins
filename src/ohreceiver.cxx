@@ -46,21 +46,15 @@ static const string sIdProduct("urn:av-openhome-org:serviceId:Receiver");
 OHReceiver::OHReceiver(
     UpMpd *dev, UpMpdOpenHome *udev, const OHReceiverParams& parms)
     : OHService(sTpProduct, sIdProduct, "OHReceiver.xml", dev, udev),
-      m_active(false), m_httpport(parms.httpport),
-      m_sc2mpdpath(parms.sc2mpdpath), m_pm(parms.pm)
+      m_active(false), m_httpport(parms.httpport), m_sc2mpdpath(parms.sc2mpdpath), m_pm(parms.pm)
 {
-    udev->addActionMapping(this, "Play", 
-                          bind(&OHReceiver::play, this, _1, _2));
-    udev->addActionMapping(this, "Stop", 
-                          bind(&OHReceiver::stop, this, _1, _2));
-    udev->addActionMapping(this, "SetSender",
-                          bind(&OHReceiver::setSender, this, _1, _2));
-    udev->addActionMapping(this, "Sender", 
-                          bind(&OHReceiver::sender, this, _1, _2));
-    udev->addActionMapping(this, "ProtocolInfo",
-                          bind(&OHReceiver::protocolInfo, this, _1, _2));
+    udev->addActionMapping(this, "Play", bind(&OHReceiver::play, this, _1, _2));
+    udev->addActionMapping(this, "Stop", bind(&OHReceiver::stop, this, _1, _2));
+    udev->addActionMapping(this, "SetSender", bind(&OHReceiver::setSender, this, _1, _2));
+    udev->addActionMapping(this, "Sender", bind(&OHReceiver::sender, this, _1, _2));
+    udev->addActionMapping(this, "ProtocolInfo", bind(&OHReceiver::protocolInfo, this, _1, _2));
     udev->addActionMapping(this, "TransportState",
-                          bind(&OHReceiver::transportState, this, _1, _2));
+                           bind(&OHReceiver::transportState, this, _1, _2));
 
     m_httpuri = "http://localhost:"+ SoapHelp::i2s(m_httpport) + 
         "/Songcast.wav";
@@ -254,7 +248,7 @@ int OHReceiver::play(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHReceiver::play" << endl);
     if (!m_active && m_udev->getohpr())
-        m_udev->getohpr()->iSetSourceIndexByName("Receiver");
+        m_udev->getohpr()->iSetSourceIndexByName(OHReceiverSourceName);
     bool ok = iPlay();
     maybeWakeUp(ok);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -297,7 +291,7 @@ int OHReceiver::stop(const SoapIncoming& sc, SoapOutgoing& data)
     // least won't do a thing with the renderer as long as the source
     // is set to receiver.
     if (m_udev->getohpr())
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
 
     maybeWakeUp(true);
     return UPNP_E_SUCCESS;

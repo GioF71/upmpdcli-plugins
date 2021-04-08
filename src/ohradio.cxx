@@ -539,7 +539,7 @@ int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHRadio::play" << endl);
     if (!m_active && m_udev->getohpr()) {
-        m_udev->getohpr()->iSetSourceIndexByName("Radio");
+        m_udev->getohpr()->iSetSourceIndexByName(OHRadioSourceName);
     }
     return iPlay();
 }

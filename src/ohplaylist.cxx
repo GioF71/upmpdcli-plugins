@@ -339,7 +339,7 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::play" << endl);
     if (!m_active && m_udev->getohpr()) {
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
     bool ok;
     if (!keepconsume) 
@@ -515,7 +515,7 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
         // If I'm not active, the ids in the playlist are those of
         // another service (e.g. radio). After activating myself and
         // restoring the playlist, the input id needs to be mapped.
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
         id = idFromOldId(id);
         if (id < 0) {
             return UPNP_E_INTERNAL_ERROR;
@@ -536,7 +536,7 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
     // Unlike seekid, this should work as the indices are restored by
     // mpdcli restorestate
     if (!m_active && m_udev->getohpr()) {
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
     int pos;
     bool ok = sc.get("Value", &pos);
@@ -726,7 +726,7 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
     }
         
     if (!m_active) {
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
         afterid = idFromOldId(afterid);
         if (afterid < 0) {
             return UPNP_E_INTERNAL_ERROR;
@@ -751,7 +751,7 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
     LOGDEB1("OHPlaylist::insertUri: " << uri << endl);
     if (!m_active) {
         LOGERR("OHPlaylist::insertUri: not active" << endl);
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
         return false;
     }
 
@@ -782,7 +782,7 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
     if (!m_active) {
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
         id = idFromOldId(id);
         if (id < 0) {
             // Error was logged by idFromOldId
@@ -804,7 +804,7 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::deleteAll" << endl);
     if (!m_active && m_udev->getohpr()) {
-        m_udev->getohpr()->iSetSourceIndexByName("Playlist");
+        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
     bool ok = m_dev->getmpdcli()->clearQueue();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;

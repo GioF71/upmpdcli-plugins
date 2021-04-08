@@ -75,4 +75,11 @@ protected:
     std::string m_tpname;
 };
 
+extern const std::string OHPlaylistSourceName;
+extern const std::string OHPlaylistSourceType;
+extern const std::string OHReceiverSourceName;
+extern const std::string OHReceiverSourceType;
+extern const std::string OHRadioSourceName;
+extern const std::string OHRadioSourceType;
+
 #endif /* _OHSERVICE_H_X_INCLUDED_ */
