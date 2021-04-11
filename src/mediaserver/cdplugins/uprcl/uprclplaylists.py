@@ -81,20 +81,6 @@ class Playlists(object):
         return [direntry(pid + 'playlists', pid,
                             str(len(self.utidx)) + ' playlists'),]
 
-    def radioToEntry(self, pid, idx, radio):
-        id = pid + '$e' + str(idx)
-        return {
-            'pid': pid,
-            'id': id,
-            'uri': radio["streamUri"],
-            'tp': 'it',
-            'res:mime': "audio/mpeg",
-            'upnp:class': 'object.item.audioItem.musicTrack',
-            'upnp:albumArtURI': radio["artUri"],
-            'tt': radio["title"]
-        }
-
-
     # Browse method
     # objid is like playlists$p<index>
     # flag is meta or children.
@@ -120,7 +106,7 @@ class Playlists(object):
         elif idx == len(self.utidx):
             # Special "upmpdcli radios" playlist. Don't sort, the user chose the order.
             for radio in self._radios:
-                entries.append(self.radioToEntry(pid, len(entries), radio))
+                entries.append(upradioconf.radioToEntry(pid, len(entries), radio))
             return entries
         else:
             pldoc = rcldocs[self.utidx[idx]]

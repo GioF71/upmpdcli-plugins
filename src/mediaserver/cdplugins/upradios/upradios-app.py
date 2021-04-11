@@ -39,19 +39,6 @@ def _initradios():
     global _g_radios
     _g_radios = upradioconf.UpmpdcliRadios(config)
     
-def _radioToEntry(pid, idx, radio):
-    id = pid + '$e' + str(idx)
-    return {
-        'pid': pid,
-        'id': id,
-        'uri': radio["streamUri"],
-        'tp': 'it',
-        'res:mime': "audio/mpeg",
-        'upnp:class': 'object.item.audioItem.musicTrack',
-        'upnp:albumArtURI': radio["artUri"],
-        'tt': radio["title"]
-    }
-
 @dispatcher.record('trackuri')
 def trackuri(a):
     # We generate URIs which directly point to the radio, so this
@@ -67,7 +54,7 @@ def browse(a):
 
     entries = []
     for radio in _g_radios:
-        entries.append(_radioToEntry(objid, len(entries), radio))
+        entries.append(upradioconf.radioToEntry(objid, len(entries), radio))
 
     encoded = json.dumps(entries)
     return {"entries" : encoded, "nocache" : "0"}

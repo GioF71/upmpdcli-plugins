@@ -77,6 +77,18 @@ class RadioIterator:
        raise StopIteration            
 
 
+def radioToEntry(pid, idx, radio):
+    id = pid + '$e' + str(idx)
+    return {
+        'pid': pid,
+        'id': id,
+        'uri': radio["streamUri"],
+        'tp': 'it',
+        'res:mime': "audio/mpeg",
+        'upnp:class': 'object.item.audioItem.musicTrack',
+        'upnp:albumArtURI': radio["artUri"],
+        'tt': radio["title"]
+    }
 
 
 if __name__ == "__main__":
