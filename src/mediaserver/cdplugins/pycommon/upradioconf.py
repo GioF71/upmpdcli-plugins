@@ -38,6 +38,9 @@ class UpmpdcliRadios(object):
                 title = k[6:]
                 uri = conf.get("url", k)
                 artUri = conf.get("artUrl", k)
+                mime = conf.get("mime", k)
+                if mime:
+                    uplog("GOT MIME %s" % mime)
                 streamUri = None
                 try:
                     streamUri = subprocess.check_output([self.fetchstream, uri])
@@ -45,7 +48,7 @@ class UpmpdcliRadios(object):
                 except Exception as ex:
                     uplog("fetchStream.py failed for %s: %s" % (title, ex))
                 if streamUri:
-                    self._radios.append((title, streamUri, uri, artUri))
+                    self._radios.append((title, streamUri, uri, artUri, mime))
         
     def _readRadios(self, upconfig):
         '''Read radio definitions from main config file, then possible radiolist'''
@@ -70,7 +73,7 @@ class RadioIterator:
        if self._index < (len(self._radios._radios)):
            radio = self._radios._radios[self._index]
            result = {"title" : radio[0], "streamUri" : radio[1],
-                     "uri" : radio[2], "artUri" : radio[3]}
+                     "uri" : radio[2], "artUri" : radio[3], "mime": radio[4]}
            self._index +=1
            return result
 
@@ -79,12 +82,16 @@ class RadioIterator:
 
 def radioToEntry(pid, idx, radio):
     id = pid + '$e' + str(idx)
+    if "mime" in radio and radio["mime"]:
+        mime = radio["mime"]
+    else:
+        mime = "audio/mpeg"
     return {
         'pid': pid,
         'id': id,
         'uri': radio["streamUri"],
         'tp': 'it',
-        'res:mime': "audio/mpeg",
+        'res:mime': mime,
         'upnp:class': 'object.item.audioItem.musicTrack',
         'upnp:albumArtURI': radio["artUri"],
         'tt': radio["title"]
