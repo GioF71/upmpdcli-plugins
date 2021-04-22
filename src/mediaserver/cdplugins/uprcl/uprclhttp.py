@@ -21,15 +21,28 @@ import os
 import time
 import bottle
 import mutagen
+import re
 
 from upmplgutils import uplog
 from uprclutils import embedded_open
 import uprclinit
 
+# Checking for numeric HOST header
+_hostre = re.compile('''[0-9]+\.[0-9]+\.[0-9]+\.[0-9]:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+''')
+def _checkhost():
+    if 'host' in bottle.request.headers:
+        host = bottle.request.headers['host']
+        if not _hostre.match(host):
+            uplog("Streamer: Bad Host <%s>" % host)
+            return False
+    return True
+
 @bottle.route('/')
 @bottle.post('/')
 @bottle.view('main')
 def main():
+    if not _checkhost():
+        return bottle.HTTPResponse(status=404)
     what =  bottle.request.forms.get('what')
     #uplog("bottle:main: what value is %s" % what)
 
@@ -59,6 +72,8 @@ def main():
 @bottle.route('/static/<filepath:path>')
 def static(filepath):
     #uplog("control: static: filepath %s datadir %s" % (filepath, datadir))
+    if not _checkhost():
+        return bottle.HTTPResponse(status=404)
     return bottle.static_file(filepath, root=os.path.join(datadir, 'static'))
 
 
@@ -71,6 +86,8 @@ class Streamer(object):
         self.root = root
 
     def __call__(self, filepath):
+        if not _checkhost():
+            return bottle.HTTPResponse(status=404)
         embedded = True if 'embed' in bottle.request.query else False
         if embedded:
             # Embedded image urls have had a .jpg or .png
