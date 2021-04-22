@@ -1075,7 +1075,7 @@ possible ways, described just below.
 In both cases, after creating the tree, you need to compile the openhome
 software. See the sc2mpd build section below.
 
-===== The easy way
+===== OpenHome source tree, the easy way
 
 Download the tar file of the appropriately patched openhome code from the
 upmpdcli downloads page (use the current one, the date on the one below is
@@ -1084,9 +1084,9 @@ just an example), create an empty directory, untar it in it
     cd /home/me
     mkdir openhome
     cd openhome
-    tar xf /path/to/openhome-sc2-20200704.tar.gz
+    tar xf /path/to/openhome-sc2-20210305.tar.gz
     
-===== The complicated way
+===== OpenHome source tree, the complicated way
 
 The *sc2mpd* source comes with a shell script named _ohbuild.sh_ to help
 with this. It has several functions:

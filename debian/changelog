@@ -1,3 +1,12 @@
+upmpdcli (1.5.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Add small Media Server plugin (upradios) for exporting the radio list.
+  * uprcl: export the radio list as a playlist
+  * uprcl: small improvements
+  * Deezer, Qobuz: set pictures for artists and playlists
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 22 Apr 2021 09:48:00 +0200
+
 upmpdcli (1.5.11-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix possible issue when volume controlled from Kazoo

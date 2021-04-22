@@ -111,7 +111,7 @@ static void
 versionInfo(FILE *fp)
 {
     fprintf(fp, "Upmpdcli %s %s\n",
-           UPMPDCLI_PACKAGE_VERSION, LibUPnP::versionString().c_str());
+            UPMPDCLI_PACKAGE_VERSION, LibUPnP::versionString().c_str());
 }
 
 static void
@@ -397,11 +397,11 @@ int main(int argc, char *argv[])
         g_config->get("ohproductroom", ohProductDesc.room);
         // ProductName is set to ModelName by default
         if (ohProductDesc.product.name.empty()) {
-          ohProductDesc.product.name = ohProductDesc.model.name;
+            ohProductDesc.product.name = ohProductDesc.model.name;
         }
         // ProductRoom is set to "Main Room" by default
         if (ohProductDesc.room.empty()) {
-          ohProductDesc.room = "Main Room";
+            ohProductDesc.room = "Main Room";
         }
 
         g_config->get("scsenderpath", senderpath);
@@ -490,7 +490,7 @@ int main(int argc, char *argv[])
             LOGFAT("Can't write pidfile: " << pidfile.getreason() << endl);
             return 1;
         }
-    if (opts.cachedir.empty())
+        if (opts.cachedir.empty())
             opts.cachedir = "/var/cache/upmpdcli";
     } else if (runas == geteuid()) {
         // Already running as upmpdcli user. There are actually 2
@@ -504,10 +504,10 @@ int main(int argc, char *argv[])
         // package was installed. One way to fix this if this if it is
         // wrong is to set cachedir in the configuration file
         // (opts.cachedir will be non-empty then).
-    if (opts.cachedir.empty())
+        if (opts.cachedir.empty())
             opts.cachedir = "/var/cache/upmpdcli";
     } else {
-    if (opts.cachedir.empty())
+        if (opts.cachedir.empty())
             opts.cachedir = path_cat(path_tildexpand("~") , "/.cache/upmpdcli");
     }
 
