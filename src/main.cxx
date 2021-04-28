@@ -650,11 +650,10 @@ int main(int argc, char *argv[])
         // Only the "special" upmpdcli 0.19.16 version has patch != 0
         g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 ||
             mpdstat.verspatch >= 16;
-        // Also L16 is a major source of issues when playing with
-        // win10 'cast to device', inciting it to transcode for some
-        // reason, with very bad results. So for the future (new in
-        // 1.5), only enable it if it's explicitely required by the
-        // config.
+        // It appeared in the past that L16 is a major source of issues when
+        // playing with win10 'cast to device', inciting it to transcode for
+        // some reason, with very bad results. Can't reproduce this now. So
+        // change config default to true.
         bool confl16{true};
         if (g_config) {
             confl16 = g_config->getBool("enablel16", true);
