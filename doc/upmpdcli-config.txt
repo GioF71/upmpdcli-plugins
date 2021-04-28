@@ -129,8 +129,11 @@ HTTP server). Default: '$pkgdatadir/presentation.html'.
 
 [[enablel16]]
 enablel16:: Advertise L16 format support L16 is a raw linear 16 bits audio stream and the source of many
-issues because it does not include identifying information. It is
-disabled by default, only enable it if you know that you need it.
+issues because it does not include identifying information. It used to be
+disabled by default, because of an mpd bug resulting in a lot of noise. It's
+now on by default, but can still be disabled if needed. It seems that it
+sometimes interfers badly with the win10 "cast to device" feature, so you may
+try to turn it off if you have problems with this.
 
 === MPD parameters 
 

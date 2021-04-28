@@ -56,7 +56,7 @@
 # Path to the presentation HTML document
 #presentationhtml = /usr/share/upmpdcli/presentation.html
 # Advertise L16 format support
-#enablel16 = false
+#enablel16 = true
 
 # MPD parameters
 

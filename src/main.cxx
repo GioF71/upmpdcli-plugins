@@ -160,7 +160,7 @@ string g_cachedir("/var/cache/upmpdcli");
 string g_configfilename;
 ConfSimple *g_config;
 ConfSimple *g_state;
-bool g_enableL16 = false;
+bool g_enableL16 = true;
 bool g_lumincompat = false;
 
 static void onsig(int)
@@ -655,9 +655,9 @@ int main(int argc, char *argv[])
         // reason, with very bad results. So for the future (new in
         // 1.5), only enable it if it's explicitely required by the
         // config.
-        bool confl16{false};
+        bool confl16{true};
         if (g_config) {
-            confl16 = g_config->getBool("enablel16", false);
+            confl16 = g_config->getBool("enablel16", true);
         }
         g_enableL16 = g_enableL16 && confl16;
     }
