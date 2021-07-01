@@ -809,10 +809,10 @@ authorization token: follow the instructions in the <<SPOTIFY-AUTH,Spotify
 authorization annex>>.
 
 [[UPRADIOS]]
-== Upmpdcli radio list plugin
+== upradios: Upmpdcli radio list plugin
 
 This is a minuscule plugin which just exports the Upmpdcli radio list as a
-playlist, so that other renderer on the network can use it.
+playlist, so that other renderers on the network can use it.
 
 Of course, the functionality is reduced when compared to using the list
 through the upmpdcli's own OpenHome Radio service: there will be no dynamic
@@ -823,6 +823,8 @@ Still the server will convert .pls and other playlist entries into actual
 stream URLs, and it may be convenient for maintaining the radio list in one
 place.
 
+You will just need to enable the plugin by setting a bogus value for
+the 'upradiosuser' variable in the upmpdcli configuration file.
 
 [[UPRCL]]
 == Upmpdcli local Media Server: uprcl
