@@ -5,7 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# ExecStartPre=/bin/sleep 30
 # Note: if start fails check with "systemctl status upmpdcli"
 ExecStart=/usr/bin/upmpdcli -c /etc/upmpdcli.conf
 # For some reason, it happens the first start of libupnp fails. Probably
