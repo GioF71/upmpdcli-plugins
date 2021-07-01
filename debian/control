@@ -8,7 +8,7 @@ Build-Depends: debhelper (>= 9.0.0), dh-systemd, autotools-dev,
                dh-autoreconf, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
-               qt5-qmake, qtbase5-dev,
+               qt5-default, qt5-qmake, qtbase5-dev,
                libupnpp6-dev (>= 0.20.0)
 Standards-Version: 3.9.8
 Homepage: http://www.lesbonscomptes.com/upmpdcli
