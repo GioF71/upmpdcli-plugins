@@ -28,7 +28,7 @@ from uprclutils import embedded_open
 import uprclinit
 
 # Checking for numeric HOST header
-_hostre = re.compile('''[0-9]+\.[0-9]+\.[0-9]+\.[0-9]:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+''')
+_hostre = re.compile('''[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+''')
 def _checkhost():
     if 'host' in bottle.request.headers:
         host = bottle.request.headers['host']
