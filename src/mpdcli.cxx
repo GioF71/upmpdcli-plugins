@@ -700,8 +700,7 @@ UpSong&  MPDCli::mapSong(UpSong& upsong, struct mpd_song *song)
     upsong.rsrc.duration_secs = mpd_song_get_duration(song);
     upsong.mpdid = mpd_song_get_id(song);
 
-//    LOGDEB1("MPDCli::mapSong: got mpdid " << upsong.mpdid << " " << 
-//            upsong.dump() << endl);
+    LOGDEB1("MPDCli::mapSong: got mpdid " << upsong.mpdid << " " << upsong.dump() << endl);
     return upsong;
 }
 
