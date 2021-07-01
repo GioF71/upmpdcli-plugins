@@ -360,7 +360,7 @@ public:
      * @return 0 if name not found, 1 else
      */
     virtual int get(const std::string& name, std::string& value,
-                    const std::string& sk) const;
+                    const std::string& sk) const override;
     using ConfSimple::get;
 };
 
