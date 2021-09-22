@@ -809,15 +809,14 @@ authorization token: follow the instructions in the <<SPOTIFY-AUTH,Spotify
 authorization annex>>.
 
 [[UPRADIOS]]
-== upradios: Upmpdcli radio list plugin
+== Upradios: Upmpdcli radio list plugin
 
 This is a minuscule plugin which just exports the Upmpdcli radio list as a
 playlist, so that other renderers on the network can use it.
 
-Of course, the functionality is reduced when compared to using the list
-through the upmpdcli's own OpenHome Radio service: there will be no dynamic
-art or special metadata features: `artScript` and `metaScript` entries are
-just ignore.
+Because just the stream URL is computed/used, the functionality is reduced when compared to using
+Upmpdcli OpenHome Radio service: there will be no dynamic art or special metadata features:
+`artScript` and `metaScript` entries are just ignored.
 
 Still the server will convert .pls and other playlist entries into actual
 stream URLs, and it may be convenient for maintaining the radio list in one
@@ -947,6 +946,13 @@ common distributions (Debian, Raspbian, Ubuntu, Fedora) and architectures
 
 [[UPMPDCLI-BUILDING]]
 == Building from source
+
+
+=== Running upmpdcli on Android
+
+We've had an link:https://framagit.org/medoc92/upmpdcli/-/issues/67[adventurous user] building and
+running upmpdcli on Android. The main gotcha seems to be that you will need to add the upmpdcli user
+to appropriate groups to allow it to open TCP sockets. See the issue entries for details.
 
 === Building upmpdcli on Linux
 

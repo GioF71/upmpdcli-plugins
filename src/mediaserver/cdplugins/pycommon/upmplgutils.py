@@ -35,7 +35,6 @@ import subprocess
 import pwd
 import errno
 
-PY3 = sys.version > '3'
 import conftree
 
 default_mime = "audio/mpeg"
@@ -200,10 +199,7 @@ def getserviceuserpass(upconfig, servicename):
 def uplog(s):
     if not type(s) == type(b''):
         s = ("%s: %s" % (_idprefix, s)).encode('utf-8')
-    if PY3:
         sys.stderr.buffer.write(s + b'\n')
-    else:
-        sys.stderr.write(s + b'\n')
     sys.stderr.flush()
 
 
@@ -230,9 +226,7 @@ def getcachedir(config, servicename):
 # difficult. Executing "ip addr" actually seems to be the simplest
 # approach, only works on Linux though (maybe bsd too ?)
 def findmyip():
-    data = subprocess.check_output(["ip", "addr"])
-    if PY3:
-        data = data.decode('utf-8')
+    data = subprocess.check_output(["ip", "addr"]).decode('utf-8')
     l = data.split()
     ips = []
     chosenip = ""

@@ -29,25 +29,13 @@ import shutil
 import getopt
 import traceback
 
-PY3 = sys.version > '3'
-
-if PY3:
-    def makebytes(data):
-        if data is None:
-            return b""
-        if isinstance(data, bytes):
-            return data
-        else:
-            return data.encode("UTF-8")
-else:
-    def makebytes(data):
-        if data is None:
-            return ""
-        if isinstance(data, unicode):
-            return data.encode("UTF-8")
-        else:
-            return data
-
+def makebytes(data):
+    if data is None:
+        return b""
+    if isinstance(data, bytes):
+        return data
+    else:
+        return data.encode("UTF-8")
 
 ############################################
 # CmdTalk implements the communication protocol with the master
@@ -116,10 +104,7 @@ class CmdTalk(object):
     # followed by data. The param name is returned as str/unicode, the data
     # as bytes
     def readparam(self):
-        if PY3:
-            inf = self.infile.buffer
-        else:
-            inf = self.infile
+        inf = self.infile.buffer
         s = inf.readline()
         if s == b'':
             if self.exitfunc:
@@ -143,7 +128,7 @@ class CmdTalk(object):
                       (paramsize, len(paramdata)), 1, 1)
         else:
             paramdata = b''
-        if PY3 and not self.nodecodeinput:
+        if not self.nodecodeinput:
             try:
                 paramdata = paramdata.decode('utf-8')
             except Exception as ex:
@@ -154,18 +139,11 @@ class CmdTalk(object):
         #          (paramname, paramsize, paramdata))
         return (paramname, paramdata)
 
-    if PY3:
-        def senditem(self, nm, data):
-            data = makebytes(data)
-            l = len(data)
-            self.outfile.buffer.write(makebytes("%s: %d\n" % (nm, l)))
-            self.breakwrite(self.outfile.buffer, data)
-    else:
-        def senditem(self, nm, data):
-            data = makebytes(data)
-            l = len(data)
-            self.outfile.write(makebytes("%s: %d\n" % (nm, l)))
-            self.breakwrite(self.outfile, data)
+    def senditem(self, nm, data):
+        data = makebytes(data)
+        l = len(data)
+        self.outfile.buffer.write(makebytes("%s: %d\n" % (nm, l)))
+        self.breakwrite(self.outfile.buffer, data)
         
     # Send answer: document, ipath, possible eof.
     def answer(self, outfields):
@@ -242,7 +220,7 @@ def main(proto, processor):
         params[args[2*i]] = args[2*i+1]
     res = processor.process(params)
 
-    ioout = sys.stdout.buffer if PY3 else sys.stdout
+    ioout = sys.stdout.buffer
 
     for nm,value in res.items():
         #self.log("Senditem: [%s] -> [%s]" % (nm, value))
