@@ -61,6 +61,7 @@ static const string presDesc(
     "<presentationURL>@PATH@</presentationURL>"
     );
 
+static std::string g_full_upmpdcli_lib_mpd_version;
 
 UpMpdMediaRenderer::UpMpdMediaRenderer(
     UpMpd *upmpd, const std::string& deviceid, const std::string& friendlyname)
@@ -94,9 +95,7 @@ bool UpMpdDevice::readLibFile(const string& name, string& contents)
     contents = regsub1("@DEVICETYPE@", contents, m_devicetype);
     contents = regsub1("@UUID@", contents, getDeviceId());
     contents = regsub1("@FRIENDLYNAME@", contents, m_friendlyname);
-    string versionstring = string("upmpdcli version ") +
-        g_upmpdcli_package_version + " " + LibUPnP::versionString();
-    contents = regsub1("@UPMPDCLIVERSION@", contents, versionstring);
+    contents = regsub1("@UPMPDCLIVERSION@", contents, g_full_upmpdcli_lib_mpd_version);
     string reason, path;
     const UpMpd::Options& opts = m_upmpd->getopts();
     
@@ -223,6 +222,16 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
       m_allopts(opts),
       m_mcachefn(opts.cachefn)
 {
+
+    string mpdversion = "0.0.0";
+    if (nullptr != mpdcli) {
+        MpdStatus st = mpdcli->getStatus();
+        mpdversion = lltodecstr(st.versmajor) + "." + lltodecstr(st.versminor) +
+            "." + lltodecstr(st.verspatch);
+    }
+    g_full_upmpdcli_lib_mpd_version = string("upmpdcli version ") + g_upmpdcli_package_version +
+        " " + LibUPnP::versionString() + " " + "mpd " + mpdversion;
+    
     if (0 == (opts.options & upmpdNoAV)) {
         std::string avfname{friendlyname + "-UPnP/AV"};
         g_config->get("avfriendlyname", avfname);
