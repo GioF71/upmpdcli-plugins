@@ -81,7 +81,7 @@ def maybelogin(a={}):
     if formatid:
         formatid = int(formatid)
     else:
-        formatid = 5
+        formatid = 7
     
     if formatid == 5:
         setMimeAndSamplerate("audio/mpeg", "44100")

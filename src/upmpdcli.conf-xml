@@ -433,7 +433,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # <brief>Qobuz stream quality.</brief>
 # <descr>5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
 # allows streaming each of the formats).</descr></var>
-#qobuzformatid = 5
+#qobuzformatid = 7
 
 # <grouptitle>Deezer streaming service parameters</grouptitle>
 
