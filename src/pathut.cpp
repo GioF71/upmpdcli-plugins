@@ -1210,6 +1210,7 @@ bool urlisfileurl(const string& url)
     return url.find("file://") == 0;
 }
 
+#ifndef NO_STD_REGEX
 static std::regex
 re_uriparse("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?",
             std::regex::extended);
@@ -1299,6 +1300,7 @@ ParsedUri::ParsedUri(std::string uri)
         fragment = mr[9].str();
     }
 }
+#endif // NO_STD_REGEX
 
 /// Directory reading interface. UTF-8 on Windows.
 class PathDirContents::Internal {

@@ -294,25 +294,18 @@ template <class T> string stringsToString(const T& tokens)
     return out;
 }
 
-template <class T> void stringsToCSV(const T& tokens, string& s,
-                                     char sep)
+template <class T> void stringsToCSV(const T& tokens, string& s, char sep)
 {
     s.erase();
-    for (auto it = tokens.begin();
-         it != tokens.end(); it++) {
+    for (const auto& tok : tokens) {
         bool needquotes = false;
-        if (it->empty() ||
-            it->find_first_of(string(1, sep) + "\"\n") != string::npos) {
+        if (tok.empty() || tok.find_first_of(string(1, sep) + "\"\n") != string::npos) {
             needquotes = true;
-        }
-        if (it != tokens.begin()) {
-            s.append(1, sep);
         }
         if (needquotes) {
             s.append(1, '"');
         }
-        for (unsigned int i = 0; i < it->length(); i++) {
-            char car = it->at(i);
+        for (auto&& car : tok) {
             if (car == '"') {
                 s.append(2, '"');
             } else {
@@ -322,7 +315,11 @@ template <class T> void stringsToCSV(const T& tokens, string& s,
         if (needquotes) {
             s.append(1, '"');
         }
+        s.append(1, sep);
     }
+    // Remove last separator.
+    if (s.size())
+        s.pop_back();
 }
 
 #ifdef SMALLUT_EXTERNAL_INSTANTIATIONS
