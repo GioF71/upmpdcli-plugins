@@ -21,16 +21,24 @@ class Session(object):
         self.user = None
 
     def login(self, username, password, appid, cfvalue):
-        self.api = raw.RawApi(appid, cfvalue)
+        # self.api will already exist if get_appid() was called first, which means that the
+        # appid/secret were obtained through the spoofer, not the config. This happens when we are
+        # working for OH Credentials. Else we create the API with our input params which come from
+        # the configuration (and still may be empty in which case the spoofer will be used).
+        if not self.api:
+            self.api = raw.RawApi(appid, cfvalue)
         data = self.api.user_login(username = username, password = password)
         if data:
             self.user = User(self, self.api.user_id)
-
             return True
         else:
             return False
 
-
+    def get_appid(self):
+        if not self.api:
+            self.api = raw.RawApi(None, None)
+        return self.api.appid
+    
     def get_appid_and_token(self):
         return (self.api.appid, self.api.user_auth_token)
     

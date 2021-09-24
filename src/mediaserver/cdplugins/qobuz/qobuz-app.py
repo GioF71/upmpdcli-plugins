@@ -89,13 +89,22 @@ def maybelogin(a={}):
         setMimeAndSamplerate("application/flac", "44100")
 
     if not username or not password:
-        raise Exception("qobuzuser and/or qobuzpass not set in configuration")
+        raise Exception("maybelogin: qobuzuser and/or qobuzpass not set.")
 
     _g_loginok = session.login(username, password, appid, cfvalue)
 
 
-# This is not used by the media server. It's for use by the OpenHome
-# Credentials service
+# The following two (getappid and login) are not used by the media server, they're for use by the
+# OpenHome Credentials service
+@dispatcher.record('getappid')
+def getappid(a):
+    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
+    appid = upconfig.get('qobuzappid')
+    if appid:
+        return {'appid' : appid}
+    appid = session.get_appid()
+    return {'appid' : appid}
+    
 @dispatcher.record('login')
 def login(a):
     maybelogin(a)
