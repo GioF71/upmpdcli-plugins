@@ -191,7 +191,9 @@ def getserviceuserpass(upconfig, servicename):
     username = upconfig.get(servicename + 'user')
     password = upconfig.get(servicename + 'pass')
     if not username or not password:
-        altconf = conftree.ConfSimple('/var/cache/upmpdcli/ohcreds/screds')
+        credsfile = os.path.join(getcachedir(upconfig, ''), 'ohcreds', 'screds')
+        uplog("Retrieving user/pass from %s" % credsfile)
+        altconf = conftree.ConfSimple(credsfile)
         username = altconf.get(servicename + 'user')
         password = altconf.get(servicename + 'pass')
     return username, password
