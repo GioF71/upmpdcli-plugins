@@ -31,8 +31,15 @@ using namespace std;
 
 static const string protoescape{"http://upmpdprotoescape/"};
 
-bool morphSpecialUrl(string& url, bool& forcenocheck,
-                     const std::string& upnphost)
+// http://wiki.openhome.org/wiki/Av:Developer:Eriskay:StreamingServices
+// Tidal and qobuz tracks added by Kazoo / Lumin: 
+//   tidal://track?version=1&trackId=[tidal_track_id]
+//   qobuz://track?version=2&trackId=[qobuz_track_id]
+static const string tidqob_restr{
+    "(tidal|qobuz)://track\\?version=([[:digit:]]+)&trackId=([[:digit:]]+)"};
+static std::regex tidqob_re(tidqob_restr);
+
+bool morphSpecialUrl(string& url, bool& forcenocheck, const std::string& upnphost)
 {
     forcenocheck = false;
 
@@ -42,10 +49,8 @@ bool morphSpecialUrl(string& url, bool& forcenocheck,
     if (url.find(protoescape) == 0) {
         auto protoend = url.find('/', protoescape.size());
         if (protoend != string::npos) {
-            auto protoname = url.substr(protoescape.size(),
-                                        protoend-protoescape.size());
-            url.replace(0, protoescape.size() + protoname.size(),
-                        protoname + "://");
+            auto protoname = url.substr(protoescape.size(), protoend-protoescape.size());
+            url.replace(0, protoescape.size() + protoname.size(), protoname + "://");
         }
         forcenocheck = true;
         return true;
@@ -61,24 +66,15 @@ bool morphSpecialUrl(string& url, bool& forcenocheck,
         sport = UPnPP::SoapHelp::i2s(CDPluginServices::microhttpport());
     }
 
-    // http://wiki.openhome.org/wiki/Av:Developer:Eriskay:StreamingServices
-    // Tidal and qobuz tracks added by Kazoo / Lumin: 
-    //   tidal://track?version=1&trackId=[tidal_track_id]
-    //   qobuz://track?version=2&trackId=[qobuz_track_id]
-    
-    string se =
-        "(tidal|qobuz)://track\\?version=([[:digit:]]+)&trackId=([[:digit:]]+)";
-    std::regex e(se);
+    // Is this a qobuz/tidal track added from e.g. OHCredentials-using Kazoo ? Then morph it to
+    // something the plugin can use.
     std::smatch mr;
-    bool found = std::regex_match(url, mr, e);
+    bool found = std::regex_match(url, mr, tidqob_re);
     if (found) {
         string pathprefix = CDPluginServices::getpathprefix(mr[1]);
-
-        // The microhttpd code actually only cares about getting a
-        // trackId parameter. Make it look what the plugins normally
-        // generate anyway:
-        string path = path_cat(pathprefix,
-                               "track?version=1&trackId=" + mr[3].str());
+        // The microhttpd code actually only cares about getting a trackId parameter. Make it look
+        // what the plugins normally generate anyway:
+        string path = path_cat(pathprefix, "track?version=1&trackId=" + mr[3].str());
         url = string("http://") + upnphost + ":" + sport + path;
         forcenocheck = true;
     }
