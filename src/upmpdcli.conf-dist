@@ -181,7 +181,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Qobuz password.
 #qobuzpass = agoodpassword
 # Qobuz stream quality.
-#qobuzformatid = 5
+#qobuzformatid = 6
 
 # Deezer streaming service parameters
 

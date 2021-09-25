@@ -391,7 +391,7 @@ qobuzuser:: Qobuz user name. Your Qobuz login name.
 qobuzpass:: Qobuz password. The password for your Qobuz account.
 
 [[qobuzformatid]]
-qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 7 for FLAC, and 27 for hi-res (if your subscription
+qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 allows streaming each of the formats).
 
 === Deezer streaming service parameters 
