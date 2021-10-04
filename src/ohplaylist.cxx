@@ -315,7 +315,7 @@ bool OHPlaylist::makestate(unordered_map<string, string> &st)
         st["Shuffle"] = SoapHelp::i2s(mpds.random);
         makeIdArray(st["IdArray"]);
         if (mpds.songid != -1) {
-            m_lastid = mpds.songid;
+            m_lastplayid = mpds.songid;
             st["Id"] = SoapHelp::i2s(mpds.songid);
         } else {
             st["Id"] = SoapHelp::i2s(m_lastplayid == -1 ? m_firstqid : m_lastplayid);
