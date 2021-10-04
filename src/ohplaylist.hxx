@@ -107,6 +107,10 @@ private:
     // queue version.
     int m_mpdqvers;
     std::string m_idArrayCached;
+    // Last mpdid seen (mpd playing)
+    int m_lastplayid{-1}; 
+    // Id of first song in queue. For eventing Id before beginning play (0 means queue empty).
+    int m_firstqid{0}; 
 };
 
 #endif /* _OHPLAYLIST_H_X_INCLUDED_ */

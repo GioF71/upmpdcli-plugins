@@ -211,6 +211,12 @@ bool OHPlaylist::makeIdArray(string& out)
     }
 
     m_idArrayCached = out = translateIdArray(vdata);
+    if (vdata.empty()) {
+        m_lastplayid = -1;
+        m_firstqid = 0;
+    } else {
+        m_firstqid = vdata[0].mpdid;
+    }
     m_mpdqvers = mpds.qvers;
 
     // Don't perform metadata cache maintenance if we're not active
@@ -307,10 +313,15 @@ bool OHPlaylist::makestate(unordered_map<string, string> &st)
         st["TransportState"] =  mpdstatusToTransportState(mpds.state);
         st["Repeat"] = SoapHelp::i2s(mpds.rept);
         st["Shuffle"] = SoapHelp::i2s(mpds.random);
-        st["Id"] = mpds.songid == -1 ? "0" : SoapHelp::i2s(mpds.songid);
+        makeIdArray(st["IdArray"]);
+        if (mpds.songid != -1) {
+            m_lastid = mpds.songid;
+            st["Id"] = SoapHelp::i2s(mpds.songid);
+        } else {
+            st["Id"] = SoapHelp::i2s(m_lastplayid == -1 ? m_firstqid : m_lastplayid);
+        }
         st["TracksMax"] = SoapHelp::i2s(tracksmax);
         st["ProtocolInfo"] = Protocolinfo::the()->gettext();
-        makeIdArray(st["IdArray"]);
     } else {
         st = m_upnpstate;
         st["TransportState"] =  "Stopped";
