@@ -1,3 +1,12 @@
+upmpdcli (1.5.13-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Enable L16 by default as it is handled correctly by current mpd versions
+  * Add the mpd version to the description version string
+  * Change Qobuz default format to 6
+  * Misc small bug fixes
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 13 Oct 2021 10:38:00 +0200
+
 upmpdcli (1.5.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Add small Media Server plugin (upradios) for exporting the radio list.
