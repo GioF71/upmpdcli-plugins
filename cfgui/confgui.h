@@ -235,6 +235,10 @@ public:
     const QString& getVarName() {
         return m_varname;
     }
+    void setStrDefault(const std::string& value) {
+        m_strdefault = value;
+    }
+        
 public slots:
     virtual void setEnabled(bool) = 0;
     virtual void storeValue() = 0;
@@ -251,6 +255,8 @@ protected:
     // File names are encoded as local8bit in the config files. Other
     // are encoded as utf-8
     bool         m_fsencoding;
+    // Bool and Int have constructor parameters for the default value. Others may use this
+    std::string  m_strdefault;
     virtual bool createCommon(const QString& lbltxt, const QString& tltptxt);
 };
 

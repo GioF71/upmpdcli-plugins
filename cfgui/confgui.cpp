@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2016 J.F.Dockes
+/* Copyright (C) 2005-2021 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -57,22 +57,27 @@ using namespace std;
 
 namespace confgui {
 
+// Main layout spacing
 static const int spacing = 3;
+
 // left,top,right, bottom
 static QMargins margin(4,3,4,3);
 
-// Margin around text to explicitely set pushbutton sizes lower than the default min (80?)
+// Margin around text to explicitely set pushbutton sizes lower than
+// the default min (80?). Different on Mac OS for some reason
+#ifdef __APPLE__
+static const int pbTextMargin = 30;
+#else
 static const int pbTextMargin = 15;
+#endif
 
-ConfTabsW::ConfTabsW(QWidget *parent, const QString& title,
-                     ConfLinkFact *fact)
+ConfTabsW::ConfTabsW(QWidget *parent, const QString& title, ConfLinkFact *fact)
     : QDialog(parent), m_makelink(fact)
 {
     setWindowTitle(title);
     tabWidget = new QTabWidget;
 
-    buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
-                                     | QDialogButtonBox::Cancel);
+    buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->setSpacing(spacing);
@@ -229,6 +234,7 @@ ConfParamW *ConfTabsW::findParamW(const QString& varname)
     }
     return nullptr;
 }
+
 void ConfTabsW::endOfList(int tabindex)
 {
     ConfPanelW *panel = dynamic_cast<ConfPanelW*>(tabWidget->widget(tabindex));
@@ -469,7 +475,9 @@ void ConfParamStrW::storeValue()
 void ConfParamStrW::loadValue()
 {
     string s;
-    m_cflink->get(s);
+    if (!m_cflink->get(s)) {
+        s = m_strdefault;
+    }
     if (m_fsencoding) {
 #ifdef _WIN32
         m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
@@ -523,7 +531,9 @@ void ConfParamCStrW::storeValue()
 void ConfParamCStrW::loadValue()
 {
     string s;
-    m_cflink->get(s);
+    if (!m_cflink->get(s)) {
+        s = m_strdefault;
+    }
     QString cs;
     if (m_fsencoding) {
 #ifdef _WIN32
@@ -634,7 +644,9 @@ void ConfParamFNW::storeValue()
 void ConfParamFNW::loadValue()
 {
     string s;
-    m_cflink->get(s);
+    if (!m_cflink->get(s)) {
+        s = m_strdefault;
+    }
 #ifdef _WIN32
     m_le->setText(m_origvalue = QString::fromUtf8(s.c_str()));
 #else
@@ -778,7 +790,9 @@ void ConfParamSLW::storeValue()
 void ConfParamSLW::loadValue()
 {
     m_origvalue.clear();
-    m_cflink->get(m_origvalue);
+    if (!m_cflink->get(m_origvalue)) {
+        m_origvalue = m_strdefault;
+    }
     vector<string> ls;
     stringToStrings(m_origvalue, ls);
     QStringList qls;
