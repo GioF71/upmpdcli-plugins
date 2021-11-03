@@ -684,6 +684,48 @@ string path_home()
 #endif
 }
 
+string path_cachedir()
+{
+#ifdef _WIN32
+    string dir;
+    wchar_t *cp;
+    SHGetKnownFolderPath(FOLDERID_InternetCache, 0, nullptr, &cp);
+    if (cp != 0) {
+        wchartoutf8(cp, dir);
+    }
+    if (dir.empty()) {
+        cp = _wgetenv(L"HOMEDRIVE");
+        wchartoutf8(cp, dir);
+        if (cp != 0) {
+            string dir1;
+            const wchar_t *cp1 = _wgetenv(L"HOMEPATH");
+            wchartoutf8(cp1, dir1);
+            if (cp1 != 0) {
+                dir = path_cat(dir, dir1);
+            }
+        }
+    }
+    if (dir.empty()) {
+        dir = "C:/";
+    }
+    dir = path_canon(dir);
+    path_catslash(dir);
+    return dir;
+#else
+    static string xdgcache;
+    if (xdgcache.empty()) {
+        const char *cp = getenv("XDG_CACHE_HOME");
+        if (cp == 0) {
+            xdgcache = path_cat(path_home(), ".cache");
+        } else {
+            xdgcache = string(cp);
+        }
+        path_catslash(xdgcache);
+    }
+    return xdgcache;
+#endif
+}
+
 string path_tildexpand(const string& s)
 {
     if (s.empty() || s[0] != '~') {

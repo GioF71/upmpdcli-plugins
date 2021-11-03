@@ -56,6 +56,9 @@ bool path_samefile(const std::string& p1, const std::string& p2);
 
 /// Get the current user's home directory
 extern std::string path_home();
+/// Get the top location for cached data
+extern std::string path_cachedir();
+
 /// Expand ~ at the beginning of std::string
 extern std::string path_tildexpand(const std::string& s);
 /// Use getcwd() to make absolute path if needed. Beware: ***this can fail***
