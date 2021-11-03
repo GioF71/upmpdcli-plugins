@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
-Build-Depends: debhelper (>= 9.0.0), dh-systemd, autotools-dev, dh-autoreconf,
+Build-Depends: debhelper (>= 9.0.0), autotools-dev, dh-autoreconf,
 			   python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
