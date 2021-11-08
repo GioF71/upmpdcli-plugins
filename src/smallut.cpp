@@ -347,7 +347,7 @@ template void stringsToCSV<vector<string> >(const vector<string>&, string&,
 #endif
 
 void stringToTokens(const string& str, vector<string>& tokens,
-                    const string& delims, bool skipinit)
+                    const string& delims, bool skipinit, bool allowempty)
 {
     string::size_type startPos = 0, pos;
 
@@ -367,7 +367,7 @@ void stringToTokens(const string& str, vector<string>& tokens,
         }
         if (pos == startPos) {
             // Dont' push empty tokens after first
-            if (tokens.empty()) {
+            if (allowempty || tokens.empty()) {
                 tokens.emplace_back();
             }
             startPos = ++pos;

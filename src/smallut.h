@@ -142,7 +142,7 @@ template <class T> void stringsToCSV(const T& tokens, std::string& s,
 extern void stringToTokens(const std::string& s,
                            std::vector<std::string>& tokens,
                            const std::string& delims = " \t",
-                           bool skipinit = true);
+                           bool skipinit = true, bool allowempty = false);
 
 /** Like toTokens but with multichar separator */
 extern void stringSplitString(const std::string& str,

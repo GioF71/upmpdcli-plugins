@@ -720,7 +720,9 @@ bool ConfSimple::commentsAsXML(ostream& out)
         {
             string::size_type pos = line.m_data.find_first_not_of("# ");
             if (pos != string::npos) {
-                out << line.m_data.substr(pos) << endl;
+                out << line.m_data.substr(pos) << "\n";
+            } else {
+                out << "\n";
             }
             break;
         }
