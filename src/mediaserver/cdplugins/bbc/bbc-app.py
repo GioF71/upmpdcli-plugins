@@ -29,6 +29,7 @@ import os
 import re
 import requests
 import sys
+import threading
 import urllib
 
 from bs4 import BeautifulSoup
@@ -154,20 +155,37 @@ def get_page(url):
     # and parse the page using BeautifulSoup
     return BeautifulSoup(requests.get(url).text, 'html.parser')
 
-def trackdetails(trackid):
+
+# The urls we obtain point to 2 levels of m3u playlists, the second of which is an apple HTTP live
+# streaming playlist.
+# https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/StreamingMediaGuide/DeployingHTTPLiveStreaming/DeployingHTTPLiveStreaming.html
+# It happens that mpd deals with these fine, not sure that other renderers will. Mitigating this
+# would be complicated. The only simple thing we could do is resolve the first level and hope that
+# renderers can deal with the Apple part? Else we'd have to proxy the stream.
+#
+# Also, retrieving the programme details is slow and the listing can timeout when there are many
+# entries (in station_date_view()). We'd need to send multiple requests in parallel, either with
+# grequests (would need change of programmedetails/station_date_view() interaction), or with
+# multiple explicit programmedetails() threads.
+def programmedetails(progid, resdata):
     global pathprefix
     maybeinit()
+    resdata[progid] = None
 
-    programme = requests.get('https://www.bbc.co.uk/programmes/' + trackid + '.json')
+    try:
+        url = 'https://www.bbc.co.uk/programmes/' + progid + '.json'
+        programme = requests.get(url, timeout=5)
+    except:
+        uplog("Timed out for %s" % url)
     programme_json = programme.json()["programme"]
 
     picked_url = None
-
+    metadata = {}
     for version in programme_json["versions"]:
         url = \
            'https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/iptv-all/vpid/'\
            + version["pid"] + '/format/json'
-        uplog("DETAILS: getting: %s" % url)
+        uplog("DETAILS: getting: %s" % url, level=4)
         playlist = requests.get(url)
         playlist_json = playlist.json()
 
@@ -180,14 +198,14 @@ def trackdetails(trackid):
         audio_items.sort(key=lambda x: x['bitrate'], reverse=True)
 
         uplog('Found {0} audio items for the programme version {1}'.
-              format(len(audio_items), version['pid']))
+              format(len(audio_items), version['pid']), level=4)
 
         # Pick the first stream available for the highest bitrate item
         picked_stream = audio_items[0]
         picked_url = picked_stream["connection"][1]["href"]
 
         uplog('Picked {0} stream with bitrate {1}'.
-              format(picked_stream['encoding'], picked_stream['bitrate']))
+              format(picked_stream['encoding'], picked_stream['bitrate']), level=4)
 
         encoding = 'audio/mpeg'
         if picked_stream['encoding'] == 'aac':
@@ -196,22 +214,22 @@ def trackdetails(trackid):
             'url': picked_url,
             'encoding' : encoding,
             'bitrate' : picked_stream['bitrate'],
-            'thumb': 'https://ichef.bbci.co.uk/images/ic/480xn/' + programme_json["image"]["pid"] + '.jpg',
-            'icon': 'https://ichef.bbci.co.uk/images/ic/480xn/' + programme_json["image"]["pid"] + '.jpg',
+            'thumb': 'https://ichef.bbci.co.uk/images/ic/480xn/' + \
+            programme_json["image"]["pid"] + '.jpg',
+            'icon': 'https://ichef.bbci.co.uk/images/ic/480xn/' + \
+            programme_json["image"]["pid"] + '.jpg',
             'title': programme_json["display_title"]["title"],
             'artist': programme_json["display_title"]["subtitle"],
             'album': programme_json["ownership"]["service"]["title"],
             'comment': programme_json["short_synopsis"]
         }
-
-        uplog("Metadata %s" % metadata)
+        #uplog("Metadata %s" % metadata, level=5)
         break
 
     if picked_url is None:
         uplog("Episode not available to stream")
-        return {}
-
-    return metadata
+    else:
+        resdata[progid] = metadata
 
 
 def add_directory(title, endpoint):
@@ -224,6 +242,7 @@ def urls_from_id(view_func, items):
     return [plugin.url_for(view_func, item.id) for item in items if str(item.id).find('http') != 0]
 
 def view(data_items, urls, end=True):
+    uplog("View: %d items" % len(data_items))
     for item, url in zip(data_items, urls):
         title = item.name
 
@@ -240,7 +259,8 @@ def view(data_items, urls, end=True):
         except:
             artnm = None
         xbmcplugin.entries.append(
-            direntry(bbcidprefix + url, xbmcplugin.objid, title, arturi=image, artist=artnm, upnpclass=upnpclass))
+            direntry(bbcidprefix + url, xbmcplugin.objid, title,
+                     arturi=image, artist=artnm, upnpclass=upnpclass))
 
 @plugin.route('/')
 def root():
@@ -282,7 +302,7 @@ def station_view(station_id):
 def station_date_view(station_id, year, month, day):
     # Load the schedules for the station. Input date is like 2021/11/08
     url = 'https://www.bbc.co.uk/schedules/' + station_id + '/' + year + '/' + month + '/' + day
-    uplog("Fetching %s" % url)
+    uplog("station_date_view: fetching %s" % url, level=5)
     schedule = get_page(url)
 
     result = None
@@ -295,27 +315,59 @@ def station_date_view(station_id, year, month, day):
         uplog("Something went wrong parsing the station's schedule")
         return
 
+    reqcount = xbmcplugin.count
+    reqoffs = xbmcplugin.offset
+    uplog("station_date_view: offset %d count %d" % (reqoffs, reqcount))
     tracks = []
-    trackno = 1
+    trackno = 1 + reqoffs
+    resdata = {}
+
+    thrcount = 0
+    ths=[]
+    offset = 0
+    xbmcplugin.total = len(result["@graph"])
+    
     for episode in result["@graph"]:
+        if offset < reqoffs:
+            offset += 1
+            continue
+        progid = episode["identifier"]
+        resdata[progid] = None
+        th=threading.Thread(target=programmedetails, args=(progid, resdata))
+        th.start() 
+        ths.append(th)
+        thrcount += 1
+        offset += 1
+        if thrcount == 10:
+            thrcount = 0
+            for th in ths:
+                th.join()
+        datacount = len([k for k in resdata.keys() if resdata[k] is not None])
+        if datacount >= reqcount:
+            break
+    for th in ths:
+        th.join()
+
+    offset = 0
+    for episode in result["@graph"]:
+        if offset < reqoffs:
+            offset += 1
+            continue
+        progid = episode["identifier"]
+        if not progid in resdata or resdata[progid] is None:
+            continue
+        trackdata = resdata[progid]
+
         date = dateutil.parser.parse(episode["publication"]["startDate"])
-
         time = date.strftime('%Y-%m-%d, %H:%M')
-
         if "partOfSeries" in episode:
             title = time + ": " + episode["partOfSeries"]["name"] + " - " + episode["name"]
         else:
             title = time + ": " + episode["name"]
 
-        station = find_station(station_id)
-        station_name = station['name'] if station else 'Unknown'
-        trackid = episode["identifier"]
-        trackdata = trackdetails(trackid)
-        if not trackdata:
-            continue
         track = {
             'pid' : xbmcplugin.objid,
-            'id' :  xbmcplugin.objid + '$' + '%s' % trackid,
+            'id' :  xbmcplugin.objid + '$' + '%s' % progid,
             'tt' : trackdata['title'],
             'uri' : trackdata['url'],
             'tp' : 'it',
@@ -331,7 +383,9 @@ def station_date_view(station_id, year, month, day):
         }
         xbmcplugin.entries.append(track)
         trackno += 1
-
+        if len(xbmcplugin.entries) >= reqcount:
+            break
+    uplog("station_date_view: returning %d entries" % len(xbmcplugin.entries))
 
 @plugin.route('/root_podcasts')
 def root_podcasts():
@@ -349,25 +403,22 @@ def browse(a):
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
-    bflg = a['flag'] if 'flag' in a else 'children'
-    
     if re.match('0\$bbc\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
     maybeinit()
+    
+    if 'offset' in a:
+        xbmcplugin.offset = int(a['offset'])
+    count = 0
+    if 'count' in a:
+        xbmcplugin.count = int(a['count'])
 
     xbmcplugin.objid = objid
     idpath = objid.replace(bbcidprefix, '', 1)
-    if bflg == 'meta':
-        m = re.match('.*\$(.+)$', idpath)
-        if m:
-            trackid = m.group(1)
-            track = Track()
-            track_list([track])
-    else:
-        plugin.run([idpath])
+    plugin.run([idpath])
     #msgproc.log("%s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
-    return {"entries" : encoded}
+    return {"entries" : encoded, "total" : str(xbmcplugin.total)}
 
 @dispatcher.record('search')
 def search(a):

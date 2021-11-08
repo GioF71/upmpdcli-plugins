@@ -47,19 +47,20 @@ def setidprefix(idprefix):
     global _idprefix
     _idprefix = idprefix
 
-# Bogus class instanciated as global object for helping with reusing
-# kodi addon code
+# Bogus class instanciated as global object for helping with reusing kodi addon code
 class XbmcPlugin:
     SORT_METHOD_TRACKNUM = 1
     def __init__(self, idprefix):
         self.entries = []
         self.objid = ''
         self.idprefix = idprefix
+        self.offset = 0
+        self.count = 0
+        self.total = 0
         setidprefix(idprefix)
 
     def addDirectoryItem(self, hdl, endpoint, title, isend = False):
-        self.entries.append(direntry(self.idprefix + endpoint, self.objid,
-                                     title))
+        self.entries.append(direntry(self.idprefix + endpoint, self.objid, title))
 
     def endOfDirectory(self, h):
         return
@@ -198,7 +199,10 @@ def getserviceuserpass(upconfig, servicename):
         password = altconf.get(servicename + 'pass')
     return username, password
 
-def uplog(s):
+_loglevel = 3
+def uplog(s, level=3):
+    if level > _loglevel:
+        return
     if not type(s) == type(b''):
         s = ("%s: %s" % (_idprefix, s)).encode('utf-8')
         sys.stderr.buffer.write(s + b'\n')
