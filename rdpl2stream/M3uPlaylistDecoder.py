@@ -20,6 +20,8 @@
 import sys
 from urllib.request import Request as UrlRequest
 from urllib.request import urlopen as urlUrlopen
+from urllib.parse import urljoin as urlJoin
+
 import logging    
 from common import USER_AGENT
 
@@ -29,8 +31,11 @@ class M3uPlaylistDecoder:
 
 
     def isStreamValid(self, contentType, firstBytes):
-        if 'audio/mpegurl' in contentType or 'audio/x-mpegurl' in contentType:
-            self.log.info('Stream is readable by M3U Playlist Decoder')
+        contentType = contentType.lower()
+        if 'audio/mpegurl' in contentType or 'audio/x-mpegurl' in contentType \
+           or 'application/x-mpegurl' in contentType or \
+           'application/vnd.apple.mpegurl' in contentType:
+            self.log.debug('Stream is readable by M3U Playlist Decoder')
             return True
         else:
             lines = firstBytes.splitlines()
@@ -55,6 +60,9 @@ class M3uPlaylistDecoder:
 
         for line in lines:
             if line.startswith(b"#") == False and len(line) > 0:
-                playlist.append(line)
+                if line.startswith(b"http"):
+                    playlist.append(line)
+                else:
+                    playlist.append(urlJoin(url.encode('utf-8'), line))
 
         return playlist
