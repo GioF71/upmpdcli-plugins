@@ -4,11 +4,11 @@ Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
-Build-Depends: debhelper (>= 9.0.0), autotools-dev, dh-autoreconf,
-			   python3, pkg-config,
+Build-Depends: debhelper (>= 9.0.0), dh-systemd, autotools-dev,
+               dh-autoreconf, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
-               qt5-qmake, qtbase5-dev,
+               qt5-default, qt5-qmake, qtbase5-dev,
                libupnpp6-dev (>= 0.20.0)
 Standards-Version: 3.9.8
 Homepage: http://www.lesbonscomptes.com/upmpdcli
@@ -47,21 +47,46 @@ Description: upmpdcli Qobuz plugin
  upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
  streaming service.
 
-Package: upmpdcli-tidal
+Package: upmpdcli-deezer
 Architecture: all
 Section: contrib/sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Tidal plugin
- upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
+Description: upmpdcli Deezer plugin
+ upmpdcli-deezer allows upmpdcli to proxy access to the Deezer music
  streaming service.
+
+Package: upmpdcli-radios
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, ${misc:Depends}
+Description: upmpdcli radio list export plugin
+ upmpdcli-radios exports the upmpdcli OpenHome service radio list through
+ the upmpdcli Media Server.
+
+#Package: upmpdcli-tidal
+#Architecture: all
+#Section: contrib/sound
+#Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
+#Description: upmpdcli Tidal plugin
+# upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
+# streaming service.
+
+Package: upmpdcli-hra
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
+Description: upmpdcli highresaudio plugin
+ upmpdcli-hra allows upmpdcli to proxy access to the highresaudio
+ https://www.highresaudio.com/en music streaming service.
 
 Package: upmpdcli-spotify
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, libspotify12, ${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Spotify plugin
  upmpdcli-spotify allows upmpdcli to proxy access to the Spotify
- streaming service.
+ streaming service. Note: no dependance on libspotify to let you install
+ this without a libspotify package (bare lib ok).
 
 Package: upmpdcli-uprcl
 Architecture: all
