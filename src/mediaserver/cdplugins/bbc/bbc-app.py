@@ -129,6 +129,7 @@ def find_station(id):
     return None
 
 _g_initok = False
+_g_fetchdays = 30
 
 def maybeinit(a={}):
     global httphp
@@ -151,7 +152,12 @@ def maybeinit(a={}):
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-    
+
+    global _g_fetchdays
+    val = upconfig.get("bbcprogrammedays")
+    if val:
+        _g_fetchdays = int(val)
+
     setMimeAndSamplerate("audio/mpeg", "44100")
     _g_initok = True
 
@@ -216,6 +222,9 @@ def programmedetails(progid, resdata):
         encoding = 'audio/mpeg'
         if picked_stream['encoding'] == 'aac':
             encoding = 'audio/aac'
+        #broadcast_date = dateutil.parser.parse(programme_json['first_broadcast_date'])
+        #dte = broadcast_date.strftime('%Y-%m-%d, %H:%M') + " "
+        dte = ""
         metadata = {
             'url': picked_url,
             'encoding' : encoding,
@@ -225,7 +234,8 @@ def programmedetails(progid, resdata):
             'icon': 'https://ichef.bbci.co.uk/images/ic/480xn/' + \
             programme_json["image"]["pid"] + '.jpg',
             'title': programme_json["display_title"]["title"],
-            'artist': programme_json["display_title"]["subtitle"],
+            'artist': dte + programme_json["display_title"]["subtitle"],
+            # Album is the station name.
             'album': programme_json["ownership"]["service"]["title"],
             'comment': programme_json["short_synopsis"]
         }
@@ -238,7 +248,7 @@ def programmedetails(progid, resdata):
         resdata[progid] = metadata
 
 # Parallel fetching of programme data. Threads return their result by setting a dictionary entry
-_nthreads = 15
+_nthreads = 20
 def fetchdetails(resdata, reqcount):
     thrcount = 0
     ths=[]
@@ -315,7 +325,7 @@ def station_view(station_id):
     base = datetime.datetime.today()
 
     # Create a range of the last 30 days
-    for delta in range(30):
+    for delta in range(_g_fetchdays):
         date = base - datetime.timedelta(days=delta)
 
         year = '%04d' % date.year
@@ -370,6 +380,7 @@ def station_date_view(station_id, year, month, day):
             continue
         trackdata = resdata[progid]
 
+        # We ignore the details title as the one in the episode data is fine.
         date = dateutil.parser.parse(episode["publication"]["startDate"])
         time = date.strftime('%Y-%m-%d, %H:%M')
         if "partOfSeries" in episode:
@@ -380,13 +391,14 @@ def station_date_view(station_id, year, month, day):
         track = {
             'pid' : xbmcplugin.objid,
             'id' :  xbmcplugin.objid + '$' + '%s' % progid,
-            'tt' : trackdata['title'],
+            'tt' : title,
+            'dc:title' : title,
             'uri' : trackdata['url'],
             'tp' : 'it',
             'upnp:albumArtURI' : trackdata['thumb'],
             'upnp:originalTrackNumber' :  str(trackno),
-            'upnp:artist' : trackdata['artist'],
-            'dc:title' : trackdata['title'],
+            # artist has the subtitle, which is already in the title obtained from the episode
+#            'upnp:artist' : trackdata['artist'],
             'duration' : '0',
             'upnp:class' : 'object.item.audioItem.musicTrack',
             'res:mime' : trackdata['encoding'],
