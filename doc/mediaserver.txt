@@ -284,7 +284,7 @@ because it uses its own HTTP server (started on uprclhostport)
 
 The actual media data access can be obtained in three different ways:
 
-- Qobuz, Tidal and Gmusic all work the same way. The directory data
+- Qobuz, Tidal and Deezer all work the same way. The directory data
   contains numeric track identifiers (trackids). These trackids can be
   translated to a short-lived URL using a specific service call which
   particularly checks the authorizations. The URLs allow normal HTTP access
@@ -317,9 +317,9 @@ In all current cases, the miniserver port value which the plgwithslave
 constructor receives and stores in upnpport is not used, as the miniserver
 itself.
 
-==== Tidal, Qobuz, Gmusic
+==== Tidal, Qobuz, Deezer
 
-The Tidal, Qobuz, and Gmusic modules currently work in the same way:
+The Tidal, Qobuz, and Deezer modules currently work in the same way:
 
  - They use the port supplied from plgwithslave which is the one on which
    the microhttpd instance is listening. The URIs are like
@@ -396,11 +396,10 @@ unnecessary step in the current pipeline.
 
 The service interface modules themselves (the pieces which actually implement
 the POST operations) were initially imported from diverse implementations
-(see the comments). The gmusic plugin relies on an externally packaged
-module.
+(see the comments). 
 
 For all modules, the data originates from the native interfaces, and is
-then massaged into the Python objects. For Qobuz, Spotify and Gmusic, this
+then massaged into the Python objects. For Qobuz, Spotify, Deezer, this
 is done in a module named 'plugname'/session.py. For Tidal, we use the
 tidalapi package practically unmodified, so this is implemented under the
 'tidal/api' subdirectory.

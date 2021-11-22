@@ -16,7 +16,7 @@
 #
 #
 """
-Shared code for the tidal, qobuz, gmusic plugins.
+Shared code for the tidal, qobuz, etc. plugins.
 
    - Uses the interface for the entity objects (track, album...)
      concretely defined in models.py, but duck-typed.
@@ -25,10 +25,7 @@ Shared code for the tidal, qobuz, gmusic plugins.
 The module implements utility functions for translating to/from what
 our parent expects or sends on the pipe.
 """
-from __future__ import print_function, unicode_literals
 
-import posixpath
-import re
 import sys
 import os
 import subprocess
@@ -37,136 +34,16 @@ import errno
 
 import conftree
 
-default_mime = "audio/mpeg"
-default_samplerate = "44100"
-
 # This is only used for log messages
 _idprefix = '0$UNKNOWN'
+
 
 def setidprefix(idprefix):
     global _idprefix
     _idprefix = idprefix
 
-# Bogus class instanciated as global object for helping with reusing kodi addon code
-class XbmcPlugin:
-    SORT_METHOD_TRACKNUM = 1
-    def __init__(self, idprefix):
-        self.entries = []
-        self.objid = ''
-        self.idprefix = idprefix
-        self.offset = 0
-        self.count = 0
-        self.total = 0
-        setidprefix(idprefix)
 
-    def addDirectoryItem(self, hdl, endpoint, title, isend = False):
-        self.entries.append(direntry(self.idprefix + endpoint, self.objid, title))
-
-    def endOfDirectory(self, h):
-        return
-    def setContent(self, a, b):
-        return
-    def addSortMethod(self, a, b):
-        return
-
-
-# For now, we pretend that all tracks have the same format (for the
-# resource record). For some services this may not be true, we'll see
-# if it can stay this way.
-def setMimeAndSamplerate(m, s):
-    global default_mime, default_samplerate
-    default_mime = m
-    default_samplerate = s
-    
-def trackentries(httphp, pathprefix, objid, tracks):
-    """
-    Transform a list of Track objects to the format expected by the parent
-
-    Args:
-        objid (str):  objid for the browsed object (the parent container)
-        tracks is the array of Track objects to be translated
-        tracks: a list of Track objects.
-        
-    Returns:
-        A list of dicts, each representing an UPnP item, with the
-        keys as expected in the plgwithslave.cxx resultToEntries() function. 
-
-        The permanent URIs, are of the following form, based on the
-        configured host:port and pathprefix arguments and track Id:
-
-            http://host:port/pathprefix/track?version=1&trackId=<trackid>
-    
-    """
-    global default_mime, default_samplerate
-    
-    entries = []
-    for track in tracks:
-        if not track.available:
-            if 1:
-                uplog("NOT AVAILABLE")
-                try:
-                    uplog("%s by %s" % (track.name, track.artist.name))
-                except:
-                    pass
-            continue
-        li = {}
-        li['pid'] = objid
-        li['id'] = objid + '$' + "%s" % track.id
-        li['tt'] = track.name
-        li['uri'] = 'http://%s' % httphp + \
-                    posixpath.join(pathprefix,
-                                   'track?version=1&trackId=%s' % track.id)
-        li['tp'] = 'it'
-        image = getattr(track, 'image', None)
-        if image:
-            li['upnp:albumArtURI'] = image
-        if track.album:
-            li['upnp:album'] = track.album.name
-            if not track.image and track.album.image:
-                li['upnp:albumArtURI'] = track.album.image
-            if track.album.release_date:
-                li['releasedate'] = track.album.release_date 
-        li['upnp:originalTrackNumber'] =  str(track.track_num)
-        li['upnp:artist'] = track.artist.name
-        li['dc:title'] = track.name
-        li['discnumber'] = str(track.disc_num)
-        li['duration'] = str(track.duration)
-        li['upnp:class'] = track.upnpclass
-        li['res:mime'] = default_mime
-        li['res:samplefreq'] = default_samplerate
-           
-        entries.append(li)
-    return entries
-
-def trackid_from_urlpath(pathprefix, a):
-    """
-    Extract track id from a permanent URL path part.
-
-    This supposes that the input URL has the format produced by the
-    trackentries() method: <pathprefix>/track?version=1&trackId=<trackid>
-
-    Args:
-        pathprefix (str): our configured path prefix (e.g. /qobuz/)
-        a (dict): the argument dict out of cmdtalk with a 'path' key
-    Returns:
-        str: the track Id.
-    """
-    
-    if 'path' not in a:
-        raise Exception("trackuri: no 'path' in args")
-    path = a['path']
-
-    # pathprefix + 'track?version=1&trackId=trackid
-    exp = posixpath.join(pathprefix, '''track\?version=1&trackId=(.+)$''')
-    m = re.match(exp, path)
-    if m is None:
-        raise Exception("trackuri: path [%s] does not match [%s]" % (path, exp))
-    trackid = m.group(1)
-    return trackid
-
-
-def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None,
-                searchable='1', date=None):
+def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchable='1', date=None):
     """ Create container entry in format expected by parent """
     #uplog("rcldirentry: id %s pid %s tt %s dte %s clss %s artist %s arturi %s" %
     #      (id,pid,title,date,upnpclass,artist,arturi))
@@ -183,6 +60,7 @@ def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None,
         ret['upnp:class'] = 'object.container.storageFolder'
     return ret
 
+
 # Get user and password from service, from the main configuration
 # file, or possibly from the ohcredentials scratchpad. In both files,
 # the entries are like:
@@ -198,6 +76,7 @@ def getserviceuserpass(upconfig, servicename):
         username = altconf.get(servicename + 'user')
         password = altconf.get(servicename + 'pass')
     return username, password
+
 
 _loglevel = 3
 def uplog(s, level=3):
@@ -227,6 +106,7 @@ def getcachedir(config, servicename):
         else:
             raise
     return cachedir
+
 
 # Find first non loopback ip. This is surprisingly
 # difficult. Executing "ip addr" actually seems to be the simplest

@@ -44,6 +44,7 @@ import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from upmplgmodels import *
+from xbmcplug import *
 
 # Reusing the Tidal plugin routing module
 from routing import Plugin
@@ -51,9 +52,10 @@ plugin = Plugin('')
 
 bbcidprefix = '0$bbc$'
 
-# Func name to method mapper
+# Cmdtalk communication with our parent process
+# Cmdtalk func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
+# Cmdtalk pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 stations = [
@@ -122,20 +124,11 @@ stations = [
     {'id' : 'p02jf21y', 'name': 'CBeebies Radio', 'image': 'cbeebies_radio_colour'},
 ]
 
-def find_station(id):
-    for station in stations:
-        if station['id'] == id:
-            return station
-    return None
-
 _g_initok = False
 _g_fetchdays = 30
 
 def maybeinit(a={}):
-    global httphp
-    global pathprefix
     global _g_initok
-    global upconfig
 
     # Do this always
     setidprefix(bbcidprefix)
@@ -159,17 +152,17 @@ def maybeinit(a={}):
         _g_fetchdays = int(val)
 
     setMimeAndSamplerate("audio/mpeg", "44100")
+
     _g_initok = True
 
 
+# Download the source HTML for the page using requests and parse the page using BeautifulSoup
 def get_page(url):
-    # download the source HTML for the page using requests
-    # and parse the page using BeautifulSoup
     return BeautifulSoup(requests.get(url).text, 'html.parser')
 
 
-# The urls we obtain point to 2 levels of m3u playlists, the second of which is an apple HTTP live
-# streaming playlist.
+# The media URLs we obtain point to 2 levels of m3u playlists, the second of which is an Apple HTTP
+# Live Streaming playlist.
 # https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/StreamingMediaGuide/DeployingHTTPLiveStreaming/DeployingHTTPLiveStreaming.html
 # It happens that mpd deals with these fine, not sure that other renderers will. Mitigating this
 # would be complicated. The only simple thing we could do is resolve the first level and hope that
@@ -179,8 +172,7 @@ def get_page(url):
 # entries (in station_date_view()). We'd need to send multiple requests in parallel, either with
 # grequests (would need change of programmedetails/station_date_view() interaction), or with
 # multiple explicit programmedetails() threads.
-def programmedetails(progid, resdata):
-    global pathprefix
+def _programmedetails(progid, resdata):
     maybeinit()
     resdata[progid] = None
 
@@ -247,15 +239,16 @@ def programmedetails(progid, resdata):
     else:
         resdata[progid] = metadata
 
+
 # Parallel fetching of programme data. Threads return their result by setting a dictionary entry
 _nthreads = 20
-def fetchdetails(resdata, reqcount):
+def _fetchdetails(resdata, reqcount):
     thrcount = 0
     ths=[]
     datacount = 0
     nthreads = _nthreads
     for progid in resdata.keys():
-        th=threading.Thread(target=programmedetails, args=(progid, resdata))
+        th=threading.Thread(target=_programmedetails, args=(progid, resdata))
         th.start() 
         ths.append(th)
         thrcount += 1
@@ -271,41 +264,11 @@ def fetchdetails(resdata, reqcount):
     for th in ths:
         th.join()
     
-def add_directory(title, endpoint, arturi=None):
-    if callable(endpoint):
-        endpoint = plugin.url_for(endpoint)
-    xbmcplugin.entries.append(direntry(bbcidprefix + endpoint, xbmcplugin.objid, title,
-                                       arturi=arturi))
-
-def urls_from_id(view_func, items):
-    #msgproc.log("urls_from_id: items: %s" % str([item.id for item in items]))
-    return [plugin.url_for(view_func, item.id) for item in items if str(item.id).find('http') != 0]
-
-def view(data_items, urls, end=True):
-    for item, url in zip(data_items, urls):
-        title = item.name
-
-        try:
-            image = item.image if item.image else None
-        except:
-            image = None
-        try:
-            upnpclass = item.upnpclass if item.upnpclass else None
-        except:
-            upnpclass = None
-        try:
-            artnm = item.artist.name if item.artist.name else None
-        except:
-            artnm = None
-        xbmcplugin.entries.append(
-            direntry(bbcidprefix + url, xbmcplugin.objid, title,
-                     arturi=image, artist=artnm, upnpclass=upnpclass))
-
 @plugin.route('/')
 def root():
-    add_directory('Stations', root_stations)
+    xbmcplugin.add_directory('Stations', root_stations)
     if hasfeedparser:
-        add_directory('Podcasts', root_podcasts)
+        xbmcplugin.add_directory('Podcasts', root_podcasts)
 
 @plugin.route('/root_stations')
 def root_stations():
@@ -317,7 +280,7 @@ def root_stations():
             #'image': station['image']
         }
         items.append(Playlist(**kwargs))
-    view(items, urls_from_id(station_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(station_view, items))
 
 
 @plugin.route('/station/<station_id>')
@@ -332,9 +295,9 @@ def station_view(station_id):
         month = '%02d' % date.month
         day = '%02d' % date.day
         title = date.strftime('%Y-%m-%d (%A)')
-        add_directory(title, plugin.url_for(station_date_view,
-                                            station_id=station_id,
-                                            year=year, month=month, day=day))
+        xbmcplugin.add_directory(
+            title, plugin.url_for(station_date_view, station_id=station_id,
+                                  year=year, month=month, day=day))
 
 
 @plugin.route('/station/<station_id>/<year>/<month>/<day>')
@@ -366,7 +329,7 @@ def station_date_view(station_id, year, month, day):
             continue
         progid = episode["identifier"]
         resdata[progid] = None
-    fetchdetails(resdata, reqcount)
+    _fetchdetails(resdata, reqcount)
     
     offset = 0
     tracks = []
@@ -422,7 +385,7 @@ def root_podcasts():
         arturi=None
         if "imageUrl" in podcast:
             arturi = podcast["imageUrl"].replace('{recipe}', '624x624')
-        add_directory(podcast["title"],
+            xbmcplugin.add_directory(podcast["title"],
                       plugin.url_for(podcast_view, podcast_id=podcast["shortTitle"]), arturi=arturi)
 
 
@@ -449,7 +412,7 @@ def podcast_view(podcast_id):
             continue
         progid = entry_pid[2]
         resdata[progid] = None
-    fetchdetails(resdata, reqcount)
+    _fetchdetails(resdata, reqcount)
 
     trackno = 1 + reqoffs
     offset = 0
@@ -492,7 +455,7 @@ def podcast_view(podcast_id):
 @dispatcher.record('browse')
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(bbcidprefix)
+    xbmcplugin = XbmcPlugin(bbcidprefix, routeplugin=plugin)
     msgproc.log("browse: [%s]" % a)
     if 'objid' not in a:
         raise Exception("No objid in args")
@@ -521,7 +484,7 @@ def browse(a):
 def search(a):
     msgproc.log("search: [%s]" % a)
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(bbcidprefix)
+    xbmcplugin = XbmcPlugin(bbcidprefix, routeplugin=plugin)
     encoded = json.dumps(xbmcplugin.entries)
     return {"entries" : encoded}
 

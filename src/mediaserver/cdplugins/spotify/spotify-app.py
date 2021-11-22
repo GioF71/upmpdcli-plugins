@@ -28,7 +28,7 @@ import re
 import conftree
 import cmdtalkplugin
 from upmplgutils import *
-import upmplgutils
+from xbmcplug import *
 
 from session import Session
 session = Session()
@@ -74,7 +74,7 @@ def maybelogin(a={}):
     upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
 
     global cachedir
-    cachedir = upmplgutils.getcachedir(upconfig, 'spotify')
+    cachedir = getcachedir(upconfig, 'spotify')
     uplog("cachedir: %s " %cachedir)
 
     if 'user' in a:
@@ -105,44 +105,13 @@ def trackuri(a):
     return {'media_url' : media_url, 'mimetype' : mime, 'kbs' : kbs}
 
 
-def add_directory(title, endpoint):
-    if callable(endpoint):
-        endpoint = plugin.url_for(endpoint)
-    xbmcplugin.entries.append(direntry(spotidprefix + endpoint,
-                                       xbmcplugin.objid, title))
-
-def urls_from_id(view_func, items):
-    #msgproc.log("urls_from_id: items: %s" % str([item.id for item in items]))
-    return [plugin.url_for(view_func, item.id)
-            for item in items if str(item.id).find('http') != 0]
-
-def view(data_items, urls, end=True):
-    for item, url in zip(data_items, urls):
-        title = item.name
-        try:
-            image = item.image if item.image else None
-        except:
-            image = None
-        try:
-            upnpclass = item.upnpclass if item.upnpclass else None
-        except:
-            upnpclass = None
-        try:
-            artnm = item.artist.name if item.artist.name else None
-        except:
-            artnm = None
-        xbmcplugin.entries.append(
-            direntry(spotidprefix + url, xbmcplugin.objid, title, arturi=image,
-                     artist=artnm, upnpclass=upnpclass))
-
 def track_list(tracks):
-    xbmcplugin.entries += trackentries(httphp, pathprefix,
-                                       xbmcplugin.objid, tracks)
+    xbmcplugin.entries += trackentries(httphp, pathprefix, xbmcplugin.objid, tracks)
 
 @dispatcher.record('browse')
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(spotidprefix)
+    xbmcplugin = XbmcPlugin(spotidprefix, routeplugin=plugin)
     msgproc.log("browse: [%s]" % a)
     if 'objid' not in a:
         raise Exception("No objid in args")
@@ -169,18 +138,18 @@ def browse(a):
 
 @plugin.route('/')
 def root():
-    add_directory('Your Library', my_music)
-    add_directory('New Releases', new_releases)
-    add_directory('Featured Playlists', featured_playlists)
-    add_directory('Genres and Moods', genres_and_moods)
+    xbmcplugin.add_directory('Your Library', my_music)
+    xbmcplugin.add_directory('New Releases', new_releases)
+    xbmcplugin.add_directory('Featured Playlists', featured_playlists)
+    xbmcplugin.add_directory('Genres and Moods', genres_and_moods)
     
 @plugin.route('/my_music')
 def my_music():
-    add_directory('Recently Played', recently_played)
-    add_directory('Songs', favourite_tracks)
-    add_directory('Albums', favourite_albums)
-    add_directory('Artists', favourite_artists)
-    add_directory('Playlists', my_playlists)
+    xbmcplugin.add_directory('Recently Played', recently_played)
+    xbmcplugin.add_directory('Songs', favourite_tracks)
+    xbmcplugin.add_directory('Albums', favourite_albums)
+    xbmcplugin.add_directory('Artists', favourite_artists)
+    xbmcplugin.add_directory('Playlists', my_playlists)
     
 @plugin.route('/album/<album_id>')
 def album_view(album_id):
@@ -193,7 +162,7 @@ def playlist_view(playlist_id, user_id):
 @plugin.route('/category/<category_id>')
 def category_view(category_id):
     playlists = session.get_category_playlists(category_id)
-    view(playlists,
+    xbmcplugin.view(playlists,
          [plugin.url_for(playlist_view, playlist_id=p.id, user_id=p.userid)
           for p in playlists], end=False)
 
@@ -201,12 +170,12 @@ def category_view(category_id):
 def artist_view(artist_id):
     # Might want to add a 'related artists' list?
     albums = session.get_artist_albums(artist_id)
-    view(albums, urls_from_id(album_view, albums))
+    xbmcplugin.view(albums, xbmcplugin.urls_from_id(album_view, albums))
 
 @plugin.route('/new_releases')
 def new_releases():
     items = session.new_releases()
-    view(items, urls_from_id(album_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
 
 @plugin.route('/recently_played')
 def recently_played():
@@ -219,24 +188,24 @@ def favourite_tracks():
 @plugin.route('/favourite_albums')
 def favourite_albums():
     items = session.favourite_albums()
-    view(items, urls_from_id(album_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
 
 @plugin.route('/featured_playlists')
 def featured_playlists():
     items = session.featured_playlists()
-    view(items,
+    xbmcplugin.view(items,
          [plugin.url_for(playlist_view,
                          playlist_id=p.id,
                          user_id=p.userid) for p in items], end=False)
 @plugin.route('/genres_and_moods')
 def genres_and_moods():
     items = session.get_categories()
-    view(items, urls_from_id(category_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(category_view, items))
     
 @plugin.route('/my_playlists')
 def my_playlists():
     items = session.my_playlists()
-    view(items,
+    xbmcplugin.view(items,
          [plugin.url_for(playlist_view,
                          playlist_id=p.id,
                          user_id=p.userid) for p in items], end=False)
@@ -244,12 +213,12 @@ def my_playlists():
 @plugin.route('/favourite_artists')
 def favourite_artists():
     items = session.favourite_artists()
-    view(items, urls_from_id(artist_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(artist_view, items))
 
 @dispatcher.record('search')
 def search(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(spotidprefix)
+    xbmcplugin = XbmcPlugin(spotidprefix, routeplugin=plugin)
     msgproc.log("search: [%s]" % a)
     objid = a['objid']
     field = a['field'] if 'field' in a else None
@@ -272,11 +241,11 @@ def search(a):
     searchresults = session.search(value, objkind)
 
     if objkind is None or objkind == 'artist':
-        view(searchresults.artists,
-             urls_from_id(artist_view, searchresults.artists), end=False)
+        xbmcplugin.view(searchresults.artists,
+             xbmcplugin.urls_from_id(artist_view, searchresults.artists), end=False)
     if objkind is None or objkind == 'album':
-        view(searchresults.albums,
-             urls_from_id(album_view, searchresults.albums), end=False)
+        xbmcplugin.view(searchresults.albums,
+             xbmcplugin.urls_from_id(album_view, searchresults.albums), end=False)
         # Kazoo and bubble only search for object.container.album, not
         # playlists. So if we want these to be findable, need to send
         # them with the albums
@@ -285,7 +254,7 @@ def search(a):
             objkind = 'playlist'
             # Fallthrough to view playlists
     if objkind is None or objkind == 'playlist':
-        view(searchresults.playlists,
+        xbmcplugin.view(searchresults.playlists,
              [plugin.url_for(playlist_view,
                              playlist_id=p.id,
                              user_id=p.userid) for p in

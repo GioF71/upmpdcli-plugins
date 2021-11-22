@@ -184,6 +184,7 @@ dist_cdpluginspycom_DATA = \
                     src/mediaserver/cdplugins/pycommon/routing.py \
                     src/mediaserver/cdplugins/pycommon/upmplgmodels.py \
                     src/mediaserver/cdplugins/pycommon/upmplgutils.py \
+                    src/mediaserver/cdplugins/pycommon/xbmcplug.py \
                     src/mediaserver/cdplugins/pycommon/upradioconf.py
 cdpluginstidaldir = $(pkgdatadir)/cdplugins/tidal
 dist_cdpluginstidal_DATA = \

@@ -7,7 +7,6 @@ Copyright: 2005-2019, Jean-Francois Dockes <jf@dockes.org>
 License: LGPL-2.1+
 
 Files: src/mediaserver/cdplugins/tidal/*
-       src/mediaserver/cdplugins/gmusic/gmusic-app.py
        src/mediaserver/cdplugins/spotify/spotify-app.py
        src/mediaserver/cdplugins/pycommon/routing.py
        src/mediaserver/cdplugins/pycommon/upmplgmodels.py

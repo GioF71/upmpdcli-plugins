@@ -28,12 +28,10 @@ import base64
 import conftree
 import cmdtalkplugin
 from upmplgutils import *
+from xbmcplug import *
 
-# Using kodi plugin routing plugin: lets use reuse a lot of code from
-# the addon.
+# Using Tidal Kodi addon routing plugin
 from routing import Plugin
-# Need bogus base_url value to avoid plugin trying to call xbmc to
-# retrieve addon id
 plugin = Plugin('')
 
 import deezersession
@@ -41,9 +39,6 @@ import deezersession
 _rootid = '0$deezer$'
 _rootidre = '0\$deezer\$'
 
-def msg(s):
-    print("%s" % s, file=sys.stderr)
-    
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
@@ -70,79 +65,45 @@ def maybelogin():
     username = upconfig.get('deezeruser')
     password = upconfig.get('deezerpass')
     if not username or not password:
-        raise Exception("deezeruser and/or deezerpass " +
-                            "not set in configuration")
+        raise Exception("deezeruser and/or deezerpass not set in configuration")
     setMimeAndSamplerate("audio/mpeg", "44100")
     cachedir = getcachedir(upconfig, "deezer")
     return sess.login(cachedir, username, password)
     
 
-def add_directory(title, endpoint):
-    if callable(endpoint):
-        endpoint = plugin.url_for(endpoint)
-    xbmcplugin.addDirectoryItem(None, endpoint, title)
-
-
-def urls_from_id(view_func, items):
-    #msgproc.log("urls_from_id: items: %s" % str([item.id for item in items]))
-    return [plugin.url_for(view_func, item.id)
-            for item in items if str(item.id).find('http') != 0]
-
-
-def view(data_items, urls):
-    for item, url in zip(data_items, urls):
-        title = item.name
-        try:
-            image = item.image if item.image else None
-        except:
-            image = None
-        try:
-            upnpclass = item.upnpclass if item.upnpclass else None
-        except:
-            upnpclass = None
-        try:
-            artnm = item.artist if item.artist else None
-        except:
-            artnm = None
-        xbmcplugin.entries.append(
-            direntry(_rootid + url, xbmcplugin.objid, title, arturi=image,
-                     artist=artnm, upnpclass=upnpclass))
-
-
 def track_list(tracks):
-    xbmcplugin.entries += trackentries(httphp, pathprefix,
-                                       xbmcplugin.objid, tracks)
+    xbmcplugin.entries += trackentries(httphp, pathprefix, xbmcplugin.objid, tracks)
 
 
 @plugin.route('/')
 def root():
     if not maybelogin():
         return []
-    add_directory('My Favourites Albums', my_favourite_albums)
-    add_directory('My Favourites Playlists', my_favourite_playlists)
-    add_directory('My Favourites Tracks', my_favourite_tracks)
-    add_directory('My Favourites Artists', my_favourite_artists)
-    add_directory('Family', my_family)
+    xbmcplugin.add_directory('My Favourites Albums', my_favourite_albums)
+    xbmcplugin.add_directory('My Favourites Playlists', my_favourite_playlists)
+    xbmcplugin.add_directory('My Favourites Tracks', my_favourite_tracks)
+    xbmcplugin.add_directory('My Favourites Artists', my_favourite_artists)
+    xbmcplugin.add_directory('Family', my_family)
 
 @plugin.route('/my_family')
 def my_family():
     items = sess.get_followings()
-    view(items, urls_from_id(user_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(user_view, items))
 
 @plugin.route('/my_favourite_albums')
 def my_favourite_albums():
     items = sess.get_favourite_albums()
-    view(items, urls_from_id(album_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
 
 @plugin.route('/my_favourite_playlists')
 def my_favourite_playlists():
     items = sess.get_favourite_playlists()
-    view(items, urls_from_id(playlist_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(playlist_view, items))
 
 @plugin.route('/my_favourite_artists')
 def my_favourite_artists():
     items = sess.get_favourite_artists()
-    view(items, urls_from_id(artist_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(artist_view, items))
 
 @plugin.route('/my_favourite_tracks')
 def my_favourite_tracks():
@@ -152,17 +113,17 @@ def my_favourite_tracks():
 @plugin.route('/favourite_albums/<id>')
 def favourite_albums(id):
     items = sess.get_favourite_albums(id)
-    view(items, urls_from_id(album_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
 
 @plugin.route('/favourite_playlists/<id>')
 def favourite_playlists(id):
     items = sess.get_favourite_playlists(id)
-    view(items, urls_from_id(playlist_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(playlist_view, items))
 
 @plugin.route('/favourite_artists/<id>')
 def favourite_artists(id):
     items = sess.get_favourite_artists(id)
-    view(items, urls_from_id(artist_view, items))
+    xbmcplugin.view(items, xbmcplugin.urls_from_id(artist_view, items))
 
 @plugin.route('/favourite_tracks/<id>')
 def favourite_tracks(id):
@@ -174,15 +135,15 @@ def playlist_view(id):
 
 @plugin.route('/user/<id>')
 def user_view(id):
-    add_directory('Albums', plugin.url_for(favourite_albums, id))
-    add_directory('Playlists', plugin.url_for(favourite_playlists, id))
-    add_directory('Tracks', plugin.url_for(favourite_tracks, id))
-    add_directory('Artists', plugin.url_for(favourite_artists, id))
+    xbmcplugin.add_directory('Albums', plugin.url_for(favourite_albums, id))
+    xbmcplugin.add_directory('Playlists', plugin.url_for(favourite_playlists, id))
+    xbmcplugin.add_directory('Tracks', plugin.url_for(favourite_tracks, id))
+    xbmcplugin.add_directory('Artists', plugin.url_for(favourite_artists, id))
     
 @plugin.route('/artist/<artist_id>')
 def artist_view(artist_id):
     albums = sess.get_artist_albums(artist_id) 
-    view(albums, urls_from_id(album_view, albums))
+    xbmcplugin.view(albums, xbmcplugin.urls_from_id(album_view, albums))
 
 @plugin.route('/album/<album_id>')
 def album_view(album_id):
@@ -201,7 +162,7 @@ def trackuri(a):
 @dispatcher.record('browse')
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(_rootid)
+    xbmcplugin = XbmcPlugin(_rootid, routeplugin=plugin)
     msgproc.log("browse: [%s]" % a)
     if 'objid' not in a:
         raise Exception("No objid in args")
@@ -222,7 +183,7 @@ def browse(a):
 @dispatcher.record('search')
 def search(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(_rootid)
+    xbmcplugin = XbmcPlugin(_rootid, routeplugin=plugin)
 
     msgproc.log("search: %s" % a)
 
@@ -245,11 +206,11 @@ def search(a):
     searchresults = sess.search(value, objkind)
 
     if (not objkind or objkind == 'artist') and searchresults.artists:
-        view(searchresults.artists,
-             urls_from_id(artist_view, searchresults.artists))
+        xbmcplugin.view(searchresults.artists,
+             xbmcplugin.urls_from_id(artist_view, searchresults.artists))
     if (not objkind or objkind == 'album') and searchresults.albums:
-        view(searchresults.albums,
-             urls_from_id(album_view, searchresults.albums))
+        xbmcplugin.view(searchresults.albums,
+                        xbmcplugin.urls_from_id(album_view, searchresults.albums))
     if (not objkind or objkind == 'track') and searchresults.tracks:
         track_list(searchresults.tracks)
 
