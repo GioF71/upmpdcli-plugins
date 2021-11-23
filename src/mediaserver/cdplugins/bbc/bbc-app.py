@@ -52,6 +52,29 @@ plugin = Plugin('')
 
 bbcidprefix = '0$bbc$'
 
+# I get a list of episodes from the web page, some of which are unavailable, and I can't know at
+# this point.
+#
+# I then retrieve more detailed data for each episode, which takes time. At this point I know if an
+# episode is available or not.
+#
+# The problem is that I get a total count from the Web page and return it to the CP. The count ends
+# up being false because of the unavailable episodes.  Bubble and Upplay just deal with it and
+# display the entries they actually got. Kazoo insists on displaying the total count, displaying an
+# "unavailable" messages for the missing entries.
+#
+# Also we get duplicate entries on further slices because we can't know how many to skip without
+# asking for the details (which would void the point), so that we don't skip enough.
+#
+# So actually using offset and count does not really work, and does not gain so much time anyway
+# (because of the plgwithslave cache: this would only be useful if the client actually did not read
+# the whole list).
+#
+# We just do as for most of the other plugins, and just read the whole data on each
+# requests. Plgwithslave caches it and returns the appropriate slice to the client.
+# Kept the code around anyway, but it's disabled by the following switch.
+_g_do_slices = False
+
 # Cmdtalk communication with our parent process
 # Cmdtalk func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -317,9 +340,14 @@ def station_date_view(station_id, year, month, day):
         uplog("Something went wrong parsing the station's schedule")
         return
 
-    reqcount = xbmcplugin.count
-    reqoffs = xbmcplugin.offset
-    xbmcplugin.total = len(result["@graph"])
+    uplog("station_date_view: JSON: %s" % result, level=6)
+    if _g_do_slices:
+        reqcount = xbmcplugin.count
+        reqoffs = xbmcplugin.offset
+        xbmcplugin.total = len(result["@graph"])
+    else:
+        reqcount=1000
+        reqoffs= 0
 
     resdata = {}
     offset = 0
@@ -372,6 +400,8 @@ def station_date_view(station_id, year, month, day):
         trackno += 1
         if len(xbmcplugin.entries) >= reqcount:
             break
+    uplog("station_date_view: %d entries in result" % len(xbmcplugin.entries), level=5)
+
 
 @plugin.route('/root_podcasts')
 def root_podcasts():
@@ -397,9 +427,14 @@ def podcast_view(podcast_id):
     if "image" in podcast.feed:
         image_url = podcast.feed.image.url
 
-    reqcount = xbmcplugin.count
-    reqoffs = xbmcplugin.offset
-    xbmcplugin.total = len(podcast.entries)
+    if _g_do_slices:
+        reqcount = xbmcplugin.count
+        reqoffs = xbmcplugin.offset
+        xbmcplugin.total = len(podcast.entries)
+    else:
+        reqoffs = 0
+        reqcount = 1000
+        
     resdata = {}
     offset = 0
     for entry in podcast.entries:
@@ -475,9 +510,10 @@ def browse(a):
     #msgproc.log("%s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
     ret = {"entries" : encoded}
-    if xbmcplugin.total:
-        ret["total"] = str(xbmcplugin.total)
-        ret["offset"] = str(xbmcplugin.offset)
+    if _g_do_slices:
+        if xbmcplugin.total:
+            ret["total"] = str(xbmcplugin.total)
+            ret["offset"] = str(xbmcplugin.offset)
     return ret
 
 @dispatcher.record('search')
