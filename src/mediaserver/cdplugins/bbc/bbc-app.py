@@ -317,7 +317,7 @@ def station_view(station_id):
         year = '%04d' % date.year
         month = '%02d' % date.month
         day = '%02d' % date.day
-        title = date.strftime('%Y-%m-%d (%A)')
+        title = date.strftime('%a, %-d %b')
         xbmcplugin.add_directory(
             title, plugin.url_for(station_date_view, station_id=station_id,
                                   year=year, month=month, day=day))
@@ -373,7 +373,7 @@ def station_date_view(station_id, year, month, day):
 
         # We ignore the details title as the one in the episode data is fine.
         date = dateutil.parser.parse(episode["publication"]["startDate"])
-        time = date.strftime('%Y-%m-%d, %H:%M')
+        time = date.strftime('%H:%M')
         if "partOfSeries" in episode:
             title = time + ": " + episode["partOfSeries"]["name"] + " - " + episode["name"]
         else:
