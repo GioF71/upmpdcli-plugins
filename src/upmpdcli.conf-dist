@@ -216,6 +216,13 @@ uprcltitle = Local Music
 # Plugin Title.
 upradiostitle = Upmpdcli Radio List
 
+# Upmpdcli BBC Sounds plugin parameters
+
+# Bogus user name variable.
+#bbcuser = bugsbunny
+# Past days in BBC Sounds catalog listing.
+#bbcprogrammedays = 30
+
 # Songcast Receiver parameters
 
 #Parameters for the Songcast modes. These are read by either/both the

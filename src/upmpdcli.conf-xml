@@ -523,6 +523,18 @@ uprcltitle = Local Music
 # directory.</descr></var>
 upradiostitle = Upmpdcli Radio List
 
+# <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
+
+# <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>
+# <descr>Set this to activate the plugin, the value is ignored.
+# </descr></var>
+#bbcuser = bugsbunny
+
+# <var name="bbcprogrammedays" type="string">
+# <brief>Past days in BBC Sounds catalog listing.</brief>
+# <descr>This controls how many days are listed in the station displays.</descr></var>
+#bbcprogrammedays = 30
+
 # <grouptitle>Songcast Receiver parameters</grouptitle>
 
 # Parameters for the Songcast modes. These are read by either/both the

@@ -825,8 +825,15 @@ place.
 You will just need to enable the plugin by setting a bogus value for
 the 'upradiosuser' variable in the upmpdcli configuration file.
 
+[[UPBBC]]
+== Upmpdcli BBC Sounds plugin
+
+The plugin allows access to the link:https://www.bbc.co.uk/sounds[BBC Sounds] resource for listening
+to past BBC programs. It normally lists the 30 previous days, this can be changed with a
+<<bbcuser, configuration variable>>.
+
 [[UPRCL]]
-== Upmpdcli local Media Server: uprcl
+== Uprcl : the Upmpdcli local Media Server
 
 You will need to install the upmpdcli-uprcl module.
 

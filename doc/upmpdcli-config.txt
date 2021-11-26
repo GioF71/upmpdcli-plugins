@@ -463,6 +463,15 @@ upradiostitle:: Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
 
+=== Upmpdcli BBC Sounds plugin parameters 
+
+[[bbcuser]]
+bbcuser:: Bogus user name variable. Set this to activate the plugin, the value is ignored.
+
+
+[[bbcprogrammedays]]
+bbcprogrammedays:: Past days in BBC Sounds catalog listing. This controls how many days are listed in the station displays.
+
 === Songcast Receiver parameters 
 
 [[sclogfilename]]
