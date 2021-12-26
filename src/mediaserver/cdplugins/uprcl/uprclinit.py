@@ -150,10 +150,7 @@ def _uprcl_init_worker():
 
     global _g_rclconfdir
     _g_rclconfdir = g_upconfig.get("uprclconfdir")
-    if _g_rclconfdir:
-        os.makedirs(_g_rclconfdir)
-    else:
-        _g_rclconfdir = getcachedir(g_upconfig, "uprcl")
+    _g_rclconfdir = getcachedir(g_upconfig, "uprcl", forcedpath=_g_rclconfdir)
     uplog("uprcl: cachedir: %s" % _g_rclconfdir)
         
     global g_rcltopdirs

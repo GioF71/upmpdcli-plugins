@@ -88,16 +88,19 @@ def uplog(s, level=3):
     sys.stderr.flush()
 
 
-def getcachedir(config, servicename):
-    cachedir = config.get('cachedir')
-    if not cachedir:
-        me = pwd.getpwuid(os.getuid()).pw_name
-        uplog("getcachedir: me: %s" % me)
-        if me == 'upmpdcli':
-            cachedir = '/var/cache/upmpdcli/'
-        else:
-            cachedir = os.path.expanduser('~/.cache/upmpdcli/')
-    cachedir = os.path.join(cachedir, servicename)
+def getcachedir(config, servicename, forcedpath=None):
+    if forcedpath:
+        cachedir = forcedpath
+    else:
+        cachedir = config.get("cachedir")
+        if not cachedir:
+            me = pwd.getpwuid(os.getuid()).pw_name
+            uplog("getcachedir: me: %s" % me)
+            if me == "upmpdcli":
+                cachedir = "/var/cache/upmpdcli/"
+            else:
+                cachedir = os.path.expanduser("~/.cache/upmpdcli/")
+        cachedir = os.path.join(cachedir, servicename)
     try:
         os.makedirs(cachedir)
     except OSError as exc:
