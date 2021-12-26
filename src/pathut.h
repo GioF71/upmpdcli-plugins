@@ -138,6 +138,8 @@ class PathDirContents {
 public:
     PathDirContents(const std::string& dirpath);
     ~PathDirContents();
+    PathDirContents(const PathDirContents&) = delete;
+    PathDirContents& operator=(const PathDirContents&) = delete;
 
     bool opendir();
     struct Entry {
@@ -233,6 +235,9 @@ class Pidfile {
 public:
     Pidfile(const std::string& path)    : m_path(path), m_fd(-1) {}
     ~Pidfile();
+    Pidfile(const Pidfile&) = delete;
+    Pidfile& operator=(const Pidfile&) = delete;
+    
     /// Open/create the pid file.
     /// @return 0 if ok, > 0 for pid of existing process, -1 for other error.
     int open();

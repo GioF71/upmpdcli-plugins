@@ -26,7 +26,10 @@ class FileScanUpstream;
 /** Data sink for the file reader. */
 class FileScanDo {
 public:
+    FileScanDo() {}
     virtual ~FileScanDo() {}
+    FileScanDo(const FileScanDo&) = delete;
+    FileScanDo& operator=(const FileScanDo&) = delete;
     /* Initialize and allocate. 
      * @param size if set, lower bound of data size.
      * @param reason[output] set to error message in case of error.

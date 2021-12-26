@@ -72,6 +72,8 @@ public:
         : m_in(input), m_pos(0) {}
 
     virtual ~PicoXMLParser() {}
+    PicoXMLParser(const PicoXMLParser&) = delete;
+    PicoXMLParser& operator=(const PicoXMLParser&) = delete;
 
     virtual bool parse() {
         return _parse();

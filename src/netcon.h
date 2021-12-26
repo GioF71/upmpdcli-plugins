@@ -53,6 +53,8 @@ public:
           m_loop(0) {
     }
     virtual ~Netcon();
+    Netcon(const Netcon&) = delete;
+    Netcon& operator=(const Netcon&) = delete;
     /// Remember whom we're talking to. We let external code do this because
     /// the application may have a non-dns method to find the peer name.
     virtual void setpeer(const char *hostname);
@@ -181,7 +183,11 @@ class NetconData;
 /// NetconData derived classes).
 class NetconWorker {
 public:
+    NetconWorker() {}
     virtual ~NetconWorker() {}
+    NetconWorker(const NetconWorker&) = delete;
+    NetconWorker& operator=(const NetconWorker&) = delete;
+    
     virtual int data(NetconData *con, Netcon::Event reason) = 0;
 };
 
@@ -190,6 +196,8 @@ class NetconData : public Netcon {
 public:
     NetconData(bool cancellable = false);
     virtual ~NetconData();
+    NetconData(const NetconData&) = delete;
+    NetconData& operator=(const NetconData&) = delete;
 
     /// Write data to the connection.
     /// @param buf the data buffer
@@ -300,6 +308,8 @@ public:
 #endif /* NETCON_ACCESSCONTROL */
     }
     ~NetconServLis();
+    NetconServLis(const NetconServLis&) = delete;
+    NetconServLis& operator=(const NetconServLis&) = delete;
     /// Open named service. Used absolute pathname to create an
     /// AF_UNIX path-based socket instead of an IP one.
     int openservice(const char *serv, int backlog = 10);

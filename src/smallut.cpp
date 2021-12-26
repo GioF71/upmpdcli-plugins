@@ -318,7 +318,7 @@ template <class T> void stringsToCSV(const T& tokens, string& s, char sep)
         s.append(1, sep);
     }
     // Remove last separator.
-    if (s.size())
+    if (!s.empty())
         s.pop_back();
 }
 
@@ -951,7 +951,7 @@ bool parsedateinterval(const string& s, DateInterval *dip)
         return false;
     }
 
-    vector<string>::const_iterator it = vs.begin();
+    auto it = vs.cbegin();
     if (*it == "P" || *it == "p") {
         it++;
         if (!parseperiod(it, vs.end(), &p1)) {
@@ -1221,7 +1221,7 @@ std::string SimpleRegexp::simpleSub(
     const std::string& in, const std::string& repl)
 {
     if (!ok()) {
-        return std::string();
+        return {};
     }
 
     int err;
@@ -1256,7 +1256,7 @@ bool SimpleRegexp::simpleMatch(const string& val) const
 string SimpleRegexp::getMatch(const string& val, int i) const
 {
     if (i > m->nmatch) {
-        return string();
+        return {};
     }
     return val.substr(m->matches[i].rm_so,
                       m->matches[i].rm_eo - m->matches[i].rm_so);

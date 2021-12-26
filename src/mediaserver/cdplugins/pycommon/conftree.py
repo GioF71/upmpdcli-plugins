@@ -304,3 +304,14 @@ def stringsToString(vs):
             out.append(s)
     return " ".join(out)
 
+def valToBool(s):
+    if not s:
+        return False
+    try:
+        val = int(s)
+        return val != 0
+    except:
+        pass
+    if type(s) == type(b''):
+        s = s.decode("UTF-8")
+    return s[0] in "tTyY"

@@ -86,7 +86,10 @@ public:
 class ConfNull {
 public:
     enum StatusCode {STATUS_ERROR = 0, STATUS_RO = 1, STATUS_RW = 2};
+    ConfNull() {}
     virtual ~ConfNull() {};
+    ConfNull(const ConfNull&) = delete;
+    ConfNull &operator=(const ConfNull &) = delete;
     virtual int get(const std::string& name, std::string& value,
                     const std::string& sk = std::string()) const = 0;
     virtual int set(const std::string& nm, const std::string& val,

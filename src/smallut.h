@@ -227,6 +227,8 @@ public:
     /// @param nmatch must be >= the number of parenthesed subexp in exp
     SimpleRegexp(const std::string& exp, int flags, int nmatch = 0);
     ~SimpleRegexp();
+    SimpleRegexp(const SimpleRegexp&) = delete;
+    SimpleRegexp& operator=(const SimpleRegexp&) = delete;
     /// Match input against exp, return true if matches
     bool simpleMatch(const std::string& val) const;
     /// After simpleMatch success, get nth submatch, 0 is the whole

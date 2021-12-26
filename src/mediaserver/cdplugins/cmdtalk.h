@@ -70,6 +70,8 @@ class CmdTalk {
  public:
     CmdTalk(int timeosecs);
     virtual ~CmdTalk();
+    CmdTalk(const CmdTalk&) = delete;
+    CmdTalk& operator=(const CmdTalk&) = delete;
 
     // @param env each entry should be of the form name=value. They
     //   augment the subprocess environnement.
@@ -99,8 +101,6 @@ class CmdTalk {
     const std::unordered_map<std::string, std::string>& args,
     std::unordered_map<std::string, std::string>& rep);
 
-    CmdTalk(const CmdTalk&) = delete;
-    CmdTalk &operator=(const CmdTalk &) = delete;
 private:
     class Internal;
     Internal *m{0};
