@@ -1,0 +1,70 @@
+Overview
+========
+
+Some US radio stations which are NPR members (National Public Radio)
+expose their playlist to a common API.
+
+If their streaming web page makes direct calls to
+api.composer.nprstations.org (they don't all) then their 24-character
+Stream ID (UCS) can be extracted and given as an argument to this
+nprplaylist program.  If you can't find this ID for your preferred
+station you can probably contact the station and ask for it.
+
+Building
+========
+
+nprplaylist is written in Rust and requires the cargo build tool.
+
+    cargo build --release
+
+If desired move the binary target/release/nprplaylist to a more
+permanent location like /usr/local/bin
+
+Examples
+========
+
+[radio KUTX - Austin one]
+url = https://kut.streamguys1.com/kutx-free.aac
+artUrl = https://yt3.ggpht.com/ytc/AKedOLS-Qi782UB3CCBeZ0pUGw5kHogrHWzYgugteIRVSw=s900-c-k-c0x00ffffff-no-rj
+metaScript = /usr/local/bin/nprplaylist 50ef24ebe1c8a1369593d032
+preferScript = 1
+
+[radio KUTX - Austin two]
+url = https://kut.streamguys1.com/amx-free.aac
+artUrl = https://www.radio.net/images/broadcasts/8f/32/17689/c300.png
+metaScript = /usr/local/bin/nprplaylist 50ef26c7e1c864896142d340
+preferScript = 1
+
+[radio WNPR - Connecticut]
+url = https://24283.live.streamtheworld.com/WNPRFM.mp3
+artUrl = https://npr.brightspotcdn.com/dims4/default/3589020/2147483647/strip/true/crop/754x170+0+0/resize/267x60!/quality/90/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F78%2Fec%2F101a9df544139c8a8a819edb085b%2Fctpublic-grove-lockup.png
+metaScript = /usr/local/bin/nprplaylist 5187c93ce1c8256467c3b610
+preferScript = 1
+
+[radio KBIA - Missouri News]
+url = https://26373.live.streamtheworld.com/KBIAFM.mp3
+artUrl = https://npr.brightspotcdn.com/dims4/default/28f3e40/2147483647/strip/true/crop/1473x647+0+0/resize/267x117!/quality/90/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F82%2F52%2F5f3d751d409e8979936742161612%2Fkbia-white-on-blue-rectangle.png
+metaScript = /usr/local/bin/nprplaylist 5387648fe1c8335046a1d4b4
+preferScript = 1
+
+[radio KBIA - Missouri Classical]
+url = https://22073.live.streamtheworld.com/KBIAHD2.mp3
+artUrl = https://npr.brightspotcdn.com/dims4/default/28f3e40/2147483647/strip/true/crop/1473x647+0+0/resize/267x117!/quality/90/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F82%2F52%2F5f3d751d409e8979936742161612%2Fkbia-white-on-blue-rectangle.png
+metaScript = /usr/local/bin/nprplaylist 538765f1e1c896898775d51a
+preferScript = 1
+
+[radio KBIA - Missouri Music]
+url = https://26303.live.streamtheworld.com/KBIAHD3.mp3
+artUrl = https://npr.brightspotcdn.com/dims4/default/28f3e40/2147483647/strip/true/crop/1473x647+0+0/resize/267x117!/quality/90/?url=http%3A%2F%2Fnpr-brightspot.s3.amazonaws.com%2F82%2F52%2F5f3d751d409e8979936742161612%2Fkbia-white-on-blue-rectangle.png
+metaScript = /usr/local/bin/nprplaylist 5387669ae1c8ad3216502bdc
+preferScript = 1
+
+Links
+=====
+http://mediad.publicbroadcasting.net/p/newnprdsblog/files/201610/triton_player_how_to3.pdf
+https://digitalservices.npr.org/post/introducing-core-publisher-s-persistent-player
+http://api.composer.nprstations.org/#!/widget/On-Now_get_1
+
+Contact
+=======
+Erik Mackdanz <erikmack@gmail.com>
