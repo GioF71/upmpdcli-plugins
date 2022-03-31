@@ -217,6 +217,10 @@ dist_cdpluginsdeezer_DATA = \
                   src/mediaserver/cdplugins/deezer/deezerapi.py \
                   src/mediaserver/cdplugins/deezer/deezersession.py
 
+cdpluginsbbcdir = $(pkgdatadir)/cdplugins/bbc
+dist_cdpluginsbbc_DATA = \
+                  src/mediaserver/cdplugins/bbc/bbc-app.py
+
 cdpluginsspotifydir = $(pkgdatadir)/cdplugins/spotify
 dist_cdpluginsspotify_DATA = \
                   src/mediaserver/cdplugins/spotify/spotify-app.py \
@@ -292,6 +296,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsbbcdir); chmod a+x bbc-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
 	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py)
@@ -303,5 +308,8 @@ dist_sysconf_DATA = src/upmpdcli.conf-dist
 dist_man1_MANS = man/upmpdcli.1
 
 dist-hook:
-	test -z "`git status -s | grep -v '??' | grep -v Makefile.am`" 
-	git tag -a upmpdcli-v$(VERSION) -m 'version $(VERSION)'
+	if test -z "$(NOTAG)";then \
+	    test -z "`git status -s | grep -v '??' | grep -v Makefile.am`";  \
+	    git tag -a upmpdcli-v$(VERSION) -m 'version $(VERSION)'; \
+	fi
+

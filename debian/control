@@ -25,13 +25,6 @@ Description: UPnP Media Renderer front-end to MPD, the Music Player Daemon
  PI, with upmpdcli on the same host or any other Linux PC on the network.
 
 
-Package: upmpdcli-config
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Section: contrib/sound
-Description: GUI configuration editor for upmpdcli.
- upmpdcli-config is a qt-based GUI for editing an upmpdcli configuration file.
-
 Package: scweb
 Architecture: all
 Section: contrib/sound
@@ -39,13 +32,22 @@ Depends: upmpdcli, python3, ${misc:Depends}
 Description: web interface for controlling multiple Songcast Receivers
  scweb is a web front-end to the scctl songcast receiver control command.
 
-Package: upmpdcli-qobuz
+Package: upmpdcli-config
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Section: contrib/sound
+Description: GUI configuration editor for upmpdcli.
+ upmpdcli-config is a qt-based GUI for editing an upmpdcli configuration file.
+
+
+Package: upmpdcli-bbc
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Qobuz plugin
- upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
- streaming service.
+Depends: upmpdcli, python3, python3-requests, python3-bs4, python3-feedparser, python3-dateutils,
+         ${misc:Depends}
+Description: upmpdcli BBC radio plugin
+ upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the web site and listen to
+ them.
 
 Package: upmpdcli-deezer
 Architecture: all
@@ -53,6 +55,22 @@ Section: contrib/sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Deezer plugin
  upmpdcli-deezer allows upmpdcli to proxy access to the Deezer music
+ streaming service.
+
+Package: upmpdcli-hra
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
+Description: upmpdcli highresaudio plugin
+ upmpdcli-hra allows upmpdcli to proxy access to the highresaudio
+ https://www.highresaudio.com/en music streaming service.
+
+Package: upmpdcli-qobuz
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
+Description: upmpdcli Qobuz plugin
+ upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
  streaming service.
 
 Package: upmpdcli-radios
@@ -63,22 +81,6 @@ Description: upmpdcli radio list export plugin
  upmpdcli-radios exports the upmpdcli OpenHome service radio list through
  the upmpdcli Media Server.
 
-#Package: upmpdcli-tidal
-#Architecture: all
-#Section: contrib/sound
-#Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-#Description: upmpdcli Tidal plugin
-# upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
-# streaming service.
-
-Package: upmpdcli-hra
-Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli highresaudio plugin
- upmpdcli-hra allows upmpdcli to proxy access to the highresaudio
- https://www.highresaudio.com/en music streaming service.
-
 Package: upmpdcli-spotify
 Architecture: all
 Section: contrib/sound
@@ -87,6 +89,14 @@ Description: upmpdcli Spotify plugin
  upmpdcli-spotify allows upmpdcli to proxy access to the Spotify
  streaming service. Note: no dependance on libspotify to let you install
  this without a libspotify package (bare lib ok).
+
+#Package: upmpdcli-tidal
+#Architecture: all
+#Section: contrib/sound
+#Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
+#Description: upmpdcli Tidal plugin
+# upmpdcli-tidal allows upmpdcli to proxy access to the Tidal music
+# streaming service.
 
 Package: upmpdcli-uprcl
 Architecture: all

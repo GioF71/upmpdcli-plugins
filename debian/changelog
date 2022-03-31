@@ -1,3 +1,9 @@
+upmpdcli (1.5.14-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Added mediaserver module for listing and listening to  BBC radio stations
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 31 Mar 2022 18:38:00 +0200
+
 upmpdcli (1.5.13-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Enable L16 by default as it is handled correctly by current mpd versions
