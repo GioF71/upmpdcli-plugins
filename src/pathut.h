@@ -81,6 +81,8 @@ bool path_exists(const std::string& path);
 bool path_readable(const std::string& path);
 
 #ifdef _WIN32
+
+// Constants for _waccess()
 #  ifndef R_OK
 #    define R_OK 4
 #  endif
@@ -94,7 +96,30 @@ bool path_readable(const std::string& path);
 #  ifndef F_OK
 #    define F_OK 0
 #  endif
-#endif /* _WIN32 */
+
+// Conversion between utf-8 and wide char file names.
+
+#include <memory>
+bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
+std::string wchartoutf8(const wchar_t *in, size_t len = 0);
+bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
+std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
+
+// Convert between slash and backslash separators.
+void path_slashize(std::string& s);
+void path_backslashize(std::string& s);
+
+extern std::string path_shortpath(const std::string& path);
+
+#else // !_WIN32 ->
+
+#include <unistd.h>
+#define path_shortpath(path) (path)
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#endif /* !_WIN32 */
+
 /// access() or _waccess()
 bool path_access(const std::string& path, int mode);
 
@@ -124,14 +149,6 @@ extern int path_fileprops(const std::string path, struct PathStat *stp,
 
 /// Return separator for PATH environment variable
 extern std::string path_PATHsep();
-
-#ifdef _WIN32
-#include <memory>
-bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
-std::string wchartoutf8(const wchar_t *in, size_t len = 0);
-bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
-std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
-#endif
 
 /// Directory reading interface. UTF-8 on Windows.
 class PathDirContents {
@@ -218,15 +235,6 @@ public:
     std::vector<std::pair<std::string,std::string>> parsedquery;
     std::string fragment;
 };
-
-#ifdef _WIN32
-/// Convert \ separators to /
-void path_slashize(std::string& s);
-void path_backslashize(std::string& s);
-extern std::string path_shortpath(const std::string& path);
-#else
-#define path_shortpath(path) (path)
-#endif
 
 /// Lock/pid file class. This is quite close to the pidfile_xxx
 /// utilities in FreeBSD with a bit more encapsulation. I'd have used

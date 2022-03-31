@@ -247,6 +247,8 @@ public:
      */
     static bool backtick(const std::vector<std::string> cmd, std::string& out);
 
+    static std::string waitStatusAsString(int wstatus);
+
     class Internal;
 private:
     Internal *m;

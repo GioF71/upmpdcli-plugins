@@ -125,8 +125,7 @@ public:
      * @param readonly if true open readonly, else rw
      * @param tildexp  try tilde (home dir) expansion for subkey values
      */
-    ConfSimple(const char *fname, int readonly = 0, bool tildexp = false,
-               bool trimvalues = true);
+    ConfSimple(const char *fname, int readonly = 0, bool tildexp = false, bool trimvalues = true);
 
     /**
      * Build the object by reading content from a string
@@ -142,8 +141,7 @@ public:
      * @param readonly if true open read only, else rw
      * @param tildexp  try tilde (home dir) expansion for subsection names
      */
-    ConfSimple(int readonly = 0, bool tildexp = false,
-               bool trimvalues = true);
+    ConfSimple(int readonly = 0, bool tildexp = false, bool trimvalues = true);
 
     virtual ~ConfSimple() {};
 
@@ -184,8 +182,7 @@ public:
      * Set value for named integer parameter in specified subsection (or global)
      * @return 0 for error, 1 else
      */
-    virtual int set(const std::string& nm, long long val,
-                    const std::string& sk = std::string());
+    virtual int set(const std::string& nm, long long val, const std::string& sk = std::string());
 
     /**
      * Remove name and value from config
@@ -388,8 +385,7 @@ public:
         construct(fns, ro);
     }
     /// Construct out of single file name and multiple directories
-    ConfStack(const std::string& nm, const std::vector<std::string>& dirs,
-              bool ro = true) {
+    ConfStack(const std::string& nm, const std::vector<std::string>& dirs, bool ro = true) {
         std::vector<std::string> fns;
         for (const auto& dir : dirs) {
             fns.push_back(path_cat(dir, nm));
@@ -501,8 +497,8 @@ public:
         const std::string& sk, const char *pattern = 0) const override {
         return getNames1(sk, pattern, false);
     }
-    virtual std::vector<std::string> getNamesShallow(const std::string& sk,
-                                                     const char *patt = 0) const {
+    virtual std::vector<std::string> getNamesShallow(
+        const std::string& sk, const char *patt = 0) const {
         return getNames1(sk, patt, true);
     }
 
@@ -570,27 +566,30 @@ private:
         }
     }
 
-    /// Common construct from file names code. We used to be ok even
-    /// if some files were not readable/parsable. Now fail if any
-    /// fails.
+    /// Common construct from file names.
+    /// Fail if any fails, except for missing files in all but the bottom location, or the
+    /// top one in rw mode.
     void construct(const std::vector<std::string>& fns, bool ro) {
         bool ok{true};
-        bool first{true};
-        for (const auto& fn : fns) {
+        for (unsigned int i = 0; i < fns.size(); i++) {
+            const auto& fn{fns[i]};
             T* p = new T(fn.c_str(), ro);
             if (p && p->ok()) {
                 m_confs.push_back(p);
             } else {
                 delete p;
-                // In ro mode, we accept a non-existing topmost file
-                // and treat it as an empty one.
-                if (!(ro && first && !path_exists(fn))) {
-                    ok = false;
+                // We accept missing files in all but the bottom/ directory.
+                // In rw mode, the topmost file must be present.
+                if (!path_exists(fn)) {
+                    // !ro can only be true for i==0
+                    if (!ro || (i == fns.size() - 1)) {
+                        ok = false;
+                        break;
+                    }
                 }
             }
             // Only the first file is opened rw
             ro = true;
-            first = false;
         }
         m_ok = ok;
     }

@@ -39,6 +39,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <sstream>
 #ifdef HAVE_SPAWN_H
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -994,7 +995,8 @@ int ExecCmd::wait()
             LOGERR("ExecCmd::waitpid: returned -1 errno " << errno << "\n");
             status = -1;
         }
-        LOGDEB("ExecCmd::wait: got status 0x" << (status) << "\n");
+        LOGDEB("ExecCmd::wait: got status 0x" << std::hex << status << std::dec << ": " <<
+               waitStatusAsString(status) << "\n");
         m->m_pid = -1;
     }
     // Let the ExecCmdRsrc cleanup, it will do the killing/waiting if needed
@@ -1042,6 +1044,23 @@ bool ExecCmd::backtick(const vector<string> cmd, string& out)
     int status = mexec.doexec(*cmd.begin(), args, 0, &out);
     return status == 0;
 }
+
+std::string ExecCmd::waitStatusAsString(int wstatus)
+{
+    std::ostringstream oss;
+    if (WIFEXITED(wstatus)) {
+        oss << "Exit status: " << WEXITSTATUS(wstatus);
+    } else {
+        if (WIFSIGNALED(wstatus)) {
+            oss << strsignal(WTERMSIG(wstatus)) << " ";
+        }
+        if (WCOREDUMP(wstatus)) {
+            oss << "(core dumped)";
+        }
+    }
+    return oss.str();
+}
+
 
 /// ReExec class methods ///////////////////////////////////////////////////
 ReExec::ReExec(int argc, char *args[])

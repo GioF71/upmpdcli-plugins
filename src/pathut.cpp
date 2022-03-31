@@ -171,7 +171,6 @@
 #define DIRENT dirent
 #define DIRHDL DIR
 #define MKDIR(a,b) mkdir(a,b)
-#define O_BINARY 0
 #define OPEN ::open
 #define UNLINK ::unlink
 #define RMDIR ::rmdir

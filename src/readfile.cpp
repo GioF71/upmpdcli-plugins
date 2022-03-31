@@ -35,7 +35,7 @@
 #define OPEN _wopen
 
 #else
-#define O_BINARY 0
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
