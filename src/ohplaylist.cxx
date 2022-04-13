@@ -833,10 +833,7 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
 {
     LOGDEB("OHPlaylist::idArray (internal)" << endl);
     unordered_map<string, string> st;
-    {
-        std::lock_guard<std::mutex> lock(m_statemutex);
-        makestate(st);
-    }
+    makestate(st);
     idarray = st["IdArray"];
     if (token) {
         if (m_active) {
@@ -858,6 +855,7 @@ int OHPlaylist::idArray(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("OHPlaylist::idArray" << endl);
     string idarray;
     int token;
+    std::lock_guard<std::mutex> lock(m_statemutex);
     if (iidArray(idarray, &token)) {
         data.addarg("Token", SoapHelp::i2s(token));
         data.addarg("Array", idarray);
@@ -881,8 +879,8 @@ bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
 
 bool OHPlaylist::urlMap(unordered_map<int, string>& umap)
 {
-    std::lock_guard<std::mutex> lock(m_statemutex);
     LOGDEB1("OHPlaylist::urlMap\n");
+    std::lock_guard<std::mutex> lock(m_statemutex);
     string sarray; 
     if (iidArray(sarray, 0)) {
         vector<int> ids;
