@@ -231,8 +231,14 @@ top:
     }
     pollerCtl(st);
     for (;;) {
-        enum mpd_idle mask = 
-            mpd_run_idle_mask(m_idleconn, (enum mpd_idle)o_idle_mask);
+        if (m_idleneedstop) {
+            m_idleneedstop = false;
+            break;
+        }
+        // There is a short window here where idleneedstop could be set after we tested it and
+        // send_noidle called before we enter run_idle, probably resulting in our sleeping forever?
+        // Not sure of how this could be fixed.
+        enum mpd_idle mask = mpd_run_idle_mask(m_idleconn, (enum mpd_idle)o_idle_mask);
         if (mask == 0) {
             LOGERR("MPDCli::eventloop: mpd_run_idle_mask returned 0\n");
             // This can happen if mpd went awol, or if we're asked to
@@ -245,8 +251,7 @@ top:
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
             goto top;
         }
-        LOGDEB0("MPDCli::eventloop: mpd_run_idle_mask returned " << std::hex <<
-                mask << std::dec << "\n");
+        LOGDEB0("MPDCli::eventloop: mpd_run_idle_mask: " << std::hex << mask << std::dec << "\n");
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             updStatus();
