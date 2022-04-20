@@ -143,8 +143,7 @@ struct PathStat {
     uint64_t pst_blocks;
     uint64_t pst_blksize;
 };
-extern int path_fileprops(const std::string path, struct PathStat *stp,
-                          bool follow = true);
+extern int path_fileprops(const std::string path, struct PathStat *stp, bool follow = true);
 
 
 /// Return separator for PATH environment variable
@@ -171,8 +170,7 @@ private:
 };
 
 /// Dump directory
-extern bool listdir(const std::string& dir, std::string& reason,
-                    std::set<std::string>& entries);
+extern bool listdir(const std::string& dir, std::string& reason, std::set<std::string>& entries);
 
 /** A small wrapper around statfs et al, to return percentage of disk
     occupation
@@ -189,7 +187,15 @@ bool path_chdir(const std::string& path);
 std::string path_cwd();
 bool path_unlink(const std::string& path);
 bool path_rmdir(const std::string& path);
-                 
+
+// Setting file times. Windows defines timeval in winsock2.h but it seems safer to use local def
+// Also on Windows, we use _wutime and ignore the tv_usec part.
+typedef struct path_timeval {
+    long tv_sec;
+    long tv_usec;
+} path_timeval;
+bool path_utimes(const std::string& path, struct path_timeval times[2]);
+
 /* Open file, trying to do the right thing with non-ASCII paths on
  * Windows, where it only works with MSVC at the moment if the path is
  * not ASCII, because it uses fstream(wchar_t*), which is an MSVC
@@ -200,12 +206,10 @@ bool path_rmdir(const std::string& path);
  *
  * @param path an utf-8 file path.
  * @param mode is an std::fstream mode (ios::in etc.) */
-extern bool path_streamopen(
-    const std::string& path, int mode, std::fstream& outstream);
+extern bool path_streamopen(const std::string& path, int mode, std::fstream& outstream);
 
 /// Encode according to rfc 1738
-extern std::string url_encode(const std::string& url,
-                              std::string::size_type offs = 0);
+extern std::string url_encode(const std::string& url, std::string::size_type offs = 0);
 extern std::string url_decode(const std::string& encoded);
 //// Convert to file path if url is like file://. This modifies the
 //// input (and returns a copy for convenience)

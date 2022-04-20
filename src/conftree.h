@@ -572,7 +572,7 @@ private:
     void construct(const std::vector<std::string>& fns, bool ro) {
         bool ok{true};
         for (unsigned int i = 0; i < fns.size(); i++) {
-            const auto& fn{fns[i]};
+            const auto& fn = fns[i];
             T* p = new T(fn.c_str(), ro);
             if (p && p->ok()) {
                 m_confs.push_back(p);

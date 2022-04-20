@@ -284,7 +284,8 @@ class ReExec {
 public:
     ReExec() {}
     ReExec(int argc, char *argv[]);
-    void init(int argc, char *argv[]);
+    // Mostly useful with Windows and wmain: args must be utf-8
+    ReExec(const std::vector<std::string>& args);
     int atexit(void (*function)(void)) {
         m_atexitfuncs.push(function);
         return 0;
@@ -302,7 +303,7 @@ public:
 private:
     std::vector<std::string> m_argv;
     std::string m_curdir;
-    int    m_cfd;
+    int    m_cfd{-1};
     std::string m_reason;
     std::stack<void (*)(void)> m_atexitfuncs;
 };

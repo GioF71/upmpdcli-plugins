@@ -1065,14 +1065,20 @@ std::string ExecCmd::waitStatusAsString(int wstatus)
 /// ReExec class methods ///////////////////////////////////////////////////
 ReExec::ReExec(int argc, char *args[])
 {
-    init(argc, args);
-}
-
-void ReExec::init(int argc, char *args[])
-{
     for (int i = 0; i < argc; i++) {
         m_argv.push_back(args[i]);
     }
+    m_cfd = open(".", 0);
+    char *cd = getcwd(0, 0);
+    if (cd) {
+        m_curdir = cd;
+    }
+    free(cd);
+}
+
+ReExec::ReExec(const std::vector<std::string>& args)
+    : m_argv(args)
+{
     m_cfd = open(".", 0);
     char *cd = getcwd(0, 0);
     if (cd) {

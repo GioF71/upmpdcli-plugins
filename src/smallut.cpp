@@ -322,6 +322,30 @@ template <class T> void stringsToCSV(const T& tokens, string& s, char sep)
         s.pop_back();
 }
 
+template <class T> std::string commonprefix(const T& values)
+{
+    if (values.empty())
+        return std::string();
+    if (values.size() == 1)
+        return *values.begin();
+    unsigned int i = 0;
+    for (;;i++) {
+        auto it = values.begin();
+        if (it->size() <= i) {
+            goto out;
+        }
+        auto val = (*it)[i];
+        it++;
+        for (;it < values.end(); it++) {
+            if (it->size() <= i || (*it)[i] != val) {
+                goto out;
+            }
+        }
+    }
+out:
+    return values.begin()->substr(0, i);
+}
+
 #ifdef SMALLUT_EXTERNAL_INSTANTIATIONS
 #include "smallut_instantiate.h"
 #else
@@ -342,8 +366,8 @@ template string stringsToString<vector<string> >(const vector<string>&);
 template string stringsToString<set<string> >(const set<string>&);
 template string stringsToString<unordered_set<string> >(const unordered_set<string>&);
 template void stringsToCSV<list<string> >(const list<string>&, string&, char);
-template void stringsToCSV<vector<string> >(const vector<string>&, string&,
-                                            char);
+template void stringsToCSV<vector<string> >(const vector<string>&, string&, char);
+template string commonprefix<vector<string>>(const vector<string>&values);
 #endif
 
 void stringToTokens(const string& str, vector<string>& tokens,
@@ -570,7 +594,6 @@ string makeCString(const string& in)
     out += "\"";
     return out;
 }
-
 
 // Substitute printf-like percent cmds inside a string
 bool pcSubst(const string& in, string& out, const map<char, string>& subs)

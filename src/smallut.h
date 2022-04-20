@@ -136,6 +136,9 @@ template <class T> std::string stringsToString(const T& tokens);
 template <class T> void stringsToCSV(const T& tokens, std::string& s,
                                      char sep = ',');
 
+/** Find longest common prefix for bunch of strings */
+template <class T> std::string commonprefix(const T& values);
+
 /**
  * Split input string. No handling of quoting.
  */

@@ -100,6 +100,7 @@
 #include <direct.h>
 #include <Shlobj.h>
 #include <Stringapiset.h>
+#include <sys/utime.h>
 
 #if !defined(S_IFLNK)
 #define S_IFLNK 0
@@ -152,6 +153,7 @@
 #else /* !_WIN32 -> */
 
 #include <unistd.h>
+#include <sys/time.h>
 #include <sys/param.h>
 #include <pwd.h>
 #include <sys/file.h>
@@ -332,8 +334,6 @@ static bool path_isdriveabs(const string& s)
 
 /* Can be OR'd in to one of the above.  */
 # define LOCK_NB 4       /* Don't block when locking.  */
-
-#include <io.h>
 
 /* Determine the current size of a file.  Because the other braindead
  * APIs we'll call need lower/upper 32 bit pairs, keep the file size
@@ -953,6 +953,34 @@ bool path_rmdir(const std::string& path)
     return RMDIR(syspath) == 0;
 }
 
+bool path_utimes(const std::string& path, struct path_timeval _tv[2])
+{
+#ifdef _WIN32
+    struct _utimbuf times;
+    if (nullptr == _tv) {
+        times.actime = times.modtime = time(0L);
+    } else {
+        times.actime = _tv[0].tv_sec;
+        times.modtime = _tv[1].tv_sec;
+    }
+    SYSPATH(path, syspath);
+    return _wutime(syspath, &times) != -1;
+#else
+    struct timeval tvb[2];
+    if (nullptr == _tv) {
+        gettimeofday(tvb, nullptr);
+        tvb[1].tv_sec = tvb[0].tv_sec;
+        tvb[1].tv_usec = tvb[0].tv_usec;
+    } else {
+        tvb[0].tv_sec = _tv[0].tv_sec;
+        tvb[0].tv_usec = _tv[0].tv_usec;
+        tvb[1].tv_sec = _tv[1].tv_sec;
+        tvb[1].tv_usec = _tv[1].tv_usec;
+    }
+    return utimes(path.c_str(), tvb) == 0;
+#endif
+}
+
 bool path_streamopen(const std::string& path, int mode, std::fstream& outstream)
 {
 #if defined(_WIN32) && defined (_MSC_VER)
@@ -1462,11 +1490,35 @@ Pidfile::~Pidfile()
     this->close();
 }
 
+#ifdef _WIN32
+// It appears that we can't read the locked file on Windows, so we use
+// separate files for locking and holding the data.
+static std::string pid_data_path(const std::string& path)
+{
+    // Remove extension. append -data to name, add back extension.
+    auto ext = path_suffix(path);
+    auto spath = path_cat(path_getfather(path), path_basename(path, ext));
+    if (spath.back() == '.')
+        spath.pop_back();
+    if (!ext.empty())
+        spath += std::string("-data") + "." + ext;
+    return spath;
+}
+#endif // _WIN32
+
 int Pidfile::read_pid()
 {
+#ifdef _WIN32
+    // It appears that we can't read the locked file on Windows, so use an aux file
+    auto path = pid_data_path(m_path);
+    SYSPATH(path, syspath);
+#else
     SYSPATH(m_path, syspath);
+#endif
     int fd = OPEN(syspath, O_RDONLY);
     if (fd == -1) {
+        if (errno != ENOENT)
+            m_reason = "Open RDONLY failed: [" + m_path + "]: " + strerror(errno);
         return -1;
     }
 
@@ -1474,12 +1526,14 @@ int Pidfile::read_pid()
     int i = read(fd, buf, sizeof(buf) - 1);
     ::close(fd);
     if (i <= 0) {
+        m_reason = "Read failed: [" + m_path + "]: " + strerror(errno);
         return -1;
     }
     buf[i] = '\0';
     char *endptr;
     int pid = strtol(buf, &endptr, 10);
     if (endptr != &buf[i]) {
+        m_reason = "Bad pid contents: [" + m_path + "]: " + strerror(errno);
         return - 1;
     }
     return pid;
@@ -1501,8 +1555,8 @@ int Pidfile::flopen()
     lockdata.l_whence = SEEK_SET;
     if (fcntl(m_fd, F_SETLK,  &lockdata) != 0) {
         int serrno = errno;
-        this->close()
-            errno = serrno;
+        this->close();
+        errno = serrno;
         m_reason = "fcntl lock failed";
         return -1;
     }
@@ -1538,18 +1592,33 @@ int Pidfile::open()
 
 int Pidfile::write_pid()
 {
+#ifdef _WIN32
+    // It appears that we can't read the locked file on Windows, so use an aux file
+    auto path = pid_data_path(m_path);
+    SYSPATH(path, syspath);
+    int fd;
+    if ((fd = OPEN(syspath, O_RDWR | O_CREAT, 0644)) == -1) {
+        m_reason = "Open failed: [" + path + "]: " + strerror(errno);
+        return -1;
+    }
+#else
+    int fd = m_fd;
+#endif
     /* truncate to allow multiple calls */
-    if (ftruncate(m_fd, 0) == -1) {
+    if (ftruncate(fd, 0) == -1) {
         m_reason = "ftruncate failed";
         return -1;
     }
     char pidstr[20];
     sprintf(pidstr, "%u", int(getpid()));
-    lseek(m_fd, 0, 0);
-    if (::write(m_fd, pidstr, strlen(pidstr)) != (PATHUT_SSIZE_T)strlen(pidstr)) {
+    ::lseek(fd, 0, 0);
+    if (::write(fd, pidstr, strlen(pidstr)) != (PATHUT_SSIZE_T)strlen(pidstr)) {
         m_reason = "write failed";
         return -1;
     }
+#ifdef _WIN32
+    ::close(fd);
+#endif
     return 0;
 }
 
