@@ -43,7 +43,7 @@ Description: GUI configuration editor for upmpdcli.
 Package: upmpdcli-bbc
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, python3-bs4, python3-feedparser, python3-dateutils,
+Depends: upmpdcli, python3, python3-requests, python3-bs4, python3-feedparser, python3-dateutil,
          ${misc:Depends}
 Description: upmpdcli BBC radio plugin
  upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the web site and listen to
