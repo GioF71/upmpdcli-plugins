@@ -28,13 +28,25 @@ from common import USER_AGENT
 class M3uPlaylistDecoder:
     def __init__(self):
         self.log = logging.getLogger('upmpdcli')
+        #self.log.setLevel(logging.DEBUG)
 
 
     def isStreamValid(self, contentType, firstBytes):
         contentType = contentType.lower()
+
+        # Apple live streaming special case: we do not try to process these, there is no permanent
+        # media url to extract (only an ever changing list of short segments). We reject them and
+        # let mpd deal with the playlist itself (which it does well, even if I could not find out by
+        # looking at the code how it worked).
+        if 'audio/mpegurl' in contentType or 'application/vnd.apple.mpegurl' in contentType:
+            lines = firstBytes.splitlines()
+            if not len(lines) or lines[0].startswith(b"#EXTM3U"):
+                return False
+        
         if 'audio/mpegurl' in contentType or 'audio/x-mpegurl' in contentType \
            or 'application/x-mpegurl' in contentType or \
            'application/vnd.apple.mpegurl' in contentType:
+            # we tested for EXTM3U above, so this must be a regular playlist
             self.log.debug('Stream is readable by M3U Playlist Decoder')
             return True
         else:
