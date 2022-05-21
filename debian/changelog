@@ -1,3 +1,9 @@
+upmpdcli (1.5.17-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix Qobuz plugin consecutively to small change in Qobuz interface.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sat, 21 May 2022 16:11:00 +0200
+
 upmpdcli (1.5.16-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix radios using Apple Live Streaming, which were broken in 1.5.14
