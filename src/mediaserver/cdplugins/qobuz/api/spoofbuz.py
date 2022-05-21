@@ -10,7 +10,7 @@ class Spoofer:
         self.seed_timezone_regex = r'[a-z]\.initialSeed\("(?P<seed>[\w=]+)",window\.utimezone\.(?P<timezone>[a-z]+)\)'
         # note: {timezones} should be replaced with every capitalized timezone joined by a |
         self.info_extras_regex = r'name:"\w+/(?P<timezone>{timezones})",info:"(?P<info>[\w=]+)",extras:"(?P<extras>[\w=]+)"'
-        self.appId_regex = r'{app_id:"(?P<app_id>\d{9})",app_secret:"\w{32}",base_port:"80",base_url:"https://www\.qobuz\.com",base_method:"/api\.json/0\.2/"},n\.base_url="https://play\.qobuz\.com"'
+        self.appId_regex = r'{app_id:"(?P<app_id>\d{9})",app_secret:"(?P<secret>\w{32})",base_port:"80",base_url:"https://www\.qobuz\.com",base_method:"/api\.json/0\.2/"},n\.braze_api_key="([-0-9a-fA-F]{36})",n\.base_url="https://play\.qobuz\.com"'
         login_page_request = requests.get("https://play.qobuz.com/login")
         login_page = login_page_request.text
         bundle_url_match = re.search(
