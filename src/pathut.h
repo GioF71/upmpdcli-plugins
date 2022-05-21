@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 J.F.Dockes
+/* Copyright (C) 2004-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -22,6 +22,13 @@
 #include <set>
 #include <cstdint>
 #include <fstream>
+#include <memory>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+namespace MedocUtils {
 
 // Must be called in main thread before starting other threads
 extern void pathut_init_mt();
@@ -99,7 +106,6 @@ bool path_readable(const std::string& path);
 
 // Conversion between utf-8 and wide char file names.
 
-#include <memory>
 bool wchartoutf8(const wchar_t *in, std::string& out, size_t len = 0);
 std::string wchartoutf8(const wchar_t *in, size_t len = 0);
 bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap);
@@ -113,7 +119,6 @@ extern std::string path_shortpath(const std::string& path);
 
 #else // !_WIN32 ->
 
-#include <unistd.h>
 #define path_shortpath(path) (path)
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -208,22 +213,6 @@ bool path_utimes(const std::string& path, struct path_timeval times[2]);
  * @param mode is an std::fstream mode (ios::in etc.) */
 extern bool path_streamopen(const std::string& path, int mode, std::fstream& outstream);
 
-/// Encode according to rfc 1738
-extern std::string url_encode(const std::string& url, std::string::size_type offs = 0);
-extern std::string url_decode(const std::string& encoded);
-//// Convert to file path if url is like file://. This modifies the
-//// input (and returns a copy for convenience)
-extern std::string fileurltolocalpath(std::string url);
-/// Test for file:/// url
-extern bool urlisfileurl(const std::string& url);
-///
-extern std::string url_parentfolder(const std::string& url);
-/// Return the host+path part of an url. This is not a general
-/// routine, it does the right thing only in the recoll context
-extern std::string url_gpath(const std::string& url);
-/// Turn absolute path into file:// url
-extern std::string path_pathtofileurl(const std::string& path);
-
 /// URI parser, loosely from rfc2396.txt
 class ParsedUri {
 public:
@@ -270,5 +259,9 @@ private:
     int read_pid();
     int flopen();
 };
+
+} // End namespace MedocUtils
+
+using namespace MedocUtils;
 
 #endif /* _PATHUT_H_INCLUDED_ */

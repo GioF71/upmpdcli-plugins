@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2019 J.F.Dockes
+/* Copyright (C) 2004-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -189,6 +189,7 @@ using namespace std;
 #define PATHUT_SSIZE_T ssize_t
 #endif
 
+namespace MedocUtils {
 
 #ifdef _WIN32
 
@@ -1106,179 +1107,6 @@ bool path_access(const std::string& path, int mode)
     return ACCESS(syspath, mode) == 0;
 }
 
-/* There is a lot of vagueness about what should be percent-encoded or
- * not in a file:// url. The constraint that we have is that we may use
- * the encoded URL to compute (MD5) a thumbnail path according to the
- * freedesktop.org thumbnail spec, which itself does not define what
- * should be escaped. We choose to exactly escape what gio does, as
- * implemented in glib/gconvert.c:g_escape_uri_string(uri, UNSAFE_PATH). 
- * Hopefully, the other desktops have the same set of escaped chars. 
- * Note that $ is not encoded, so the value is not shell-safe.
- */
-string url_encode(const string& url, string::size_type offs)
-{
-    string out = url.substr(0, offs);
-    const char *cp = url.c_str();
-    for (string::size_type i = offs; i < url.size(); i++) {
-        unsigned int c;
-        const char *h = "0123456789ABCDEF";
-        c = cp[i];
-        if (c <= 0x20 ||
-            c >= 0x7f ||
-            c == '"' ||
-            c == '#' ||
-            c == '%' ||
-            c == ';' ||
-            c == '<' ||
-            c == '>' ||
-            c == '?' ||
-            c == '[' ||
-            c == '\\' ||
-            c == ']' ||
-            c == '^' ||
-            c == '`' ||
-            c == '{' ||
-            c == '|' ||
-            c == '}') {
-            out += '%';
-            out += h[(c >> 4) & 0xf];
-            out += h[c & 0xf];
-        } else {
-            out += char(c);
-        }
-    }
-    return out;
-}
-
-static inline int h2d(int c) {
-    if ('0' <= c && c <= '9')
-        return c - '0';
-    else if ('A' <= c && c <= 'F')
-        return 10 + c - 'A';
-    else if ('a' <= c && c <= 'f')
-        return 10 + c - 'a';
-    else 
-        return -1;
-}
-
-string url_decode(const string &in)
-{
-    if (in.size() <= 2)
-        return in;
-    string out;
-    out.reserve(in.size());
-    const char *cp = in.c_str();
-    string::size_type i = 0;
-    for (; i < in.size() - 2; i++) {
-        if (cp[i] == '%') {
-            int d1 = h2d(cp[i+1]);
-            int d2 = h2d(cp[i+2]);
-            if (d1 != -1 && d2 != -1) {
-                out += (d1 << 4) + d2;
-            } else {
-                out += '%';
-                out += cp[i+1];
-                out += cp[i+2];
-            }
-            i += 2;
-        } else {
-            out += cp[i];
-        }
-    }
-    while (i < in.size()) {
-        out += cp[i++];
-    }
-    return out;
-}
-
-string url_gpath(const string& url)
-{
-    // Remove the access schema part (or whatever it's called)
-    string::size_type colon = url.find_first_of(":");
-    if (colon == string::npos || colon == url.size() - 1) {
-        return url;
-    }
-    // If there are non-alphanum chars before the ':', then there
-    // probably is no scheme. Whatever...
-    for (string::size_type i = 0; i < colon; i++) {
-        if (!isalnum(url.at(i))) {
-            return url;
-        }
-    }
-
-    // In addition we canonize the path to remove empty host parts
-    // (for compatibility with older versions of recoll where file://
-    // was hardcoded, but the local path was used for doc
-    // identification.
-    return path_canon(url.substr(colon + 1));
-}
-
-string url_parentfolder(const string& url)
-{
-    // In general, the parent is the directory above the full path
-    string parenturl = path_getfather(url_gpath(url));
-    // But if this is http, make sure to keep the host part. Recoll
-    // only has file or http urls for now.
-    bool isfileurl = urlisfileurl(url);
-    if (!isfileurl && parenturl == "/") {
-        parenturl = url_gpath(url);
-    }
-    return isfileurl ? string("file://") + parenturl :
-        string("http://") + parenturl;
-}
-
-
-// Convert to file path if url is like file:
-// Note: this only works with our internal pseudo-urls which are not
-// encoded/escaped
-string fileurltolocalpath(string url)
-{
-    if (url.find("file://") == 0) {
-        url = url.substr(7, string::npos);
-    } else {
-        return string();
-    }
-
-#ifdef _WIN32
-    // Absolute file urls are like: file:///c:/mydir/...
-    // Get rid of the initial '/'
-    if (url.size() >= 3 && url[0] == '/' && isalpha(url[1]) && url[2] == ':') {
-        url = url.substr(1);
-    }
-#endif
-
-    // Removing the fragment part. This is exclusively used when
-    // executing a viewer for the recoll manual, and we only strip the
-    // part after # if it is preceded by .html
-    string::size_type pos;
-    if ((pos = url.rfind(".html#")) != string::npos) {
-        url.erase(pos + 5);
-    } else if ((pos = url.rfind(".htm#")) != string::npos) {
-        url.erase(pos + 4);
-    }
-
-    return url;
-}
-
-static const string cstr_fileu("file://");
-
-string path_pathtofileurl(const string& path)
-{
-    // We're supposed to receive a canonic absolute path, but on windows we
-    // may need to add a '/' in front of the drive spec
-    string url(cstr_fileu);
-    if (path.empty() || path[0] != '/') {
-        url.push_back('/');
-    }
-    url += path;
-    return url;
-}
-
-bool urlisfileurl(const string& url)
-{
-    return url.find("file://") == 0;
-}
-
 #ifndef NO_STD_REGEX
 static std::regex
 re_uriparse("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?",
@@ -1643,3 +1471,5 @@ void pathut_init_mt()
 {
     path_home();
 }
+
+} // End namespace MedocUtils

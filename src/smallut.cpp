@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2020 J.F.Dockes
+/* Copyright (C) 2006-2022 J.F.Dockes
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -52,6 +52,8 @@
 #endif
 
 using namespace std;
+
+namespace MedocUtils {
 
 int stringicmp(const string& s1, const string& s2)
 {
@@ -1352,3 +1354,5 @@ string valToString(const vector<CharFlags>& flags, unsigned int val)
 void smallut_init_mt()
 {
 }
+
+} // End namespace MedocUtils

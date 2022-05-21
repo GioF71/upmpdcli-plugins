@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2016 J.F.Dockes
+/* Copyright (C) 2006-2022 J.F.Dockes
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 #include <map>
+
+struct tm;
+
+namespace MedocUtils {
 
 // Miscellaneous mostly string-oriented small utilities
 // Note that none of the following code knows about utf-8.
@@ -206,7 +210,6 @@ void catstrerror(std::string *reason, const char *what, int _errno);
 
 /** Portable timegm. MS C has _mkgmtime, but there is a bug in Gminw which
  * makes it inaccessible */
-struct tm;
 time_t portable_timegm(struct tm *tm);
 
 inline void leftzeropad(std::string& s, unsigned len)
@@ -274,5 +277,9 @@ extern std::string flagsToString(const std::vector<CharFlags>&,
 
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);
+
+} // End namespace MedocUtils
+
+using namespace MedocUtils;
 
 #endif /* _SMALLUT_H_INCLUDED_ */
