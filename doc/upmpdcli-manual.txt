@@ -610,9 +610,8 @@ framework, and knowing which way you are using will avoid confusion:
   implemented by the Linn Kazoo Control Point, and a number of Renderers,
   the Linn and Lumin ones of course, but also,
   xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
-  * At the moment, the upmpdcli implementation is not useful any more, as
-    changes in services access methods have made it such that none of them
-    is currently usable with upmpdcli through this method.
+  * At the moment, the upmpdcli implementation only works for Qobuz, as
+    changes in the Tidal access method have made it impossible to support.
 
 [[UPMPDCLI-MS-STR-MS]]
 === Accessing Streaming Services through the upmpdcli Media Server
