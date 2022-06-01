@@ -17,6 +17,7 @@ usr/share/upmpdcli/OHVolume.xml
 usr/share/upmpdcli/RenderingControl.xml
 usr/share/upmpdcli/cdplugins/pycommon
 usr/share/upmpdcli/description.xml
+usr/share/upmpdcli/icon.png
 usr/share/upmpdcli/presentation.html
 usr/share/upmpdcli/protocolinfo.txt
 usr/share/upmpdcli/radio_scripts
