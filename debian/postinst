@@ -5,9 +5,18 @@ set -e
 
 if [ "$1" = configure ]; then
     if ! getent passwd upmpdcli > /dev/null; then
-	adduser --disabled-password --quiet --system \
+	adduser --disabled-password --quiet --system --group \
 	    --home /nonexistent --no-create-home --shell /bin/false upmpdcli
     fi
+
+    # Check if group upmpdcli exists: old versions did not use
+    # the --group option to adduser so that, when updating, we may
+    # have to create it separately
+    if ! getent group upmpdcli > /dev/null; then
+        addgroup --system upmpdcli
+        usermod -g upmpdcli upmpdcli
+    fi
+
     if ! groups upmpdcli | cut -d' ' -f 3- | grep -q -w audio ; then
         usermod -a -G audio upmpdcli
     fi

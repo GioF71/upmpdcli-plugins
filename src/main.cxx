@@ -473,7 +473,7 @@ int main(int argc, char *argv[])
     }
     if (geteuid() == 0) {
         if (runas == 0) {
-            LOGFAT("upmpdcli won't run as root and user " << upmpdcliuser << 
+            LOGFAT("upmpdcli won't run as root and user " << upmpdcliuser <<
                    " does not exist " << endl);
             return 1;
         }
@@ -556,21 +556,22 @@ int main(int argc, char *argv[])
         }
         if (!opts.cachefn.empty()) {
             if (chown(opts.cachefn.c_str(), runas, -1) != 0) {
-                LOGERR("chown("<< opts.cachefn << ") : errno : " <<
-                       errno << endl);
+                LOGERR("chown("<< opts.cachefn << ") : errno : " << errno << endl);
             }
         }
         if (!g_configfilename.empty()) {
-            ensureconfreadable(g_configfilename.c_str(), upmpdcliuser.c_str(),
-                               runas, runasg);
+            ensureconfreadable(g_configfilename.c_str(), upmpdcliuser.c_str(), runas, runasg);
         }
+
         if (initgroups(upmpdcliuser.c_str(), runasg) < 0) {
             LOGERR("initgroup failed. Errno: " << errno << endl);
         }
         if (setuid(runas) < 0) {
-            LOGFAT("Can't set my uid to " << runas << " current: " << geteuid()
-                   << endl);
+            LOGFAT("Can't set my uid to " << runas << " current: " << geteuid() << endl);
             return 1;
+        }
+        if (setgid(runasg) < 0) {
+            LOGINF("Can't set my gid to " << runasg << " current: " << getegid() << endl);
         }
 #if 0
         gid_t list[100];
@@ -601,8 +602,7 @@ int main(int argc, char *argv[])
     if (!sc2mpdpath.empty()) {
         // Check if sc2mpd is actually there
         if (access(sc2mpdpath.c_str(), X_OK|R_OK) != 0) {
-            LOGERR("Specified path for sc2mpd: " << sc2mpdpath << 
-                   " is not executable" << endl);
+            LOGERR("Specified path for sc2mpd: " << sc2mpdpath <<  " is not executable\n");
             sc2mpdpath.clear();
         }
     }
@@ -612,15 +612,13 @@ int main(int argc, char *argv[])
         // command are executable. We'll assume that mpd is ok
         if (access(senderpath.c_str(), X_OK|R_OK) != 0) {
             LOGERR("The specified path for the sender starter script: ["
-                   << senderpath <<
-                   "] is not executable, disabling the sender mode.\n");
+                   << senderpath << "] is not executable, disabling the sender mode.\n");
             senderpath.clear();
         } else {
             string path;
             if (!ExecCmd::which("mpd2sc", path)) {
                 LOGERR("Sender starter was specified and found but the mpd2sc "
-                       "command is not found (or executable). Disabling "
-                       "the sender mode.\n");
+                       "command is not found (or executable). Disabling the sender mode.\n");
                 senderpath.clear();
             }
         }
@@ -698,8 +696,7 @@ int main(int argc, char *argv[])
     }
     mylib = LibUPnP::getLibUPnP();
     if (!mylib || !mylib->ok()) {
-        LOGFAT("Lib init failed: " <<
-               mylib->errAsString("main", mylib->getInitError()) << endl);
+        LOGFAT("Lib init failed: " << mylib->errAsString("main", mylib->getInitError()) << endl);
         return 1;
     }
     hwaddr = mylib->hwaddr();
@@ -733,14 +730,12 @@ int main(int argc, char *argv[])
         int fd;
         if ((fd = open(opts.screceiverstatefile.c_str(),
                        O_CREAT|O_RDWR, 0644)) < 0) {
-            LOGERR("creat(" << opts.screceiverstatefile << ") : errno : "
-                   << errno << endl);
+            LOGERR("creat(" << opts.screceiverstatefile << ") : errno : " << errno << endl);
         } else {
             close(fd);
             if (geteuid() == 0 && chown(opts.screceiverstatefile.c_str(),
                                         runas, -1) != 0) {
-                LOGERR("chown(" << opts.screceiverstatefile << ") : errno : "
-                       << errno << endl);
+                LOGERR("chown(" << opts.screceiverstatefile << ") : errno : " << errno << endl);
             }
         }
     }
