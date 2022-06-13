@@ -28,7 +28,10 @@ from upmplgutils import uplog
 import uprclinit
 
 
-def _maybeinitconfdir(confdir, topdirs):
+# We recreate the Recoll configuration files at each startup. This is fast and avoids having to test
+# for changed parameters. No directly user-entered data lives in there, it all comes from
+# upmpdcli.conf, uprclconfrecolluser or the Minim configuration.
+def _initconfdir(confdir, topdirs):
     if not os.path.isdir(confdir):
         if os.path.exists(confdir):
             raise Exception("Exists and not directory: %s" % confdir)
@@ -83,16 +86,14 @@ def _maybeinitconfdir(confdir, topdirs):
 _idxproc = None
 _lastidxstatus = None
 
-
 def runindexer(confdir, topdirs, rebuild=False):
     global _idxproc, _lastidxstatus
     if _idxproc is not None:
         raise Exception("uprclrunindexer: already running")
 
-    _maybeinitconfdir(confdir, topdirs)
+    _initconfdir(confdir, topdirs)
 
-    cf = conftree.ConfSimple(os.path.join(confdir, "recoll.conf"),
-                             readonly = False)
+    cf = conftree.ConfSimple(os.path.join(confdir, "recoll.conf"), readonly = False)
     td = cf.get("topdirs", '')
     if td != topdirs:
         cf.set("topdirs", topdirs)

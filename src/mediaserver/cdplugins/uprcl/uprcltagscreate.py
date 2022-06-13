@@ -186,9 +186,9 @@ def _prepareTags():
     uplog("prepareTags: g_indextags: %s g_tagdisplaytag %s" %
           (g_indextags, g_tagdisplaytag))
     
-    # Compute an array of (table name, recoll field)
-    # translations. Most often they are identical. This also
-    # determines what fields we create tables for.
+    # Compute an array of (table name, recoll field) translations for the tags we need to process,
+    # as determined by the indexTags property. Most often they are identical. This also determines
+    # what fields we create tables for.
     tabtorclfield = []
     for nm in g_indextags:
         tb = _alltagtotable[nm]
