@@ -851,13 +851,13 @@ Media Server.
 
 Some *uprcl* features:
 
-- Mostly written in Python, except for the part shared with the streaming
+- Mostly written in Python (python3), except for the part shared with the streaming
   media server plugins, which is in C++.
 - Tries to mimick the MinimServer tree view and functionality. We're
   not quite there yet, many functions and niceties are still missing.
-- Uses Recoll and python-recoll (hence the uprcl name) for harvesting the
+- Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the
   metadata and searching.
-- Uses Python Sqlite3 (on a memory DB) for the tags tree. 
+- Uses Python3 Sqlite3 (on a memory DB) for the tags tree. 
 - Can retrieve some parameters from the MinimServer configuration
   file. Will support more in the future.
 
@@ -883,7 +883,7 @@ xref:uprcluser[configuration variables]
 NOTE: uprcl needs Python 3.5 at least. This means that it does not work on
 Debian Jessie (8.x)
 
-NOTE: 'python-mutagen' which is optional for default Recoll installations is
+NOTE: 'python3-mutagen' which is optional for default Recoll installations is
 required for uprcl (this is for the case where you install by hand, the
 package takes care of it).
 
@@ -967,7 +967,7 @@ C++11 support, and the development packages for the supporting libraries:
 *libcurl*, *libmicrohttpd*, *libmpdclient*, and *libexpat*.
 
 Also the Python modules for streaming service support use the
-*python-requests* package, so you may need to install it (it is only needed
+*python3-requests* package, so you may need to install it (it is only needed
 at run time). 
 
 If you are using the source from the git repository, you will also need the

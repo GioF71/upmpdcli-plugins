@@ -1,3 +1,12 @@
+upmpdcli (1.5.18-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Create an upmpdcli group during installation and change the group to upmpdcli when started as
+    root (in addition to the setuid()).
+  * uprcl: try to show more information when the initialisation fails.
+  * Add upmpdcli icon to the Debian package
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 13 Jun 2022 16:11:00 +0200
+
 upmpdcli (1.5.17-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix Qobuz plugin consecutively to small change in Qobuz interface.

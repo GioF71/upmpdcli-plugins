@@ -345,11 +345,16 @@ class Folders(object):
         uplog("_rcl2folders took %.2f Seconds" % (end - start))
 
 
-    # Fetch all the docs by querying Recoll with [mime:*], which is
-    # guaranteed to match every doc without overflowing the query size
-    # (because the number of mime types is limited). Something like
-    # title:* would overflow. This creates the main doc array, which is
-    # then used by all modules.
+    # Fetch all the docs by querying Recoll with [mime:*], which is guaranteed to match every doc
+    # without overflowing the query size (because the number of mime types is limited). Something
+    # like title:* would overflow. This creates the main doc array, which is then used by all
+    # modules.
+    #
+    # Depending on the recoll version, we use a Python list of Recoll Docs or the more compact but
+    # immutable QResultStore
+    #
+    # When using the resultstore, the records are not modifyable and the aliastags processing is
+    # performed at indexing time by rclaudio. Cf. minimtagfixer.py
     def _fetchalldocs(self, confdir):
         #uplog("_fetchalldocs: has_resultstore: %s" % _has_resultstore)
         start = timer()
@@ -387,8 +392,7 @@ class Folders(object):
                 time.sleep(0)
 
         end = timer()
-        uplog("Retrieved %d docs in %.2f Seconds" %
-              (len(self._rcldocs), end - start))
+        uplog("Retrieved %d docs in %.2f Seconds" % (len(self._rcldocs), end - start))
 
 
     ##############
