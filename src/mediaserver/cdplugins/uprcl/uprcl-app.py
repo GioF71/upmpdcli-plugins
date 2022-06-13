@@ -35,11 +35,10 @@ setidprefix("uprcl")
 # Initialize communication with our parent process: pipe and method
 # call dispatch
 
-# Some of the modules we use write garbage to stdout, which messes the
-# communication with our parent. Why can't people understand that this
-# is verboten ? Get off my lawn ! So we dup stdout and close it, then
-# pass the right file to cmdtalk.  (hoping that none of the imports
-# above print anything, else we'll have to move this code up)
+# Some of the modules we use write garbage to stdout, which messes the communication with our
+# parent. Why can't people understand that this is verboten ? So we dup stdout and close it, then
+# pass the right file to cmdtalk.  (hoping that none of the imports above print anything, else we'll
+# have to move this code up)
 _outfile = os.fdopen(os.dup(1), "w")
 os.close(1)
 fd = os.open("/dev/null", os.O_WRONLY)
@@ -121,14 +120,20 @@ def browse(a):
         raise Exception("uprcl-app: browse: can't browse meta for now")
     else:
         try:
-            if not uprclinit.ready():
+            if not uprclinit.initdone():
                 entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
-            elif not idpath:
-                entries = _rootentries()
             else:
-                if len(rootmap) == 0:
-                    _rootentries()
-                entries = _browsedispatch(objid, bflg, offset, count)
+                initstatus, initmessage = uprclinit.initstatus()
+                if not initstatus:
+                    entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
+                                         initmessage),]
+                else:
+                    if not idpath:
+                        entries = _rootentries()
+                    else:
+                        if len(rootmap) == 0:
+                            _rootentries()
+                        entries = _browsedispatch(objid, bflg, offset, count)
         finally:
             uprclinit.g_dblock.release_read()
 
@@ -140,8 +145,7 @@ def browse(a):
         entries = entries[2]
     #msgproc.log("%s" % entries)
     encoded = json.dumps(entries)
-    return {"entries" : encoded, "nocache" : nocache,
-            "offset" : str(resoffs), "total" : str(total)}
+    return {"entries" : encoded, "nocache" : nocache, "offset" : str(resoffs), "total" : str(total)}
 
 
 @dispatcher.record('search')
@@ -155,12 +159,18 @@ def search(a):
     nocache = "1"
 
     try:
-        if not uprclinit.ready():
+        if not uprclinit.initdone():
             entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
         else:
-            entries = uprclsearch.search(
-                uprclinit.getTree('folders'), uprclinit.getRclConfdir(), objid,
-                upnps, uprclinit.getObjPrefix(), uprclinit.getHttphp(), uprclinit.getPathPrefix())
+            initstatus, initmessage = uprclinit.initstatus()
+            if not initstatus:
+                entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
+                                     initmessage),]
+            else:
+                entries = uprclsearch.search(
+                    uprclinit.getTree('folders'), uprclinit.getRclConfdir(), objid,
+                    upnps, uprclinit.getObjPrefix(), uprclinit.getHttphp(),
+                    uprclinit.getPathPrefix())
     finally:
         uprclinit.g_dblock.release_read()
 

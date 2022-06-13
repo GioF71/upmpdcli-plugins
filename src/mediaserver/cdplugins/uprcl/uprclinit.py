@@ -35,17 +35,30 @@ import minimconfig
 from upmplgutils import uplog, findmyip, getcachedir
 from conftree import stringToStrings
 
+### Configuration stuff
+_g_rclconfdir = ""
 _g_pathprefix = ""
 _g_httphp = ""
-g_dblock = ReadWriteLock()
-_g_rclconfdir = ""
 _g_friendlyname = "UpMpd-mediaserver"
-_g_trees = {}
-_g_trees_order = ['folders', 'playlists', 'tags', 'untagged']
-g_minimconfig = None
 # Prefix for object Ids. This must be consistent with what
 # contentdirectory.cxx does
 _g_myprefix = '0$uprcl$'
+g_minimconfig = None
+
+### Index update status
+# Running state: ""/"Updating"/"Rebuilding"
+g_initrunning = ""
+# Completion status: ok/notok
+g_initstatus = False
+# Possible error message if not ok
+g_initmessage = ""
+
+### Data created during initialisation
+_g_trees = {}
+_g_trees_order = ['folders', 'playlists', 'tags', 'untagged']
+
+g_dblock = ReadWriteLock()
+
 
 def getObjPrefix():
     return _g_myprefix
@@ -70,19 +83,33 @@ def getTreesOrder():
 
 def _reset_index():
     _update_index(True)
+
+def initdone():
+    g_dblock.acquire_read()
+    if g_initrunning:
+        return False
+    else:
+        return True
+
+def initstatus():
+    return (g_initstatus, g_initmessage)
+
+def updaterunning():
+    return g_initrunning
+
     
-# Create or update Recoll index, then read and process the data.  This
-# runs in the separate uprcl_init_worker thread, and signals
-# startup/completion by setting/unsetting the g_initrunning flag
+# Create or update Recoll index, then read and process the data. This runs in a separate thread, and
+# signals startup/completion by setting/unsetting the g_initrunning flag.
+#
+# While this is running, or after a failure any access to the root container from a Control Point
+# will display either an "Initializing" or error message.
 def _update_index(rebuild=False):
     uplog("Creating/updating index in %s for %s" % (_g_rclconfdir, g_rcltopdirs))
 
-    # We take the writer lock, making sure that no browse/search
-    # thread are active, then set the busy flag and release the
-    # lock. This allows future browse operations to signal the
-    # condition to the user instead of blocking (if we kept the write
-    # lock).
-    global g_initrunning, _g_trees
+    # We take the writer lock, making sure that no browse/search thread are active, then set the
+    # busy flag and release the lock. This allows future browse operations to signal the condition
+    # to the user instead of blocking (if we kept the write lock).
+    global g_initrunning, _g_trees, g_initstatus, g_initmessage
     g_dblock.acquire_write()
     g_initrunning = "Rebuilding" if rebuild else "Updating"
     g_dblock.release_write()
@@ -107,24 +134,30 @@ def _update_index(rebuild=False):
         newtrees['playlists'] = playlists
         newtrees['tags'] = tagged
         _g_trees = newtrees
+        g_initstatus = True
+    except Exception as ex:
+        g_initstatus = False
+        g_initmessage = str(ex)
+        uplog(f"Initialisation failed with: {g_initmessage}")
     finally:
         g_dblock.acquire_write()
-        g_initrunning = False
+        g_initrunning = ""
         g_dblock.release_write()
 
 
-# Initialisation runs in a thread because of the possibly long index
-# initialization, during which the main thread can answer
-# "initializing..." to the clients.
-def _uprcl_init_worker():
+# This is called from uprcl-app when starting up, before doing anything else. We read configuration
+# data, then start two threads: the permanent HTTP server and the index update thread.
+def uprcl_init():
 
+    global _g_pathprefix, g_initstatus, g_initmessage
+
+    
     #######
     # Acquire configuration data.
     
-    global _g_pathprefix
-    # pathprefix would typically be something like "/uprcl". It's used
-    # for dispatching URLs to the right plugin for processing. We
-    # strip it whenever we need a real file path
+    # We get the path prefix from an environment variable set by our parent upmpdcli. It would
+    # typically be something like "/uprcl". It's used for dispatching URLs to the right plugin for
+    # processing. We strip it whenever we need a real file path.
     if "UPMPD_PATHPREFIX" not in os.environ:
         raise Exception("No UPMPD_PATHPREFIX in environment")
     _g_pathprefix = os.environ["UPMPD_PATHPREFIX"]
@@ -159,13 +192,26 @@ def _uprcl_init_worker():
         g_rcltopdirs = g_minimconfig.getcontentdirs()
         if g_rcltopdirs:
             g_rcltopdirs = conftree.stringsToString(g_rcltopdirs)
-    if not g_rcltopdirs:
-        raise Exception("uprclmediadirs not in config")
 
+    # At this point g_rcltopdirs is a single string (possibly with quoted parts). Compute a list and
+    # check the elements
+    pthlist = conftree.stringToStrings(g_rcltopdirs)
+    goodpthlist = []
+    for dir in pthlist:
+        if not os.path.isdir(dir):
+            uplog(f"uprcl: [{dir}] is not accessible")
+        else:
+            goodpthlist.append(dir)
+    if not goodpthlist:
+        g_initstatus = False
+        g_initmessage = "No accessible media directories in configuration"
+        return
+    
+    g_rcltopdirs = conftree.stringsToString(goodpthlist)
+    
     pthstr = g_upconfig.get("uprclpaths")
     if pthstr is None:
         uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
-        pthlist = stringToStrings(g_rcltopdirs)
         pthstr = ""
         for p in pthlist:
             pthstr += p + ":" + p + ","
@@ -179,41 +225,25 @@ def _uprcl_init_worker():
         
     host,port = _g_httphp.split(':')
 
-    # Start the bottle app. Its' both the control/config interface and
-    # the file streamer
+    start_index_update()
+
+    # Start the bottle app. It's both the control/config interface and the file streamer
     httpthread = threading.Thread(target=runbottle,
-                                 kwargs = {'host':host ,
-                                           'port':int(port),
-                                           'pthstr':pthstr,
-                                           'pathprefix':_g_pathprefix})
+                                  kwargs = {'host':host ,
+                                            'port':int(port),
+                                            'pthstr':pthstr,
+                                            'pathprefix':_g_pathprefix})
     httpthread.daemon = True 
     httpthread.start()
 
-    _update_index()
-
-    uplog("Init done")
+    uplog("Init started")
 
 
-def uprcl_init():
-    global g_initrunning
-    g_initrunning = True
-    initthread = threading.Thread(target=_uprcl_init_worker)
-    initthread.daemon = True 
-    initthread.start()
-
-def ready():
-    g_dblock.acquire_read()
-    if g_initrunning:
-        return False
-    else:
-        return True
-
-def updaterunning():
-    return g_initrunning
-
-def start_update(rebuild=False):
+# This is called from the Bottle Web UI interface for requesting an index update or rebuild
+def start_index_update(rebuild=False):
     try:
-        if not ready():
+        # initdone() acquires the reader lock
+        if not initdone():
             return
         targ = _reset_index if rebuild else _update_index
         idxthread = threading.Thread(target=targ)

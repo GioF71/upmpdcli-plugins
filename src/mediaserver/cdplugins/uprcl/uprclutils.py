@@ -174,13 +174,13 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
 
 
 # Bogus entry for the top directory while the index/db is updating
-def waitentry(id, pid, httphp):
+def waitentry(id, pid, httphp, msg="Initializing..."):
     li = {}
     li['tp'] = 'it'
     li['id'] = id
     li['pid'] = pid
     li['upnp:class'] = 'object.item.audioItem.musicTrack'
-    li['tt'] = "Initializing..."
+    li['tt'] = msg
     li['uri'] = "http://%s%s" % (httphp, "/waiting")
     li['res.mime'] = "audio/mpeg"
     return li
