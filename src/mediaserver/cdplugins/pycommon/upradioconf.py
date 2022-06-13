@@ -1,4 +1,4 @@
-# Copyright (C) 2021 J.F.Dockes
+# Copyright (C) 2021-2022 J.F.Dockes
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation; either version 2 of the License, or
@@ -16,6 +16,7 @@
 
 import os
 import subprocess
+import threading
 
 from upmplgutils import uplog, direntry
 import conftree
@@ -30,26 +31,40 @@ class UpmpdcliRadios(object):
         self._readRadios(upconfig)
         #uplog("Radios: %s" % self._radios)
 
+    def _fetchStream(self, title, uri, artUri, mime):
+        streamUri=""
+        try:
+            streamUri = subprocess.check_output([self.fetchstream, uri])
+            streamUri = streamUri.decode('utf-8').strip("\r\n")
+        except Exception as ex:
+            uplog("fetchStream.py failed for %s: %s" % (title, ex))
+        if streamUri:
+            self._radios.append((title, streamUri, uri, artUri, mime))
+        
     def _readRadiosFromConf(self, conf):
         '''Read radio definitions from a config file (either main file or radiolist)'''
         keys = conf.getSubKeys_unsorted()
+        threads = []
+        maxthreads = 100
+        cntt = 0
         for k in keys:
             if k.startswith("radio"):
                 title = k[6:]
                 uri = conf.get("url", k)
                 artUri = conf.get("artUrl", k)
                 mime = conf.get("mime", k)
-                if mime:
-                    uplog("GOT MIME %s" % mime)
-                streamUri = None
-                try:
-                    streamUri = subprocess.check_output([self.fetchstream, uri])
-                    streamUri = streamUri.decode('utf-8').strip("\r\n")
-                except Exception as ex:
-                    uplog("fetchStream.py failed for %s: %s" % (title, ex))
-                if streamUri:
-                    self._radios.append((title, streamUri, uri, artUri, mime))
-        
+                t = threading.Thread(target=self._fetchStream, args=(title, uri, artUri, mime))
+                t.start()
+                threads.append(t)
+                cntt += 1
+                # Note that it's ok to join a thread multiple times, so we keep things simple
+                if cntt >= maxthreads:
+                    for t in threads:
+                        t.join()
+                    cntt = 0
+        for t in threads:
+            t.join()
+            
     def _readRadios(self, upconfig):
         '''Read radio definitions from main config file, then possible radiolist'''
         self._radios = []
