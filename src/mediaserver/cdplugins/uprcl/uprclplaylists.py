@@ -36,7 +36,10 @@ class Playlists(object):
         self._idprefix = '0$uprcl$playlists'
         self._httphp = httphp
         self._pprefix = pathprefix
-        self._radios = upradioconf.UpmpdcliRadios(uprclinit.g_upconfig)
+        if not conftree.valToBool(uprclinit.g_upconfig.get("uprclnoradioconf")):
+            self._radios = upradioconf.UpmpdcliRadios(uprclinit.g_upconfig)
+        else:
+            self._radios = []
         self.recoll2playlists(rcldocs)
 
     # Create the untagged entries static vector by filtering the global
