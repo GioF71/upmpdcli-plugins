@@ -566,12 +566,14 @@ int main(int argc, char *argv[])
         if (initgroups(upmpdcliuser.c_str(), runasg) < 0) {
             LOGERR("initgroup failed. Errno: " << errno << endl);
         }
-        if (setuid(runas) < 0) {
-            LOGFAT("Can't set my uid to " << runas << " current: " << geteuid() << endl);
-            return 1;
-        }
+
         if (setgid(runasg) < 0) {
-            LOGINF("Can't set my gid to " << runasg << " current: " << getegid() << endl);
+            LOGSYSERR("main", "setgid", runasg);
+            LOGERR("Current gid: " << getegid() << "\n");
+        }
+        if (setuid(runas) < 0) {
+            LOGFAT("Can't set my uid to " << runas << " current: " << geteuid() << "\n");
+            return 1;
         }
 #if 0
         gid_t list[100];
