@@ -52,9 +52,9 @@ def main():
 
     reloadsecs='1'
     if what == 'Update Index':
-        uprclinit.start_update()
+        uprclinit.start_index_update()
     elif what == 'Reset Index':
-        uprclinit.start_update(rebuild=True)
+        uprclinit.start_index_update(rebuild=True)
     elif what == 'Refresh Status':
         reloadsecs = ''
     elif not what:

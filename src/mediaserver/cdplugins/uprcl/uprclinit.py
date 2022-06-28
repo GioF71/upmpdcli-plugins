@@ -135,6 +135,7 @@ def _update_index(rebuild=False):
         newtrees['tags'] = tagged
         _g_trees = newtrees
         g_initstatus = True
+        uplog("Init done")
     except Exception as ex:
         g_initstatus = False
         g_initmessage = str(ex)
