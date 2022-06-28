@@ -31,7 +31,8 @@ class UpmpdcliRadios(object):
         self._readRadios(upconfig)
         #uplog("Radios: %s" % self._radios)
 
-    def _fetchStream(self, title, uri, artUri, mime):
+    def _fetchStream(self, index, title, uri, artUri, mime):
+        uplog(f"upradios: Fetching {title}")
         streamUri=""
         try:
             streamUri = subprocess.check_output([self.fetchstream, uri])
@@ -39,13 +40,12 @@ class UpmpdcliRadios(object):
         except Exception as ex:
             uplog("fetchStream.py failed for %s: %s" % (title, ex))
         if streamUri:
-            self._radios.append((title, streamUri, uri, artUri, mime))
+            self._radios[index] = (title, streamUri, uri, artUri, mime)
         
     def _readRadiosFromConf(self, conf):
         '''Read radio definitions from a config file (either main file or radiolist)'''
         keys = conf.getSubKeys_unsorted()
         threads = []
-        maxthreads = 100
         cntt = 0
         for k in keys:
             if k.startswith("radio"):
@@ -53,21 +53,39 @@ class UpmpdcliRadios(object):
                 uri = conf.get("url", k)
                 artUri = conf.get("artUrl", k)
                 mime = conf.get("mime", k)
-                t = threading.Thread(target=self._fetchStream, args=(title, uri, artUri, mime))
+                self._radios.append(None)
+                idx = len(self._radios) - 1
+                t = threading.Thread(target=self._fetchStream, args=(idx, title, uri, artUri, mime))
                 t.start()
                 threads.append(t)
                 cntt += 1
                 # Note that it's ok to join a thread multiple times, so we keep things simple
-                if cntt >= maxthreads:
+                if cntt >= self._maxthreads:
+                    uplog(f"upradios: Waiting for threads")
                     for t in threads:
                         t.join()
+                    uplog(f"upradios: Waiting done")
                     cntt = 0
+        uplog(f"upradios: Waiting for threads")
         for t in threads:
             t.join()
-            
+        uplog(f"upradios: Waiting done")
+        # Get rid of None entries in the list, keeping the order
+        tlist = []
+        for rd in self._radios:
+            if rd:
+                tlist.append(rd)
+        self._radios = tlist
+        uplog(f"upradios: Init done")
+        
     def _readRadios(self, upconfig):
         '''Read radio definitions from main config file, then possible radiolist'''
         self._radios = []
+        self._maxthreads = upconfig.get("upradiosmaxthreads")
+        if self._maxthreads:
+            self._maxthreads = int(self._maxthreads)
+        else:
+            self._maxthreads = 5
         self._readRadiosFromConf(upconfig)
         radiolist = upconfig.get("radiolist")
         if radiolist:
