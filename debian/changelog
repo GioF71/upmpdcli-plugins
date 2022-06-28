@@ -1,3 +1,10 @@
+upmpdcli (1.5.19-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix uprcl web control interface (asking for update did not work).
+  * Fix upradios stations list order.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 28 Jun 2022 09:17:00 +0200
+
 upmpdcli (1.5.18-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Create an upmpdcli group during installation and change the group to upmpdcli when started as
