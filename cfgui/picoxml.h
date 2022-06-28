@@ -71,7 +71,7 @@ public:
     PicoXMLParser(const std::string& input)
         : m_in(input), m_pos(0) {}
 
-    virtual ~PicoXMLParser() {}
+    virtual ~PicoXMLParser() = default;
     PicoXMLParser(const PicoXMLParser&) = delete;
     PicoXMLParser& operator=(const PicoXMLParser&) = delete;
 
