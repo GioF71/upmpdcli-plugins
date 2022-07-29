@@ -107,10 +107,8 @@ class Playlists(object):
                 entries.append(
                     direntry(id, pid, title, upnpclass='object.container.playlistContainer'))
         elif idx == len(self.utidx):
-            # Special "upmpdcli radios" playlist. Don't sort, the user chose the order.
             for radio in self._radios:
                 entries.append(upradioconf.radioToEntry(pid, len(entries), radio))
-            return entries
         else:
             pldoc = rcldocs[self.utidx[idx]]
             plpath = uprclutils.docpath(pldoc)
@@ -136,4 +134,4 @@ class Playlists(object):
                 if e:
                     entries.append(e)
 
-        return sorted(entries, key=cmpentries)
+        return entries

@@ -209,7 +209,6 @@ class Folders(object):
                     if docidx:
                         elt = os.path.split(url)[1]
                         self._dirvec[diridx][elt] = (-1, docidx)
-        del self._playlists
 
 
     # The root entry (diridx 0) is special because its keys are the
@@ -521,7 +520,8 @@ class Folders(object):
                 if e:
                     entries.append(e)
 
-        entries.sort(key=cmpentries)
+        if diridx not in self._playlists:
+            entries.sort(key=cmpentries)
 
         # Add "Browse subtree by tags" entry
         if pid != self._idprefix and self._enabletags:
