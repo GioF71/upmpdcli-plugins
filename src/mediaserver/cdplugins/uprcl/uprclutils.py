@@ -416,7 +416,7 @@ def embedded_open(path):
                 s = mutf[tagname].data
                 size = len(s)
                 f = io.BytesIO(s)
-    elif 'audio/x-flac' in mutf.mime:
+    elif 'flac' in mutf.mime:
         if mutf.pictures:
             mtype = mutf.pictures[0].mime
             size = len(mutf.pictures[0].data)
