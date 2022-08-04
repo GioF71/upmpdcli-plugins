@@ -214,15 +214,15 @@ def docfolder(doc):
         path += b'/'
     return path
 
-def embdimgurl(doc, httphp, pathprefix):
+def embdimgurl(doc, httphp, binpathprefix):
     if doc["embdimg"] == 'jpg':
         ext = b'.jpg'
-    elif doc["embdimg"] == '.png':
-        ext = b'png'
+    elif doc["embdimg"] == 'png':
+        ext = b'.png'
     else:
         return None
     path = docpath(doc)
-    path = os.path.join(pathprefix.encode('utf-8'), path+ext)
+    path = os.path.join(binpathprefix, path+ext)
     query =  "?embed=1"
     return _httpurl(httphp, path, query)
 
@@ -266,13 +266,8 @@ for base in _folderartbases:
     for path in _artnamegen(base):
         _folderartnames.append(path)
 
-def docarturi(doc, httphp, pathprefix):
-    global _foldercache
-
-    bpp = pathprefix.encode('utf-8')
-    objpath = docpath(doc)
-    #uplog("docarturi, looking for cover for %s" % objpath)
-    
+# track-specific art. Sometimes we prefer the folder's
+def _trackarturi(doc, objpath, httphp, bpp):
     # Check for an image specific to the track file
     base,ext = os.path.splitext(objpath)
     for artpath in _artnamegen(base):
@@ -281,22 +276,33 @@ def docarturi(doc, httphp, pathprefix):
 
     # Else try to use an embedded img
     if doc["embdimg"]:
-        arturi = embdimgurl(doc, httphp, pathprefix)
+        arturi = embdimgurl(doc, httphp, bpp)
         if arturi:
             #uplog("docarturi: embedded: %s"%printable(arturi))
+            return arturi
+    return None
+
+def docarturi(doc, httphp, pathprefix, preferfolder=False):
+    global _foldercache
+
+    bpp = pathprefix.encode('utf-8')
+    objpath = docpath(doc)
+    #uplog("docarturi, looking for cover for %s" % objpath)
+
+    if not preferfolder:
+        arturi = _trackarturi(doc, objpath, httphp, bpp)
+        if arturi:
             return arturi
 
     # won't work for the virtual group directory itself: it has no doc
     if doc["group"]:
-        base = os.path.join(os.path.dirname(objpath),
-                            tag2fn(doc["group"]))
+        base = os.path.join(os.path.dirname(objpath), tag2fn(doc["group"]))
         for artpath in _artnamegen(base):
             #uplog("docarturi: testing %s" % artpath)
             if os.path.exists(artpath):
                 return _httpurl(httphp, os.path.join(bpp, artpath))
             
-    # TBD Here minimserver would look for the group then album disc
-    # then album art
+    # TBD Here minimserver would look for the group then album disc then album art
 
     # If doc is a directory, this returns itself, else the father dir.
     folder = docfolder(doc)
@@ -305,11 +311,10 @@ def docarturi(doc, httphp, pathprefix):
     # charcase combinations would be complicated so we list the folder
     # and look for a case-insensitive match
     if folder not in _foldercache:
-        _foldercache = {}
         _foldercache[folder] = None
         artnm = None
         try:
-            for f in os.listdir(folder):
+            for f in sorted(os.listdir(folder)):
                 try:
                     fsimple = os.path.basename(f)
                     flowersimple = fsimple.lower()
@@ -332,6 +337,11 @@ def docarturi(doc, httphp, pathprefix):
             #uplog("docarturi: external: %s->%s" %
             #      (printable(folder), printable(arturi)))
             pass
+        return arturi
+    
+    if preferfolder:
+        arturi = _trackarturi(doc, objpath, httphp, bpp)
+
     return arturi
 
 
@@ -441,7 +451,7 @@ def embedded_open(path):
                 s = mutf[tagname].data
                 size = len(s)
                 f = io.BytesIO(s)
-    elif 'flac' in mutf.mime:
+    elif 'audio/flac' in mutf.mime:
         if mutf.pictures:
             mtype = mutf.pictures[0].mime
             size = len(mutf.pictures[0].data)
@@ -457,7 +467,7 @@ def embedded_open(path):
             f = io.BytesIO(mutf['covr'][0])
 
     if f is None:
-        raise Exception("can't open embedded image")
+        raise Exception(f"can't open embedded image for {path}")
     else:
         return mtype, size, f
 

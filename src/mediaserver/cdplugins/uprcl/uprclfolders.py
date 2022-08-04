@@ -460,8 +460,7 @@ class Folders(object):
                 # anyway. The condition is kept around to show how to
                 # change our minds or make it optional.
                 if True or doc["mtype"] != 'inode/directory':
-                    arturi = uprclutils.docarturi(
-                        doc, self._httphp, self._pprefix)
+                    arturi = uprclutils.docarturi(doc,self._httphp,self._pprefix,preferfolder=True)
                     if arturi:
                         return arturi
               
@@ -491,6 +490,8 @@ class Folders(object):
         #      (diridx,self._dirvec[diridx]))
 
         entries = []
+
+        showtopart = True
         # The basename call is just for diridx==0 (topdirs). Remove it if
         # this proves a performance issue
         for nm,ids in self._dirvec[diridx].items():
@@ -502,10 +503,12 @@ class Folders(object):
                 # Skip empty directories
                 if len(self._dirvec[thisdiridx]) == 1:
                     continue
+                # If there are directories, don't show art for the Tags top entries, this would show
+                # one of the subdir's art and looks weird
+                showtopart = False
                 id = self._idprefix + '$d' + str(thisdiridx)
                 arturi = self._arturifordir(thisdiridx)
-                entries.append(direntry(id, pid, os.path.basename(nm),
-                                           arturi=arturi))
+                entries.append(direntry(id, pid, os.path.basename(nm), arturi=arturi))
             else:
                 # Not a directory. docidx had better been set
                 if thisdocidx == -1:
@@ -525,8 +528,11 @@ class Folders(object):
 
         # Add "Browse subtree by tags" entry
         if pid != self._idprefix and self._enabletags:
+            arturi = None
+            if showtopart:
+                arturi=self._arturifordir(diridx)
             id = pid + '$tagview.0'
-            entries.insert(0, direntry(id, pid, ">> Tag View"))
+            entries.insert(0, direntry(id, pid, ">> Tag View", arturi=arturi))
         return entries
 
     # Return path for objid, which has to be a container.This is good old

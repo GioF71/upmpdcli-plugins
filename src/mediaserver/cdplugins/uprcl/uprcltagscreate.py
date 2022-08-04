@@ -313,7 +313,8 @@ def _maybecreatealbum(conn, doc, trackartid):
                 c.execute('''UPDATE albums SET albtartist = ?
                     WHERE album_id = ?''', (trackartid, album_id))
     else:
-        arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix())
+        arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix(),
+                                      preferfolder=True)
 
         c.execute('''INSERT INTO
             albums(albtitle, albfolder, artist_id, albdate, albarturi,
