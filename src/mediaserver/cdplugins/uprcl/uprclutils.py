@@ -345,6 +345,7 @@ def _logentry(nm, e1):
     uplog("%s tp %s alb %s dir %s tno %s" % (nm, tp,al,dr,tn))
 
 
+# General container sort items comparison method
 def _cmpentries_func(e1, e2):
     #uplog("cmpentries");_logentry("e1", e1);_logentry("e2", e2)
     tp1 = e1['tp']
@@ -397,6 +398,30 @@ def _cmpentries_func(e1, e2):
         return 0
 
 cmpentries=functools.cmp_to_key(_cmpentries_func)
+
+# Special comparison method for items lists: we don't want to sort by album but by title instead
+def _cmpitems_func(e1, e2):
+    
+    # Tracks. Sort by title then album
+    k = 'tt'
+    a1 = e1[k] if k in e1 else ""
+    a2 = e2[k] if k in e2 else ""
+    if a1 < a2:
+        return -1
+    elif a1 > a2:
+        return 1
+
+    k = 'upnp:album'
+    a1 = e1[k] if k in e1 else ""
+    a2 = e2[k] if k in e2 else ""
+    if a1 < a2:
+        return -1
+    elif a1 > a2:
+        return 1
+
+    return 0
+
+cmpitems=functools.cmp_to_key(_cmpitems_func)
 
 
 # Open embedded image. Returns mtype, size, f

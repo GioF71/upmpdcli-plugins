@@ -31,7 +31,7 @@ import time
 
 from upmplgutils import uplog, direntry
 import uprclutils
-from uprclutils import rcldoctoentry, cmpentries
+from uprclutils import rcldoctoentry, cmpentries, cmpitems
 import uprclinit
 import uprcltagscreate
 from uprcltagscreate import _clid, recolltosql
@@ -138,7 +138,7 @@ class Tagged(object):
     # songs, significant on a small SBC). At the moment, we only do
     # this for the full top-level items list, which is not really
     # useful anyway.
-    def _trackentriesforstmt(self, stmt, values, pid, offset=0, count=0):
+    def _trackentriesforstmt(self, stmt, values, pid, offset=0, count=0, key=cmpentries):
         uplog("trackentries: offset %d count %d" % (offset, count))
         total = 0
         if offset != 0 or count != 0:
@@ -164,7 +164,7 @@ class Tagged(object):
         if offset != 0 or count != 0:
             return (offset, total, entries)
         else:
-            return sorted(entries, key=cmpentries)
+            return sorted(entries, key=key)
 
 
     # Return a list of trackids as selected by the current
@@ -411,10 +411,10 @@ class Tagged(object):
                 entries.append(el[0])
         if displaytracks:
             rcldocs = uprclinit.getTree('folders').rcldocs()
-            entries += [rcldoctoentry(pid + '$i' + str(docid),
-                                      pid, self._httphp, self._pprefix,
-                                      rcldocs[docid]) for docid in docids]
-        return sorted(entries, key=cmpentries)
+            entries += sorted([rcldoctoentry(pid + '$i' + str(docid),
+                                             pid, self._httphp, self._pprefix,
+                                             rcldocs[docid]) for docid in docids], key=cmpitems)
+        return entries
 
 
     # Main browsing routine. Given an objid, translate it into a select
@@ -488,7 +488,7 @@ class Tagged(object):
                 id = pid + '$albums'
                 label = '%d albums'
                 entries.append(direntry(id, pid, label % len(albids)))
-            elif len(albids) == 1 and not subqs:
+            elif len(albids) == 1:
                 # Only display '>> Complete album' if not all tracks
                 # already there. If all tracks are there, we display
                 # the album entry (with the same id value: show album)
@@ -499,8 +499,7 @@ class Tagged(object):
                     entries.append(direntry(id, pid, '>> Complete Album'))
                 else:
                     displaytracks = False
-                    el = self._direntriesforalbums(pid,
-                                                   "WHERE album_id = %s"%albid)
+                    el = self._direntriesforalbums(pid, "WHERE album_id = %s"%albid)
                     el[0]['id'] = id
                     entries.append(el[0])
 
@@ -513,12 +512,12 @@ class Tagged(object):
                     entries.append(direntry(id, pid, tagdisplaytag[tt]))
             elif displaytracks:
                 rcldocs = uprclinit.getTree('folders').rcldocs()
+                tracks = []
                 for docidx in docids:
                     id = pid + '$*i' + str(docidx)
-                    entries.append(rcldoctoentry(id, pid, self._httphp,
-                                                 self._pprefix,
-                                                 rcldocs[docidx]))
-                    entries = sorted(entries, key=cmpentries)
+                    tracks.append(
+                        rcldoctoentry(id, pid, self._httphp, self._pprefix, rcldocs[docidx]))
+                entries += sorted(tracks, key=cmpitems)
         else:
             # SELECT col.col_id, col.value FROM tracks, col
             # WHERE tracks.col_id = col.col_id
@@ -557,12 +556,12 @@ class Tagged(object):
 
     # Implement the common part of browse() and browseFolder()
     def _dobrowse(self, pid, flag, qpath, folder='', offset=0, count=0):
-        uplog("Tags:_dobrowse: qpath %s"%qpath)
+        uplog(f"Tags:_dobrowse: pid {pid} qpath {qpath} folder [{folder}] ofs {offset} cnt {count}")
         if qpath[0] == 'items':
             args = (folder + '%',) if folder else ()
             folderwhere = ' WHERE tracks.path LIKE ? ' if folder else ' '
             stmt = 'SELECT docidx FROM tracks' + folderwhere
-            entries = self._trackentriesforstmt(stmt, args, pid, offset, count)
+            entries = self._trackentriesforstmt(stmt, args, pid, offset, count, key=cmpitems)
         elif qpath[0] == 'albums':
             entries = self._albumsbrowse(pid, qpath, flag, folder)
         elif qpath[0].startswith('='):
