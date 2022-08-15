@@ -340,7 +340,7 @@ bool SpotiProxy::Internal::init_spotify_api()
 {
     reason = "Could not open shared library ";
     string libbase("libspotify");
-    for (const auto suff : lib_suffixes) {
+    for (const auto& suff : lib_suffixes) {
         string lib = libbase + suff;
         reason += string("[") + lib + "] ";
         if ((libhandle = dlopen(lib.c_str(), RTLD_LAZY)) != 0) {

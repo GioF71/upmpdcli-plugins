@@ -258,7 +258,7 @@ bool OHPlaylist::makeIdArray(string& out)
         }
     }
 
-    for (const auto entry : m_metacache) {
+    for (const auto& entry : m_metacache) {
         LOGDEB("OHPlaylist::makeIdArray: dropping uri " << entry.first << endl);
     }
 
