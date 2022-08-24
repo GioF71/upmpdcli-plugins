@@ -96,23 +96,23 @@ control its Sender mode).
 
 === Songcast 
 
-link:http://oss.linn.co.uk/trac/wiki/Songcast[Songcast] is an open protocol
-designed by Linn for real-time network audio. Its only relationship
-with UPnP is that UPnP services are used to control the
-connections. Songcast allows playing the same audio on multiple players,
-with almost perfect synchronization, or capturing audio on a computer to
-play it on another system.
+link:https://docs.linn.co.uk/wiki/index.php/Songcast[Songcast] is an open protocol designed by Linn
+for real-time network audio, allowing synchronized playing on multiple sources. Its only
+relationship with UPnP is that UPnP services are used to control the connections. Songcast allows
+playing the same audio on multiple players, with almost perfect synchronization, or capturing audio
+on a computer to play it on another system.
 
 The protocols links two types of entities:
 
  - A Songcast Sender generates an audio stream.
  - One or several Songcast Receivers receive and play the stream.
 
-Linn supplies free audio capture drivers functionning as Songcast Senders,
-for MS-Windows and Mac OS X.  This enables playing the audio of *any*
-application (Windows Media Player, Spotify, Tidal, etc.) onto one or
-several Songcast Receivers, without any need for the applications to know
-about Songcast.
+Linn used to supply free audio capture drivers functionning as Songcast Senders, for MS-Windows and
+Mac OS X.  This enabled playing the audio of *any* application (Windows Media Player, Spotify, etc.)
+onto one or several Songcast Receivers, without any need for the applications to know about
+Songcast. These drivers are now discontinued, apparently due to changes in the OS security
+models. However, Songcast can still be useful for synchronized playing on multiple Songcast-aware
+players, Linn or other.
 
 === Gapless ?
  	
@@ -568,9 +568,9 @@ the Receivers can be out of sync by several seconds.
 
 === Streaming Services and UPnP
 
-Streaming services like Highresaudio or Spotify give access to a huge
-catalog of music through a WEB programming interface which is also usable
-by programs other than their own applications.
+Streaming services like Qobuz, Highresaudio or Spotify give access to a huge catalog of music
+through a WEB programming interface which is also usable by programs other than their own
+applications.
 
 The only thing that they have in common with UPnP is that most of them use
 HTTP to retrieve the audio stream (as a short-lived URL). Spotify is an
@@ -616,11 +616,13 @@ framework, and knowing which way you are using will avoid confusion:
 [[UPMPDCLI-MS-STR-MS]]
 === Accessing Streaming Services through the upmpdcli Media Server
   
-The Media Server function in Upmpdcli gives access to external streaming
-services: Spotify, Highresaudio and Qobuz currently work unconditionally
-(1.5.5). I am not sure about Tidal support: in any case it will only work
-if you can find a working application token (Tidal), and even then, maybe
-not as their access control API is evolving.
+The Media Server function in Upmpdcli gives access to external streaming services: Spotify,
+Highresaudio and Qobuz currently work unconditionally (1.5.5).
+
+NOTE::
+I am not sure about Tidal support: in any case it will only work if you can find a working
+application token, and even then, maybe not as their access control API is evolving. I have no
+access to an API key, so I can't even test.
 
 A plugin for Deezer has been added recently (2021-02-23 git or future
 1.5.9), and currently only provide access to 128 kb/s mp3 streams.
@@ -654,61 +656,56 @@ configuration file ('/etc/upmpdcli.conf'). The installer does not make this
 file r/w by owner only. You should probably change the mode after setting
 the password: `chmod&#160;600&#160;/etc/upmpdcli.conf`.
 
-NOTE: I have no reason to believe that upmpdcli is technically mis-using
-the streaming services in any way, but it is definitely not approved by any
-of them, and you are using it under your own responsibility.
+NOTE: I have no reason to believe that upmpdcli is technically mis-using the streaming services in
+any way, but it is definitely not approved by any of them, and you are using it under your own
+responsibility.
 
-////
 [[UPMPDCLI-MS-STR-CRED]]
 === Accessing the streaming services with OpenHome from Kazoo
 
-This implements the `OpenHome Credentials` service only works for Tidal and
-Qobuz, if you have found an API token or appid/secret pair and only with
-upmpdcli versions 1.3.0 and later. The corresponding media server module
-must be installed (upmpdcli-tidal), but no other configuration should be
-necessary on the renderer.
+This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
+work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
+corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
+should be necessary on the renderer.
 
-This should also work with Lumin, but it does not currently, the reason is
-unknown. When feature is active, it actually prevents Lumin from
-discovering upmpdcli at all, so there is a configuration variable to
-disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+This should also work with Lumin devices, but it does not currently, the reason is unknown. When
+feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
+configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
 
-Upmpdcli uses the *openssl* command to perform the cryptography work. This
-was not made a hard dependancy, so you should check that it is
-installed. Unfortunately, I was only able to make things work with a fairly
-recent version of OpenSSL (1.1). This is available in Debian Stretch (9.x),
-but not Jessie (8.x) (on which Volumio, for example is based at this
-moment (12-2018)). If you are running Jessie, there is a fairly easy
-workaround available by building a static version of openssl and telling
-upmpdcli what version to use. See <<OHCREDS-OPENSSL, some instructions in
-this annex>>.
+Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
+dependancy, so you should check that it is installed. 
 
-The media service icons will appear in the Control Point interface, and the
-service will be accessible after entering the login and password.
+The media service icons will appear in the Control Point interface, and the service will be
+accessible after entering the login and password.
 
-NOTE: the user name and password will be stored on the renderer in an
-insecure way, meaning that if someone steals the machine or obtains root
-access, there is nothing to prevent them from getting the credentials.
+NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
+someone steals the machine or obtains root access, there is nothing to prevent them from getting the
+credentials.
 
-Of course Kazoo or Lumin can also access the services through the media
-server interface (after configuring upmpdcli, see the
-xref:UPMPDCLI-MS-STR-MS[previous section]).
+Of course Kazoo or Lumin can also access the services through the media server interface (after
+configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-MS[previous section]).
 
 For reference, this method is *not* usable with *Upplay*
 
-The notes which follow relate to accessing the services through the
-Upmpdcli Media Server.
+The notes which follow relate to accessing the services through the Upmpdcli Media Server.
+
+
+////
 
 === Using Tidal through the Upmpdcli Media Server
 
+NOTE::
+Accessing Tidal needs an API key, and I don't have one. The module may still work for you if you
+have key, but I am unable to test it.
+
 [NOTE]
 ====
-There seems to sometimes be problems when streaming Tidal lossless/FLAC
-streams, with the default MPD configuration. A preliminary and rather
-superficial enquiry seems to indicate that this is caused by too much
-buffering by MPD. Adding the following parameters to the MPD configuration
-file (/etc/mpd.conf) reduces the pre-fetch period and seems to fix the
-issues for me (YMMV...):
+
+There seems to sometimes be problems when streaming Tidal lossless/FLAC streams, with
+the default MPD configuration. A preliminary and rather superficial enquiry seems to indicate that
+this is caused by too much buffering by MPD. Adding the following parameters to the MPD
+configuration file (/etc/mpd.conf) reduces the pre-fetch period and seems to fix the issues for me
+(YMMV...):
 
     audio_buffer_size "2048"
     buffer_before_play "20%"
@@ -717,23 +714,22 @@ issues for me (YMMV...):
 
 You will need to install the upmpdcli-tidal module.
 
-The Tidal module code is is based on the
-link:https://github.com/tamland/kodi-tidal[Kodi Tidal add-on] and the
-link:https://github.com/tamland/python-tidal[Tidal API], by Thomas Amland
-(also using other useful modules by Thomas). I was able to reuse most of
-the Kodi code. The Tidal api module was recently updated and the login code
-comes from link:https://github.com/arnesongit/kodi-tidal[this Git
-repository]. The software is not officially supported by Tidal, and may
-just stop to work one day...
+The Tidal module code is is based on the link:https://github.com/tamland/kodi-tidal[Kodi Tidal
+add-on] and the link:https://github.com/tamland/python-tidal[Tidal API], by Thomas Amland (also
+using other useful modules by Thomas). I was able to reuse most of the Kodi code. The Tidal api
+module was recently updated and the login code comes from
+link:https://github.com/arnesongit/kodi-tidal[this Git repository]. The software is not officially
+supported by Tidal, and may just stop to work one day...
 
-It only works with a valid Tidal subscription and valid Tidal API token,
-which you must set in the `tidalapitoken` configuration variable.
+It only works with a valid Tidal subscription and valid Tidal API token, which you must set in the
+`tidalapitoken` configuration variable.
 
-The configuration parameters are described in the
-<<tidaluser,configuration section>>
-
+The configuration parameters are described in the <<tidaluser,configuration section>>
 
 ////
+
+
+
 
 
 [[upmpdcli.qobuznotes]]
@@ -1533,38 +1529,3 @@ Recent *upmpdcli* packages install the web app as a service named
 *scweb*. The service is not started by default though, you need to edit
 `/etc/default/scweb`.
 
-[[OHCREDS-OPENSSL]]
-== Annex: building openssl for Debian Jessie
-
-The OHCredentials service needs OpenSSL 1.1 but Debian Jessie only has
-1.0. The following recipee builds a static version of the openssl command,
-which is installed with a specific name (upmpdcli-openssl). No libraries
-are installed and the standard command is left undisturbed, so that there
-is no risk of damaging the system.
-
-Note that I am making no claims about the security of the encryption
-provided by this method. This should be fairly sufficient for a Tidal
-password going around your local network though (except maybe if you think
-that the NSA is interested in your playlists).
-
-----
-sudo apt install git make gcc
-cd 
-git clone https://github.com/openssl/openssl.git
-cd openssl
-git checkout -b origin/OpenSSL_1_1_0-stable
-./config
-make
-cc -o upmpdcli-openssl apps/*.o  apps/libapps.a libssl.a libcrypto.a -ldl -lpthread
-sudo cp upmpdcli-openssl /usr/bin
-----
-
-
-Then edit '/etc/upmpdcli.conf' and add the following:
-
-    opensslcmd = /usr/bin/upmpdcli-openssl
-
-We chose to copy the command to '/usr/bin', but this could be any
-place. Change the path in '/etc/upmpdcli.conf' in this case.
-
-Restart upmpdcli, and the logins from Kazoo should work.
