@@ -380,8 +380,7 @@ class Tagged(object):
         return entries
 
 
-    # This is called when an 'items' element is encountered in the
-    # selection path. 
+    # This is called when an 'items' element is encountered in the selection path.
     def _tagsbrowseitems(self, pid, qpath, i, selwhere, values):
         stmt = 'SELECT docidx FROM tracks ' + selwhere
         c = self._conn.cursor()
@@ -397,14 +396,18 @@ class Tagged(object):
             albid = albids[0]
             tlist = self._trackentriesforalbum(albid, pid)
             # Replace $items with $albums for the album entry
-            id = pid.replace('$items', '$albums') + '$' + str(albid) + '$showca'
+            id = pid.replace('$items', '$albums') + f"${albid}$showca"
             if len(tlist) != len(docids):
                 entries.append(direntry(id, pid, '>> Complete Album'))
-            else:
-                displaytracks = False
-                el = self._direntriesforalbums(pid, "WHERE album_id = %s"%albid)
-                el[0]['id'] = id
-                entries.append(el[0])
+            # We used to show an album entry here, but the album was probably already shown at the
+            # level above (because there is only one), and it's better to show the tracks in title
+            # order. Kept around because I'm not sure that there are not cases where we'd want it
+            # anyway.
+            #else:
+            #    displaytracks = False
+            #    el = self._direntriesforalbums(pid, f"WHERE album_id = {albid}")
+            #    el[0]['id'] = id
+            #    entries.append(el[0])
         if displaytracks:
             rcldocs = uprclinit.getTree('folders').rcldocs()
             entries += sorted([rcldoctoentry(pid + '$i' + str(docid),
