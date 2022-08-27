@@ -386,6 +386,7 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries)
         JSONTOUPS(artUri, upnp:albumArtURI);
         JSONTOUPS(artist, upnp:artist);
         JSONTOUPS(upnpClass, upnp:class);
+        JSONTOUPS(dcdescription, dc:description);
         JSONTOUPS(date, dc:date)
         JSONTOUPS(date, releasedate)
         // tp is container ("ct") or item ("it")

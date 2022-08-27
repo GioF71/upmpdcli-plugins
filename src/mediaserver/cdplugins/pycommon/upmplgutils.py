@@ -43,10 +43,10 @@ def setidprefix(idprefix):
     _idprefix = idprefix
 
 
-def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchable='1', date=None):
+def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchable='1', date=None,
+             description=None):
     """ Create container entry in format expected by parent """
-    #uplog("rcldirentry: id %s pid %s tt %s dte %s clss %s artist %s arturi %s" %
-    #      (id,pid,title,date,upnpclass,artist,arturi))
+    #uplog(f"rcldirentry: id {id} pid {pid} tt {title} date {date} clss {upnpclass} artist {artist} arturi {arturi}")
     ret = {'id':id, 'pid':pid, 'tt':title, 'tp':'ct', 'searchable':searchable}
     if arturi:
         ret['upnp:albumArtURI'] = arturi
@@ -58,6 +58,8 @@ def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchabl
         ret['upnp:class'] = upnpclass
     else:
         ret['upnp:class'] = 'object.container.storageFolder'
+    if description:
+        ret['dc:description'] = description
     return ret
 
 

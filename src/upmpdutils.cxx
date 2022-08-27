@@ -215,6 +215,7 @@ string UpSong::didl(bool noresource) const
     UPNPXML(artist, dc:creator);
     UPNPXML(artist, upnp:artist);
     UPNPXML(date, dc:date);
+    UPNPXML(dcdescription, dc:description);
     UPNPXML(artUri, upnp:albumArtURI);
     ss << "</" << typetag << ">";
     LOGDEB1("UpSong::didl(): " << ss.str() << endl);

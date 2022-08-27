@@ -80,9 +80,14 @@ class XbmcPlugin:
                 artnm = item.artist.name if item.artist.name else None
             except:
                 artnm = None
+            try:
+                description = item.description if item.description else None
+            except:
+                description = None
+            
             self.entries.append(
                 direntry(self.idprefix + url, self.objid, title,
-                         arturi=image, artist=artnm, upnpclass=upnpclass))
+                         arturi=image, artist=artnm, upnpclass=upnpclass, description=description))
 
     
 
@@ -142,7 +147,14 @@ def trackentries(httphp, pathprefix, objid, tracks):
             if not track.image and track.album.image:
                 li['upnp:albumArtURI'] = track.album.image
             if track.album.release_date:
-                li['releasedate'] = track.album.release_date 
+                li['releasedate'] = track.album.release_date
+            # Do we really want to do this ? This would currently be the only way to display the,
+            # e.gh. Qobuz album description in upplay (because the description is not set in album
+            # lists used by the dir browser, only when querying a specific album), but it does not
+            # seem quite write to set it on each track. Longer discussion in notes.
+            #if not 'dc:description' in li and track.album.description:
+                #uplog(f"trackentries: setting dc:description on track: {track.album.description}")
+                #li['dc:description'] = track.album.description
         li['upnp:originalTrackNumber'] =  str(track.track_num)
         li['upnp:artist'] = track.artist.name
         li['dc:title'] = track.name

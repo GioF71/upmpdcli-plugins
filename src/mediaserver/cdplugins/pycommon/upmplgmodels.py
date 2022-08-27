@@ -41,6 +41,7 @@ class Album(Model):
     artist = None
     artists = []
     num_tracks = -1
+    description = None
     duration = -1
     release_date = None
     available = True
@@ -80,6 +81,7 @@ class Track(Model):
     maxsamprate = "44.1"
     maxbitdepth = "16"
     maxchannels = "2"
+    description = None
 
 
 class Category(Model):

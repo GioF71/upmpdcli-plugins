@@ -175,8 +175,7 @@ class Session(object):
         all = []
         while offset < limit:
             uplog("_search1: call catalog_search, offset %d" % offset)
-            data = self.api.catalog_search(query=query, type=tp,
-                                           offset=offset, limit=slice)
+            data = self.api.catalog_search(query=query, type=tp, offset=offset, limit=slice)
             ncnt = 0
             ndata = []
             try:
@@ -267,13 +266,20 @@ def _parse_album(json_obj, artist=None, artists=None):
     if 'maximum_channel_count' in json_obj:
         kwargs['maxchannels'] = str(json_obj['maximum_channel_count'])
 
+    # Note: we get no descriptions in the short albums from, e.g. search results, only when we
+    # access /albums/get
+    if 'description' in json_obj:
+        #uplog(f"_parse_album: setting description {json_obj['description'][0:80]}...")
+        kwargs['description'] = json_obj['description']
+        
     if 'releaseDate' in json_obj:
         try:
             # Keep this as a string else we fail to json-reserialize it later
             kwargs['release_date'] = json_obj['releaseDate']
-            #kwargs['release_date'] = datetime.datetime(*map(int, json_obj['releaseDate'].split('-')))
+            #kwargs['release_date']= datetime.datetime(*map(int, json_obj['releaseDate'].split('-')))
         except ValueError:
             pass
+
     return Album(**kwargs)
 
 

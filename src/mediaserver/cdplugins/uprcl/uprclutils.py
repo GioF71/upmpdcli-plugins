@@ -60,7 +60,7 @@ upnp2rclfields = {
     'upnp:album' : 'album',
     'upnp:albumArtURI' : 'albumarturi',
     'upnp:artist' : 'artist',
-    'comment' : 'comment',
+    'dc:description' : 'comment',
     'composer' : 'composer',
     'conductor' : 'conductor',
     'dc:date' : 'date',

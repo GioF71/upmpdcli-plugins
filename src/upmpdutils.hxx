@@ -46,7 +46,8 @@ public:
     std::string artUri;
     std::string upnpClass;
     std::string date;
-
+    std::string dcdescription;
+    
     // The entries in the following struct have misc uses, but as a
     // group, they describe an UPnP resource (for converting to DIDL
     // for sending to CP).
