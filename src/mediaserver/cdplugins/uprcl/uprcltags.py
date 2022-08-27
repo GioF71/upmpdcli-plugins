@@ -185,8 +185,7 @@ class Tagged(object):
         c = self._conn.cursor()
         rawalbids = []
         for albid in albids:
-            c.execute('''SELECT album_id FROM albums WHERE albalb = ?''',
-                      (albid,))
+            c.execute('''SELECT album_id FROM albums WHERE albalb = ?''', (albid,))
             rows = c.fetchall()
             if len(rows):
                 for r in rows:
@@ -199,8 +198,7 @@ class Tagged(object):
     # Expand single possibly merged album into list of ids for component discs
     def _albid2rawalbidssorted(self, albid):
         c = self._conn.cursor()
-        c.execute('''SELECT album_id FROM albums
-          WHERE albalb = ? ORDER BY albtdisc''', (albid,))
+        c.execute('''SELECT album_id FROM albums WHERE albalb = ? ORDER BY albtdisc''', (albid,))
         rows = c.fetchall()
         if len(rows) <= 1:
             return (albid,)
@@ -216,8 +214,7 @@ class Tagged(object):
         albids = set()
         c = self._conn.cursor()
         for rawalbid in rawalbids:
-            c.execute('''SELECT album_id, albalb FROM albums
-                WHERE album_id = ?''', (rawalbid,))
+            c.execute('''SELECT album_id, albalb FROM albums WHERE album_id = ?''', (rawalbid,))
             alb = c.fetchone()
             if alb[1]:
                 albids.add(alb[1])
@@ -306,14 +303,13 @@ class Tagged(object):
         FROM albums LEFT JOIN artist ON artist.artist_id = albums.artist_id
         %s ORDER BY albtitle''' % where
 
-        uplog('direntriesforalbums: %s' % stmt)
+        uplog('_direntriesforalbums: %s' % stmt)
         c.execute(stmt, args)
         entries = []
         for r in c:
             id = pid + '$' + str(r[0])
-            entries.append(
-                direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
-                            upnpclass='object.container.album.musicAlbum'))
+            entries.append(direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
+                                    upnpclass='object.container.album.musicAlbum'))
         return entries
 
     # Called when the search finds one of our synthetic album search
@@ -479,6 +475,7 @@ class Tagged(object):
 
         entries = []
         if selwhat == 'tracks.docidx':
+            #uplog(f"tagsbrowse: showing remaining multivalued tags")
             # We are displaying content for a given value of a given tag
             docids = self._docidsforsel(selwhere, values)
             albids = self._subtreealbums(selwhere, values)
@@ -519,6 +516,7 @@ class Tagged(object):
                         rcldoctoentry(id, pid, self._httphp, self._pprefix, rcldocs[docidx]))
                 entries += sorted(tracks, key=cmpitems)
         else:
+            # Showing all values at this point for given column
             # SELECT col.col_id, col.value FROM tracks, col
             # WHERE tracks.col_id = col.col_id
             # GROUP BY tracks.col_id
@@ -527,7 +525,7 @@ class Tagged(object):
                    selwhere + \
                    " GROUP BY tracks." + _clid(col) + \
                    " ORDER BY value"
-            uplog("tagsbrowse: executing <%s> values %s" % (stmt,values))
+            #uplog(f"tagsbrowse: showing values for {selwhat} : <{stmt}> values {values}")
             c = self._conn.cursor()
             c.execute(stmt, values)
             for r in c:

@@ -292,10 +292,11 @@ def _maybecreatealbum(conn, doc, trackartid):
     if discnumber:
         stmt += ' AND albtdisc = ?'
         wcols.append(discnumber)
-    #uplog("maybecreatealbum: %s %s" % (stmt, wcols))
+    #uplog(f"maybecreatealbum: {stmt} {wcols}")
     c.execute(stmt, wcols)
     r = c.fetchone()
     if r:
+        #uplog("maybecreatealbum: album found")
         album_id = r[0]
         albartist_id = r[1]
         albartok = r[2]
@@ -306,24 +307,19 @@ def _maybecreatealbum(conn, doc, trackartid):
             if albtartist:
                 if trackartid != albtartist:
                     #uplog("Unsetting albartok albid %d"%album_id)
-                    c.execute('''UPDATE albums SET albartok = 0
-                        WHERE album_id = ?''', (album_id,))
+                    c.execute('''UPDATE albums SET albartok = 0 WHERE album_id = ?''', (album_id,))
             else:
                 #uplog("Setting albtartist albid %d"%album_id)
                 c.execute('''UPDATE albums SET albtartist = ?
                     WHERE album_id = ?''', (trackartid, album_id))
     else:
-        arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix(),
-                                      preferfolder=True)
-
-        c.execute('''INSERT INTO
-            albums(albtitle, albfolder, artist_id, albdate, albarturi,
-            albtdisc, albartok, albtartist) VALUES (?,?,?,?,?,?,?,?)''',
-                  (album, folder, albartist_id, doc["date"],
-                   arturi, discnumber, 1, trackartid))
+        c.execute('''INSERT INTO 
+        albums(albtitle, albfolder, artist_id, albdate, albtdisc, albartok, albtartist) 
+        VALUES (?,?,?,?,?,?,?)''',
+                  (album, folder, albartist_id, doc["date"], discnumber, 1, trackartid))
         album_id = c.lastrowid
-        #uplog("Created album %d %s disc %s artist %s folder %s" %
-        #      (album_id, album, discnumber, albartist_id, folder))
+        #uplog(f"Created album {album_id} {album} disc {discnumber} "
+        #      f"artist {albartist_id} folder {folder}")
 
     return album_id, albartist_id
 
@@ -338,6 +334,30 @@ def _artistvalue(conn, artid):
         return None
 
 
+# Setting album covers needs to wait until we have scanned all tracks so that we can select
+# a consistant embedded art (first track in path order), as recoll scanning is in unsorted
+# directory order.
+def _setalbumcovers(conn, rcldocs):
+    c = conn.cursor()
+    c.execute('''SELECT album_id FROM albums''')
+    for r in c:
+        albid = r[0]
+        c1 = conn.cursor()
+        stmt = '''SELECT docidx FROM tracks WHERE album_id = ? ORDER BY path'''
+        c1.execute(stmt,  (albid,))
+        for r1 in c1:
+            docidx = r1[0]
+            doc = rcldocs[docidx]
+            arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix(),
+                                          preferfolder=True)
+            if arturi:
+                cupd = conn.cursor()
+                #uplog(f"Setting albid {albid} albarturi to {arturi}")
+                cupd.execute('''UPDATE albums SET albarturi = ?  WHERE album_id = ?''',
+                             (arturi, albid))
+                break
+
+    
 # After the pass on tracks, look for all albums where the album artist
 # is not set but all the tracks have the same artist, and set the
 # album artist.
@@ -561,6 +581,7 @@ def recolltosql(conn, rcldocs):
     ## End Big doc loop
 
     _setalbumartists(conn)
+    _setalbumcovers(conn, rcldocs)
     _createmergedalbums(conn)
     conn.commit()
     end = timer()

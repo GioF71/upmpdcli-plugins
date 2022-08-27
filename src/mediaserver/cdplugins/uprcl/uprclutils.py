@@ -282,9 +282,45 @@ def _trackarturi(doc, objpath, httphp, bpp):
             return arturi
     return None
 
-def docarturi(doc, httphp, pathprefix, preferfolder=False):
+# Return folder-level art uri (e.g. /path/to/folder.jpg) if it exists
+def folderart(doc, httphp, bpp):
     global _foldercache
 
+    # If doc is a directory, this returns itself, else the father dir.
+    folder = docfolder(doc)
+    
+    # Look for an appropriate image in the file folder. Generating the charcase combinations would
+    # be complicated so we list the folder and look for a case-insensitive match. As this is slow,
+    # we cache the result.
+    # TBD: if we support dynamic updates at some point, the caching will have to look at the folder
+    # mtime, or to be reset at each update.
+    if folder not in _foldercache:
+        #uplog(f"folderart: looking at {folder}")
+        _foldercache[folder] = None
+        artnm = None
+        for f in sorted(os.listdir(folder)):
+            try:
+                fsimple = os.path.basename(f)
+                flowersimple = fsimple.lower()
+            except:
+                #traceback.print_exc()
+                continue
+            if flowersimple in _folderartnames:
+                path = os.path.join(bpp, folder, fsimple)
+                _foldercache[folder] = _httpurl(httphp, path)
+                break
+
+    arturi = _foldercache[folder]
+    if arturi:
+        #uplog("folder %s arturi %s"% (printable(folder), arturi))
+        if doc["mtype"] == 'inode/directory':
+            #uplog("docarturi: external: %s->%s" % (printable(folder), printable(arturi)))
+            pass
+
+    return arturi
+
+
+def docarturi(doc, httphp, pathprefix, preferfolder=False):
     bpp = pathprefix.encode('utf-8')
     objpath = docpath(doc)
     #uplog("docarturi, looking for cover for %s" % objpath)
@@ -304,41 +340,12 @@ def docarturi(doc, httphp, pathprefix, preferfolder=False):
             
     # TBD Here minimserver would look for the group then album disc then album art
 
-    # If doc is a directory, this returns itself, else the father dir.
-    folder = docfolder(doc)
-
-    # Look for an appropriate image in the file folder. Generating the
-    # charcase combinations would be complicated so we list the folder
-    # and look for a case-insensitive match
-    if folder not in _foldercache:
-        _foldercache[folder] = None
-        artnm = None
-        try:
-            for f in sorted(os.listdir(folder)):
-                try:
-                    fsimple = os.path.basename(f)
-                    flowersimple = fsimple.lower()
-                except:
-                    #traceback.print_exc()
-                    continue
-                if flowersimple in _folderartnames:
-                    artnm = fsimple
-                    path = os.path.join(bpp, folder, artnm)
-                    _foldercache[folder] = _httpurl(httphp, path)
-                    break
-        except:
-            #traceback.print_exc()
-            pass
-
-    arturi = _foldercache[folder]
+    # Look for folder level image file (e.g. cover.jpg)
+    arturi = folderart(doc, httphp, bpp)
     if arturi:
-        #uplog("folder %s arturi %s"% (printable(folder), arturi))
-        if doc["mtype"] == 'inode/directory':
-            #uplog("docarturi: external: %s->%s" %
-            #      (printable(folder), printable(arturi)))
-            pass
         return arturi
-    
+
+    # If preferfolder is set, we did not look at the track-specific art, do it last.
     if preferfolder:
         arturi = _trackarturi(doc, objpath, httphp, bpp)
 
