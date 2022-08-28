@@ -568,7 +568,7 @@ class Tagged(object):
         elif qpath[0].startswith('='):
             entries = self._tagsbrowse(pid, qpath, flag, folder)
         else:
-            raise Exception('Bad path in tags tree (start): <%s>' % qpath)
+            raise Exception(f"Bad path in tags tree (start): <{qpath}>")
         return entries
         
 
@@ -584,7 +584,7 @@ class Tagged(object):
     # simplename/ will contain the local tags subtree.
     #
     def browseFolder(self, pid, flag, pthremain, folder):
-        uplog("Tags:browseFolder: pid %s pth %s fld %s"%(pid,pthremain,folder))
+        uplog(f"Tags:browseFolder: objpath {pthremain} folder {folder}")
         l = pthremain.split('$')
         # 1st elt in list is empty because pthremain begins with $. so
         # len(l)==2 is the root of tags from this folder
@@ -593,6 +593,7 @@ class Tagged(object):
             # ??
             return entries
         if len(l) == 2:
+            # (0$uprcl$folders$d2)$tagview.0
             entries.append(direntry(pid + '$hchide', pid, ">> Hide Contents"))
             entries.append(direntry(pid + '$hctags', pid, uprclutils.basename(folder)))
             return entries
@@ -600,9 +601,11 @@ class Tagged(object):
             ppid = '$'.join(pid.split('$')[:-1])
             value = l[-1]
             if value == "hchide":
+                # (0$uprcl$folders$d2)$tagview.0$hchide
                 self.hidden.insert(0, (time.time(), ppid))
                 return entries
             else:
+                # (0$uprcl$folders$d2)$tagview.0$hctags
                 now = time.time()
                 for i in range(len(self.hidden)):
                     #uplog("Browsefolder: hidden: since %d pid %s" %
@@ -614,14 +617,17 @@ class Tagged(object):
                         return entries
                 return self.rootentries(pid + '$', folder)
         else:
+            # (0$uprcl$folders$d2)$tagview.0$hctags$=Artist...
+            # Back to normal browsing, restricted to entries occuring under the given folder
             qpath = l[3:]
             return self._dobrowse(pid, flag, qpath, folder)
 
         
     # Top level browse routine. Handle the special cases and call the
-    # appropriate worker routine.
+    # appropriate worker routine. idpath is something like 0$uprcl$=tagname$tagvalue...
     def browse(self, pid, flag, offset, count):
         idpath = pid.replace(uprclinit.getObjPrefix(), '', 1)
+        # Idpath now looks like =Artist$14$=Genre...
         uplog('tags:browse: idpath <%s>' % idpath)
         qpath = idpath.split('$')
         return self._dobrowse(pid, flag, qpath, offset=offset, count=count)

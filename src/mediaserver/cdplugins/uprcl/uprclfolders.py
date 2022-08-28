@@ -476,7 +476,7 @@ class Folders(object):
         # the request along to the tags browser.
         if pthremain:
             if not pthremain.find('$tagview.0') == 0:
-                raise Exception("uprclfolders: pid [%s]. bad pthremain"%pid)
+                raise Exception(f"uprclfolders: pid [{pid}]. bad pthremain")
             return uprclinit.getTree('tags').browseFolder(pid, flag, pthremain,
                                                              self.dirpath(pid))
         

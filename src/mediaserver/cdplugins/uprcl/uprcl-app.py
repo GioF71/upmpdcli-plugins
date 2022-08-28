@@ -87,14 +87,13 @@ def _browsedispatch(objid, bflg, offset, count):
     for id,treename in rootmap.items():
         #uplog("Testing %s against %s" % (objid, id))
         if objid.startswith(id):
-            return uprclinit.getTree(treename).browse(objid, bflg,
-                                                      offset, count)
+            return uprclinit.getTree(treename).browse(objid, bflg, offset, count)
     raise Exception("Browse: dispatch: bad objid not in rootmap: [%s]" % objid)
 
 
 @dispatcher.record('browse')
 def browse(a):
-    msgproc.log("browse: %s. httphp [%s]" % (a, uprclinit.getHttphp()))
+    msgproc.log(f"browse: httphp [{uprclinit.getHttphp()}]   ARGS {a}")
     if 'objid' not in a:
         raise Exception("No objid in args")
 
@@ -112,7 +111,6 @@ def browse(a):
         raise Exception("bad objid <%s>" % objid)
 
     idpath = objid.replace(uprclinit.getObjPrefix(), '', 1)
-    msgproc.log("browse: idpath: <%s>" % idpath)
 
     entries = []
     nocache = "1"
