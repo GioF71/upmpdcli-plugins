@@ -15,14 +15,14 @@
 #loglevel = 2
 # XML and other constant data storage directory.
 #pkgdatadir=/usr/share/upmpdcli
-# Name of lock file used to store the current process pid.
+# Name of the lock file used to store the current process pid.
 #pidfile = /var/run/upmpdcli.pid
 
 # UPnP network parameters
 
-# Network interface to use for UPnP.
+# Network interface(s) to use for UPnP.
 #upnpiface =
-# IP address to use for UPnP, alternative to using an interface name.
+# IP V4 address to use for UPnP, alternative to using an interface name.
 #upnpip =
 # Port number used for UPnP.
 #upnpport =
@@ -43,14 +43,14 @@
 #lumincompat = 0
 # Store metadata into the OpenHome "metatext" variable.
 #ohinfotexttodata = 0
-# Save the streaming services login parameters to disk.
-#saveohcredentials = 1
 # Check that input format is supported.
 #checkcontentformat = 1
-# Path to the openssl command
-#opensslcmd =
 # Path to the Renderer icon.
 #iconpath = /usr/share/upmpdcli/icon.png
+# Save the streaming services login parameters to disk.
+#saveohcredentials = 1
+# Path to the openssl command
+#opensslcmd =
 # Directory used to store cached data
 #cachedir = /var/cache/upmpdcli
 # Path to the presentation HTML document

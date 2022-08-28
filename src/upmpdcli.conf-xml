@@ -19,28 +19,28 @@
 #loglevel = 2
 
 # <var name="pkgdatadir" type="dfn"><brief>XML and other constant data storage
-# directory.</brief><descr>Default: '$prefix/share/upmpcli' (e.g.:
+# directory.</brief><descr>Default: '$prefix/share/upmpdcli' (e.g.:
 # '/usr/share/upmpdcli').</descr></var>
 #pkgdatadir=/usr/share/upmpdcli
 
-# <var name="pidfile" type="fn"><brief>Name of lock file used to store the
-# current process pid.</brief><descr>Only used if the process is launched
-# by user root. Used by the init system, and to avoid multiple
-# instances. The only reason to change the value is if you actually want to
-# have several instances running (also change cachedir in this
-# case).</descr></var>
+# <var name="pidfile" type="fn">
+# <brief>Name of the lock file used to store the current process pid.</brief>
+# <descr>Only used if the process is launched by user root. Used by the init system, and to avoid
+# multiple instances. The only reason to change the value is if you actually want to have several
+# instances running (also change cachedir in this case).</descr></var>
 #pidfile = /var/run/upmpdcli.pid
 
 
 # <grouptitle>UPnP network parameters</grouptitle>
 
-# <var name="upnpiface" type="cstr" values="dynamic"><brief>Network interface to
-# use for UPnP.</brief><descr>libupnp/pupnp only supports communicating on
-# a single interface and will use the first found, this allows forcing the
-# use of another interface.</descr></var>
+# <var name="upnpiface" type="cstr" values="dynamic">
+# <brief>Network interface(s) to use for UPnP.</brief>
+# <descr>This can be left empty to use the first found suitable interface, or set to a single "*"
+# character for using all interfaces. Else set it to a space-separated list of interface names (use
+# double quotes if the names have embedded space characters).</descr></var>
 #upnpiface = 
 
-# <var name="upnpip" type="string"><brief>IP address to use for UPnP, 
+# <var name="upnpip" type="string"><brief>IP V4 address to use for UPnP, 
 # alternative to using an interface name.</brief></var>
 #upnpip = 
 
@@ -55,6 +55,7 @@
 # <descr>By default we only use IPV4.</descr></var>
 #useipv6 = false
 
+
 # <grouptitle>Media Renderer parameters</grouptitle>
 
 # <var name="friendlyname" type="string"><brief>"Friendly Name" for the
@@ -68,27 +69,22 @@
 # <descr>The default is to append "-av" to the friendlyname value.</descr></var>
 #avfriendlyname = 
 
-# <var name="upnpav" type="bool" values="1"><brief>Enable UPnP AV services
-# (0/1).</brief><descr>This is set by default, but it may useful to switch
-# it off with some OpenHome Control Points which are too easily confused by
-# the presence of UPnP AV services.</descr></var>
+# <var name="upnpav" type="bool" values="1">
+# <brief>Enable UPnP AV services (0/1).</brief>
+# <descr>This is set by default, but it may useful to switch it off to avoid cluttering the Renderer
+# choices if you only use OpenHome.</descr></var>
 #upnpav = 1
 
-# <var name="openhome" type="bool" values="1"><brief>Enable OpenHome services
-# (0/1).</brief><descr>This defaults to 1, as OpenHome queuing is superior
-# for most usages. There should be little reason to turn it
-# off.</descr></var>
+# <var name="openhome" type="bool" values="1">
+# <brief>Enable OpenHome services (0/1).</brief>
+# <descr>This defaults to 1, as OpenHome queuing is superior for most usages. There should be little
+# reason to turn it off.</descr></var>
 #openhome = 1
 
 # <var name="lumincompat" type="bool" values="1">
 # <brief>Disable the OpenHome Credentials service.</brief>
-#
-# <descr>At some point, this was necessary to enable Lumin to see upmpdcli
-# instances: for some unknown reason, Lumin 1.10 did not discover
-# upmpdcli with Credentials enabled. Credentials does
-# not work at this point anyway (12/2020), but it is enabled anyway,
-# because some Kazoo versions crash if it is not enabled.</descr>
-# </var>
+# <descr>At some point, this was necessary to enable Lumin to see upmpdcli instances: for some
+# unknown reason, Lumin 1.10 did not discover upmpdcli with Credentials enabled.</descr> </var>
 #lumincompat = 0
 
 # <var name="ohinfotexttodata" type="bool" values="1">
@@ -103,27 +99,12 @@
 # </var>
 #ohinfotexttodata = 0
 
-# <var name="saveohcredentials" type="bool"><brief>Save the streaming
-# services login parameters to disk.</brief><descr>This allows sharing the
-# password with the upmpdcli media server streaming service proxy, if you
-# are also using it. Avoids having to enter the password in the regular
-# configuration file. Depending on your situation, you may see this as a
-# security risk. The default is true, because I don't see this as a real
-# issue in the general case.</descr></var>
-# saveohcredentials = 1
-
 # <var name="checkcontentformat" type="bool" values="1"><brief>Check that
 # input format is supported.</brief><descr>Extract the protocolinfo
 # information from the input metadata and check it against our supported
 # formats. Set this option to 0 if a control point or media server sends
 # good audio data with bad metadata.</descr></var>
 #checkcontentformat = 1
-
-# <var name="opensslcmd" type="fn"><brief>Path to the openssl command</brief>
-# <descr>The OHCredentials service needs openssl 1.1.x or newer.
-# Path to the openssl command to use if the system one (in /usr/bin) is too
-# old. Not set by default.</descr></var>
-#opensslcmd = 
 
 # <var name="iconpath" type="fn"><brief>Path to the Renderer icon.</brief>
 # <descr>The image will be displayed by Control Points which support
@@ -134,6 +115,21 @@
 # The icon will only be read once, when upmpdcli starts
 # up.</descr></var>
 #iconpath = /usr/share/upmpdcli/icon.png
+
+# <var name="saveohcredentials" type="bool"><brief>Save the streaming
+# services login parameters to disk.</brief><descr>This allows sharing the
+# password with the upmpdcli media server streaming service proxy, if you
+# are also using it. Avoids having to enter the password in the regular
+# configuration file. Depending on your situation, you may see this as a
+# security risk. The default is true, because I don't see this as a real
+# issue in the general case.</descr></var>
+# saveohcredentials = 1
+
+# <var name="opensslcmd" type="fn"><brief>Path to the openssl command</brief>
+# <descr>The OHCredentials service needs openssl 1.1.x or newer.
+# Path to the openssl command to use if the system one (in /usr/bin) is too
+# old. Not set by default.</descr></var>
+#opensslcmd = 
 
 # <var name="cachedir" type="dfn"><brief>Directory used to store cached
 # data</brief><descr>Only used for the OpenHome queue metadata for now.
@@ -446,10 +442,11 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 
 # <grouptitle>Local Media Server parameters</grouptitle>
 
-# <var name="uprcluser" type="string"><brief>Bogus user name variable.</brief>
-# <descr>Used for consistency with other Media Server plugins to decide if
-# the service should be started (so, do set it if you want a Media Server).
-# </descr></var>
+# <var name="uprcluser" type="string">
+# <brief>Bogus user name variable.</brief>
+# <descr>Used for consistency with other Media Server plugins to decide if the service should be
+# started (so, do set it if you want a Media Server). You probably also want to set uprclautostart=1
+# so that initialisation starts as soon as the program does.</descr></var>
 #uprcluser = bugsbunny
 
 # <var name="uprcltitle" type="string"> <brief>Plugin Title.</brief><descr>This

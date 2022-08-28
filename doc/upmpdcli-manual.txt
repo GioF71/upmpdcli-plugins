@@ -3,16 +3,16 @@
 
 == Introduction
 
-Upmpdcli is primarily an UPnP Renderer front-end to the MPD music player.
-It has a number of additional or alternative functions.
+Upmpdcli is primarily an UPnP Renderer, using the MPD music player for audio stream processing. It
+has a number of additional or alternative functions.
 
-The xref:UPNP[next section] explains the network audio terms (UPnP, Media
-Renderer, etc.) if your knowledge needs a little brushing up. Else, you can
-jump to the xref:UPMPDCLI-OVERVIEW[upmpdcli overview] section.
+Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high quality DAC I2S
+daugtherboard) you can transform it into a state of the art network streamer.
 
-Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high
-quality DAC I2S daugtherboard) you can transform it into a state of the art
-network streamer.
+The xref:UPNP[next section] explains the network audio terms (UPnP, Media Renderer, etc.) if your
+knowledge needs a little brushing up. Else, you can jump to the xref:UPMPDCLI-OVERVIEW[upmpdcli
+overview] section.
+
 
 === Security
 
@@ -116,82 +116,82 @@ players, Linn or other.
 
 === Gapless ?
  	
-This is a relatively small issue, but people are very sensitive to it, it
-is important from some music pieces (Goldberg variations with gaps: not
-nice) and you will hear about it all the time if you read forums, so, a
-quick explanation follows.
+This is a relatively small issue, but people are very sensitive to it, it is important from some
+music pieces and you will hear about it all the time if you read forums, so, a quick explanation
+follows.
 
-Some music tracks need to flow into each other when played consecutively,
-for example tracks on some live albums (the background noise from the
-audience never stops), or some classical music pieces. 
+Some music tracks need to flow into each other when played consecutively, for example tracks on some
+live albums (the background noise from the audience never stops), or some classical music pieces.
 
-When playing from separate audio files, it is not trivial for a renderer to
-ensure a seamless flow: the audio hardware has an input pipe which must be
-kept full at all times, else it will stop, and a period of silence will
-ensue: not gapless ! 
+When playing from separate audio files, it is not trivial for a renderer to ensure a seamless flow:
+the audio hardware has an input pipe which must be kept full at all times, else it will stop, and a
+period of silence will ensue: not gapless !
 
-To avoid this, the renderer has to know in advance which file it will
-process after the current one, to be able to begin filling the audio pipe
-with data from the next track before it empties at the end of the current
-one.
+To avoid this, the renderer has to know in advance which file it will process after the current one,
+to be able to begin filling the audio pipe with data from the next track before it empties at the
+end of the current one.
 
-There are two ways that this can be achieved: either the renderer is also
-in charge of the play queue, so it knows the whole sequence all the time
-(e.g. MPD, OpenHome, …), or the controller indicates the next track to the
-renderer before the current track finishes (e.g. UPnP SetNextTransportURI).
+There are two ways that this can be achieved: either the renderer is also in charge of the play
+queue, so it knows the whole sequence all the time (e.g. MPD, OpenHome, …), or the controller
+indicates the next track to the renderer before the current track finishes (e.g. UPnP/AV
+SetNextTransportURI).
 
 
 [[UPMPDCLI-OVERVIEW]]
 == Upmpdcli overview
 
 
-Upmpdcli is primarily a UPnP Media Renderer frontend, using a slave MPD to
-actually process the audio data. It supports UPnP gapless track transitions
-and the OpenHome ohMedia services (including a Radio service to listen to
-Internet streams). 
+Upmpdcli is xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD to actually
+process the audio data. It supports UPnP gapless track transitions and the OpenHome ohMedia services
+(including a Radio service to listen to Internet streams).
 
 .The Grand Upmpdcli Scheme of Things
 image::pics/upmpdcli.png["The Grand Scheme of Things"]
 
 Additionally:
 
-- Upmpdcli implements control functions for the Linn Songcast protocol,
-allowing the local machine to behave as a Songcast Receiver or Sender (with
-help from the closely related *sc2mpd* package, for processing the audio
-streams).
+- The *upmpdcli* program also implements a Media Server. This function is hosted in the same program
+  (and usually runs in separate threads of the same process), but it is completely independant:
+  *upmpdcli* can run as Renderer only, or Media Server only, or both, and the Media Server can be
+  accessed by any Control Point and serve streams to any Renderer, not only to its co-hosted one.
+  The Upmpdcli Media Server implements gateways to external streaming services (Spotify,
+  Highresaudio, Qobuz, Deezer...), and also includes the *uprcl* module, which provides a Media
+  Server for local audio files. *uprcl* is based on the link:https://www.recoll.org[Recoll] medata
+  extraction and search functions.
 
-- Upmpdcli provides a Media Server interface, mostly used for accessing
-external streaming services (Spotify, Highresaudio, Qobuz, Deezer). The
-*uprcl* module provides a local Media Server based on the
-link:https://www.recoll.org[Recoll] medata extraction and search functions.
+- Upmpdcli implements control functions for the Linn Songcast protocol, allowing the local machine
+  to behave as a Songcast Receiver or Sender (with help from the closely related *sc2mpd* package,
+  for processing the audio streams). 
 
-Upmpdcli can be installed on most Linux systems. It is frequently used on
-small single board computers like the Raspberry Pi. As far as I know, all
-audio-oriented distributions currently use it as their UPnP Media Renderer
-interface, and it is also present in a number of commercial devices.
 
-Upmpdcli is mostly configured through values set in a configuration file
-but, for basic operation without a configuration file, a few of the main
-parameters can be set on the
-xref:COMMAND-ENVIRON[command line or in the environment].
+Upmpdcli can be installed on most Linux systems. It is frequently used on small single board
+computers like the Raspberry Pi. As far as I know, all audio-oriented distributions currently use it
+as their UPnP Media Renderer interface, and it is also present in a number of commercial devices.
 
-Most parameters can only be set in the configuration file, which is
-designated with the `-c` command line option. The usual location is
-`/etc/upmpdcli.conf`.
+If some cases, Upmpdcli can operate without a configuration file, as a few of the main parameters
+can be set on the xref:COMMAND-ENVIRON[command line or in the environment].
 
-The configuration file has a simple `name = value` format, and is fully
-described in the <<UPMPDCLI-CONFIGURATION,configuration reference section>>.
+Most parameters can only be set in the configuration file, though. The file is designated with the
+`-c` command line option. The usual location is `/etc/upmpdcli.conf`.
 
-upmpdcli has many configuration parameters, which may make the
-configuration intimidating. However, most parameters only relate to one
-function of the program and they are grouped in sections, many of which
-are probably not relevant to you. In each section, the most important
-parameters are presented first, and you probably will never need to bother
-with the bottom of the list.
+The configuration file has a simple `name = value` format, and is fully described in the
+<<UPMPDCLI-CONFIGURATION,configuration reference section>>.
 
-The <<UPMPDCLI-CONFIG-GUI,upmpdcli-config graphical tool>> can help you edit
-the configuration file, it can present the same information as this manual,
-directly linked with the controls used to modify the parameters.
+upmpdcli has many configuration parameters, which may make the configuration intimidating. However,
+most parameters only relate to one function of the program and they are grouped in sections, many of
+which are probably not relevant to you. In each section, the most important parameters are presented
+first, and you probably will never need to bother with the bottom of the list.
+
+The <<UPMPDCLI-CONFIG-GUI,upmpdcli-config graphical tool>> can help you edit the configuration file,
+it can present the same information as this manual, directly linked with the controls used to modify
+the parameters.
+
+Upmpdcli can be run as root. In this case it will change its user id to `upmpdcli` after some
+initialisation and permissions setup for its data cache, usually under `/var`. The process can also
+be started by any regular user, in which case it will store its data under `~/.cache/upmpdcli`.
+
+
+
 
 [[UPMPDCLI-RENDERER]]
 == Upmpdcli Media Renderer
@@ -562,11 +562,13 @@ impossible to achieve when going through *mpd*, and the second reason why
 *sc2mpd* must be set in _alsa_ mode for multiroom setups. In _mpd_ mode,
 the Receivers can be out of sync by several seconds.
 
+[[UPMPDCLI-MS]]
+== Upmpdcli as Media Server
 
 [[UPMPDCLI-MS-STR]]
-== Support for Streaming Services
+=== Support for Streaming Services
 
-=== Streaming Services and UPnP
+==== Streaming Services and UPnP
 
 Streaming services like Qobuz, Highresaudio or Spotify give access to a huge catalog of music
 through a WEB programming interface which is also usable by programs other than their own
@@ -614,7 +616,7 @@ framework, and knowing which way you are using will avoid confusion:
     changes in the Tidal access method have made it impossible to support.
 
 [[UPMPDCLI-MS-STR-MS]]
-=== Accessing Streaming Services through the upmpdcli Media Server
+==== Accessing Streaming Services through the upmpdcli Media Server
   
 The Media Server function in Upmpdcli gives access to external streaming services: Spotify,
 Highresaudio and Qobuz currently work unconditionally (1.5.5).
@@ -692,14 +694,14 @@ The notes which follow relate to accessing the services through the Upmpdcli Med
 
 ////
 
-=== Using Tidal through the Upmpdcli Media Server
+==== Using Tidal through the Upmpdcli Media Server
 
 NOTE::
 Accessing Tidal needs an API key, and I don't have one. The module may still work for you if you
 have key, but I am unable to test it.
 
 [NOTE]
-====
+=====
 
 There seems to sometimes be problems when streaming Tidal lossless/FLAC streams, with
 the default MPD configuration. A preliminary and rather superficial enquiry seems to indicate that
@@ -710,7 +712,7 @@ configuration file (/etc/mpd.conf) reduces the pre-fetch period and seems to fix
     audio_buffer_size "2048"
     buffer_before_play "20%"
 
-====
+=====
 
 You will need to install the upmpdcli-tidal module.
 
@@ -732,8 +734,8 @@ The configuration parameters are described in the <<tidaluser,configuration sect
 
 
 
-[[upmpdcli.qobuznotes]]
-=== Using Qobuz through the Upmpdcli Media Server
+[[UPMPDCLI-MS-STR-QOBUZ]]
+==== Using Qobuz through the Upmpdcli Media Server
 
 This is based on the service API from the
 link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
@@ -748,12 +750,15 @@ ignored.
 
 You need a valid Qobuz subscription.
 
+Enable this function by installing the upmpdcli Qobuz module (which may be a separate package,
+e.g. upmpdcli-qobuz on Debian), and adding your login and password to the configuration.
+
 The configuration parameters are described in the
 <<qobuzuser,configuration section>>
 
 
-[[upmpdcli.deezernotes]]
-=== Using Deezer through the Upmpdcli Media Server
+[[UPMPDCLI-MS-STR-DEEZER]]
+==== Using Deezer through the Upmpdcli Media Server
 
 You will need a premium (paid) account.
 
@@ -764,13 +769,16 @@ Jakub Gawron (kubatek94) and ? (Valentin271).
 It uses the Deezer "television" API and only provides access to 128 kb/s
 MP3 streams.
 
+Enable this function by installing the upmpdcli Deezer module (which may be a separate package,
+e.g. upmpdcli-deezer on Debian), and adding your login and password to the configuration.
+
 The configuration parameters are described in the
 <<deezeruser,configuration section>>. Only `deezeruser` and `deezerpass`
 actually. 
 
 
-[[upmpdcli.spotifynotes]]
-=== Using Spotify through the Upmpdcli Media Server
+[[UPMPDCLI-MS-STR-SPOTIFY]]
+==== Using Spotify through the Upmpdcli Media Server
 
 You will need to install the upmpdcli-spotify module.
 
@@ -803,47 +811,58 @@ You will need to set some configuration parameters, which are described in the
 authorization token: follow the instructions in the <<SPOTIFY-AUTH,Spotify
 authorization annex>>.
 
-[[UPRADIOS]]
-== Upradios: Upmpdcli radio list plugin
+[[UPMPDCLI-MS-UPRADIOS]]
+=== Upradios: Upmpdcli radio list plugin
 
 This is a minuscule plugin which just exports the Upmpdcli radio list as a
-playlist, so that other renderers on the network can use it.
+playlist, so that other renderers on the network can use it. 
 
 Because just the stream URL is computed/used, the functionality is reduced when compared to using
 Upmpdcli OpenHome Radio service: there will be no dynamic art or special metadata features:
 `artScript` and `metaScript` entries are just ignored.
 
-Still the server will convert .pls and other playlist entries into actual
+Still, the server will convert .pls and other playlist entries into actual
 stream URLs, and it may be convenient for maintaining the radio list in one
 place.
 
-You will just need to enable the plugin by setting a bogus value for
-the 'upradiosuser' variable in the upmpdcli configuration file.
+Enable this function by installing the upmpdcli Radios module (which may be a separate package,
+e.g. upmpdcli-radios on Debian), and uncommenting the bogus setting for the 'upradiosuser' variable
+in the upmpdcli configuration file.
 
-[[UPBBC]]
-== Upmpdcli BBC Sounds plugin
+The configuration parameters are described in the <<upradiosuser,configuration section>>. 
+
+[[UPMPDCLI-MS-BBC]]
+=== Upmpdcli BBC Sounds plugin
 
 The plugin allows access to the link:https://www.bbc.co.uk/sounds[BBC Sounds] resource for listening
 to past BBC programs. It normally lists the 30 previous days, this can be changed with a
 <<bbcuser, configuration variable>>.
 
-[[UPRCL]]
-== Uprcl : the Upmpdcli local Media Server
+Enable this function by installing the upmpdcli BBC module (which may be a separate package,
+e.g. `upmpdcli-bbc` on Debian), and uncommenting the bogus setting for the `bbcuser` variable
+in the upmpdcli configuration file.
 
-You will need to install the upmpdcli-uprcl module.
+The configuration parameters are described in the <<bbcuser,configuration section>>. 
 
-The current (2020-12) upmpdcli code base includes a Media Server function
-for local music files, analog to MinimServer or ReadyMedia/MiniDLNA. The
-plugin module is named *uprcl*.
+[[UPMPDCLI-MS-UPRCL]]
+=== Upmpdcli Uprcl: a Media Server for local files
 
-Why yet another Media Server ? Mostly because my favorite, MinimServer is
-great, and free, but not open-source, so I find it prudent to have an
-alternative. Also, fun :)
+The Upmpdcli application includes a Media Server function for local music files, analog to
+MinimServer or ReadyMedia/MiniDLNA. The plugin module is named *uprcl*.
 
-*uprcl* only implements a small fraction of MinimServer vast list of
-capabilities at this point, but it's slowly making progress, and I find it
-works well enough, at least with the upmpdcli renderer, to now be my main
-Media Server.
+Enable this function by installing the upmpdcli *uprcl* module (which may be a separate package,
+e.g. `upmpdcli-uprcl` on Debian), and uncommenting the bogus setting for the `uprcluser` variable
+in the upmpdcli configuration file. You may also want to set `uprclautostart` to 1 so that
+initialisation is performed as soon as the program start, and not on the first access. Also: you
+need to install Recoll (just the command line tools are needed) if your package manager did not do
+it for you.
+
+Why yet another Media Server ? Mostly because my favorite, MinimServer is great, and free, but not
+open-source, so I find it prudent to have an alternative. Also, fun :)
+
+*uprcl* only implements a small fraction of MinimServer vast list of capabilities at this point, but
+it's slowly making progress, and I find it works well enough, at least with the upmpdcli renderer,
+to now be my main Media Server.
 
 Some *uprcl* features:
 
@@ -884,7 +903,7 @@ required for uprcl (this is for the case where you install by hand, the
 package takes care of it).
 
 [[UPRCL-SEARCH]]
-=== Upmpdcli/Uprcl searches
+==== Upmpdcli/Uprcl searches
 
 The UPnP Media Server search function is based on a specific query
 language. This language is quite verbose, and most control points will not
