@@ -149,19 +149,7 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
     path = doc["url"]
     ssidx = path.find('//')
     if path.find('file://') == 0:
-        # Versions of recoll with the resultstore urlencode the url
-        # field (and we actually store it in the resultstore, not in
-        # an rcl::doc), we decode it to binary. For older
-        # versions, we need to call doc.getbinurl() In any case, we
-        # take a lot of care to preserve non-decodable (e.g. iso88859
-        # in an utf-8 locale) paths, but bottle currently can't stream
-        # them. For reference, minim does not process them at all. At
-        # least we're almost there...
-        # Cf beethovem/p-s-g/vol1/cd3 path('e)tique
-        if _has_resultstore:
-            bpath = urlunquotetobytes(path[ssidx+2:])
-        else:
-            bpath = doc.getbinurl()[ssidx+2:]
+        bpath = docpath(doc)
         li['uri'] = _httpurl(httphp, bpath)
     else:
         li['uri'] = path[:ssidx+2] + urlquote(path[ssidx+2:])
@@ -198,13 +186,26 @@ def basename(path):
     else:
         return os.path.basename(path)
         
-# Compute fs path for URL. All Recoll URLs are like file://xx
+# Compute binary fs path for URL. All Recoll URLs are like file://xx
 def docpath(doc):
-    p = urlunquotetobytes(doc["url"])
-    if len(p) > 7:
-        return p[7:]
+    # Versions of recoll with the resultstore urlencode the url
+    # field if it's not utf-8 (and we actually store it in the resultstore, not in
+    # an rcl::doc), we decode it to binary if needed. For older
+    # versions, we need to call doc.getbinurl() In any case, we
+    # take a lot of care to preserve non-decodable (e.g. iso88859
+    # in an utf-8 locale) paths, but bottle currently can't stream
+    # them. For reference, minim does not process them at all. At
+    # least we're almost there...
+    # Cf beethovem/p-s-g/vol1/cd3 path('e)tique
+    if _has_resultstore:
+        p = doc["url"][7:]
+        if os.path.exists(p):
+            bpath = p.encode("utf-8")
+        else:
+            bpath = urlunquotetobytes(p)
     else:
-        return b''
+        bpath = doc.getbinurl()[7:]
+    return bpath
 
 def docfolder(doc):
     path = docpath(doc)
@@ -298,17 +299,21 @@ def folderart(doc, httphp, bpp):
         #uplog(f"folderart: looking at {folder}")
         _foldercache[folder] = None
         artnm = None
-        for f in sorted(os.listdir(folder)):
-            try:
-                fsimple = os.path.basename(f)
-                flowersimple = fsimple.lower()
-            except:
-                #traceback.print_exc()
-                continue
-            if flowersimple in _folderartnames:
-                path = os.path.join(bpp, folder, fsimple)
-                _foldercache[folder] = _httpurl(httphp, path)
-                break
+        try:
+            for f in sorted(os.listdir(folder)):
+                try:
+                    fsimple = os.path.basename(f)
+                    flowersimple = fsimple.lower()
+                except:
+                    #traceback.print_exc()
+                    continue
+                if flowersimple in _folderartnames:
+                    path = os.path.join(bpp, folder, fsimple)
+                    _foldercache[folder] = _httpurl(httphp, path)
+                    break
+        except:
+            traceback.print_exc()
+            pass
 
     arturi = _foldercache[folder]
     if arturi:

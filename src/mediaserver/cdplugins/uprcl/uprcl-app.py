@@ -124,7 +124,7 @@ def browse(a):
                 initstatus, initmessage = uprclinit.initstatus()
                 if not initstatus:
                     entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
-                                         initmessage),]
+                                         "Uprcl init error: " + initmessage),]
                 else:
                     if not idpath:
                         entries = _rootentries()
@@ -163,7 +163,7 @@ def search(a):
             initstatus, initmessage = uprclinit.initstatus()
             if not initstatus:
                 entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
-                                     initmessage),]
+                                     "Uprcl init error: " + initmessage),]
             else:
                 entries = uprclsearch.search(
                     uprclinit.getTree('folders'), uprclinit.getRclConfdir(), objid,

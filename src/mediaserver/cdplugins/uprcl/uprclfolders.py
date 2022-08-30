@@ -77,7 +77,6 @@
 import os
 import shlex
 import sys
-from urllib.parse import quote as urlquote
 import time
 from timeit import default_timer as timer
 

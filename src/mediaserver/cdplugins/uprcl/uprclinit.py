@@ -19,6 +19,7 @@ import conftree
 import threading
 import subprocess
 import time
+import traceback
 from timeit import default_timer as timer
 
 from rwlock import ReadWriteLock
@@ -137,6 +138,7 @@ def _update_index(rebuild=False):
         g_initstatus = True
         uplog("Init done")
     except Exception as ex:
+        traceback.print_exc()
         g_initstatus = False
         g_initmessage = str(ex)
         uplog(f"Initialisation failed with: {g_initmessage}")
