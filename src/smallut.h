@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <functional>
 
 struct tm;
 
@@ -137,8 +138,7 @@ template <class T> std::string stringsToString(const T& tokens);
  * " inside tokens is escaped as "" ([word "quote"] =>["word ""quote"""]
  * See instantiation note above.
  */
-template <class T> void stringsToCSV(const T& tokens, std::string& s,
-                                     char sep = ',');
+template <class T> void stringsToCSV(const T& tokens, std::string& s, char sep = ',');
 
 /** Find longest common prefix for bunch of strings */
 template <class T> std::string commonprefix(const T& values);
@@ -183,8 +183,7 @@ extern std::string escapeShell(const std::string& in);
 
 /** Truncate a string to a given maxlength, avoiding cutting off midword
  *  if reasonably possible. */
-extern std::string truncate_to_word(const std::string& input,
-                                    std::string::size_type maxlen);
+extern std::string truncate_to_word(const std::string& input, std::string::size_type maxlen);
 
 void ulltodecstr(uint64_t val, std::string& buf);
 void lltodecstr(int64_t val, std::string& buf);
@@ -195,15 +194,16 @@ std::string ulltodecstr(uint64_t val);
 std::string displayableBytes(int64_t size);
 
 /** Break big string into lines */
-std::string breakIntoLines(const std::string& in, unsigned int ll = 100,
-                           unsigned int maxlines = 50);
+std::string breakIntoLines(const std::string& in, unsigned int ll = 100, unsigned int maxlines = 50);
 
 /** Small utility to substitute printf-like percents cmds in a string */
-bool pcSubst(const std::string& in, std::string& out,
-             const std::map<char, std::string>& subs);
+bool pcSubst(const std::string& in, std::string& out, const std::map<char, std::string>& subs);
 /** Substitute printf-like percents and also %(key) */
 bool pcSubst(const std::string& in, std::string& out,
              const std::map<std::string, std::string>& subs);
+/** Substitute printf-like percents and %(nm), using result of function call */
+bool pcSubst(const std::string& i, std::string& o, std::function<std::string(const std::string&)>);
+
 
 /** Append system error message */
 void catstrerror(std::string *reason, const char *what, int _errno);
@@ -249,7 +249,6 @@ public:
     /// Check after construction
     bool ok() const;
 
-    
     class Internal;
 private:
     Internal *m;
@@ -272,8 +271,7 @@ struct CharFlags {
 #define CHARFLAGENTRY(NM) {NM, #NM}
 
 /// Translate a bitfield into string description
-extern std::string flagsToString(const std::vector<CharFlags>&,
-                                 unsigned int val);
+extern std::string flagsToString(const std::vector<CharFlags>&, unsigned int val);
 
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);

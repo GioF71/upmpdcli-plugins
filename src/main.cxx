@@ -108,22 +108,15 @@ static const char usage[] =
 enum MSMode {Default, RdrOnly, MSOnly, CombinedEmbedded, CombinedMultiDev};
 
 static void
-versionInfo(FILE *fp)
-{
-    fprintf(fp, "Upmpdcli %s %s\n",
-            UPMPDCLI_PACKAGE_VERSION, LibUPnP::versionString().c_str());
-}
-
-static void
 Usage(FILE *fp = stderr)
 {
     fprintf(fp, "%s: usage:\n%s", thisprog, usage);
-    versionInfo(fp);
+    fprintf(fp, "%s\n", upmpdcliVersionInfo().c_str());
     exit(1);
 }
 
 
-static const string dfltFriendlyName("UpMpd");
+static const string dfltFriendlyName("UpMpd-%h");
 
 ohProductDesc_t ohProductDesc = {
     // Manufacturer
@@ -304,7 +297,7 @@ int main(int argc, char *argv[])
                 mpdport = atoi(*(++argv)); argc--; goto b1;
             case 'q':   op_flags |= OPT_q; if (argc < 2)  Usage();
                 ownqueue = atoi(*(++argv)) != 0; argc--; goto b1;
-            case 'v': versionInfo(stdout); exit(0); break;
+            case 'v': std::cout << upmpdcliVersionInfo() << "\n"; exit(0); break;
             default: Usage();   break;
             }
     b1: argc--; argv++;
@@ -702,9 +695,12 @@ int main(int argc, char *argv[])
         return 1;
     }
     hwaddr = mylib->hwaddr();
-    
+
+    friendlyname = fnameSetup(friendlyname);
     // Create unique IDs for renderer and possible media server
-    if (!g_config || !g_config->get("msfriendlyname", fnameMS)) {
+    if (g_config && g_config->get("msfriendlyname", fnameMS)) {
+        fnameMS = fnameSetup(fnameMS);
+    } else {
         fnameMS = friendlyname + "-mediaserver";
     }
     uuidMS = LibUPnP::makeDevUUID(fnameMS, hwaddr);
@@ -754,8 +750,7 @@ int main(int argc, char *argv[])
 
     UpMpd *mediarenderer{nullptr};
     if (!msonly) {
-        mediarenderer = new UpMpd(hwaddr, friendlyname,
-                                  ohProductDesc, mpdclip, opts);
+        mediarenderer = new UpMpd(hwaddr, friendlyname, ohProductDesc, mpdclip, opts);
         UpMpdOpenHome *oh = mediarenderer->getoh();
         // rootdevice is only used if we implement the media server as
         // an embedded device, which is mostly for testing purposes

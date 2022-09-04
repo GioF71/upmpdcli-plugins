@@ -21,6 +21,9 @@
 // not linking to Qt or glib just to get path-concatenating
 // functions...
 
+#define UPMPDCLI_NEED_PACKAGE_VERSION
+#include "config.h"
+
 #include "upmpdutils.hxx"
 
 #include <sys/types.h>
@@ -47,6 +50,7 @@
 #include <vector>
 
 #include "libupnpp/log.hxx"
+#include "libupnpp/upnpplib.hxx"
 #include "libupnpp/soaphelp.hxx"
 #include "libupnpp/upnpavutils.hxx"
 #include "libupnpp/control/cdircontent.hxx"
@@ -352,8 +356,7 @@ string regsub1(const string& sexp, const string& input, const string& repl)
 // users.  We do the minimum change: set the user read bit if the
 // file belongs to it, else set the group read bit if it belongs to
 // one of the user groups, else, have to chrgp it.
-bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
-                        gid_t gid)
+bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
 {
     LOGDEB1("ensureconfreadable: fn " << fn << " user " << user << " uid " <<
             uid << " gid " << gid << endl);
@@ -436,3 +439,34 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
 #endif
     return true;
 }
+
+std::string upmpdcliVersionInfo()
+{
+    return std::string("Upmpdcli ") + UPMPDCLI_PACKAGE_VERSION + " " + LibUPnP::versionString();
+}
+
+static std::string fnameSubst(const std::string& key)
+{
+    if (key == "h" || key == "H") {
+        char hostname[256];
+        if (gethostname(hostname, 256) < 0) {
+            LOGSYSERR("fnameSetup", "gethostname", "256");
+            strcpy(hostname, "unknown");
+        }
+        if (key == "H" && hostname[0]) {
+            hostname[0] = std::toupper(hostname[0]);
+        }
+        return hostname;
+    } else if (key == "v") {
+        return upmpdcliVersionInfo();
+    }
+    return std::string();
+}
+
+std::string fnameSetup(const std::string in)
+{
+    std::string out;
+    pcSubst(in, out, fnameSubst);
+    return out;
+}
+

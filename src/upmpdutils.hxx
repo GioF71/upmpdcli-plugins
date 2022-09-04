@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2020 J.F.Dockes
+/* Copyright (C) 2014-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -145,7 +145,11 @@ diffmaps(const std::unordered_map<std::string, std::string>& old,
 
 #define UPMPD_UNUSED(X) (void)(X)
 
-extern bool ensureconfreadable(const char *fn, const char *user, uid_t uid,
-                               gid_t gid);
+extern bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid);
+
+// printf-like %xx substitutions in friendlynames. Only hostname (%h) at this point
+extern std::string fnameSetup(const std::string in);
+
+extern std::string upmpdcliVersionInfo();
 
 #endif /* _UPMPDUTILS_H_X_INCLUDED_ */
