@@ -666,19 +666,16 @@ string path_home()
     path_catslash(dir);
     return dir;
 #else
-    uid_t uid = getuid();
-
-    struct passwd *entry = getpwuid(uid);
-    if (entry == 0) {
-        const char *cp = getenv("HOME");
-        if (cp) {
-            return cp;
-        } else {
+    const char *cp = getenv("HOME");
+    if (nullptr == cp) {
+        uid_t uid = getuid();
+        struct passwd *entry = getpwuid(uid);
+        if (nullptr == entry) {
             return "/";
         }
+        cp = entry->pw_dir;
     }
-
-    string homedir = entry->pw_dir;
+    string homedir{cp};
     path_catslash(homedir);
     return homedir;
 #endif

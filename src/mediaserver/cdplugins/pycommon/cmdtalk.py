@@ -20,8 +20,6 @@
 # All data is binary. This is important for Python3
 # All parameter names are converted to and processed as str/unicode
 
-from __future__ import print_function
-
 import sys
 import os
 import tempfile
