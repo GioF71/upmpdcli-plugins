@@ -33,7 +33,7 @@ import uprclindex
 from uprclhttp import runbottle
 import minimconfig
 
-from upmplgutils import uplog, findmyip, getcachedir
+from upmplgutils import uplog, getcachedir
 from conftree import stringToStrings
 
 ### Configuration stuff
@@ -180,9 +180,15 @@ def uprcl_init():
     global _g_httphp
     _g_httphp = g_upconfig.get("uprclhostport")
     if _g_httphp is None:
-        ip = findmyip()
-        _g_httphp = ip + ":" + "9090"
-        uplog("uprclhostport not in config, using %s" % _g_httphp)
+        if "UPMPD_HTTPHOSTPORT" not in os.environ:
+            raise Exception("No UPMPD_HTTPHOSTPORT in environment")
+        upmpdhttphp = os.environ["UPMPD_HTTPHOSTPORT"]
+        ip = upmpdhttphp.split(":")[0]
+        port = g_upconfig.get("uprclport")
+        if port is None:
+            port = "9090"
+        _g_httphp = ip + ":" + port
+    uplog("uprcl: serving files on %s" % _g_httphp)
 
     global _g_rclconfdir
     _g_rclconfdir = g_upconfig.get("uprclconfdir")
@@ -191,16 +197,18 @@ def uprcl_init():
         
     global g_rcltopdirs
     g_rcltopdirs = g_upconfig.get("uprclmediadirs")
-    if not g_rcltopdirs:
+    if g_rcltopdirs:
+        g_rcltopdirs = conftree.stringToStrings(g_rcltopdirs)
+    else:
         g_rcltopdirs = g_minimconfig.getcontentdirs()
-        if g_rcltopdirs:
-            g_rcltopdirs = conftree.stringsToString(g_rcltopdirs)
-
-    # At this point g_rcltopdirs is a single string (possibly with quoted parts). Compute a list and
-    # check the elements
-    pthlist = conftree.stringToStrings(g_rcltopdirs)
+    if not g_rcltopdirs:
+        g_initstatus = False
+        g_initmessage = "No media directories were set in configuration"
+        return
+    
+    # g_rcltopdirs is now a list, check the elements
     goodpthlist = []
-    for dir in pthlist:
+    for dir in g_rcltopdirs:
         if not os.path.isdir(dir):
             uplog(f"uprcl: [{dir}] is not accessible")
         else:
@@ -210,13 +218,11 @@ def uprcl_init():
         g_initmessage = "No accessible media directories in configuration"
         return
     
-    g_rcltopdirs = conftree.stringsToString(goodpthlist)
-    
     pthstr = g_upconfig.get("uprclpaths")
     if pthstr is None:
         uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
         pthstr = ""
-        for p in pthlist:
+        for p in g_rcltopdirs:
             pthstr += p + ":" + p + ","
         pthstr = pthstr.rstrip(",")
     uplog("Path translation: pthstr: %s" % pthstr)
@@ -227,6 +233,9 @@ def uprcl_init():
         pathmap[l[0]] = l[1]
         
     host,port = _g_httphp.split(':')
+
+    # Turn g_rcltopdirs back into a string, that's how it's used by runindexer
+    g_rcltopdirs = conftree.stringsToString(goodpthlist)
 
     start_index_update()
 

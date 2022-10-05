@@ -196,8 +196,10 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 #uprcluser = bugsbunny
 # Plugin Title.
 uprcltitle = Local Music
-# HTTP host and port for serving media files
+# Uprcl HTTP server host and port for serving media files.
 #uprclhostport =
+# Uprcl HTTP server port for serving media files.
+#uprclport = 9090
 # uprcl Recoll index directory
 #uprclconfdir = /var/cache/upmpdcli/uprcl
 # Name of the user Recoll config additions file
@@ -205,7 +207,7 @@ uprcltitle = Local Music
 # Name of the Minim Server configuration file
 #uprclminimconfig =
 # Media directories
-#uprclmediadirs = /tmp
+#uprclmediadirs =
 # Path translations.
 #uprclpaths =
 

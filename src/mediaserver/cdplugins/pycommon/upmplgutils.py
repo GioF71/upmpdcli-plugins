@@ -112,20 +112,3 @@ def getcachedir(config, servicename, forcedpath=None):
             raise
     return cachedir
 
-
-# Find first non loopback ip. This is surprisingly
-# difficult. Executing "ip addr" actually seems to be the simplest
-# approach, only works on Linux though (maybe bsd too ?)
-def findmyip():
-    data = subprocess.check_output(["ip", "addr"]).decode('utf-8')
-    l = data.split()
-    ips = []
-    chosenip = ""
-    for i in range(len(l)):
-        k = l[i]
-        if k == 'inet':
-            ipmask = l[i+1]
-            if ipmask.find('127.') == 0:
-                continue
-            return ipmask.split('/')[0]
-    return '127.0.0.1'

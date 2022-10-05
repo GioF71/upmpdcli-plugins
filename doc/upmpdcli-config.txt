@@ -404,12 +404,18 @@ will be displayed as the plugin entry in the Media Server root
 directory.
 
 [[uprclhostport]]
-uprclhostport:: HTTP host and port for
-serving media files The Media Server HTTP server will run
-on this address and port, which will also be inserted on the URLs we
-produce. If the variable is not set, we will use port 9090 and the first
-non-loopback ipv4 address in "ip addr" output, which may be right or
-not. Example: 192.168.1.1:9090
+uprclhostport:: Uprcl HTTP server host and port for serving media files. Uprcl uses a separate HTTP server based on the Python Bottle framework
+and Waitress server. The HTTP server will listen on this address and port, which
+will also be inserted on the URLs we produce. If the variable is not set, we
+will use port 9090 and the same address as the server used for other services
+(either plgmicrohttphost or the first ipv4 address used by the upnp layer.
+not. Example: 192.168.1.1:9090. As it is reasonable to use the same address as
+the upnp layer, see also uprclport for just specifying the port.
+
+[[uprclport]]
+uprclport:: Uprcl HTTP server port for serving media files. Port to use for listening for media requests. The listen address will
+be either plgmicrohttphost if it is set, or the first ipv4 address used by the
+upnp layer. Ignored if uprclhostport is set.
 
 [[uprclconfdir]]
 uprclconfdir:: uprcl Recoll index directory This is usually not defined and defaults to
@@ -431,9 +437,10 @@ manual). Not set by default, and optional.
 
 [[uprclmediadirs]]
 uprclmediadirs:: Media directories This is a space-separated list of directories to explore for music
-files. This is used directly as the recoll "topdirs" value, so you can
-use double-quote quoting for paths with embedded spaces. If not set, we
-will try to use contentDirs from the Minim config.
+files. This is used directly as the recoll "topdirs" value, so you can use
+double-quote quoting for paths with embedded spaces. If not set, we will try
+to use contentDirs from the Minim config. An error will occur if both are
+empty.
 
 [[uprclpaths]]
 uprclpaths:: Path translations. Translations from real paths to ones relative to the HTTP server
