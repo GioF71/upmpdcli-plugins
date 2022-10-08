@@ -105,8 +105,8 @@ AVTransport::AVTransport(
     // of track, not STOP.
 //    m_dev->getmpdcli()->single(true);
 #endif
-    m_autoplay = g_config->getBool("avtautoplay", false);
-    keepconsume = g_config->getBool("keepconsume", false);
+    m_autoplay = getBoolOptionValue("avtautoplay", false);
+    keepconsume = getBoolOptionValue("keepconsume", false);
     m_dev->getmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
         bind(&AVTransport::onMpdEvent, this, _1));

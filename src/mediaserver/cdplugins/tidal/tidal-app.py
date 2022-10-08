@@ -26,7 +26,6 @@ import os
 import posixpath
 import json
 import re
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from xbmcplug import *
@@ -73,16 +72,15 @@ def maybelogin(a={}):
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
 
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     if 'user' in a:
         username = a['user']
         password = a['password']
     else:
-        username, password = getserviceuserpass(upconfig, 'tidal')
+        username, password = getserviceuserpass('tidal')
     if not username or not password:
         raise Exception("tidaluser and/or tidalpass not set in configuration")
 
-    qalstr = upconfig.get('tidalquality')
+    qalstr = getOptionValue('tidalquality')
     if qalstr == 'lossless':
         quality = Quality.lossless
     elif qalstr == 'high':
@@ -92,9 +90,8 @@ def maybelogin(a={}):
     elif not qalstr:
         quality = Quality.high
     else:
-        raise Exception("Bad tidal quality string in config. "+
-                        "Must be lossless/high/low")
-    apitoken = upconfig.get('tidalapitoken')
+        raise Exception("Bad tidal quality string in config. Must be lossless/high/low")
+    apitoken = getOptionValue('tidalapitoken')
     if apitoken:
         tidalconf = tidalapi.Config(quality, apitoken=apitoken)
     else:

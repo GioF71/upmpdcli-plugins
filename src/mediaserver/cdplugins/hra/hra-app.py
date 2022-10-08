@@ -25,7 +25,6 @@ import json
 import re
 import base64
 
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from xbmcplug import *
@@ -60,12 +59,11 @@ def maybelogin():
     pathprefix = os.environ["UPMPD_PATHPREFIX"]
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     
-    username,password = getserviceuserpass(upconfig, 'hra')
+    username,password = getserviceuserpass('hra')
     if not username or not password:
         raise Exception("hrauser and/or hrapass not set in configuration")
-    lang = upconfig.get('hralang')
+    lang = getOptionValue('hralang')
     if not lang:
         lang = 'en'
     setMimeAndSamplerate("application/flac", "44100")

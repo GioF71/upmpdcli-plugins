@@ -124,8 +124,7 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProduct
     csxml += string("</SourceList>");
     LOGDEB0("OHProduct::OHProduct: sources: " << csxml << endl);
 
-    g_config->get("onstandby", m_standbycmd);
-    if (!m_standbycmd.empty()) {
+    if (getOptionValue("onstandby", m_standbycmd) && !m_standbycmd.empty()) {
         string out;
         if (ExecCmd::backtick(vector<string>{m_standbycmd}, out)) {
             m_standby = atoi(out.c_str());
@@ -440,15 +439,11 @@ int OHProduct::sourceXMLChangeCount(const SoapIncoming& sc, SoapOutgoing& data)
 // Name is arbitrary
 static void listScripts(vector<pair<string, string> >& sources)
 {
-    if (!g_config)
-        return;
-
-    g_config->get("ohsrc_scripts_dir", scripts_dir);
+    getOptionValue("ohsrc_scripts_dir", scripts_dir, path_cat(g_datadir, "src_scripts"));
 
     DIR *dirp = opendir(scripts_dir.c_str());
     if (dirp == 0) {
-        LOGERR("Error opening scripts dir " << scripts_dir << " errno " <<
-               errno << endl);
+        LOGSYSERR("listScripts", "opendir", scripts_dir);
         return;
     }
 

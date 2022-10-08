@@ -26,11 +26,14 @@ extern std::string g_cachedir;
 extern bool g_enableL16;
 extern bool g_lumincompat;
 class ConfSimple;
-// The global static configuration data
-extern ConfSimple *g_config;
 // A scratchpad for modules to record state information across restart
 // (e.g. Source, Radio channel).
 extern ConfSimple *g_state;
+
+extern bool getOptionValue(const std::string& nm, std::string& value,
+                           const std::string& dflt = std::string());
+extern bool getBoolOptionValue(const std::string& nm, bool dflt);
+extern int getIntOptionValue(const std::string& nm, int dflt);
 
 // Start media server. This can be called either from main() if some
 // streaming services plugins are active (have a defined user), or

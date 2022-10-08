@@ -182,8 +182,8 @@ static bool makerootdir()
         }
         string userkey = entry + "user";
         string autostartkey = entry + "autostart";
-        if (!g_config->hasNameAnywhere(userkey) &&
-            !g_config->hasNameAnywhere(autostartkey)) {
+        std::string v;
+        if (!getOptionValue(userkey, v) && !getOptionValue(autostartkey, v)) {
             LOGINF("ContentDirectory: not creating entry for " << entry <<
                    " because neither " << userkey << " nor " << autostartkey <<
                    " are defined in the configuration\n");
@@ -194,7 +194,7 @@ static bool makerootdir()
         // we compute a title (to be displayed in the root directory)
         // from the plugin name.
         string title;
-        if (!g_config->get(entry + "title", title)) {
+        if (!getOptionValue(entry + "title", title)) {
             title = stringtoupper((const string&)entry.substr(0,1)) +
                 entry.substr(1, entry.size()-1);
         }
@@ -278,9 +278,8 @@ void ContentDirectory::Internal::maybeStartSomePlugins(bool enabled)
     
     for (auto& entry : rootdir) {
         string app = appForId(entry.id);
-        if (g_config->getBool(app + "autostart", false)) {
-            LOGDEB0("ContentDirectory::Internal::maybeStartSomePlugins: "
-                    "starting " << app << endl);
+        if (getBoolOptionValue(app + "autostart", false)) {
+            LOGDEB0("ContentDirectory::Internal::maybeStartSomePlugins: starting " << app << "\n");
             CDPlugin *p = pluginForApp(app);
             if (p) {
                 p->startInit();
@@ -548,8 +547,8 @@ std::string ContentDirectory::getfname()
 string ContentDirectory::microhttphost()
 {
     string host;
-    if (g_config && g_config->get("plgmicrohttphost", host) && !host.empty()) {
-        LOGDEB("ContentDirectory::microhttphost: from config:" << host << endl);
+    if (getOptionValue("plgmicrohttphost", host) && !host.empty()) {
+        LOGDEB("ContentDirectory::microhttphost: from config:" << host << "\n");
         return host;
     }
     m->maybeInitUpnpHost();
@@ -559,5 +558,5 @@ string ContentDirectory::microhttphost()
 // Static for use needed by ohcredentials
 int CDPluginServices::microhttpport()
 {
-    return g_config->getInt("plgmicrohttpport", 49149);
+    return getIntOptionValue("plgmicrohttpport", 49149);
 }

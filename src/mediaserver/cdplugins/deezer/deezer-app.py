@@ -25,7 +25,6 @@ import json
 import re
 import base64
 
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from xbmcplug import *
@@ -60,14 +59,13 @@ def maybelogin():
     pathprefix = os.environ["UPMPD_PATHPREFIX"]
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     
-    username = upconfig.get('deezeruser')
-    password = upconfig.get('deezerpass')
+    username = getOptionValue('deezeruser')
+    password = getOptionValue('deezerpass')
     if not username or not password:
         raise Exception("deezeruser and/or deezerpass not set in configuration")
     setMimeAndSamplerate("audio/mpeg", "44100")
-    cachedir = getcachedir(upconfig, "deezer")
+    cachedir = getcachedir("deezer")
     return sess.login(cachedir, username, password)
     
 

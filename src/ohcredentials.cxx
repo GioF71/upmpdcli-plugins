@@ -93,7 +93,7 @@ struct ServiceCreds {
             data = servicedata[toknm] = it->second;
 
         } else if (servicename == "tidal") {
-            g_config->get("tidalapitoken", data);
+            getOptionValue("tidalapitoken", data);
             if (data.empty()) {
                 data = "pl4Vc0hemlAXD0mN";
             }
@@ -218,8 +218,7 @@ class OHCredentials::Internal {
 public:
     
     Internal(const string& cd) {
-        opensslcmd = "openssl";
-        g_config->get("opensslcmd", opensslcmd);
+        getOptionValue("opensslcmd", opensslcmd, "openssl");
         cachedir = path_cat(cd, "ohcreds");
         if (!path_makepath(cachedir, 0700)) {
             LOGERR("OHCredentials: can't create cache dir " << cachedir <<endl);
@@ -350,7 +349,7 @@ public:
     //// This could be a private part if we were not all friends here /////
     
     bool doingsavetofile() {
-        return g_config->getBool("saveohcredentials", true);
+        return getBoolOptionValue("saveohcredentials", true);
     }        
 
     void saveToConfTree(ConfSimple& credsconf) {

@@ -26,7 +26,7 @@
 import sys
 import os
 
-import conftree
+from upmplgutils import getOptionValue
 import minimconfig
 
 def uplog(s):
@@ -48,11 +48,10 @@ def _logchange(s):
 class TagUpdateData(object):
     def __init__(self):
         self.tgupfile = None
-        upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
         self.tgupfile = None
         self.aliastags = None
 
-        self.minimcnffn = upconfig.get("uprclminimconfig")
+        self.minimcnffn = getOptionValue("uprclminimconfig")
         if not self.minimcnffn:
             return
 

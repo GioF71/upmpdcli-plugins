@@ -45,19 +45,14 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
     : OHService(sTpProduct, sIdProduct, "OHInfo.xml", dev, udev),
       m_updstatus(updstatus)
 {
-    m_meta_text_into_data = g_config->getBool("ohinfotexttodata", false);
+    m_meta_text_into_data = getBoolOptionValue("ohinfotexttodata", false);
 
-    udev->addActionMapping(this, "Counters", 
-                           bind(&OHInfo::counters, this, _1, _2));
-    udev->addActionMapping(this, "Track", 
-                           bind(&OHInfo::track, this, _1, _2));
-    udev->addActionMapping(this, "Details", 
-                           bind(&OHInfo::details, this, _1, _2));
-    udev->addActionMapping(this, "Metatext", 
-                           bind(&OHInfo::metatext, this, _1, _2));
-    m_dev->getmpdcli()->subscribe(
-        MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt,
-        std::bind(&OHService::onEvent, this, _1));
+    udev->addActionMapping(this, "Counters", bind(&OHInfo::counters, this, _1, _2));
+    udev->addActionMapping(this, "Track", bind(&OHInfo::track, this, _1, _2));
+    udev->addActionMapping(this, "Details", bind(&OHInfo::details, this, _1, _2));
+    udev->addActionMapping(this, "Metatext", bind(&OHInfo::metatext, this, _1, _2));
+    m_dev->getmpdcli()->subscribe(MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt,
+                                  std::bind(&OHService::onEvent, this, _1));
 }
 
 void OHInfo::urimetadata(string& uri, string& metadata)

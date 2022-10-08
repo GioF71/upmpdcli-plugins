@@ -99,22 +99,22 @@ static bool read_protocolinfo(const string& fn, bool enableL16, string& out)
     input.open(fn, ios::in);
     if (!input.is_open()) {
         LOGERR("read_protocolinfo: open failed: " << fn << "\n");
-    return false;
+        return false;
     }        
     bool eof = false;
     for (;;) {
         string line;
-    getline(input, line);
-    if (!input.good()) {
-        if (input.bad()) {
+        getline(input, line);
+        if (!input.good()) {
+            if (input.bad()) {
                 LOGERR("read_protocolinfo: read error: " << fn << "\n");
-        return false;
-        }
-        // Must be eof ? But maybe we have a partial line which
-        // must be processed. This happens if the last line before
-        // eof ends with a backslash, or there is no final \n
+                return false;
+            }
+            // Must be eof ? But maybe we have a partial line which
+            // must be processed. This happens if the last line before
+            // eof ends with a backslash, or there is no final \n
             eof = true;
-    }
+        }
         trimstring(line, " \t\n\r,");
         if (!line.empty()) {
             if (enableL16 && line[0] == '@') {
@@ -160,4 +160,3 @@ bool Protocolinfo::Internal::maybeUpdate()
     sz = st.st_size;
     return ok=true;
 }
-

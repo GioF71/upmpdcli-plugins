@@ -24,7 +24,7 @@ import subprocess
 import sys
 import time
 
-from upmplgutils import uplog
+from upmplgutils import uplog, getOptionValue
 import uprclinit
 
 
@@ -47,7 +47,7 @@ def _initconfdir(confdir, topdirs):
 
     exclpats = uprclinit.g_minimconfig.getexcludepatterns()
 
-    userconfig = uprclinit.g_upconfig.get("uprclconfrecolluser")
+    userconfig = getOptionValue("uprclconfrecolluser")
     if not userconfig:
         userconfig = os.path.join(confdir, "recoll.conf.user")
     if os.path.exists(userconfig):

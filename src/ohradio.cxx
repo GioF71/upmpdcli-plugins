@@ -61,9 +61,7 @@ static string find_script(const string& icmd)
         return icmd;
 
     std::string scriptsdir;
-    if (!g_config->get("radioscripts", scriptsdir)) {
-        scriptsdir = path_cat(g_datadir, "radio_scripts");
-    }
+    getOptionValue("radioscripts", scriptsdir, path_cat(g_datadir, "radio_scripts"));
     // Append the radio scripts dir to the PATH. Put at the end so
     // that the user can easily override a script by putting the
     // modified version in the PATH env variable
@@ -189,7 +187,7 @@ OHRadio::OHRadio(UpMpd *dev, UpMpdOpenHome *udev)
                           bind(&OHRadio::stop, this, _1, _2));
     udev->addActionMapping(this, "TransportState",
                           bind(&OHRadio::transportState, this, _1, _2));
-    keepconsume = g_config->getBool("keepconsume", false);
+    keepconsume = getBoolOptionValue("keepconsume", false);
 
     m_dev->getmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
@@ -226,15 +224,15 @@ bool OHRadio::readRadios()
 {
     // Id 0 means no selection /  externally set channel from setChannel()
     o_radios.push_back(RadioMeta("Unknown radio", "", "", "", "", ""));
-    
-    getRadiosFromConf(g_config);
+
+    ConfSimple config(g_configfilename.c_str(), 1);
+    getRadiosFromConf(&config);
     // Also if radiolist is defined, get from there
     string radiolistfn;
-    if (g_config->get("radiolist", radiolistfn)) {
+    if (getOptionValue("radiolist", radiolistfn)) {
         ConfSimple rdconf(radiolistfn.c_str(), 1);
         if (!rdconf.ok()) {
-            LOGERR("OHRadio::readRadios: failed initializing from " <<
-                   radiolistfn << endl);
+            LOGERR("OHRadio::readRadios: failed initializing from " << radiolistfn << "\n");
         } else {
             getRadiosFromConf(&rdconf);
         }

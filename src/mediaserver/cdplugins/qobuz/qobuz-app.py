@@ -24,7 +24,6 @@ import sys
 import os
 import json
 import re
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from xbmcplug import *
@@ -67,15 +66,14 @@ def maybelogin(a={}):
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
 
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-    formatid = upconfig.get('qobuzformatid')
-    appid = upconfig.get('qobuzappid')
-    cfvalue = upconfig.get('qobuzcfvalue')
+    formatid = getOptionValue('qobuzformatid')
+    appid = getOptionValue('qobuzappid')
+    cfvalue = getOptionValue('qobuzcfvalue')
     if 'user' in a:
         username = a['user']
         password = a['password']
     else:
-        username, password = getserviceuserpass(upconfig, 'qobuz')
+        username, password = getserviceuserpass("qobuz")
       
     if formatid:
         formatid = int(formatid)
@@ -97,8 +95,7 @@ def maybelogin(a={}):
 # OpenHome Credentials service
 @dispatcher.record('getappid')
 def getappid(a):
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-    appid = upconfig.get('qobuzappid')
+    appid = getOptionValue("qobuzappid")
     if appid:
         return {'appid' : appid}
     appid = session.get_appid()

@@ -33,7 +33,7 @@ import uprclindex
 from uprclhttp import runbottle
 import minimconfig
 
-from upmplgutils import uplog, getcachedir
+from upmplgutils import uplog, getcachedir, getOptionValue
 from conftree import stringToStrings
 
 ### Configuration stuff
@@ -170,33 +170,30 @@ def uprcl_init():
     if "UPMPD_FNAME" in os.environ:
         _g_friendlyname = os.environ["UPMPD_FNAME"]
 
-    global g_upconfig
-    g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
-
     global g_minimconfig
-    minimcfn = g_upconfig.get("uprclminimconfig")
+    minimcfn = getOptionValue("uprclminimconfig")
     g_minimconfig = minimconfig.MinimConfig(minimcfn)
 
     global _g_httphp
-    _g_httphp = g_upconfig.get("uprclhostport")
+    _g_httphp = getOptionValue("uprclhostport")
     if _g_httphp is None:
         if "UPMPD_HTTPHOSTPORT" not in os.environ:
             raise Exception("No UPMPD_HTTPHOSTPORT in environment")
         upmpdhttphp = os.environ["UPMPD_HTTPHOSTPORT"]
         ip = upmpdhttphp.split(":")[0]
-        port = g_upconfig.get("uprclport")
+        port = getOptionValue("uprclport")
         if port is None:
             port = "9090"
         _g_httphp = ip + ":" + port
     uplog("uprcl: serving files on %s" % _g_httphp)
 
     global _g_rclconfdir
-    _g_rclconfdir = g_upconfig.get("uprclconfdir")
-    _g_rclconfdir = getcachedir(g_upconfig, "uprcl", forcedpath=_g_rclconfdir)
+    _g_rclconfdir = getOptionValue("uprclconfdir")
+    _g_rclconfdir = getcachedir("uprcl", forcedpath=_g_rclconfdir)
     uplog("uprcl: cachedir: %s" % _g_rclconfdir)
         
     global g_rcltopdirs
-    g_rcltopdirs = g_upconfig.get("uprclmediadirs")
+    g_rcltopdirs = getOptionValue("uprclmediadirs")
     if g_rcltopdirs:
         g_rcltopdirs = conftree.stringToStrings(g_rcltopdirs)
     else:
@@ -218,7 +215,7 @@ def uprcl_init():
         g_initmessage = "No accessible media directories in configuration"
         return
     
-    pthstr = g_upconfig.get("uprclpaths")
+    pthstr = getOptionValue("uprclpaths")
     if pthstr is None:
         uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
         pthstr = ""

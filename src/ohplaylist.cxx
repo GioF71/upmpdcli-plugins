@@ -123,7 +123,7 @@ OHPlaylist::OHPlaylist(UpMpd *dev,  UpMpdOpenHome *udev, unsigned int cssleep)
             LOGDEB("ohPlaylist: cache restore done" << endl);
         }
     }
-    keepconsume = g_config->getBool("keepconsume", false);
+    keepconsume = getBoolOptionValue("keepconsume", false);
     m_dev->getmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
         std::bind(&OHService::onEvent, this, _1));

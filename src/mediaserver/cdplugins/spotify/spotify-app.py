@@ -25,7 +25,6 @@ import os
 import json
 import re
 
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from xbmcplug import *
@@ -71,16 +70,15 @@ def maybelogin(a={}):
 
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
 
     global cachedir
-    cachedir = getcachedir(upconfig, 'spotify')
+    cachedir = getcachedir('spotify')
     uplog("cachedir: %s " %cachedir)
 
     if 'user' in a:
         username = a['user']
     else:
-        username = upconfig.get(servicename + 'user')
+        username = getOptionValue(servicename + 'user')
     if not username:
         raise Exception("spotifyuser not set in configuration")
 

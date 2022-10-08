@@ -28,7 +28,6 @@
 
 // Included to get access to g_config
 #include "main.hxx"
-#include "conftree.h"
 
 using namespace std;
 using namespace std::placeholders;
@@ -193,7 +192,7 @@ public:
 
         spotify_bitrate bitrateidx = spotify_bitrate160;
         {
-            int cfbitrate = g_config->getInt("spotifybitrate", 160);
+            int cfbitrate = getIntOptionValue("spotifybitrate", 160);
             switch (cfbitrate) {
             case 160: bitrateidx = spotify_bitrate160; break;
             case 320: bitrateidx = spotify_bitrate320; break;

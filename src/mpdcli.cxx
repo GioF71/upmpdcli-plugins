@@ -45,17 +45,17 @@ MPDCli::MPDCli(const string& host, int port, const string& pass)
     std::unique_lock<std::mutex> lock(m_mutex);
 
     regcomp(&m_tpuexpr, "^[[:alpha:]]+://.+", REG_EXTENDED|REG_NOSUB);
-    g_config->get("onstart", m_onstart);
-    g_config->get("onplay", m_onplay);
-    g_config->get("onpause", m_onpause);
-    g_config->get("onstop", m_onstop);
+    getOptionValue("onstart", m_onstart);
+    getOptionValue("onplay", m_onplay);
+    getOptionValue("onpause", m_onpause);
+    getOptionValue("onstop", m_onstop);
     string scratch;
-    g_config->get("onvolumechange", scratch);
+    getOptionValue("onvolumechange", scratch);
     stringToStrings(scratch,  m_onvolumechange);
-    g_config->get("getexternalvolume", scratch);
+    getOptionValue("getexternalvolume", scratch);
     stringToStrings(scratch, m_getexternalvolume);
-    m_timeoutms = g_config->getInt("mpdtimeoutms", 2000);
-    m_externalvolumecontrol = g_config->getBool("externalvolumecontrol", false);
+    m_timeoutms = getIntOptionValue("mpdtimeoutms", 2000);
+    m_externalvolumecontrol = getBoolOptionValue("externalvolumecontrol", false);
 
     if (!openconn()) {
         return;

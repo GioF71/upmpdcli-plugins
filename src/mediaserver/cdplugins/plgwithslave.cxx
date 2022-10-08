@@ -80,13 +80,13 @@ public:
         : plg(_plg), cmd(read_timeout), laststream(this) {
 
         string val;
-        if (g_config->get("plgproxymethod", val) && !val.compare("proxy")) {
+        if (getOptionValue("plgproxymethod", val) && !val.compare("proxy")) {
             doingproxy = true;
         }
 #ifdef ENABLE_SPOTIFY
         if (!plg->getname().compare("spotify")) {
-            g_config->get("spotifyuser", user);
-            g_config->get("spotifypass", password);
+            getOptionValue("spotifyuser", user);
+            getOptionValue("spotifypass", password);
             string cachedir = path_cat(g_cachedir, "spotify");
             // Make sure doingproxy is set, independantly of the
             // config variable, which is only useful for Qobuz et al

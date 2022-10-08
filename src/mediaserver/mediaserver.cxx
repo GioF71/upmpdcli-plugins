@@ -41,13 +41,13 @@ static const string iconDesc(
 
 static std::string get_iconpath()
 {
-    string iconpath(DATADIR "/icon.png");
-    if (nullptr != g_config) {
-        if (!g_config->get("msiconpath", iconpath)) {
-            std::string datadir;
-            if (g_config->get("pkgdatadir", datadir)) {
-                iconpath = path_cat(datadir, "icon.png");
-            }
+    std::string iconpath;
+    if (!getOptionValue("msiconpath", iconpath)) {
+        std::string datadir;
+        if (getOptionValue("pkgdatadir", datadir)) {
+            iconpath = path_cat(datadir, "icon.png");
+        } else {
+            iconpath = std::string(DATADIR "/icon.png");
         }
     }
     if (!path_exists(iconpath)) {

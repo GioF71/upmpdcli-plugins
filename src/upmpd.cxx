@@ -234,7 +234,7 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
     
     if (0 == (opts.options & upmpdNoAV)) {
         std::string avfname{friendlyname + "-UPnP/AV"};
-        g_config->get("avfriendlyname", avfname);
+        getOptionValue("avfriendlyname", avfname);
         // Add bogus string to avfname in case user set it same as fname
         std::string deviceid =  std::string("uuid:") +
             LibUPnP::makeDevUUID(avfname + "xy3vhst39", hwaddr);

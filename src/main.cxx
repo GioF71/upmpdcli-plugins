@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2020 J.F.Dockes
+/* Copyright (C) 2015-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -46,6 +46,7 @@
 #include "upmpdutils.hxx"
 #include "pathut.h"
 #include "readfile.h"
+#include "smallut.h"
 
 using namespace std;
 using namespace UPnPP;
@@ -56,20 +57,10 @@ const string g_upmpdcli_package_version{UPMPDCLI_PACKAGE_VERSION};
 static char *thisprog;
 
 static int op_flags;
-#define OPT_MOINS 0x1   
-#define OPT_D     0x2   
-#define OPT_O     0x4   
-#define OPT_P     0x8   
-#define OPT_c     0x10  
-#define OPT_d     0x20  
-#define OPT_f     0x40  
-#define OPT_h     0x80  
-#define OPT_i     0x100 
-#define OPT_l     0x200 
-#define OPT_m     0x400 
-#define OPT_p     0x800 
-#define OPT_q     0x1000
-#define OPT_v     0x2000
+#define OPT_MOINS 0x1
+#define OPT_D     0x2
+#define OPT_c     0x4
+#define OPT_m     0x8
 
 static const char usage[] = 
     "-c configfile \t configuration file to use\n"
@@ -151,7 +142,6 @@ string g_cachedir("/var/cache/upmpdcli");
 
 // Global
 string g_configfilename;
-ConfSimple *g_config;
 ConfSimple *g_state;
 bool g_enableL16 = true;
 bool g_lumincompat = false;
@@ -210,55 +200,62 @@ bool startMediaServer(bool enable)
     return true;
 }
 
+// Configuration/option values. Command line have precedence, then configuration file, then
+// environment. Command line option set values in the g_lineconfig object. g_config comes from the
+// configuration file or is empty (both are non-null).
+static ConfSimple *g_config;
+static ConfSimple *g_lineconfig;
+bool getOptionValue(const std::string& nm, std::string& value, const std::string& dflt)
+{
+    if (g_lineconfig->get(nm, value))
+        return true;
+    if (g_config->get(nm, value))
+        return true;
+    std::string envar = std::string("UPMPD_") + stringtoupper(nm);
+    const char *cp = getenv(envar.c_str());
+    if (cp) {
+        value = cp;
+        return true;
+    }
+    value = dflt;
+    return false;
+}
+bool getBoolOptionValue(const std::string& nm, bool dflt)
+{
+    std::string value;
+    if (!getOptionValue(nm, value) || value.empty()) {
+        return dflt;
+    }
+    return stringToBool(value);
+}
+int getIntOptionValue(const std::string& nm, int dflt)
+{
+    std::string value;
+    if (!getOptionValue(nm, value) || value.empty()) {
+        return dflt;
+    }
+    return atoi(value.c_str());
+}
+
 int main(int argc, char *argv[])
 {
-    // Path for the sc2mpd command, or empty
-    string sc2mpdpath;
-    string screceiverstatefile;
-
-    // Sender mode: path for the command creating the mpd and mpd2sc
-    // processes, and port for the auxiliary mpd.
-    string senderpath;
-    int sendermpdport = 6700;
-
-    // Main MPD parameters
-    string mpdhost("localhost");
-    int mpdport = 6600;
-    string mpdpassword;
-
-    string logfilename;
-    int loglevel(Logger::LLINF);
-    string friendlyname(dfltFriendlyName);
-    bool ownqueue = true;
-    bool enableAV = true;
-    bool enableOH = true;
-    bool enableMediaServer = false;
-    bool ohmetapersist = true;
-    string upmpdcliuser("upmpdcli");
-    string pidfilename("/var/run/upmpdcli.pid");
-    string iconpath(DATADIR "/icon.png");
-    string presentationhtml(DATADIR "/presentation.html");
-    string iface;
-    unsigned short upport = 0;
-    string upnpip;
     int msm = 0;
-    bool inprocessms{false};
-    bool msonly{false};
-    
     const char *cp;
-    if ((cp = getenv("UPMPD_HOST")))
-        mpdhost = cp;
-    if ((cp = getenv("UPMPD_PORT")))
-        mpdport = atoi(cp);
-    if ((cp = getenv("UPMPD_FRIENDLYNAME")))
-        friendlyname = atoi(cp);
+
     if ((cp = getenv("UPMPD_CONFIG")))
         g_configfilename = cp;
-    if ((cp = getenv("UPMPD_UPNPIFACE")))
-        iface = cp;
-    if ((cp = getenv("UPMPD_UPNPPORT")))
-        upport = atoi(cp);
 
+    // Old environment variable names, this are also looked up as UPMPD_MPDHOST and UPMPD_MPDPORT
+    // Kept here for compatibility, they have the lowest priority level (overriden by command line,
+    // configuration file and new environment name)
+    string mpdhost;
+    if ((cp = getenv("UPMPD_HOST")))
+        mpdhost = cp;
+    int mpdport{6600};
+    if ((cp = getenv("UPMPD_PORT")))
+        mpdport = atoi(cp);
+
+    g_lineconfig = new ConfSimple(0, true);
     thisprog = argv[0];
     argc--; argv++;
     while (argc > 0 && **argv == '-') {
@@ -267,37 +264,34 @@ int main(int argc, char *argv[])
             Usage();
         while (**argv)
             switch (*(*argv)++) {
+                // Options without a configuration or environment equivalent
             case 'c':   op_flags |= OPT_c; if (argc < 2)  Usage();
                 g_configfilename = *(++argv); argc--; goto b1;
             case 'D':   op_flags |= OPT_D; break;
-            case 'd':   op_flags |= OPT_d; if (argc < 2)  Usage();
-                logfilename = *(++argv); argc--; goto b1;
-            case 'f':   op_flags |= OPT_f; if (argc < 2)  Usage();
-                friendlyname = *(++argv); argc--; goto b1;
-            case 'h':   op_flags |= OPT_h; if (argc < 2)  Usage();
-                mpdhost = *(++argv); argc--; goto b1;
-            case 'i':   op_flags |= OPT_i; if (argc < 2)  Usage();
-                iface = *(++argv); argc--; goto b1;
-            case 'l':   op_flags |= OPT_l; if (argc < 2)  Usage();
-                loglevel = atoi(*(++argv)); argc--; goto b1;
             case 'm':   op_flags |= OPT_m; if (argc < 2)  Usage();
                 msm = atoi(*(++argv)); argc--; goto b1;
-            case 'O': {
-                op_flags |= OPT_O; 
-                if (argc < 2)  Usage();
-                const char *cp =  *(++argv);
-                if (*cp == '1' || *cp == 't' || *cp == 'T' || *cp == 'y' || 
-                    *cp == 'Y')
-                    enableOH = true;
-                argc--; goto b1;
-            }
-            case 'P':   op_flags |= OPT_P; if (argc < 2)  Usage();
-                upport = atoi(*(++argv)); argc--; goto b1;
-            case 'p':   op_flags |= OPT_p; if (argc < 2)  Usage();
-                mpdport = atoi(*(++argv)); argc--; goto b1;
-            case 'q':   op_flags |= OPT_q; if (argc < 2)  Usage();
-                ownqueue = atoi(*(++argv)) != 0; argc--; goto b1;
-            case 'v': std::cout << upmpdcliVersionInfo() << "\n"; exit(0); break;
+            case 'v': std::cout << upmpdcliVersionInfo() << "\n"; return 0;
+                
+                // Options superceding config and env
+            case 'd': if (argc < 2)  Usage();
+                g_lineconfig->set("logfilename", *(++argv)); argc--; goto b1;
+            case 'f': if (argc < 2)  Usage();
+                g_lineconfig->set("friendlyname", *(++argv)); argc--; goto b1;
+            case 'h': if (argc < 2)  Usage();
+                g_lineconfig->set("mpdhost", *(++argv)); argc--; goto b1;
+            case 'i': if (argc < 2)  Usage();
+                g_lineconfig->set("upnpiface",  *(++argv)); argc--; goto b1;
+            case 'l': if (argc < 2)  Usage();
+                g_lineconfig->set("loglevel", *(++argv)); argc--; goto b1;
+            case 'O': if (argc < 2)  Usage();
+                g_lineconfig->set("openhome", *(++argv)); argc--; goto b1;
+            case 'P': if (argc < 2)  Usage();
+                g_lineconfig->set("upnpport", *(++argv)); argc--; goto b1;
+            case 'p': if (argc < 2)  Usage();
+                g_lineconfig->set("mpdport", *(++argv)); argc--; goto b1;
+            case 'q': if (argc < 2)  Usage();
+                g_lineconfig->set("ownqueue", *(++argv)); argc--; goto b1;
+
             default: Usage();   break;
             }
     b1: argc--; argv++;
@@ -316,93 +310,7 @@ int main(int argc, char *argv[])
             cerr << "Could not open config: " << g_configfilename << endl;
             return 1;
         }
-
-        string value;
-        if (!(op_flags & OPT_d))
-            g_config->get("logfilename", logfilename);
-        if (!(op_flags & OPT_f))
-            g_config->get("friendlyname", friendlyname);
-        if (!(op_flags & OPT_l)) {
-            loglevel = g_config->getInt("loglevel", Logger::LLINF);
-        }
-        if (!(op_flags & OPT_h)) {
-            g_config->get("mpdhost", mpdhost);
-        }
-        if (!(op_flags & OPT_p)) {
-            mpdport =  g_config->getInt("mpdport", 6600);
-        }
-        g_config->get("mpdpassword", mpdpassword);
-        if (!(op_flags & OPT_q)) {
-            ownqueue = g_config->getBool("ownqueue", true);
-        }
-        enableOH = g_config->getBool("openhome", true);
-        enableAV = g_config->getBool("upnpav", true);
-
-        if (!g_config->getBool("checkcontentformat", true)) {
-            // If option is specified and 0, set nocheck flag
-            opts.options |= UpMpd::upmpdNoContentFormatCheck;
-        }
-        ohmetapersist = g_config->getBool("ohmetapersist", true);
-        if (g_config->get("pkgdatadir", g_datadir)) {
-            path_catslash(g_datadir);
-            iconpath = path_cat(g_datadir, "icon.png");
-            if (!path_exists(iconpath)) {
-                iconpath.clear();
-            }
-            presentationhtml = path_cat(g_datadir, "presentation.html");
-        }
-        g_config->get("iconpath", iconpath);
-        g_config->get("presentationhtml", presentationhtml);
-        g_config->get("cachedir", opts.cachedir);
-        g_config->get("pidfile", pidfilename);
-        if (!(op_flags & OPT_i)) {
-            g_config->get("upnpiface", iface);
-            if (iface.empty()) {
-                g_config->get("upnpip", upnpip);
-            }
-        }
-        if (!(op_flags & OPT_P)) {
-            upport = g_config->getInt("upnpport", 0);
-        }
-        opts.schttpport = g_config->getInt("schttpport", 0);
-        g_config->get("scplaymethod", opts.scplaymethod);
-        g_config->get("sc2mpd", sc2mpdpath);
-        g_config->get("screceiverstatefile", screceiverstatefile);
-        if (g_config->getBool("scnosongcastsource", false)) {
-            // If option is specified and 1, set nocheck flag
-            opts.options |= UpMpd::upmpdNoSongcastSource;
-        }
-        opts.ohmetasleep = g_config->getInt("ohmetasleep", 0);
-        g_config->get("ohmanufacturername", ohProductDesc.manufacturer.name);
-        g_config->get("ohmanufacturerinfo", ohProductDesc.manufacturer.info);
-        g_config->get("ohmanufacturerurl", ohProductDesc.manufacturer.url);
-        g_config->get("ohmanufacturerimageuri", ohProductDesc.manufacturer.imageUri);
-        g_config->get("ohmodelname", ohProductDesc.model.name);
-        g_config->get("ohmodelinfo", ohProductDesc.model.info);
-        g_config->get("ohmodelurl", ohProductDesc.model.url);
-        // imageUri was mistake, keep compat and override with imageuri if set
-        g_config->get("ohmodelimageUri", ohProductDesc.model.imageUri);
-        g_config->get("ohmodelimageuri", ohProductDesc.model.imageUri);
-        g_config->get("ohproductname", ohProductDesc.product.name);
-        g_config->get("ohproductinfo", ohProductDesc.product.info);
-        g_config->get("ohproducturl", ohProductDesc.product.url);
-        g_config->get("ohproductimageuri", ohProductDesc.product.imageUri);
-        g_config->get("ohproductroom", ohProductDesc.room);
-        // ProductName is set to ModelName by default
-        if (ohProductDesc.product.name.empty()) {
-            ohProductDesc.product.name = ohProductDesc.model.name;
-        }
-        // ProductRoom is set to "Main Room" by default
-        if (ohProductDesc.room.empty()) {
-            ohProductDesc.room = "Main Room";
-        }
-
-        g_config->get("scsenderpath", senderpath);
-        if (g_config->get("scsendermpdport", value))
-            sendermpdport = atoi(value.c_str());
-
-        g_lumincompat = g_config->getBool("lumincompat", g_lumincompat);
-    } else {
+    }  else {
         // g_configfilename is empty. Create an empty config anyway
         g_config = new ConfSimple(string(), 1, true);
         if (!g_config || !g_config->ok()) {
@@ -410,6 +318,93 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+        
+    string value;
+
+    string logfilename;
+    getOptionValue("logfilename", logfilename);
+    string friendlyname;
+    getOptionValue("friendlyname", friendlyname, dfltFriendlyName);
+    getOptionValue("mpdhost", mpdhost, "localhost");
+    string iface;
+    getOptionValue("upnpiface", iface);
+    string upnpip;
+    if (iface.empty()) {
+        getOptionValue("upnpip", upnpip);
+    }
+    int loglevel = getIntOptionValue("loglevel", Logger::LLINF);
+    bool enableOH = getBoolOptionValue("openhome", true);
+    bool enableAV = getBoolOptionValue("upnpav", true);
+    unsigned short upport = getIntOptionValue("upnpport", 0);
+    if (getOptionValue("mpdport", value) && !value.empty()) {
+        mpdport = atoi(value.c_str());
+    }
+    bool ownqueue = getBoolOptionValue("ownqueue", true);
+    string mpdpassword;
+    getOptionValue("mpdpassword", mpdpassword);
+    if (getOptionValue("checkcontentformat", value) && !value.empty() && !stringToBool(value)) {
+        // If option is specified and 0, set nocheck flag
+        opts.options |= UpMpd::upmpdNoContentFormatCheck;
+    }
+    bool ohmetapersist = getBoolOptionValue("ohmetapersist", true);
+    string iconpath(DATADIR "/icon.png");
+    string presentationhtml(DATADIR "/presentation.html");
+    if (getOptionValue("pkgdatadir", g_datadir, DATADIR "/")) {
+        path_catslash(g_datadir);
+        iconpath = path_cat(g_datadir, "icon.png");
+        if (!path_exists(iconpath)) {
+            iconpath.clear();
+        }
+        presentationhtml = path_cat(g_datadir, "presentation.html");
+    }
+    getOptionValue("iconpath", iconpath);
+    getOptionValue("presentationhtml", presentationhtml);
+    getOptionValue("cachedir", opts.cachedir);
+    string pidfilename;
+    getOptionValue("pidfile", pidfilename, "/var/run/upmpdcli.pid");
+
+    opts.schttpport = getIntOptionValue("schttpport", 0);
+    getOptionValue("scplaymethod", opts.scplaymethod);
+    // Path for the sc2mpd command, or empty
+    string sc2mpdpath;
+    getOptionValue("sc2mpd", sc2mpdpath);
+    string screceiverstatefile;
+    getOptionValue("screceiverstatefile", screceiverstatefile);
+    if (getOptionValue("scnosongcastsource", value) && !value.empty() && stringToBool(value)) {
+        // If option is specified and 1, set flag
+        opts.options |= UpMpd::upmpdNoSongcastSource;
+    }
+    opts.ohmetasleep = getIntOptionValue("ohmetasleep", 0);
+    getOptionValue("ohmanufacturername", ohProductDesc.manufacturer.name);
+    getOptionValue("ohmanufacturerinfo", ohProductDesc.manufacturer.info);
+    getOptionValue("ohmanufacturerurl", ohProductDesc.manufacturer.url);
+    getOptionValue("ohmanufacturerimageuri", ohProductDesc.manufacturer.imageUri);
+    getOptionValue("ohmodelname", ohProductDesc.model.name);
+    getOptionValue("ohmodelinfo", ohProductDesc.model.info);
+    getOptionValue("ohmodelurl", ohProductDesc.model.url);
+    // imageUri was mistake, keep compat and override with imageuri if set
+    getOptionValue("ohmodelimageUri", ohProductDesc.model.imageUri);
+    getOptionValue("ohmodelimageuri", ohProductDesc.model.imageUri);
+    getOptionValue("ohproductname", ohProductDesc.product.name);
+    getOptionValue("ohproductinfo", ohProductDesc.product.info);
+    getOptionValue("ohproducturl", ohProductDesc.product.url);
+    getOptionValue("ohproductimageuri", ohProductDesc.product.imageUri);
+    getOptionValue("ohproductroom", ohProductDesc.room);
+    // ProductName is set to ModelName by default
+    if (ohProductDesc.product.name.empty()) {
+        ohProductDesc.product.name = ohProductDesc.model.name;
+    }
+    // ProductRoom is set to "Main Room" by default
+    if (ohProductDesc.room.empty()) {
+        ohProductDesc.room = "Main Room";
+    }
+    // Sender mode: path for the command creating the mpd and mpd2sc
+    // processes, and port for the auxiliary mpd.
+    string senderpath;
+    getOptionValue("scsenderpath", senderpath);
+    int sendermpdport = getIntOptionValue("scsendermpdport", 6700);
+    g_lumincompat = getBoolOptionValue("lumincompat", false);
+
 
     if (Logger::getTheLog(logfilename) == 0) {
         cerr << "Can't initialize log" << endl;
@@ -422,7 +417,9 @@ int main(int argc, char *argv[])
     // Server. We let a static ContentDirectory method decide this
     // for us. The way we then implement it depends on the command
     // line option (see the enum comments near the top of the file):
-    enableMediaServer = ContentDirectory::mediaServerNeeded();
+    bool inprocessms{false};
+    bool msonly{false};
+    bool enableMediaServer = ContentDirectory::mediaServerNeeded();
     switch (arg_msmode) {
     case MSOnly:
         inprocessms = true;
@@ -457,6 +454,7 @@ int main(int argc, char *argv[])
 
     // If started by root, we use the pidfile and we will change the
     // uid (later). First part follows
+    string upmpdcliuser("upmpdcli");
     uid_t runas(0);
     gid_t runasg(0);
     struct passwd *pass = getpwnam(upmpdcliuser.c_str());
@@ -641,16 +639,12 @@ int main(int argc, char *argv[])
         }
         const MpdStatus& mpdstat = mpdclip->getStatus();
         // Only the "special" upmpdcli 0.19.16 version has patch != 0
-        g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 ||
-            mpdstat.verspatch >= 16;
+        g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 || mpdstat.verspatch >= 16;
         // It appeared in the past that L16 is a major source of issues when
         // playing with win10 'cast to device', inciting it to transcode for
         // some reason, with very bad results. Can't reproduce this now. So
         // change config default to true.
-        bool confl16{true};
-        if (g_config) {
-            confl16 = g_config->getBool("enablel16", true);
-        }
+        bool confl16 = getBoolOptionValue("enablel16", true);
         g_enableL16 = g_enableL16 && confl16;
     }
     
@@ -698,7 +692,7 @@ int main(int argc, char *argv[])
 
     friendlyname = fnameSetup(friendlyname);
     // Create unique IDs for renderer and possible media server
-    if (g_config && g_config->get("msfriendlyname", fnameMS)) {
+    if (getOptionValue("msfriendlyname", fnameMS)) {
         fnameMS = fnameSetup(fnameMS);
     } else {
         fnameMS = friendlyname + "-mediaserver";
@@ -726,14 +720,12 @@ int main(int argc, char *argv[])
     if (!screceiverstatefile.empty()) {
         opts.screceiverstatefile = screceiverstatefile;
         int fd;
-        if ((fd = open(opts.screceiverstatefile.c_str(),
-                       O_CREAT|O_RDWR, 0644)) < 0) {
-            LOGERR("creat(" << opts.screceiverstatefile << ") : errno : " << errno << endl);
+        if ((fd = open(opts.screceiverstatefile.c_str(), O_CREAT|O_RDWR, 0644)) < 0) {
+            LOGSYSERR("main", "open/create", opts.screceiverstatefile);
         } else {
             close(fd);
-            if (geteuid() == 0 && chown(opts.screceiverstatefile.c_str(),
-                                        runas, -1) != 0) {
-                LOGERR("chown(" << opts.screceiverstatefile << ") : errno : " << errno << endl);
+            if (geteuid() == 0 && chown(opts.screceiverstatefile.c_str(), runas, -1) != 0) {
+                LOGSYSERR("main", "chown", opts.screceiverstatefile);
             }
         }
     }

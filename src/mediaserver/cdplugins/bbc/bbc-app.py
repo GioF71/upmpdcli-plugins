@@ -40,7 +40,6 @@ except:
     hasfeedparser = False
 from bs4 import BeautifulSoup
 
-import conftree
 import cmdtalkplugin
 from upmplgutils import *
 from upmplgmodels import *
@@ -167,10 +166,9 @@ def maybeinit(a={}):
     pathprefix = os.environ["UPMPD_PATHPREFIX"]
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
 
     global _g_fetchdays
-    val = upconfig.get("bbcprogrammedays")
+    val = getOptionValue("bbcprogrammedays")
     if val:
         _g_fetchdays = int(val)
 

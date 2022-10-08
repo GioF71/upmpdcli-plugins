@@ -23,7 +23,7 @@
 
 import os, sys, subprocess
 
-from upmplgutils import uplog, direntry
+from upmplgutils import uplog, direntry, getOptionValue, getConfigObject
 from uprclutils import rcldoctoentry, cmpentries
 import uprclutils
 import uprclinit
@@ -36,8 +36,8 @@ class Playlists(object):
         self._idprefix = '0$uprcl$playlists'
         self._httphp = httphp
         self._pprefix = pathprefix
-        if not conftree.valToBool(uprclinit.g_upconfig.get("uprclnoradioconf")):
-            self._radios = upradioconf.UpmpdcliRadios(uprclinit.g_upconfig)
+        if not conftree.valToBool(getOptionValue("uprclnoradioconf")):
+            self._radios = upradioconf.UpmpdcliRadios(getConfigObject())
         else:
             self._radios = []
         self.recoll2playlists(rcldocs)

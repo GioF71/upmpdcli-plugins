@@ -62,17 +62,34 @@ def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchabl
         ret['dc:description'] = description
     return ret
 
+_g_upconfig = None
+def getOptionValue(nm, dflt = None):
+    global _g_upconfig
+    if _g_upconfig is None:
+        _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
+    value = _g_upconfig.get(nm)
+    if value is not None:
+        return value
+    envar = "UPMPD_" + nm.upper()
+    try:
+        return os.environ[envar]
+    except:
+        return dflt
+    
+    return value
+def getConfigObject():
+    return _g_upconfig
 
 # Get user and password from service, from the main configuration
 # file, or possibly from the ohcredentials scratchpad. In both files,
 # the entries are like:
 #    qobuzuser=xxx
 #    qobuzpass=yyy
-def getserviceuserpass(upconfig, servicename):
-    username = upconfig.get(servicename + 'user')
-    password = upconfig.get(servicename + 'pass')
+def getserviceuserpass(servicename):
+    username = getOptionValue(servicename + 'user')
+    password = getOptionValue(servicename + 'pass')
     if not username or not password:
-        credsfile = os.path.join(getcachedir(upconfig, ''), 'ohcreds', 'screds')
+        credsfile = os.path.join(getcachedir(''), 'ohcreds', 'screds')
         uplog("Retrieving user/pass from %s" % credsfile)
         altconf = conftree.ConfSimple(credsfile)
         username = altconf.get(servicename + 'user')
@@ -90,11 +107,11 @@ def uplog(s, level=3):
     sys.stderr.flush()
 
 
-def getcachedir(config, servicename, forcedpath=None):
+def getcachedir(servicename, forcedpath=None):
     if forcedpath:
         cachedir = forcedpath
     else:
-        cachedir = config.get("cachedir")
+        cachedir = getOptionValue("cachedir")
         if not cachedir:
             me = pwd.getpwuid(os.getuid()).pw_name
             uplog("getcachedir: me: %s" % me)
