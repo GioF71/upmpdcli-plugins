@@ -952,6 +952,16 @@ names.
 [[UPMPDCLI-CONFIGURATION]]
 == Upmpdcli configuration file reference
 
+A description of upmpdcli configuration variables follow. As of upmpdcli 1.6.0, all
+values can also be set through environment variables named UPMPD_XXX where XXX is the
+upper-cased version of the variable name (Ex: loglevel -> UPMPD_LOGLEVEL).
+
+In the case where a variable is set in several ways, the order of precedence is: command line
+(highest), configuration file, environment.
+
+If used, the configuration file name can be set either with the `-c` command line option or through
+the `UPMPD_CONFIG` environment variable.
+
 include::upmpdcli-config.txt[]
 
 
@@ -1452,31 +1462,32 @@ be installed.
 
 In most situations, *upmpdcli* will be run as follows:
 
-    upmpdcli -D -c /etc/upmpdcli.conf
+    upmpdcli -c /etc/upmpdcli.conf
 
-The `-D` option tells *upmpdcli* to fork and run in background. The `-c`
-option specifies a configuration file.
+The `-c` option specifies a configuration file.
 
-See the upmpdcli(1) manual page for more information about the command
-line.
+See the upmpdcli(1) manual page for more information about the command line.
 
-Some of the essential configuration parameters can be set from the command
-line, a configuration file, or the environment in this order of
-priority. It would be rather confusing to use a mix of methods, so you
-should probably chose one.
+Some of the essential configuration parameters can be set either from the command line, a
+configuration file, or the environment in this order of priority. It would be rather confusing to
+use a mix of methods, so you should probably chose one.
 
-All parameters have defaults, and a minimal installation will need no
-customisation at all. 
+As of upmpdcli 1.6.0 *all* configuration variables can be set through the environment instead of as
+a configuration file entry. The set of variables which can also be set from the command line is
+unchanged. In case of multiple settings, the precedence is as above (command line, configuration
+file, environment).
+
+All parameters have defaults, and a minimal installation will need no customisation at all.
 
 |========================
 |What|Command line|Environment|Config variable
 |Configuration file name|-c config|$UPMPD_CONFIG|
-|Host name or IP address where *MPD* runs|-h mpdhost|$UPMPD_HOST|mpdhost
-|TCP port for *MPD*|-p mpdport|$UPMPD_PORT|mpdport
+|Host name or IP address where *MPD* runs|-h mpdhost|$UPMPD_HOST or (1.6) $UPMPD_MPDHOST|mpdhost
+|TCP port for *MPD*|-p mpdport|$UPMPD_PORT or (1.6) $UPMPD_MPDPORT|mpdport
 |UPnP "friendly name" for the device. This gets displayed in network search
   results.|-f friendlyname|$UPMPD_FRIENDLYNAME|friendlyname 
-|Log file name. Leave empty for stderr|-d logfilename||logfilename
-|Verbosity level (0-4)|-l loglevel||loglevel
+|Log file name. Leave empty for stderr|-d logfilename|(1.6) $UPMPD_LOGFILENAME|logfilename
+|Verbosity level (0-4)|-l loglevel|(1.6) $UPMPD_LOGLEVEL|loglevel
 |UPnP network interface|-i iface|$UPMPD_UPNPIFACE|upnpiface
 |UPnP port|-P port|$UPMPD_UPNPPORT|upnpport
 |========================
