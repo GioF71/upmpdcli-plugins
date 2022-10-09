@@ -11,6 +11,14 @@ logfilename.
 loglevel:: Log
 level. Can also be specified as -l loglevel.
 
+[[upnplogfilename]]
+upnplogfilename:: Log file name for the low level UPnP lib (libnpupnp). This log is not active if this variable is not set at all. Use an empty value for
+the messages to go to stderr.
+
+[[upnploglevel]]
+upnploglevel:: Log level for the low level UPnP lib. For historical reasons the matching values are 1 less than equivalent values for the
+upmpdcli log. 4 is very verbose.
+
 [[pkgdatadir]]
 pkgdatadir:: XML and other constant data storage
 directory. Default: '$prefix/share/upmpdcli' (e.g.:

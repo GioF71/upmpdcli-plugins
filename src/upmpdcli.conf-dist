@@ -13,6 +13,10 @@
 #logfilename =
 # Log level.
 #loglevel = 2
+# Log file name for the low level UPnP lib (libnpupnp).
+#upnplogfilename=
+# Log level for the low level UPnP lib.
+#upnploglevel = 2
 # XML and other constant data storage directory.
 #pkgdatadir=/usr/share/upmpdcli
 # Name of the lock file used to store the current process pid.

@@ -1,3 +1,17 @@
+upmpdcli (1.6.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Allow all configuration variables to also be set through environment variables named UPMPD_xxx
+    where xxx is the upper-cased version of the variable name. This should facilitate running
+    upmpdcli in a container.
+  * Change the names of the low level UPnP library log variables from UPMPDCLI_xxx to UPMPD_xxx and
+    manage them in the same way as the rest (with config entries too).
+  * Allow substituting the host name (%h,%H) and version info (%v) in the configured
+    friendlyname. The default friendlyname is now UpMpd-%h
+  * Uprcl: use same host as upmpdcli by default. Add uprclport configuration variable to only set
+    the port
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 09 Oct 2022 09:44:00 +0200
+
 upmpdcli (1.5.20-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Uprcl: preserve stored playlist order

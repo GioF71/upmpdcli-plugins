@@ -25,7 +25,7 @@
 # </var>
 #upnplogfilename=
 
-# <var name="loglevel" type="int" values="0 4 1">
+# <var name="upnploglevel" type="int" values="0 4 1">
 # <brief>Log level for the low level UPnP lib.</brief>
 # <descr>For historical reasons the matching values are 1 less than equivalent values for the
 # upmpdcli log. 4 is very verbose.</descr>
