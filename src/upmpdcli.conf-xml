@@ -18,6 +18,20 @@
 # level.</brief><descr>Can also be specified as -l loglevel.</descr></var>
 #loglevel = 2
 
+# <var name="upnplogfilename" type="fn">
+# <brief>Log file name for the low level UPnP lib (libnpupnp).</brief>
+# <descr>This log is not active if this variable is not set at all. Use an empty value for
+# the messages to go to stderr.</descr>
+# </var>
+#upnplogfilename=
+
+# <var name="loglevel" type="int" values="0 4 1">
+# <brief>Log level for the low level UPnP lib.</brief>
+# <descr>For historical reasons the matching values are 1 less than equivalent values for the
+# upmpdcli log. 4 is very verbose.</descr>
+# </var>
+#upnploglevel = 2
+
 # <var name="pkgdatadir" type="dfn"><brief>XML and other constant data storage
 # directory.</brief><descr>Default: '$prefix/share/upmpdcli' (e.g.:
 # '/usr/share/upmpdcli').</descr></var>

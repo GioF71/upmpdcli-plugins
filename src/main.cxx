@@ -650,15 +650,13 @@ int main(int argc, char *argv[])
     
     // Initialise lower upnp lib logging. Static so can be done before
     // the rest of init.
-    if ((cp = getenv("UPMPDCLI_UPNPLOGFILENAME"))) {
-        char *cp1 = getenv("UPMPDCLI_UPNPLOGLEVEL");
-        int loglevel = LibUPnP::LogLevelNone;
-        if (cp1) {
-            loglevel = atoi(cp1);
-        }
-        loglevel = loglevel < 0 ? 0: loglevel;
-        if (loglevel != LibUPnP::LogLevelNone) {
-            LibUPnP::setLogFileName(cp, LibUPnP::LogLevel(loglevel));
+    {
+        std::string upnplogfilename;
+        if (getOptionValue("upnplogfilename", upnplogfilename)) {
+            int upnploglevel = getIntOptionValue("upnploglevel", LibUPnP::LogLevelError);
+            if (upnploglevel != LibUPnP::LogLevelNone) {
+                LibUPnP::setLogFileName(upnplogfilename, LibUPnP::LogLevel(loglevel));
+            }
         }
     }
 
