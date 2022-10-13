@@ -1056,6 +1056,9 @@ The boot scripts are installed by the pre-built packages, so will just have
 to edit the configuration file after installing them, all the rest should
 just work.
 
+
+////
+Completely obsolete
 === Building libupnpp and upmpdcli on Mac OS X
 
 I don't run Mac OS X and I can't support this directly. However a kind user
@@ -1081,6 +1084,7 @@ export PKG_CONFIG_PATH=/usr/local/opt/expat/lib/pkgconfig
 configure --prefix=/usr
 make
 ----
+////
 
 
 === Building OpenHome and sc2mpd
