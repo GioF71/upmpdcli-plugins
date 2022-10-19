@@ -617,39 +617,7 @@ int main(int argc, char *argv[])
         }
     }
 
-
-    // Initialize MPD client object. Retry until it works or power fail.
-    if (!msonly) {
-        int mpdretrysecs = 2;
-        for (;;) {
-            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword);
-            if (mpdclip == 0) {
-                LOGFAT("Can't allocate MPD client object" << endl);
-                return 1;
-            }
-            if (!mpdclip->ok()) {
-                LOGERR("MPD connection failed" << endl);
-                delete mpdclip;
-                mpdclip = 0;
-                sleep(mpdretrysecs);
-                mpdretrysecs = MIN(2*mpdretrysecs, 120);
-            } else {
-                break;
-            }
-        }
-        const MpdStatus& mpdstat = mpdclip->getStatus();
-        // Only the "special" upmpdcli 0.19.16 version has patch != 0
-        g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 || mpdstat.verspatch >= 16;
-        // It appeared in the past that L16 is a major source of issues when
-        // playing with win10 'cast to device', inciting it to transcode for
-        // some reason, with very bad results. Can't reproduce this now. So
-        // change config default to true.
-        bool confl16 = getBoolOptionValue("enablel16", true);
-        g_enableL16 = g_enableL16 && confl16;
-    }
-    
-    // Initialise lower upnp lib logging. Static so can be done before
-    // the rest of init.
+    // Initialise lower upnp lib logging. Static so can be done before the rest of init.
     {
         std::string upnplogfilename;
         if (getOptionValue("upnplogfilename", upnplogfilename)) {
@@ -703,43 +671,76 @@ int main(int argc, char *argv[])
         pidfilename = pidfilename + "-ms";
     }
 
-    opts.iconpath = iconpath;
-    opts.presentationhtml = presentationhtml;
-    if (ownqueue)
-        opts.options |= UpMpd::upmpdOwnQueue;
-    if (enableOH)
-        opts.options |= UpMpd::upmpdDoOH;
-    if (ohmetapersist)
-        opts.options |= UpMpd::upmpdOhMetaPersist;
-    if (!sc2mpdpath.empty()) {
-        opts.sc2mpdpath = sc2mpdpath;
-        opts.options |= UpMpd::upmpdOhReceiver;
-    }
-    if (!screceiverstatefile.empty()) {
-        opts.screceiverstatefile = screceiverstatefile;
-        int fd;
-        if ((fd = open(opts.screceiverstatefile.c_str(), O_CREAT|O_RDWR, 0644)) < 0) {
-            LOGSYSERR("main", "open/create", opts.screceiverstatefile);
-        } else {
-            close(fd);
-            if (geteuid() == 0 && chown(opts.screceiverstatefile.c_str(), runas, -1) != 0) {
-                LOGSYSERR("main", "chown", opts.screceiverstatefile);
-            }
-        }
-    }
-    if (!senderpath.empty()) {
-        opts.options |= UpMpd::upmpdOhSenderReceiver;
-        opts.senderpath = senderpath;
-        opts.sendermpdport = sendermpdport;
-    }
-
-    if (!enableAV)
-        opts.options |= UpMpd::upmpdNoAV;
-
     setupsigs();
+
+    if (inprocessms && !startMediaServer(enableMediaServer)) {
+        LOGERR("Could not start media server\n");
+        std::cerr << "Could not start media server\n";
+        return 0;
+    }
 
     UpMpd *mediarenderer{nullptr};
     if (!msonly) {
+        // Initialize MPD client object. Retry until it works or power fail.
+        int mpdretrysecs = 2;
+        for (;;) {
+            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword);
+            if (mpdclip == 0) {
+                LOGFAT("Can't allocate MPD client object" << endl);
+                return 1;
+            }
+            if (!mpdclip->ok()) {
+                LOGERR("MPD connection failed" << endl);
+                delete mpdclip;
+                mpdclip = 0;
+                sleep(mpdretrysecs);
+                mpdretrysecs = MIN(2*mpdretrysecs, 120);
+            } else {
+                break;
+            }
+        }
+        const MpdStatus& mpdstat = mpdclip->getStatus();
+        // Only the "special" upmpdcli 0.19.16 version has patch != 0
+        g_enableL16 = mpdstat.versmajor >= 1 || mpdstat.versminor >= 20 || mpdstat.verspatch >= 16;
+        // It appeared in the past that L16 is a major source of issues when
+        // playing with win10 'cast to device', inciting it to transcode for
+        // some reason, with very bad results. Can't reproduce this now. So
+        // change config default to true.
+        bool confl16 = getBoolOptionValue("enablel16", true);
+        g_enableL16 = g_enableL16 && confl16;
+
+        opts.iconpath = iconpath;
+        opts.presentationhtml = presentationhtml;
+        if (ownqueue)
+            opts.options |= UpMpd::upmpdOwnQueue;
+        if (enableOH)
+            opts.options |= UpMpd::upmpdDoOH;
+        if (ohmetapersist)
+            opts.options |= UpMpd::upmpdOhMetaPersist;
+        if (!sc2mpdpath.empty()) {
+            opts.sc2mpdpath = sc2mpdpath;
+            opts.options |= UpMpd::upmpdOhReceiver;
+        }
+        if (!screceiverstatefile.empty()) {
+            opts.screceiverstatefile = screceiverstatefile;
+            int fd;
+            if ((fd = open(opts.screceiverstatefile.c_str(), O_CREAT|O_RDWR, 0644)) < 0) {
+                LOGSYSERR("main", "open/create", opts.screceiverstatefile);
+            } else {
+                close(fd);
+                if (geteuid() == 0 && chown(opts.screceiverstatefile.c_str(), runas, -1) != 0) {
+                    LOGSYSERR("main", "chown", opts.screceiverstatefile);
+                }
+            }
+        }
+        if (!senderpath.empty()) {
+            opts.options |= UpMpd::upmpdOhSenderReceiver;
+            opts.senderpath = senderpath;
+            opts.sendermpdport = sendermpdport;
+        }
+
+        if (!enableAV)
+            opts.options |= UpMpd::upmpdNoAV;
         mediarenderer = new UpMpd(hwaddr, friendlyname, ohProductDesc, mpdclip, opts);
         UpMpdOpenHome *oh = mediarenderer->getoh();
         // rootdevice is only used if we implement the media server as
@@ -754,15 +755,6 @@ int main(int argc, char *argv[])
             rootdevice = av;
             devs.push_back(av);
         }
-    }
-
-    if (inprocessms && !startMediaServer(enableMediaServer)) {
-        LOGERR("Could not start media server\n");
-        std::cerr << "Could not start media server\n";
-        return 0;
-    }
-
-    if (!msonly) {
         LOGDEB("Renderer event loop" << endl);
         mediarenderer->startnoloops();
     }
