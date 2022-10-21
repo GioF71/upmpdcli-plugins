@@ -45,6 +45,14 @@ def _initconfdir(confdir, topdirs):
         src = os.path.join(datadir, "rclconfig-" + fn)
         shutil.copyfile(src, dst)
 
+    # Update "stored" section of the "fields" file according to minim config: some custom
+    # tags may nnot be in our predefined list
+    fields = uprclinit.allMinimTags()
+    dst = os.path.join(confdir, "fields")
+    fldconf = conftree.ConfSimple(dst, False, False)
+    for fld in fields:
+        fldconf.set(fld, '', "stored")
+
     exclpats = uprclinit.g_minimconfig.getexcludepatterns()
 
     userconfig = getOptionValue("uprclconfrecolluser")

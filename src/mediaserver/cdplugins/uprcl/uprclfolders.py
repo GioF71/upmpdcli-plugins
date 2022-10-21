@@ -366,6 +366,7 @@ class Folders(object):
         if _has_resultstore:
             fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
             fields += _otherneededfields
+            fields += uprclinit.allMinimTags()
             fields = list(set(fields))
             #uplog("_fetchalldocs: store fields: %s" % fields)
             self._rcldocs = qresultstore.QResultStore()

@@ -40,7 +40,8 @@ import uprclinit
 # Note: artist is actually doc["albumartist"] if set, else doc["artist"] and
 # is processed separately
 #
-# Only a smaller set of entries is normally used, as filtered by indexTags
+# This is the base set, with some custom translations (e.g. Group->cgroup). If a minimserver
+# configuration is used, Some entries may be filtered out and some may be added.
 _alltagtotable = {
     'AlbumArtist' : 'albumartist',
     'All Artists' : 'allartists',
@@ -151,17 +152,28 @@ def _createsqdb(conn):
             c.execute('DROP TABLE ' + tb)
         except:
             pass
-        stmt = 'CREATE TABLE ' + tb + \
-           ' (' + _clid(tb) + ' INTEGER PRIMARY KEY, value TEXT)'
+        stmt = "CREATE TABLE " + tb + " (" + _clid(tb) + " INTEGER PRIMARY KEY, value TEXT)"
         c.execute(stmt)
         tracksstmt += ',' + _clid(tb) + ' INT'
 
     tracksstmt += ')'
     c.execute(tracksstmt)
 
+
+# Possibly create table for custom field, not part of our predefined set
+def _addCustomTable(conn, indextag):
+    c = conn.cursor()
+    tb = indextag.lower()
+    _alltagtotable[indextag] = tb
+    stmt = "CREATE TABLE " + tb +  " (" + _clid(tb) + " INTEGER PRIMARY KEY, value TEXT)"
+    c.execute(stmt)
+    stmt = "ALTER TABLE tracks ADD COLUMN " + _clid(tb) + " INT ";
+    c.execute(stmt)
+
+
 # Peruse the configuration to decide what tags will actually show up
 # in the tree and how they will be displayed.
-def _prepareTags():
+def _prepareTags(conn):
     global g_tagdisplaytag
     global g_tagtotable
     global g_indextags
@@ -173,9 +185,10 @@ def _prepareTags():
     indextagsp = uprclinit.g_minimconfig.getindextags()
     itemtags = uprclinit.g_minimconfig.getitemtags()
     if not indextagsp:
+        # Our default list of index tags (showing up as containers in the tree)
         indextagsp = [('Artist',''), ('Date',''), ('Genre',''), ('Composer','')]
 
-    # Compute the list of index tags and the 
+    # Compute the actual list of index tags:
     for v,d in indextagsp:
         if v.lower() == 'none':
             g_indextags = []
@@ -183,28 +196,31 @@ def _prepareTags():
             break
         g_indextags.append(v)
         g_tagdisplaytag[v] = d if d else v
-    uplog("prepareTags: g_indextags: %s g_tagdisplaytag %s" %
-          (g_indextags, g_tagdisplaytag))
+    uplog("prepareTags: g_indextags: %s g_tagdisplaytag %s" % (g_indextags, g_tagdisplaytag))
     
     # Compute an array of (table name, recoll field) translations for the tags we need to process,
     # as determined by the indexTags property. Most often they are identical. This also determines
     # what fields we create tables for.
     tabtorclfield = []
     for nm in g_indextags:
+        if nm not in _alltagtotable:
+            _addCustomTable(conn, nm)
         tb = _alltagtotable[nm]
-        if not tb: continue
         g_tagtotable[nm] = tb
         rclfld = _coltorclfield[tb] if tb in _coltorclfield else tb
         uplog("recolltosql: using rclfield [%s] for sqlcol [%s]"% (rclfld, tb))
         tabtorclfield.append((tb, rclfld))
+
     for nm in itemtags:
+        if nm not in _alltagtotable:
+            _addCustomTable(conn, nm)
         tb = _alltagtotable[nm]
-        if not tb: continue
         rclfld = _coltorclfield[tb] if tb in _coltorclfield else tb
         uplog("recolltosql: using rclfield [%s] for sqlcol [%s]"% (rclfld, tb))
         tabtorclfield.append((tb, rclfld))
 
     return tabtorclfield
+
 
 # Insert new value if not existing, return rowid of new or existing row
 def _auxtableinsert(conn, tb, value):
@@ -513,7 +529,7 @@ def recolltosql(conn, rcldocs):
     start = timer()
 
     _createsqdb(conn)
-    tabtorclfield = _prepareTags()
+    tabtorclfield = _prepareTags(conn)
     #uplog("Tagscreate: tabtorclfield: %s"%tabtorclfield)
 
     maxcnt = 0

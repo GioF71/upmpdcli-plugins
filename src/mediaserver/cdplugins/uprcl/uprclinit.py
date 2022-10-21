@@ -265,3 +265,20 @@ def start_index_update(rebuild=False):
         # much...
         g_dblock.release_read()
     idxthread.start()
+
+
+# Return list of tags from minim indexTags settings. These can contain custom tags,
+# not part of our predefined lists, which need to be stored in the resultstore.
+def allMinimTags():
+    fields = []
+    try:
+        storedtags = g_minimconfig.getindextags()
+        for f in g_minimconfig.getitemtags():
+            storedtags[f] = ""
+        for v,d in storedtags:
+            if v.lower() == 'none':
+                break
+            fields.append(v.lower())
+    except:
+        pass
+    return fields
