@@ -1,4 +1,4 @@
-AC_INIT([upmpdcli], [1.6.0], [jfd@lesbonscomptes.com],
+AC_INIT([upmpdcli], [1.6.1], [jfd@lesbonscomptes.com],
              [upmpdcli], [http://www.lesbonscomptes.com/upmpdcli])
 AC_PREREQ([2.53])
 AC_CONFIG_MACRO_DIRS([m4])
@@ -26,7 +26,7 @@ AC_DEFINE([_FILE_OFFSET_BITS], [64], [File Offset size])
 #### Libraries
 AC_CHECK_LIB([pthread], [pthread_create], [], [])
 
-AC_ARG_ENABLE(confgui, AC_HELP_STRING([--enable-confgui],
+AC_ARG_ENABLE(confgui, AS_HELP_STRING([--enable-confgui],
               [Enable QT-based configuration editor GUI.]),
               enableQT=$enableval, enableQT="no")
 AM_CONDITIONAL(MAKECONFGUI, [test X$enableQT = Xyes])
@@ -48,7 +48,7 @@ if test X$enableQT = Xyes ; then
   AC_SUBST(QMAKE)
 fi
 
-AC_ARG_ENABLE(spotify, AC_HELP_STRING([--disable-spotify],
+AC_ARG_ENABLE(spotify, AS_HELP_STRING([--disable-spotify],
               [Disable spotify streaming module.]),
               enableSpotify=$enableval, enableSpotify="yes")
 AM_CONDITIONAL(ENABLESPOTIFY, [test X$enableSpotify = Xyes])
@@ -62,7 +62,7 @@ PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd], [],
 PKG_CHECK_MODULES([jsoncpp], [jsoncpp], [], [AC_MSG_ERROR([jsoncpp not found])])
 
 
-AC_ARG_ENABLE(staticlink, AC_HELP_STRING([--enable-staticlink],
+AC_ARG_ENABLE(staticlink, AS_HELP_STRING([--enable-staticlink],
               [Enable static link by adding the needed libraries.]),
               enableStaticLink=$enableval, enableStaticLink="no")
 if test X$enableStaticLink = Xyes ; then
@@ -88,9 +88,9 @@ echo "UPMPDCLI_LIBS=$UPMPDCLI_LIBS"
 LIBS=""
 
 #### Functions
-AC_TRY_LINK([#include <math.h>],
-  [double x = exp10(1.0);],
-  AC_DEFINE([HAVE_EXP10], [1], [Define to 1 if you have the 'exp10' function]),
+AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([#include <math.h>], [double x = exp10(1.0);])],
+    [AC_DEFINE([HAVE_EXP10], [1], [Define to 1 if you have the 'exp10' function])],
   [])
 
 dnl AC_CHECK_DECLS([exp10(double)], [], [],

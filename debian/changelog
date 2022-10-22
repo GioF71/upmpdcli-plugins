@@ -1,3 +1,11 @@
+upmpdcli (1.6.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * uprcl: process custom tags (not predefined anywhere) as regular ones.
+  * main: change order of media server and renderer initialisations so that the media server does
+    not have to wait for mpd.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sat, 22 Oct 2022 09:10:00 +0200
+
 upmpdcli (1.6.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Allow all configuration variables to also be set through environment variables named UPMPD_xxx
