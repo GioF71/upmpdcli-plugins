@@ -589,10 +589,8 @@ def recolltosql(conn, rcldocs):
             placehold.append('?')
 
         # Create the main record in the tracks table.
-        stmt='INSERT INTO tracks(' + ','.join(columns) + \
-              ') VALUES(' + ','.join(placehold) + ')'
+        stmt = "INSERT INTO tracks(" + ",".join(columns) + ") VALUES(" + ",".join(placehold) + ")"
         c.execute(stmt, values)
-        #uplog(doc["title"])
 
     ## End Big doc loop
 
@@ -601,7 +599,6 @@ def recolltosql(conn, rcldocs):
     _createmergedalbums(conn)
     conn.commit()
     end = timer()
-    uplog("recolltosql: processed %d docs in %.2f Seconds" %
-          (totcnt, end-start))
     _albumstorecoll(conn)
-    
+    uplog(f"recolltosql: processed {totcnt} docs in {end-start:.1f} Seconds")
+ 

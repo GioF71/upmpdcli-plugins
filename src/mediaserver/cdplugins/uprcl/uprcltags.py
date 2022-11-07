@@ -102,9 +102,7 @@ class Tagged(object):
         tagtotable = uprcltagscreate.getTagToTable()
         for tt in indextags:
             tb = tagtotable[tt]
-            stmt = '''SELECT COUNT(DISTINCT %s) FROM tracks %s''' % \
-                   (_clid(tb), where)
-            #uplog("subtreetags: stmt: [%s]" % stmt)
+            stmt = f"SELECT COUNT(DISTINCT {_clid(tb)}) FROM tracks {where}"
             c.execute(stmt, values)
             cnt = c.fetchone()[0]
             if len(stmt) > 80:

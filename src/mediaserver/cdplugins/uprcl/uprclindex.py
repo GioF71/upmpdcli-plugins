@@ -82,6 +82,8 @@ def _initconfdir(confdir, topdirs):
     f.write(b"indexStoreDocText = 1\n")
     f.write(b"audiotagfixerscript = %b\n" %
             os.path.join(datadir, "minimtagfixer.py").encode('utf-8'))
+    f.write(b"noContentSuffixes+ = .png .jp2 .jpg .jpeg .gif .tiff .tif .xcf .bmp .xpm .svg .djvu\n")
+
     if exclpats:
         f.write(b"skippedNames+ = " + exclpats.encode("utf-8") + b"\n")
     else:
