@@ -287,11 +287,13 @@ Radio stations can be defined in the configuration (at the end because of
 the use of section indicators), or in in a separate file by setting the
 <<ohproductroom,`radiolist`>> parameter in the main configuration.
 
-An example of a simple radio station definition follows. The only mandatory
-value is the `url` one, which should point to the actual audio stream or to
-the station playlist link which will redirect to it (more detail in the
-<<RADIO-SCRIPTS,radio scripts section>>. `artUrl` points to a
+A radio is defined in a configuration section with a name beginning with `radio`
+(e.g. _[radio{nbsp}my{nbsp}radio{nbsp}name]_). The only mandatory value in the section is the `url`
+one, which should point to the actual audio stream or to the station playlist link which will
+redirect to it (more detail in the <<RADIO-SCRIPTS,radio scripts section>>). `artUrl` points to a
 static logo image for the station.
+
+An example of a simple radio station definition follows:
 
 ----
 [radio Radio Eins]
@@ -814,8 +816,8 @@ authorization annex>>.
 [[UPMPDCLI-MS-UPRADIOS]]
 === Upradios: Upmpdcli radio list plugin
 
-This is a minuscule plugin which just exports the Upmpdcli radio list as a
-playlist, so that other renderers on the network can use it. 
+This is a minuscule plugin which just exports the Upmpdcli <<radio-stations,radio list>> as a
+playlist, so that other renderers on the network can use it.
 
 Because just the stream URL is computed/used, the functionality is reduced when compared to using
 Upmpdcli OpenHome Radio service: there will be no dynamic art or special metadata features:
