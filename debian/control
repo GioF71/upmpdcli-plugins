@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
+# Also may need: qt5-default (if qmake says: could not find a Qt installation of '')
 Build-Depends: debhelper (>= 9.0.0), autotools-dev, dh-autoreconf,
 			   python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
