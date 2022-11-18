@@ -314,41 +314,10 @@ bool uMetaToUpSong(const string& metadata, UpSong *ups)
     return dirObjToUpSong(*dirc.m_items.begin(), ups);
 }
     
-// Substitute regular expression
-// The c++11 regex package does not seem really ready from prime time
-// (Tried on gcc + libstdc++ 4.7.2-5 on Debian, with little
-// joy). So...:
 string regsub1(const string& sexp, const string& input, const string& repl)
 {
-    regex_t expr;
-    int err;
-    const int ERRSIZE = 200;
-    char errbuf[ERRSIZE + 1];
-    regmatch_t pmatch[10];
-
-    if ((err = regcomp(&expr, sexp.c_str(), REG_EXTENDED))) {
-        regerror(err, &expr, errbuf, ERRSIZE);
-        LOGERR("upmpd: regsub1: regcomp() failed: " << errbuf << endl);
-        return string();
-    }
-
-    if ((err = regexec(&expr, input.c_str(), 10, pmatch, 0))) {
-        // regerror(err, &expr, errbuf, ERRSIZE);
-        //LOGDEB("upmpd: regsub1: regexec(" << sexp << ") failed: "
-        //<<  errbuf << endl);
-        regfree(&expr);
-        return input;
-    }
-    if (pmatch[0].rm_so == -1) {
-        // No match
-        regfree(&expr);
-        return input;
-    }
-    string out = input.substr(0, pmatch[0].rm_so);
-    out += repl;
-    out += input.substr(pmatch[0].rm_eo);
-    regfree(&expr);
-    return out;
+    SimpleRegexp re(sexp, SimpleRegexp::SRE_NONE, 1);
+    return re.simpleSub(input, repl);
 }
 
 // Make sure that the configuration file is readable by user upmpdcli.
@@ -469,4 +438,3 @@ std::string fnameSetup(const std::string in)
     pcSubst(in, out, fnameSubst);
     return out;
 }
-
