@@ -40,13 +40,13 @@ public:
         : m_timeosecs(tmsecs) {}
 
     virtual void newData(int) {
-        if (m_starttime && (time(0) - m_starttime) > m_timeosecs) {
+        if (m_starttime && (time(nullptr) - m_starttime) > m_timeosecs) {
             throw TimeoutExcept();
         }
     }
 
     void reset() {
-        m_starttime = time(0);
+        m_starttime = time(nullptr);
     }
     int m_timeosecs;
     time_t m_starttime{0};

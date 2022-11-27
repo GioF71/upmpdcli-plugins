@@ -195,7 +195,7 @@ bool ExecCmd::which(const string& cmd, string& exepath, const char* path)
     } else {
         pp = getenv("PATH");
     }
-    if (pp == 0) {
+    if (nullptr == pp) {
         return false;
     }
 
@@ -220,7 +220,7 @@ void ExecCmd::useVfork(bool on)
     // dynamic linker can sometimes deadlock if execve() is resolved
     // inside the vfork/exec window. Make sure it's done now. If "/" is
     // an executable file, we have a problem.
-    const char *argv[] = {"/", 0};
+    const char *argv[] = {"/", nullptr};
     execve("/", (char *const *)argv, environ);
     Internal::o_useVfork  = on;
 }
@@ -241,7 +241,7 @@ static void msleep(int millis)
     struct timespec spec;
     spec.tv_sec = millis / 1000;
     spec.tv_nsec = (millis % 1000) * 1000000;
-    nanosleep(&spec, 0);
+    nanosleep(&spec, nullptr);
 }
 
 /** A resource manager to ensure that execcmd cleans up if an exception is
@@ -311,7 +311,7 @@ public:
         }
         m_parent->m_tocmd.reset();
         m_parent->m_fromcmd.reset();
-        pthread_sigmask(SIG_UNBLOCK, &m_parent->m_blkcld, 0);
+        pthread_sigmask(SIG_UNBLOCK, &m_parent->m_blkcld, nullptr);
         m_parent->reset();
     }
 private:
@@ -370,8 +370,8 @@ inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv,
     }
     sigset_t sset;
     sigfillset(&sset);
-    pthread_sigmask(SIG_UNBLOCK, &sset, 0);
-    sigprocmask(SIG_UNBLOCK, &sset, 0);
+    pthread_sigmask(SIG_UNBLOCK, &sset, nullptr);
+    sigprocmask(SIG_UNBLOCK, &sset, nullptr);
 
 #ifdef HAVE_SETRLIMIT
 #if defined RLIMIT_AS || defined RLIMIT_VMEM || defined RLIMIT_DATA
@@ -497,7 +497,7 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
     typedef const char *Ccharp;
     Ccharp *argv;
     argv = (Ccharp *)malloc((args.size() + 2) * sizeof(char *));
-    if (argv == 0) {
+    if (nullptr == argv) {
         LOGERR("ExecCmd::doexec: malloc() failed. errno " << errno << "\n");
         return -1;
     }
@@ -508,14 +508,14 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
     for (it = args.begin(); it != args.end(); it++) {
         argv[i++] = it->c_str();
     }
-    argv[i] = 0;
+    argv[i] = nullptr;
 
     // Environment. We first merge our environment and the specified
     // variables in a map<string,string>, overriding existing values,
     // then generate an appropriate char*[]
     Ccharp *envv;
     map<string, string> envmap;
-    for (int i = 0; environ[i] != 0; i++) {
+    for (int i = 0; environ[i] != nullptr; i++) {
         string entry(environ[i]);
         string::size_type eqpos = entry.find_first_of("=");
         if (eqpos == string::npos) {
@@ -537,7 +537,7 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
         allocsize += it.first.size() + 1 + it.second.size() + 1;
     }
     envv = (Ccharp *)malloc(allocsize);
-    if (envv == 0) {
+    if (nullptr == envv) {
         LOGERR("ExecCmd::doexec: malloc() failed. errno " << errno << "\n");
         free(argv);
         return -1;
@@ -550,7 +550,7 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
         envv[i++] = cp;
         cp += it.first.size() + 1 + it.second.size() + 1;
     }
-    envv[i++] = 0;
+    envv[i++] = nullptr;
 
     // As we are going to use execve, not execvp, do the PATH thing.
     string exe;
@@ -675,7 +675,7 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
 
     sigemptyset(&m->m_blkcld);
     sigaddset(&m->m_blkcld, SIGCHLD);
-    pthread_sigmask(SIG_BLOCK, &m->m_blkcld, 0);
+    pthread_sigmask(SIG_BLOCK, &m->m_blkcld, nullptr);
 
     if (has_input) {
         close(m->m_pipein[0]);
@@ -780,7 +780,7 @@ private:
 int ExecCmd::doexec(const string& cmd, const vector<string>& args,
                     const string *input, string *output)
 {
-    int status = startExec(cmd, args, input != 0, output != 0);
+    int status = startExec(cmd, args, input != nullptr, output != nullptr);
     if (status) {
         return status;
     }
@@ -818,7 +818,7 @@ int ExecCmd::doexec(const string& cmd, const vector<string>& args,
         }
 
         // Do the actual reading/writing/waiting
-        myloop.setperiodichandler(0, 0, m->m_timeoutMs);
+        myloop.setperiodichandler(nullptr, nullptr, m->m_timeoutMs);
         while ((ret = myloop.doLoop()) > 0) {
             LOGDEB("ExecCmd::doexec: selectloop returned " << (ret) << "\n");
             if (m->m_advise) {
@@ -861,7 +861,7 @@ int ExecCmd::doexec(const string& cmd, const vector<string>& args,
 int ExecCmd::send(const string& data)
 {
     NetconCli *con = m->m_tocmd.get();
-    if (con == 0) {
+    if (nullptr == con) {
         LOGERR("ExecCmd::send: outpipe is closed\n");
         return -1;
     }
@@ -883,7 +883,7 @@ int ExecCmd::send(const string& data)
 int ExecCmd::receive(string& data, int cnt)
 {
     NetconCli *con = m->m_fromcmd.get();
-    if (con == 0) {
+    if (nullptr == con) {
         LOGERR("ExecCmd::receive: inpipe is closed\n");
         return -1;
     }
@@ -910,7 +910,7 @@ int ExecCmd::receive(string& data, int cnt)
 int ExecCmd::getline(string& data)
 {
     NetconCli *con = m->m_fromcmd.get();
-    if (con == 0) {
+    if (nullptr == con) {
         LOGERR("ExecCmd::receive: inpipe is closed\n");
         return -1;
     }
@@ -945,9 +945,9 @@ again:
 
 class GetlineWatchdog : public ExecCmdAdvise {
 public:
-    GetlineWatchdog(int secs) : m_secs(secs), tstart(time(0)) {}
+    GetlineWatchdog(int secs) : m_secs(secs), tstart(time(nullptr)) {}
     void newData(int cnt) {
-        if (time(0) - tstart >= m_secs) {
+        if (time(nullptr) - tstart >= m_secs) {
             throw std::runtime_error("getline timeout");
         }
     }
@@ -1041,7 +1041,7 @@ bool ExecCmd::backtick(const vector<string> cmd, string& out)
     it++;
     vector<string> args(it, cmd.end());
     ExecCmd mexec;
-    int status = mexec.doexec(*cmd.begin(), args, 0, &out);
+    int status = mexec.doexec(*cmd.begin(), args, nullptr, &out);
     return status == 0;
 }
 
@@ -1069,7 +1069,7 @@ ReExec::ReExec(int argc, char *args[])
         m_argv.push_back(args[i]);
     }
     m_cfd = open(".", 0);
-    char *cd = getcwd(0, 0);
+    char *cd = getcwd(nullptr, 0);
     if (cd) {
         m_curdir = cd;
     }
@@ -1080,7 +1080,7 @@ ReExec::ReExec(const std::vector<std::string>& args)
     : m_argv(args)
 {
     m_cfd = open(".", 0);
-    char *cd = getcwd(0, 0);
+    char *cd = getcwd(nullptr, 0);
     if (cd) {
         m_curdir = cd;
     }
@@ -1170,7 +1170,7 @@ void ReExec::reexec()
     typedef const char *Ccharp;
     Ccharp *argv;
     argv = (Ccharp *)malloc((m_argv.size() + 1) * sizeof(char *));
-    if (argv == 0) {
+    if (nullptr == argv) {
         LOGERR("ExecCmd::doexec: malloc() failed. errno " << errno << "\n");
         return;
     }
@@ -1181,6 +1181,6 @@ void ReExec::reexec()
     for (it = m_argv.begin(); it != m_argv.end(); it++) {
         argv[i++] = it->c_str();
     }
-    argv[i] = 0;
+    argv[i] = nullptr;
     execvp(m_argv[0].c_str(), (char *const*)argv);
 }

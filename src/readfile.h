@@ -97,12 +97,12 @@ bool string_scan(const char* data, size_t cnt, const std::string& membername,
  * @return true for ok, false else
  */
 bool file_to_string(const std::string& filename, std::string& data,
-                    std::string *reason = 0);
+                    std::string *reason = nullptr);
 
 /** Read file chunk into string. Set cnt to -1 for going to
  * eof, offs to -1 for going from the start without decompression */
 bool file_to_string(const std::string& filename, std::string& data,
-                    int64_t offs, size_t cnt, std::string *reason = 0);
+                    int64_t offs, size_t cnt, std::string *reason = nullptr);
 
 
 #endif /* _READFILE_H_INCLUDED_ */

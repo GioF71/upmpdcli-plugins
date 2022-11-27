@@ -88,7 +88,7 @@ static const int zero = 0;
 #endif
 
 #ifndef freeZ
-#define freeZ(X) if (X) {free(X);X=0;}
+#define freeZ(X) if (X) {free(X);X=nullptr;}
 #endif
 
 #define MILLIS(OLD, NEW) ( (uint64_t((NEW).tv_sec) - (OLD).tv_sec) * 1000 + \
@@ -109,9 +109,9 @@ int Netcon::select1(int fd, int timeo, int write)
     FD_ZERO(&rd);
     FD_SET(fd, &rd);
     if (write) {
-        ret = select(fd + 1, 0, &rd, 0, &tv);
+        ret = select(fd + 1, nullptr, &rd, nullptr, &tv);
     } else {
-        ret = select(fd + 1, &rd, 0, 0, &tv);
+        ret = select(fd + 1, &rd, nullptr, nullptr, &tv);
     }
     if (!FD_ISSET(fd, &rd)) {
         LOGDEB2("Netcon::select1: fd " << fd << " timeout\n");
@@ -188,7 +188,7 @@ void SelectLoop::setperiodichandler(int (*handler)(void *), void *p, int ms)
     m->periodicparam = p;
     m->periodicmillis = ms;
     if (m->periodicmillis > 0) {
-        gettimeofday(&m->lasthdlcall, 0);
+        gettimeofday(&m->lasthdlcall, nullptr);
     }
 }
 
@@ -206,7 +206,7 @@ void SelectLoop::Internal::periodictimeout(struct timeval *tv)
     }
 
     struct timeval mtv;
-    gettimeofday(&mtv, 0);
+    gettimeofday(&mtv, nullptr);
     int millis = periodicmillis - MILLIS(lasthdlcall, mtv);
     
     // millis <= 0 means we should have already done the thing. *dont* set the
@@ -236,7 +236,7 @@ int SelectLoop::Internal::maybecallperiodic()
     }
 
     struct timeval mtv;
-    gettimeofday(&mtv, 0);
+    gettimeofday(&mtv, nullptr);
     int millis = periodicmillis - MILLIS(lasthdlcall, mtv);
 
     if (millis <= 0) {
@@ -304,7 +304,7 @@ int SelectLoop::doLoop()
         struct timeval tv;
         m->periodictimeout(&tv);
         // Wait for something to happen
-        int ret = select(nfds, &rd, &wd, 0, &tv);
+        int ret = select(nfds, &rd, &wd, nullptr, &tv);
         LOGDEB2("Netcon::selectloop: nfds " << nfds <<
                 " select returns " << ret << "\n");
         if (ret < 0) {
@@ -561,7 +561,7 @@ int SelectLoop::remselcon(NetconP con)
                 con->m_fd << "\n");
         return -1;
     }
-    con->setloop(0);
+    con->setloop(nullptr);
     m->polldata.erase(it);
     return 0;
 }
@@ -573,7 +573,7 @@ Netcon::~Netcon()
     closeconn();
     if (m_peer) {
         free(m_peer);
-        m_peer = 0;
+        m_peer = nullptr;
     }
 }
 
@@ -642,7 +642,7 @@ int Netcon::setselevents(int events)
 // Data socket (NetconData) methods
 
 NetconData::NetconData(bool cancellable)
-    : m_buf(0), m_bufbase(0), m_bufbytes(0), m_bufsize(0), m_wkfds{-1,-1}
+    : m_buf(nullptr), m_bufbase(nullptr), m_bufbytes(0), m_bufsize(0), m_wkfds{-1,-1}
 {
     if (cancellable) {
         if (pipe(m_wkfds) < 0) {
@@ -661,7 +661,7 @@ NetconData::NetconData(bool cancellable)
 NetconData::~NetconData()
 {
     freeZ(m_buf);
-    m_bufbase = 0;
+    m_bufbase = nullptr;
     m_bufbytes = m_bufsize = 0;
     for (int i = 0; i < 2; i++) {
         if (m_wkfds[i] >= 0) {
@@ -752,7 +752,7 @@ int NetconData::receive(char *buf, int cnt, int timeo)
         }
         int nfds = std::max(m_fd, m_wkfds[0]) + 1;
 
-        int ret = select(nfds, &rd, 0, 0, &tv);
+        int ret = select(nfds, &rd, nullptr, nullptr, &tv);
         LOGDEB2("NetconData::receive: select returned " << ret << endl);
         
         if (cancellable && FD_ISSET(m_wkfds[0], &rd)) {
@@ -820,8 +820,8 @@ int NetconData::getline(char *buf, int cnt, int timeo)
 {
     LOGDEB2("NetconData::getline: cnt " << cnt << ", timeo " << 
             timeo << "\n");
-    if (m_buf == 0) {
-        if ((m_buf = (char *)malloc(defbufsize)) == 0) {
+    if (nullptr == m_buf) {
+        if ((m_buf = (char *)malloc(defbufsize)) == nullptr) {
             LOGSYSERR("NetconData::getline: Out of mem", "malloc", "");
             return -1;
         }
@@ -930,9 +930,8 @@ int NetconCli::openconn(const char *host, unsigned int port, int timeo)
             memcpy(&ip_addr.sin_addr, &addr, sizeof(addr));
         } else {
             struct hostent *hp;
-            if ((hp = gethostbyname(host)) == 0) {
-                LOGERR("NetconCli::openconn: gethostbyname(" << host << 
-                       ") failed\n");
+            if ((hp = gethostbyname(host)) == nullptr) {
+                LOGERR("NetconCli::openconn: gethostbyname(" << host << ") failed\n");
                 return -1;
             }
             memcpy(&ip_addr.sin_addr, hp->h_addr, hp->h_length);
@@ -1005,9 +1004,8 @@ int NetconCli::openconn(const char *host, const char *serv, int timeo)
 
     if (host[0]  != '/') {
         struct servent *sp;
-        if ((sp = getservbyname(serv, "tcp")) == 0) {
-            LOGERR("NetconCli::openconn: getservbyname failed for " << serv 
-                   << "\n");
+        if ((sp = getservbyname(serv, "tcp")) == nullptr) {
+            LOGERR("NetconCli::openconn: getservbyname failed for " << serv << "\n");
             return -1;
         }
         // Callee expects the port number in host byte order
@@ -1072,7 +1070,7 @@ int NetconServLis::openservice(const char *serv, int backlog)
 
     m_serv = serv;
     if (serv[0] != '/') {
-        if ((servp = getservbyname(serv, "tcp")) == 0) {
+        if ((servp = getservbyname(serv, "tcp")) == nullptr) {
             LOGERR("NetconServLis::openservice: getservbyname failed for " << 
                    serv << "\n");
             return -1;
@@ -1226,16 +1224,16 @@ NetconServLis::accept(int timeo)
         if (ret == 0) {
             LOGDEB2("NetconServLis::accept timed out\n");
             m_didtimo = 1;
-            return 0;
+            return nullptr;
         }
         if (ret < 0) {
             LOGSYSERR("NetconServLis::accept", "select", "");
-            return 0;
+            return nullptr;
         }
     }
     m_didtimo = 0;
 
-    NetconServCon *con = 0;
+    NetconServCon *con = nullptr;
     int newfd = -1;
     struct sockaddr_in who;
     struct sockaddr_un uwho;
@@ -1259,7 +1257,7 @@ NetconServLis::accept(int timeo)
     }
 
     con = new NetconServCon(newfd);
-    if (con == 0) {
+    if (nullptr == con) {
         LOGERR("NetconServLis::accept: new NetconServCon failed\n");
         goto out;
     }
@@ -1268,7 +1266,7 @@ NetconServLis::accept(int timeo)
     if (m_serv.empty() || m_serv[0] != '/') {
         struct hostent *hp;
         if ((hp = gethostbyaddr((char *) & (who.sin_addr),
-                                sizeof(struct in_addr), AF_INET)) == 0) {
+                                sizeof(struct in_addr), AF_INET)) == nullptr) {
             LOGERR("NetconServLis::accept: gethostbyaddr failed for addr 0x" <<
                    who.sin_addr.s_addr << "\n");
             con->setpeer(inet_ntoa(who.sin_addr));
@@ -1288,7 +1286,7 @@ NetconServLis::accept(int timeo)
             "\n");
 
 out:
-    if (con == 0 && newfd >= 0) {
+    if (nullptr == con && newfd >= 0) {
         close(newfd);
     }
     return con;

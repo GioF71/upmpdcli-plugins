@@ -249,7 +249,7 @@ public:
      * Sleeps if there are not enough. Signal if we go to sleep on empty
      * queue: client may be waiting for our going idle.
      */
-    bool take(T* tp, size_t *szp = 0) {
+    bool take(T* tp, size_t *szp = nullptr) {
         std::unique_lock<std::mutex> lock(m_mutex);
         if (!ok()) {
             LOGDEB("WorkQueue::take:"  << m_name << ": not ok\n");

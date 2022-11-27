@@ -156,18 +156,15 @@ public:
      * @return the exec output status (0 if ok), or -1
      */
     int doexec(const std::string& cmd, const std::vector<std::string>& args,
-               const std::string *input = 0,
-               std::string *output = 0);
+               const std::string *input = nullptr, std::string *output = nullptr);
 
     /** Same as doexec but cmd and args in one vector */
     int doexec1(const std::vector<std::string>& args,
-                const std::string *input = 0,
-                std::string *output = 0) {
+                const std::string *input = nullptr, std::string *output = nullptr) {
         if (args.empty()) {
             return -1;
         }
-        return doexec(args[0],
-                      std::vector<std::string>(args.begin() + 1, args.end()),
+        return doexec(args[0], std::vector<std::string>(args.begin() + 1, args.end()),
                       input, output);
     }
 
@@ -237,7 +234,7 @@ public:
      * @param path exec seach path to use instead of getenv(PATH)
      * @return true if found
      */
-    static bool which(const std::string& cmd, std::string& exe, const char* path = 0);
+    static bool which(const std::string& cmd, std::string& exe, const char* path = nullptr);
 
     /**
      * Execute command and return stdout output in a string

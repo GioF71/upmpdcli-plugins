@@ -55,7 +55,7 @@ extern bool path_isroot(const std::string& p);
 extern bool path_isdesc(const std::string& top, const std::string& sub);
 
 /// Clean up path by removing duplicated / and resolving ../ + make it absolute
-extern std::string path_canon(const std::string& s, const std::string *cwd = 0);
+extern std::string path_canon(const std::string& s, const std::string *cwd = nullptr);
 
 /// Check that path refers to same file. Uses dev/ino on Linux,
 /// textual comparison on Windows.
@@ -182,7 +182,7 @@ extern bool listdir(const std::string& dir, std::string& reason, std::set<std::s
     @param[output] pc percent occupied
     @param[output] avmbs Mbs available to non-superuser. Mb=1024*1024
 */
-bool fsocc(const std::string& path, int *pc, long long *avmbs = 0);
+bool fsocc(const std::string& path, int *pc, long long *avmbs = nullptr);
 
 /// mkdir -p
 extern bool path_makepath(const std::string& path, int mode);

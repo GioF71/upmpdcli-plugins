@@ -49,8 +49,8 @@ class Netcon {
 public:
     enum Event {NETCONPOLL_READ = 0x1, NETCONPOLL_WRITE = 0x2};
     Netcon()
-        : m_peer(0), m_fd(-1), m_ownfd(true), m_didtimo(0), m_wantedEvents(0),
-          m_loop(0) {
+        : m_peer(nullptr), m_fd(-1), m_ownfd(true), m_didtimo(0), m_wantedEvents(0),
+          m_loop(nullptr) {
     }
     virtual ~Netcon();
     Netcon(const Netcon&) = delete;
@@ -343,7 +343,7 @@ private:
 /// case of a forking server)
 class NetconServCon : public NetconData {
 public:
-    NetconServCon(int newfd, Netcon* lis = 0) {
+    NetconServCon(int newfd, Netcon* lis = nullptr) {
         m_liscon = lis;
         m_fd = newfd;
     }

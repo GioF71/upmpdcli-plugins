@@ -712,7 +712,7 @@ string path_cachedir()
     static string xdgcache;
     if (xdgcache.empty()) {
         const char *cp = getenv("XDG_CACHE_HOME");
-        if (cp == 0) {
+        if (nullptr == cp) {
             xdgcache = path_cat(path_home(), ".cache");
         } else {
             xdgcache = string(cp);
@@ -1290,7 +1290,7 @@ bool listdir(const string& dir, string& reason, set<string>& entries)
         goto out;
     }
     const struct PathDirContents::Entry *ent;
-    while ((ent = dc.readdir()) != 0) {
+    while ((ent = dc.readdir()) != nullptr) {
         if (ent->d_name == "." || ent->d_name == "..") {
             continue;
         }
