@@ -80,7 +80,7 @@ import sys
 import time
 from timeit import default_timer as timer
 
-from upmplgutils import uplog, direntry
+from upmplgutils import uplog, direntry, getOptionValue
 from uprclutils import audiomtypes, rcldoctoentry, cmpentries
 import uprclutils
 from recoll import recoll
@@ -122,9 +122,9 @@ class Folders(object):
         self._moredocs = []
         self._fetchalldocs(confdir)
         self._rcl2folders(confdir)
-        self._enabletags = \
-            uprclinit.g_minimconfig.getboolvalue("showExtras", True)
-
+        self._enabletags = uprclinit.g_minimconfig.getboolvalue("showExtras", True)
+        self._notagview = getOptionValue("uprclnotagview", False)
+        
     def rcldocs(self):
         return self._rcldocs
     
@@ -531,8 +531,9 @@ class Folders(object):
             arturi = None
             if showtopart:
                 arturi=self._arturifordir(diridx)
-            id = pid + '$tagview.0'
-            entries.insert(0, direntry(id, pid, ">> Tag View", arturi=arturi))
+            if not self._notagview:
+                id = pid + '$tagview.0'
+                entries.insert(0, direntry(id, pid, ">> Tag View", arturi=arturi))
         return entries
 
     # Return path for objid, which has to be a container.This is good old

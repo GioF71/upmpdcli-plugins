@@ -212,6 +212,8 @@ uprcltitle = Local Music
 #uprclminimconfig =
 # Media directories
 #uprclmediadirs =
+# Suppress folder "Tag View" entries.
+#uprclnotagview=false
 # Path translations.
 #uprclpaths =
 

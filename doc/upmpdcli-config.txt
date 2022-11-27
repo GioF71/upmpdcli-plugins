@@ -450,6 +450,10 @@ double-quote quoting for paths with embedded spaces. If not set, we will try
 to use contentDirs from the Minim config. An error will occur if both are
 empty.
 
+[[uprclnotagview]]
+uprclnotagview:: Suppress folder "Tag View" entries. The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
+a problem with some Control Points, or kinds of usage.
+
 [[uprclpaths]]
 uprclpaths:: Path translations. Translations from real paths to ones relative to the HTTP server
 doc tree. If this is not set, uprcl will use a null translation for each

@@ -527,6 +527,13 @@ uprcltitle = Local Music
 # </var>
 #uprclmediadirs = 
 
+# <var name="uprclnotagview" type="bool">
+# <brief>Suppress folder "Tag View" entries.</brief>
+# <descr>The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
+# a problem with some Control Points, or kinds of usage.</descr>
+# </var>
+#uprclnotagview=false
+
 # <var name="uprclpaths" type="string"><brief>Path translations.</brief>
 # <descr>Translations from real paths to ones relative to the HTTP server
 # doc tree. If this is not set, uprcl will use a null translation for each
