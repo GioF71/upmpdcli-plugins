@@ -55,9 +55,7 @@ public:
      *   meaning no limit.
      */
     BufXChange(const std::string& name, size_t hi = 0)
-        : m_name(name), m_high(hi), m_maxrecycled(4),
-          m_ok(true), m_clients_waiting(0), m_workers_waiting(0) {
-    }
+        : m_name(name), m_high(hi) {}
 
     ~BufXChange() {
         std::unique_lock<std::mutex> lock(m_mutex);
@@ -94,15 +92,13 @@ public:
             if (m_put_timeout == std::chrono::milliseconds::zero()) {
                 m_ccond.wait(lock);
             } else {
-                if (m_ccond.wait_for(lock, m_put_timeout) ==
-                    std::cv_status::timeout) {
+                if (m_ccond.wait_for(lock, m_put_timeout) == std::cv_status::timeout) {
                     return false;
                 }
             }
             m_clients_waiting--;
         }
         if (!ok()) {
-            LOGERR("BufXChange::put:"  << m_name << ": !ok\n");
             return false;
         }
         if (flushprevious) {
@@ -169,8 +165,7 @@ public:
             if (m_put_timeout == std::chrono::milliseconds::zero()) {
                 m_ccond.wait(lock);
             } else {
-                if (m_ccond.wait_for(lock, m_put_timeout) ==
-                    std::cv_status::timeout) {
+                if (m_ccond.wait_for(lock, m_put_timeout) == std::cv_status::timeout) {
                     return false;
                 }
             }
@@ -198,7 +193,6 @@ public:
      */
     bool take(T* tp, size_t *szp = 0) {
         std::unique_lock<std::mutex> lock(m_mutex);
-
         while (ok() && m_queue.size() < 1) {
             if (m_queue.empty()) {
                 m_ccond.notify_all();
@@ -207,8 +201,7 @@ public:
             if (m_take_timeout == std::chrono::milliseconds::zero()) {
                 m_wcond.wait(lock);
             } else {
-                if (m_wcond.wait_for(lock, m_take_timeout) ==
-                    std::cv_status::timeout) {
+                if (m_wcond.wait_for(lock, m_take_timeout) == std::cv_status::timeout) {
                     return false;
                 }
             }
@@ -258,8 +251,7 @@ public:
             if (m_take_timeout == std::chrono::milliseconds::zero()) {
                 m_wcond.wait(lock);
             } else {
-                if (m_wcond.wait_for(lock, m_take_timeout) ==
-                    std::cv_status::timeout) {
+                if (m_wcond.wait_for(lock, m_take_timeout) == std::cv_status::timeout) {
                     return false;
                 }
             }
@@ -277,7 +269,7 @@ public:
      * the queue is terminated by the client.
      */
     void workerExit() {
-        LOGDEB("workerExit:"  << m_name << "\n");
+        LOGDEB("workerExit:" << m_name << "\n");
         setTerminate();
     }
 
@@ -315,15 +307,15 @@ private:
 
     // Configuration
     std::string m_name;
-    size_t m_high;
-    size_t m_maxrecycled;
-    
+    size_t m_high{0};
+    size_t m_maxrecycled{4};
+
     // Status
-    bool m_ok;
+    bool m_ok{true};
 
     // Client/Worker threads currently waiting for a job
-    unsigned int m_clients_waiting;
-    unsigned int m_workers_waiting;
+    unsigned int m_clients_waiting{0};
+    unsigned int m_workers_waiting{0};
 
     // Jobs input queue.
     std::deque<T> m_queue;
@@ -335,9 +327,8 @@ private:
     std::condition_variable m_ccond;
     std::condition_variable m_wcond;
     std::mutex m_mutex;
-    std::chrono::milliseconds m_take_timeout;
-    std::chrono::milliseconds m_put_timeout;
+    std::chrono::milliseconds m_take_timeout{std::chrono::milliseconds(0)};
+    std::chrono::milliseconds m_put_timeout{std::chrono::milliseconds(0)};
 };
 
 #endif /* _BUFFERXCHANGE_H_INCLUDED_ */
-
