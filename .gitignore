@@ -1,6 +1,7 @@
 *.pyc
 .deps
 .gitignore
+.ccls-cache
 Makefile
 Makefile.in
 \#*#

@@ -132,7 +132,7 @@ def radioToEntry(pid, idx, radio):
 
 
 if __name__ == "__main__":
-    conf = conftree.ConfSimple("/etc/upmpdcli.conf")
+    conf = conftree.ConfSimple("/etc/upmpdcli.conf", casesensitive=False)
     radios = UpmpdcliRadios(conf)
     for radio in radios:
         print("%s" % radio)

@@ -66,7 +66,7 @@ _g_upconfig = None
 def getOptionValue(nm, dflt = None):
     global _g_upconfig
     if _g_upconfig is None:
-        _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
+        _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"], casesensitive=False)
     value = _g_upconfig.get(nm)
     if value is not None:
         return value

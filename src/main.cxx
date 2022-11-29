@@ -305,7 +305,8 @@ int main(int argc, char *argv[])
     UpMpd::Options opts;
 
     if (!g_configfilename.empty()) {
-        g_config = new ConfSimple(g_configfilename.c_str(), 1, true);
+        g_config = new ConfSimple(
+            ConfSimple::CFSF_NOCASE|ConfSimple::CFSF_RO|ConfSimple::CFSF_TILDEXP, g_configfilename);
         if (!g_config || !g_config->ok()) {
             cerr << "Could not open config: " << g_configfilename << endl;
             return 1;

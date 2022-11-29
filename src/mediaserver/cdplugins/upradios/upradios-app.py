@@ -35,7 +35,7 @@ msgproc = cmdtalkplugin.Processor(dispatcher)
 def _initradios():
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    config = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
+    config = conftree.ConfSimple(os.environ["UPMPD_CONFIG"], casesensitive=False)
     global _g_radios
     _g_radios = upradioconf.UpmpdcliRadios(config)
     

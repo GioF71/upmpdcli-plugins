@@ -225,12 +225,14 @@ bool OHRadio::readRadios()
     // Id 0 means no selection /  externally set channel from setChannel()
     o_radios.push_back(RadioMeta("Unknown radio", "", "", "", "", ""));
 
-    ConfSimple config(g_configfilename.c_str(), 1);
+    ConfSimple config(
+            ConfSimple::CFSF_NOCASE|ConfSimple::CFSF_RO|ConfSimple::CFSF_TILDEXP, g_configfilename);
     getRadiosFromConf(&config);
     // Also if radiolist is defined, get from there
     string radiolistfn;
     if (getOptionValue("radiolist", radiolistfn)) {
-        ConfSimple rdconf(radiolistfn.c_str(), 1);
+        ConfSimple rdconf(ConfSimple::CFSF_NOCASE|ConfSimple::CFSF_RO, radiolistfn);
+            
         if (!rdconf.ok()) {
             LOGERR("OHRadio::readRadios: failed initializing from " << radiolistfn << "\n");
         } else {

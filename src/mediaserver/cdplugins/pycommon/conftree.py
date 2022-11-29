@@ -1,4 +1,4 @@
-# Copyright (C) 2016 J.F.Dockes
+# Copyright (C) 2016-2022 J.F.Dockes
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation; either version 2 of the License, or
@@ -13,8 +13,6 @@
 #   along with this program; if not, write to the
 #   Free Software Foundation, Inc.,
 #   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-from __future__ import print_function
 
 import locale
 import re
@@ -33,8 +31,10 @@ class ConfSimple(object):
     dictionaries which lets you retrieve named values from the top
     level or a subsection"""
 
-    def __init__(self, confname, tildexp = False, readonly = True):
-        self.submaps = {}
+    def __init__(self, confname, tildexp = False, readonly = True, casesensitive = True):
+        self.casesens = casesensitive
+        self.submaps = self._makedict()
+        self.submaps[b''] = self._makedict()
         self.subkeys_unsorted = []
         self.dotildexpand = tildexp
         self.readonly = readonly
@@ -45,12 +45,16 @@ class ConfSimple(object):
         except Exception as exc:
             #_debug("Open Exception: %s" % exc)
             # File does not exist -> empty config, not an error.
-            self.submaps = {}
-            self.submaps[b''] = {}
             return
 
         self._parseinput(f)
         f.close()
+
+    def _makedict(self):
+        if self.casesens:
+            return dict()
+        else:
+            return CaseInsensitiveDict()
         
     def _parseinput(self, f):
         appending = False
@@ -94,7 +98,7 @@ class ConfSimple(object):
             value = value.strip()
             #_debug("sk [%s] nm: [%s] value: [%s]" % (submapkey, nm, value))
             if not submapkey in self.submaps:
-                self.submaps[submapkey] = {}
+                self.submaps[submapkey] = self._makedict()
             self.submaps[submapkey][nm] = value
 
     def getSubKeys_unsorted(self):
@@ -172,7 +176,7 @@ class ConfSimple(object):
         if self.readonly:
             raise Exception("ConfSimple is readonly")
         if sk not in self.submaps:
-            self.submaps[sk] = {}
+            self.submaps[sk] = self._makedict()
         self.submaps[sk][nm] = value
         self._rewrite()
         return True
@@ -315,3 +319,85 @@ def valToBool(s):
     if type(s) == type(b''):
         s = s.decode("UTF-8")
     return s[0] in "tTyY"
+
+
+# CaseInsensitiveDict was copied from:
+# Requests - https://github.com/psf/requests
+# Copyright 2019 Kenneth Reitz
+# Apache License - Version 2.0, January 2004 - http://www.apache.org/licenses
+
+from collections.abc import MutableMapping
+
+class CaseInsensitiveDict(MutableMapping):
+    """
+    A case-insensitive ``dict``-like object.
+
+    Implements all methods and operations of
+    ``collections.MutableMapping`` as well as dict's ``copy``. Also
+    provides ``lower_items``.
+
+    All keys are expected to be strings. The structure remembers the
+    case of the last key to be set, and ``iter(instance)``,
+    ``keys()``, ``items()``, ``iterkeys()``, and ``iteritems()``
+    will contain case-sensitive keys. However, querying and contains
+    testing is case insensitive:
+
+        cid = CaseInsensitiveDict()
+        cid['Accept'] = 'application/json'
+        cid['aCCEPT'] == 'application/json'  # True
+        list(cid) == ['Accept']  # True
+
+    For example, ``headers['content-encoding']`` will return the
+    value of a ``'Content-Encoding'`` response header, regardless
+    of how the header name was originally stored.
+
+    If the constructor, ``.update``, or equality comparison
+    operations are given keys that have equal ``.lower()``s, the
+    behavior is undefined.
+
+    """
+    def __init__(self, data=None, **kwargs):
+        self._store = dict()
+        if data is None:
+            data = {}
+        self.update(data, **kwargs)
+
+    def __setitem__(self, key, value):
+        # Use the lowercased key for lookups, but store the actual
+        # key alongside the value.
+        self._store[key.lower()] = (key, value)
+
+    def __getitem__(self, key):
+        return self._store[key.lower()][1]
+
+    def __delitem__(self, key):
+        del self._store[key.lower()]
+
+    def __iter__(self):
+        return (casedkey for casedkey, mappedvalue in self._store.values())
+
+    def __len__(self):
+        return len(self._store)
+
+    def lower_items(self):
+        """Like iteritems(), but with all lowercase keys."""
+        return (
+            (lowerkey, keyval[1])
+            for (lowerkey, keyval)
+            in self._store.items()
+        )
+
+    def __eq__(self, other):
+        if isinstance(other, collections.Mapping):
+            other = CaseInsensitiveDict(other)
+        else:
+            return NotImplemented
+        # Compare insensitively
+        return dict(self.lower_items()) == dict(other.lower_items())
+
+    # Copy is required
+    def copy(self):
+         return CaseInsensitiveDict(self._store.values())
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, dict(self.items()))

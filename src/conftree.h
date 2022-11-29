@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2019 J.F.Dockes
+/* Copyright (C) 2006-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -18,31 +18,29 @@
 #define  _CONFTREE_H_
 
 /**
- * A simple configuration file implementation.
- *
- * Configuration files have lines like 'name = value', and/or like '[subkey]'
+ * Classes for managing ini-type data, with 'name = value' lines, and supporting subsections
+ * with lines like '[subkey]'
  *
  * Lines like '[subkey]' in the file define subsections, with independant
  * configuration namespaces. Only subsections holding at least one variable are
  * significant (empty subsections may be deleted during an update, or not).
  *
- * Whitespace around name and value is ignored.
+ * Whitespace around name and value is ignored (trailing white space may be optionally preserved).
  *
- * The names are case-sensitive but don't depend on it, this might change.
+ * The names are case-sensitive by default, but there are separate options for ignoring case in
+ * names and subkeys.
  *
  * Values can be queried for, or set.
  *
  * Any line without a '=', or beginning with '[ \t]*#' is a comment.
  *
- * A configuration object can be created empty or by reading from a file or
- * a string.
+ * A configuration object can be created empty or by reading from a file or a string.
  *
  * All 'set' calls normally cause an immediate rewrite of the backing
  * object if any (file or string). This can be prevented with holdWrites().
  *
  * The ConfTree derived class interprets the subkeys as file paths and
- * lets subdir keys hierarchically inherit the properties from
- * parents.
+ * lets subdir keys hierarchically inherit the properties from parents.
  *
  * The ConfStack class stacks several Con(Simple/Tree) objects so that
  * parameters from the top of the stack override the values from lower
@@ -53,14 +51,7 @@
 #include <map>
 #include <string>
 #include <vector>
-
-// rh7.3 likes iostream better...
-#if defined(__GNUC__) && __GNUC__ < 3
-#include <iostream>
-#else
-#include <istream>
-#include <ostream>
-#endif
+#include <fstream>
 
 #include "pathut.h"
 
@@ -69,8 +60,15 @@ class ConfLine {
 public:
     enum Kind {CFL_COMMENT, CFL_SK, CFL_VAR, CFL_VARCOMMENT};
     Kind m_kind;
+    // For a comment or varcomment line, m_data is the full line
+    // For an SK or a VAR, m_data is the name (sk or var name)
     std::string m_data;
+    // For a VAR m_value is the original value. Unset for other types. Unchanged
+    // if the variable is updated or erased. Only (barely) used with the XML comments stuff.
+    // For normal rewriting, the value is extracted with a regular get()
     std::string m_value;
+    // Only used for VARCOMMENT lines (commented out variable assignation). Holds the variable name
+    // in this case. Used if the variable is set, to group the comment and actual assignment.
     std::string m_aux;
     ConfLine(Kind k, const std::string& d, std::string a = std::string())
         : m_kind(k), m_data(d), m_aux(a) {
@@ -86,8 +84,8 @@ public:
 class ConfNull {
 public:
     enum StatusCode {STATUS_ERROR = 0, STATUS_RO = 1, STATUS_RW = 2};
-    ConfNull() {}
-    virtual ~ConfNull() {};
+    ConfNull() = default;
+    virtual ~ConfNull() = default;
     ConfNull(const ConfNull&) = delete;
     ConfNull &operator=(const ConfNull &) = delete;
     virtual int get(const std::string& name, std::string& value,
@@ -98,11 +96,9 @@ public:
                              const std::string& sk = std::string());
     virtual double getFloat(const std::string& name, double dflt,
                             const std::string& sk = std::string());
-    virtual bool getBool(const std::string& name, bool dflt,
-                         const std::string& sk = std::string());
+    virtual bool getBool(const std::string& name, bool dflt, const std::string& sk = std::string());
     virtual bool ok() const = 0;
-    virtual std::vector<std::string> getNames(const std::string& sk,
-                                              const char* = 0) const = 0;
+    virtual std::vector<std::string> getNames(const std::string& sk, const char* = 0) const = 0;
     virtual bool hasNameAnywhere(const std::string& nm) const = 0;
     virtual int erase(const std::string&, const std::string&) = 0;
     virtual int eraseKey(const std::string&) = 0;
@@ -113,8 +109,23 @@ public:
     virtual bool sourceChanged() const = 0;
 };
 
+struct CaseComparator {
+    CaseComparator(bool nocase = false)
+        : m_nocase(nocase) {}
+    bool operator()(const std::string& a, const std::string& b) const {
+        if (!m_nocase)
+            return a < b;
+        return std::lexicographical_compare(
+            a.begin(), a.end(), b.begin(), b.end(),
+            [](char ch1, char ch2) {
+                return std::tolower(ch1) < std::tolower(ch2);
+            });
+    }
+    bool m_nocase;
+};
+
 /**
- * Manages a simple configuration file with subsections.
+ * Manage simple configuration data with subsections.
  */
 class ConfSimple : public ConfNull {
 public:
@@ -124,14 +135,17 @@ public:
      * @param filename file to open
      * @param readonly if true open readonly, else rw
      * @param tildexp  try tilde (home dir) expansion for subkey values
+     * @param trimvalues remove trailing white space from values
      */
     ConfSimple(const char *fname, int readonly = 0, bool tildexp = false, bool trimvalues = true);
 
     /**
      * Build the object by reading content from a string
-     * @param data points to the data to parse.
+     * @param data points to the data to parse. This is used as input only. Use write() to 
+     *  get the data back after updating the object.
      * @param readonly if true open readonly, else rw
      * @param tildexp  try tilde (home dir) expansion for subsection names
+     * @param trimvalues remove trailing white space from values
      */
     ConfSimple(const std::string& data, int readonly = 0, bool tildexp = false,
                bool trimvalues = true);
@@ -140,10 +154,29 @@ public:
      * Build an empty object. This will be memory only, with no backing store.
      * @param readonly if true open read only, else rw
      * @param tildexp  try tilde (home dir) expansion for subsection names
+     * @param trimvalues remove trailing white space from values
      */
     ConfSimple(int readonly = 0, bool tildexp = false, bool trimvalues = true);
 
-    virtual ~ConfSimple() {};
+    /**
+     * Build any kind of ConfSimple, depending on flags.
+     * @param flags a bitfield where the following flags can be set:
+     *     CFSF_RO: if set, the object can't be modified after initialisation
+     *     CFSF_FROMSTRING: if set, @param dataorfn is the data to parse, else it is a file name.
+     *     CFSF_TILDEXP: perform tilde expansion on subsection names
+     *     CFSF_NOTRIMVALUES: do not trim white space at the end of values.
+     *     CFSF_SUBMAPNOCASE: use case-insensitive comparisons for submap names.
+     *     CFSF_KEYNOCASE: use case-insensitive comparisons for keys.
+     *     CFSF_NOCASE: both keys and sections are case-insensitive.
+     * @param dataorfn  input data or file name depending on flags.
+     */
+    enum Flag {CFSF_NONE = 0, CFSF_RO = 1, CFSF_TILDEXP = 2, CFSF_NOTRIMVALUES = 4,
+        CFSF_SUBMAPNOCASE = 8, CFSF_KEYNOCASE = 0x10, CFSF_FROMSTRING = 0x20,
+        CFSF_NOCASE = CFSF_SUBMAPNOCASE | CFSF_KEYNOCASE,
+    };
+    ConfSimple(int flags, const std::string& dataorfn);
+
+    virtual ~ConfSimple() = default;
 
     /** Origin file changed. Only makes sense if we read the data from a file */
     virtual bool sourceChanged() const override;
@@ -265,6 +298,9 @@ public:
         if ((status = rhs.status) == STATUS_ERROR) {
             return;
         }
+        dotildexpand = rhs.dotildexpand;
+        trimvalues = rhs.trimvalues;
+        m_flags = rhs.m_flags;
         m_filename = rhs.m_filename;
         m_submaps = rhs.m_submaps;
     }
@@ -276,6 +312,7 @@ public:
         if (this != &rhs && (status = rhs.status) != STATUS_ERROR) {
             dotildexpand = rhs.dotildexpand;
             trimvalues = rhs.trimvalues;
+            m_flags = rhs.m_flags;
             m_filename = rhs.m_filename;
             m_submaps = rhs.m_submaps;
         }
@@ -297,19 +334,23 @@ protected:
     bool trimvalues;
     StatusCode status;
 private:
+    int m_flags{0};
     // Set if we're working with a file
     std::string m_filename;
-    int64_t     m_fmtime;
+    int64_t     m_fmtime{0};
     // Configuration data submaps (one per subkey, the main data has a
     // null subkey)
-    std::map<std::string, std::map<std::string, std::string> > m_submaps;
+    std::map<std::string, std::map<std::string, std::string, CaseComparator>,
+             CaseComparator> m_submaps;
     std::vector<std::string> m_subkeys_unsorted;
     // Presentation data. We keep the comments, empty lines and
     // variable and subkey ordering information in there (for
     // rewriting the file while keeping hand-edited information)
     std::vector<ConfLine>    m_order;
     // Control if we're writing to the backing store
-    bool                     m_holdWrites;
+    bool m_holdWrites{false};
+    CaseComparator m_casecomp;
+    CaseComparator m_nocasecomp{true};
 
     void parseinput(std::istream& input);
     bool write();
@@ -317,6 +358,7 @@ private:
     virtual int i_set(const std::string& nm, const std::string& val,
                       const std::string& sk, bool init = false);
     bool i_changed(bool upd);
+    void openfile(int readonly, std::fstream& input);
 };
 
 /**
@@ -347,7 +389,7 @@ public:
         : ConfSimple(data, readonly, true, trimvalues) {}
     ConfTree(int readonly = 0, bool trimvalues=true)
         : ConfSimple(readonly, true, trimvalues) {}
-    virtual ~ConfTree() {};
+    virtual ~ConfTree() = default;
     ConfTree(const ConfTree& r) : ConfSimple(r) {};
     ConfTree& operator=(const ConfTree& r) {
         ConfSimple::operator=(r);

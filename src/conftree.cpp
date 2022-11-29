@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2016 J.F.Dockes
+/* Copyright (C) 2003-2022 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -34,6 +34,7 @@
 #include <iostream>
 #include <sstream>
 #include <utility>
+#include <map>
 
 #include "pathut.h"
 #include "smallut.h"
@@ -47,11 +48,24 @@ using namespace std;
 
 #undef DEBUG_CONFTREE
 #ifdef DEBUG_CONFTREE
-#define CONFDEB LOGDEB
+#define CONFDEB LOGERR
 #else
 #define CONFDEB LOGDEB2
 #endif
 
+// type/data lookups in the lines array (m_order). Case-sensitive or not depending on what we are
+// searching and the ConfSimple case-sensitivity flags
+class OrderComp {
+public:
+    OrderComp(ConfLine &ln, const CaseComparator& comp)
+        : m_cfl(ln), m_comp(comp) {}
+    bool operator()(const ConfLine& cfl) {
+        return cfl.m_kind == m_cfl.m_kind &&
+            !m_comp(m_cfl.m_data, cfl.m_data) && !m_comp(cfl.m_data, m_cfl.m_data);
+    }
+    const ConfLine& m_cfl;
+    const CaseComparator& m_comp;
+};
 
 long long ConfNull::getInt(const std::string& name, long long dflt,
                            const std::string& sk)
@@ -93,8 +107,7 @@ bool ConfNull::getBool(const std::string& name, bool dflt,
     return stringToBool(val);
 }
 
-static const SimpleRegexp varcomment_rx("[ \t]*#[ \t]*([a-zA-Z0-9]+)[ \t]*=",
-                                        0, 1);
+static const SimpleRegexp varcomment_rx("[ \t]*#[ \t]*([a-zA-Z0-9]+)[ \t]*=", 0, 1);
 
 void ConfSimple::parseinput(istream& input)
 {
@@ -202,10 +215,22 @@ void ConfSimple::parseinput(istream& input)
 }
 
 
-ConfSimple::ConfSimple(int readonly, bool tildexp, bool trimv)
-    : dotildexpand(tildexp), trimvalues(trimv), m_fmtime(0), m_holdWrites(false)
+static int varsToFlags(int readonly, bool tildexp, bool trimv)
 {
-    status = readonly ? STATUS_RO : STATUS_RW;
+    int flags = 0;
+    if (readonly)
+        flags |= ConfSimple::CFSF_RO;
+    if (tildexp)
+        flags |= ConfSimple::CFSF_TILDEXP;
+    if (!trimv)
+        flags |= ConfSimple::CFSF_NOTRIMVALUES;
+    return flags;
+}
+
+
+ConfSimple::ConfSimple(int readonly, bool tildexp, bool trimv)
+    : ConfSimple(varsToFlags(readonly, tildexp, trimv) | CFSF_FROMSTRING, std::string())
+{
 }
 
 void ConfSimple::reparse(const string& d)
@@ -216,53 +241,42 @@ void ConfSimple::reparse(const string& d)
 }
 
 ConfSimple::ConfSimple(const string& d, int readonly, bool tildexp, bool trimv)
-    : dotildexpand(tildexp), trimvalues(trimv), m_fmtime(0), m_holdWrites(false)
+    : ConfSimple(varsToFlags(readonly, tildexp, trimv) | CFSF_FROMSTRING, d)
 {
-    status = readonly ? STATUS_RO : STATUS_RW;
-
-    stringstream input(d, ios::in);
-    parseinput(input);
 }
 
-ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp,
-                       bool trimv)
-    : dotildexpand(tildexp), trimvalues(trimv), m_filename(fname),
-      m_fmtime(0), m_holdWrites(false)
+ConfSimple::ConfSimple(const char *fname, int readonly, bool tildexp, bool trimv)
+    : ConfSimple(varsToFlags(readonly, tildexp, trimv), std::string(fname))
 {
-    status = readonly ? STATUS_RO : STATUS_RW;
-    int mode = readonly ? ios::in : ios::in | ios::out;
-    if (!readonly && !path_exists(fname)) {
-        mode |= ios::trunc;
-    }
-    fstream input;
-    path_streamopen(fname, mode, input);
-    if (!input.is_open()) {
-        LOGDEB0("ConfSimple::ConfSimple: fstream(w)(" << fname << ", " << mode <<
-                ") errno " << errno << "\n");
-    }
+}
 
-    if (!readonly && !input.is_open()) {
-        // reset errors
-        input.clear();
-        status = STATUS_RO;
-        // open readonly
-        path_streamopen(fname, ios::in, input);
+ConfSimple::ConfSimple(int flags, const std::string& dataorfn)
+{
+    m_flags = flags;
+    status = (flags & CFSF_RO) ? STATUS_RO : STATUS_RW;
+    dotildexpand = (flags & CFSF_TILDEXP) != 0;
+    trimvalues = (flags & CFSF_NOTRIMVALUES) == 0;
+    if (flags & CFSF_SUBMAPNOCASE) {
+        m_submaps =  std::map<std::string, std::map<std::string, std::string, CaseComparator>,
+                              CaseComparator>(m_nocasecomp);
     }
-
-    if (!input.is_open()) {
-        // Don't log ENOENT, this is common with some recoll config files
-        string reason;
-        catstrerror(&reason, nullptr, errno);
-        if (errno != 2) {
-            LOGERR("ConfSimple::ConfSimple: fstream(" << fname << ", " <<
-                   ios::in << ") " << reason << "\n");
+    LOGDEB0("ConfSimple::ConfSimple: RO: " << (status==STATUS_RO) << " tildexp " << dotildexpand <<
+           " trimvalues " << trimvalues << " from string? " << bool(flags & CFSF_FROMSTRING) <<
+           " file name: " << ((flags & CFSF_FROMSTRING)?" data input " : dataorfn.c_str()) << "\n");
+    if (flags & CFSF_FROMSTRING) {
+        if (!dataorfn.empty()) {
+            stringstream input(dataorfn, ios::in);
+            parseinput(input);
         }
-        status = STATUS_ERROR;
-        return;
+    } else {
+        m_filename = dataorfn;
+        fstream input;
+        openfile((flags & CFSF_RO), input);
+        if (status == STATUS_ERROR)
+            return;
+        parseinput(input);
+        i_changed(true);
     }
-
-    parseinput(input);
-    i_changed(true);
 }
 
 ConfSimple::StatusCode ConfSimple::getStatus() const
@@ -274,6 +288,39 @@ ConfSimple::StatusCode ConfSimple::getStatus() const
         return STATUS_RW;
     default:
         return STATUS_ERROR;
+    }
+}
+
+void ConfSimple::openfile(int readonly, fstream& input)
+{
+    int mode = readonly ? ios::in : ios::in | ios::out;
+    if (!readonly && !path_exists(m_filename)) {
+        mode |= ios::trunc;
+    }
+    path_streamopen(m_filename, mode, input);
+    if (!input.is_open()) {
+        LOGDEB0("ConfSimple::ConfSimple: fstream(w)(" << m_filename << ", " << mode <<
+                ") errno " << errno << "\n");
+    }
+
+    if (!readonly && !input.is_open()) {
+        // reset errors
+        input.clear();
+        status = STATUS_RO;
+        // open readonly
+        path_streamopen(m_filename, ios::in, input);
+    }
+
+    if (!input.is_open()) {
+        // Don't log ENOENT, this is common with some recoll config files
+        string reason;
+        catstrerror(&reason, nullptr, errno);
+        if (errno != 2) {
+            LOGERR("ConfSimple::ConfSimple: fstream(" << m_filename << ", " <<
+                   ios::in << ") " << reason << "\n");
+        }
+        status = STATUS_ERROR;
+        return;
     }
 }
 
@@ -372,8 +419,7 @@ static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
 }
 
 // Set variable and rewrite data
-int ConfSimple::set(const std::string& nm, const std::string& value,
-                    const string& sk)
+int ConfSimple::set(const std::string& nm, const std::string& value, const string& sk)
 {
     if (status  != STATUS_RW) {
         return 0;
@@ -385,8 +431,7 @@ int ConfSimple::set(const std::string& nm, const std::string& value,
     return write();
 }
 
-int ConfSimple::set(const string& nm, long long val,
-                    const string& sk)
+int ConfSimple::set(const string& nm, long long val, const string& sk)
 {
     return this->set(nm, lltodecstr(val), sk);
 }
@@ -409,17 +454,19 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
     // Test if submap already exists, else create it, and insert variable:
     if (ss == m_submaps.end()) {
         CONFDEB("ConfSimple::i_set: new submap\n");
-        map<string, string> submap;
+        std::map<std::string, std::string, CaseComparator> submap(
+            (m_flags & CFSF_KEYNOCASE) ? m_nocasecomp : m_casecomp);
         submap[nm] = value;
         m_submaps[sk] = submap;
 
-        // Maybe add sk entry to m_order data, if not already there.
+        // Maybe add sk entry to m_order data, if not already there (see comment below).
         if (!sk.empty()) {
             ConfLine nl(ConfLine::CFL_SK, sk);
             // Append SK entry only if it's not already there (erase
             // does not remove entries from the order data, and it may
             // be being recreated after deletion)
-            if (find(m_order.begin(), m_order.end(), nl) == m_order.end()) {
+            OrderComp cmp(nl, (m_flags & CFSF_SUBMAPNOCASE) ? m_nocasecomp : m_casecomp);
+            if (find_if(m_order.begin(), m_order.end(), cmp) == m_order.end()) {
                 m_order.push_back(nl);
             }
         }
@@ -459,13 +506,12 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         start = m_order.begin();
         CONFDEB("ConfSimple::i_set: null sk, start at top of order\n");
     } else {
-        start = find(m_order.begin(), m_order.end(),
-                     ConfLine(ConfLine::CFL_SK, sk));
+        ConfLine cfl(ConfLine::CFL_SK, sk);
+        OrderComp cmp(cfl, (m_flags & CFSF_SUBMAPNOCASE) ? m_nocasecomp : m_casecomp);
+        start = find_if(m_order.begin(), m_order.end(), cmp);
         if (start == m_order.end()) {
-            // This is not logically possible. The subkey must
-            // exist. We're doomed
-            std::cerr << "Logical failure during configuration variable "
-                "insertion" << endl;
+            // This is not logically possible. The subkey must exist. We're doomed
+            std::cerr << "Logical failure during configuration variable insertion" << "\n";
             abort();
         }
     }
@@ -486,7 +532,9 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
 
     // It may happen that the order entry already exists because erase doesnt
     // update m_order
-    if (find(start, fin, ConfLine(ConfLine::CFL_VAR, nm)) == fin) {
+    ConfLine cfl(ConfLine::CFL_VAR, nm);
+    OrderComp cmp(cfl, (m_flags & CFSF_KEYNOCASE) ? m_nocasecomp : m_casecomp);
+    if (find_if(start, fin, cmp) == fin) {
         // Look for a varcomment line, insert the value right after if
         // it's there.
         bool inserted(false);
@@ -577,13 +625,13 @@ bool ConfSimple::write()
     if (m_holdWrites) {
         return true;
     }
-    if (m_filename.length()) {
+    if (!m_filename.empty()) {
         fstream output;
         path_streamopen(m_filename, ios::out | ios::trunc, output);
         if (!output.is_open()) {
             return 0;
         }
-        return write(output);
+        return this->write(output);
     } else {
         // No backing store, no writing. Maybe one day we'll need it with
         // some kind of output string. This can't be the original string which
@@ -712,7 +760,6 @@ bool ConfSimple::commentsAsXML(ostream& out)
 
     out << "<confcomments>\n";
     
-    string sk;
     for (const auto& line : lines) {
         switch (line.m_kind) {
         case ConfLine::CFL_COMMENT:
