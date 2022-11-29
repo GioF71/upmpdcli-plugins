@@ -394,7 +394,7 @@ def _cmpentries_func(e1, e2):
         #uplog("cmpentries tp1 %s tp2 %s, returning %d"%(tp1,tp2,ret))
         return ret
     
-    # Tracks. Sort by album then directory then track number
+    # Tracks. Sort by album then directory then track number then file name
     k = 'upnp:album'
     a1 = e1[k] if k in e1 else ""
     a2 = e2[k] if k in e2 else ""
@@ -403,21 +403,36 @@ def _cmpentries_func(e1, e2):
     elif a1 > a2:
         return 1
 
-    d1 = os.path.dirname(e1['uri'])
-    d2 = os.path.dirname(e2['uri'])
-    if d1 < d2:
+    a1 = os.path.dirname(e1['uri'])
+    a2 = os.path.dirname(e2['uri'])
+    if a1 < a2:
         return -1
-    elif d1 > d2:
+    elif a1 > a2:
         return 1
     
     k = 'upnp:originalTrackNumber'
-    a1 = e1[k] if k in e1 else "0"
-    a2 = e2[k] if k in e2 else "0"
     try:
-        return int(a1) - int(a2)
+        a1 = int(e1[k])
     except:
-        uplog("upnp:originalTrackNumber %s %s"% (a1, a2))
-        return 0
+        a1 = 0
+    try:
+        a2 = int(e2[k])
+    except:
+        a2 = 0
+    if a1 < a2:
+        return -1
+    elif a1 > a2:
+        return 1
+
+    # Finally: compare file names
+    a1 = os.path.basename(e1['uri'])
+    a2 = os.path.basename(e2['uri'])
+    if a1 < a2:
+        return -1
+    elif a1 > a2:
+        return 1
+
+    return 0
 
 cmpentries=functools.cmp_to_key(_cmpentries_func)
 
