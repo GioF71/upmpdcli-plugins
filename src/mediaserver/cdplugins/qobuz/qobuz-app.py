@@ -158,7 +158,7 @@ def browse(a):
         if m:
             trackid = m.group(1)
             track = session.get_track(trackid)
-            track_list([track])
+            track_list([track,])
     else:
         plugin.run([idpath])
     #msgproc.log("%s" % xbmcplugin.entries)

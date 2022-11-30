@@ -83,6 +83,11 @@ class Session(object):
         return [_parse_track(t, album) for t in data['tracks']['items']]
 
 
+    def get_track(self, trackid):
+        data = self.api.track_get(track_id=trackid)
+        if data:
+            return _parse_track(data)
+
     def get_playlist_tracks(self, plid):
         return self.loopget(
             1000, self.api.playlist_get,
