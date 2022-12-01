@@ -119,7 +119,7 @@ class RadioIterator:
 
 
 def radioToEntry(pid, id, radio):
-    uplog(f"radioToEntry: pid {pid} id {id}")
+    #uplog(f"radioToEntry: pid {pid} id {id}")
     # if this comes from a 'browse meta', the id is set, else compute it
     if id is None:
         objid = pid
