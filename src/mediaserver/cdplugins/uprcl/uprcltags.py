@@ -621,15 +621,44 @@ class Tagged(object):
             return self._dobrowse(pid, flag, qpath, folder)
 
         
+    def _browsemeta(self, objid):
+        # very few control points use this, and it is useless because we return the full metadata in
+        # the container entries. This would be too complicated to implement in the tags tree, so we
+        # only do it for items, and in a very brutal way, by browsing the parent and finding the
+        # entry in the result.
+        #uplog(f"_browsemeta: objid {objid}")
+        anchorlen = 2
+        ipos = objid.rfind("$i")
+        if ipos == -1:
+            ipos = objid.rfind("$*i")
+            if ipos == -1:
+                return []
+            else:
+                anchorlen = 3
+        if objid[ipos:] == "$items":
+            return []
+        id = objid[ipos+anchorlen:]
+        try:
+            iid = int(id)
+        except:
+            return []
+        pid = objid[:ipos]
+        entries = self.browse(pid, "children", 0, 0)
+        for e in entries:
+            if e["id"] == objid:
+                return [e,]
+        return []
+    
     # Top level browse routine. Handle the special cases and call the
     # appropriate worker routine. idpath is something like 0$uprcl$=tagname$tagvalue...
     def browse(self, pid, flag, offset, count):
+        if flag == "meta":
+            return self._browsemeta(pid)
         idpath = pid.replace(uprclinit.getObjPrefix(), '', 1)
         # Idpath now looks like =Artist$14$=Genre...
         uplog('tags:browse: idpath <%s>' % idpath)
         qpath = idpath.split('$')
         return self._dobrowse(pid, flag, qpath, offset=offset, count=count)
-
 
 
 

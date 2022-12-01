@@ -114,26 +114,24 @@ def browse(a):
 
     entries = []
     nocache = "1"
-    if bflg == 'meta':
-        raise Exception("uprcl-app: browse: can't browse meta for now")
-    else:
-        try:
-            if not uprclinit.initdone():
-                entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
+    try:
+        if not uprclinit.initdone():
+            # initdone() acquires the readlock
+            entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp()),]
+        else:
+            initstatus, initmessage = uprclinit.initstatus()
+            if not initstatus:
+                entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
+                                     "Uprcl init error: " + initmessage),]
             else:
-                initstatus, initmessage = uprclinit.initstatus()
-                if not initstatus:
-                    entries = [waitentry(objid + 'notready', objid, uprclinit.getHttphp(),
-                                         "Uprcl init error: " + initmessage),]
+                if not idpath:
+                    entries = _rootentries()
                 else:
-                    if not idpath:
-                        entries = _rootentries()
-                    else:
-                        if len(rootmap) == 0:
-                            _rootentries()
-                        entries = _browsedispatch(objid, bflg, offset, count)
-        finally:
-            uprclinit.g_dblock.release_read()
+                    if len(rootmap) == 0:
+                        _rootentries()
+                    entries = _browsedispatch(objid, bflg, offset, count)
+    finally:
+        uprclinit.g_dblock.release_read()
 
     total = -1
     resoffs = 0

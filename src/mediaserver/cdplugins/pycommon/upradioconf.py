@@ -96,7 +96,14 @@ class UpmpdcliRadios(object):
     def __iter__(self):
        return RadioIterator(self)
 
-
+    # Note: not implementing __getitem__ because don't want to deal with slices, neg indexes etc.
+    def get_radio(self, idx):
+        if idx < 0 or idx > len(self._radios):
+            raise(IndexError(f"bad radio index {idx}"))
+        radio = self._radios[idx]
+        return {"index" : idx, "title" : radio[0], "streamUri" : radio[1],
+                "uri" : radio[2], "artUri" : radio[3], "mime": radio[4]}
+       
 class RadioIterator:
    def __init__(self, radios):
        self._radios = radios
@@ -104,24 +111,30 @@ class RadioIterator:
 
    def __next__(self):
        if self._index < (len(self._radios._radios)):
-           radio = self._radios._radios[self._index]
-           result = {"title" : radio[0], "streamUri" : radio[1],
-                     "uri" : radio[2], "artUri" : radio[3], "mime": radio[4]}
+           result = self._radios.get_radio(self._index)
            self._index +=1
            return result
 
        raise StopIteration            
 
 
-def radioToEntry(pid, idx, radio):
-    id = pid + '$e' + str(idx)
+def radioToEntry(pid, id, radio):
+    uplog(f"radioToEntry: pid {pid} id {id}")
+    # if this comes from a 'browse meta', the id is set, else compute it
+    if id is None:
+        objid = pid
+        if objid[-1] != "$":
+            objid += "$"
+        objid += "e" + str(radio["index"])
+    else:
+        objid = id
     if "mime" in radio and radio["mime"]:
         mime = radio["mime"]
     else:
         mime = "audio/mpeg"
     return {
         'pid': pid,
-        'id': id,
+        'id': objid,
         'uri': radio["streamUri"],
         'tp': 'it',
         'res:mime': mime,
@@ -130,11 +143,16 @@ def radioToEntry(pid, idx, radio):
         'tt': radio["title"]
     }
 
+def radioIndexFromId(objid):
+    stridx = objid.find("$e")
+    if stridx == -1:
+        raise Exception(f"Bad objid {objid}")
+    return int(objid[stridx+2:])
+
+
 
 if __name__ == "__main__":
     conf = conftree.ConfSimple("/etc/upmpdcli.conf", casesensitive=False)
     radios = UpmpdcliRadios(conf)
     for radio in radios:
         print("%s" % radio)
-
-        

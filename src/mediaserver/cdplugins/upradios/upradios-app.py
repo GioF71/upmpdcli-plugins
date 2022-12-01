@@ -25,6 +25,8 @@ import conftree
 from upmplgutils import uplog, setidprefix
 import upradioconf
 
+# Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
+_g_myprefix = "0$upradios$"
 setidprefix("upradios")
 
 # Func name to method mapper
@@ -48,15 +50,27 @@ def trackuri(a):
 
 @dispatcher.record('browse')
 def browse(a):
+    #msgproc.log(f"browse: args: --{a}--")
     if 'objid' not in a:
         raise Exception("No objid in args")
+    # Note: objid should either be our root or a radio id, which we don't check.
     objid = a['objid']
-
+    
     entries = []
-    for radio in _g_radios:
-        entries.append(upradioconf.radioToEntry(objid, len(entries), radio))
+    bflg = a['flag'] if 'flag' in a else 'children'
+    if bflg == 'meta':
+        try:
+            pid = _g_myprefix
+            idx = upradioconf.radioIndexFromId(objid)
+            entries.append(upradioconf.radioToEntry(pid, objid, _g_radios.get_radio(idx)))
+        except:
+            pass
+    else:
+        for radio in _g_radios:
+            entries.append(upradioconf.radioToEntry(objid, None, radio))
 
     encoded = json.dumps(entries)
+    msgproc.log(f"browse: returning --{entries}--")
     return {"entries" : encoded, "nocache" : "0"}
 
 

@@ -82,7 +82,7 @@ class Untagged(object):
 
 
     # Browse method
-    # objid is like untagged$u<index>
+    # objid is like 0$uprcl$untagged$u<index>
     # flag is meta or children.
     def browse(self, pid, flag, offset, count):
         idx = self._objidtoidx(pid)
@@ -91,12 +91,17 @@ class Untagged(object):
         rcldocs = uprclinit.getTree('folders').rcldocs()
         if idx == 0:
             # Browsing root
-            for i in range(len(self.utidx))[1:]:
-                doc = rcldocs[self.utidx[i]]
-                id = self._idprefix + '$u' + str(i)
-                e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
-                if e:
-                    entries.append(e)
+            if flag == "meta":
+                # Root itself
+                return self.rootentries("0$uprcl$")
+            else:
+                # Root children
+                for i in range(len(self.utidx))[1:]:
+                    doc = rcldocs[self.utidx[i]]
+                    id = self._idprefix + '$u' + str(i)
+                    e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
+                    if e:
+                        entries.append(e)
         else:
             # Non root: only items in there. flag needs to be 'meta'
             doc = rcldocs[idx]
