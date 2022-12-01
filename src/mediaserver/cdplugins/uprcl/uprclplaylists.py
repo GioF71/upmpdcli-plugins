@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019 J.F.Dockes
+# Copyright (C) 2019-2022 J.F.Dockes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,104 +34,141 @@ import upradioconf
 class Playlists(object):
     def __init__(self, rcldocs, httphp, pathprefix):
         self._idprefix = '0$uprcl$playlists'
-        self._httphp = httphp
         self._pprefix = pathprefix
+        uplog(f"PLAYLISTS pprefix {self._pprefix} idprefix {self._idprefix}")
+        self._httphp = httphp
+        self._rcldocs = rcldocs
+        self.recoll2playlists()
+        self._radios = []
+        radiolistid = self._idprefix + '$p' + str(len(self._pldocsidx))
         if not conftree.valToBool(getOptionValue("uprclnoradioconf")):
-            self._radios = upradioconf.UpmpdcliRadios(getConfigObject())
-        else:
-            self._radios = []
-        self.recoll2playlists(rcldocs)
-
-    # Create the untagged entries static vector by filtering the global
-    # doc vector, storing the indexes of the playlists.
-    # We keep a reference to the doc vector.
-    def recoll2playlists(self, rcldocs):
-        # The -1 entry is because we use index 0 for our root.
-        self.utidx = [-1]
-    
-        for docidx in range(len(rcldocs)):
-            doc = rcldocs[docidx]
-            if doc["mtype"] == 'audio/x-mpegurl':
-                self.utidx.append(docidx)
-
-                
-    # Compute index into our entries vector by 'parsing' the objid.
-    # Entry 0 is not attributed (browsing 0 -> our root)
-    # idx == len(ourlist) is valid too and does not point to an rcldoc
-    # built from an actual playlist file, but to our internal radio
-    # playlist
-    def _objidtoidx(self, pid):
-        #uplog("playlists:objidtoidx: %s" % pid)
-        if not pid.startswith(self._idprefix):
-            raise Exception("playlists:browse: bad pid %s" % pid)
-
-        idx = pid[len(self._idprefix):]
-        if not idx:
-            # Browsing the root.
-            idx = 0
-        else:
-            if idx[1] != 'p':
-                raise Exception("playlists:browse: bad objid %s" % pid)
-            idx = int(idx[2:])
-    
-        if idx > len(self.utidx):
-            raise Exception("playlists:browse: bad pid %s" % pid)
-
-        return idx
+            radios = upradioconf.UpmpdcliRadios(getConfigObject())
+            for radio in radios:
+                self._radios.append(upradioconf.radioToEntry(radiolistid, None, radio))
 
     # Return entry to be created in the top-level directory ([playlists]).
     def rootentries(self, pid):
-        return [direntry(pid + 'playlists', pid,
-                            str(len(self.utidx)) + ' playlists'),]
+        return [direntry(pid + 'playlists', pid, str(len(self._pldocsidx)) + ' playlists'),]
 
+    # Create the playlists static vector by filtering the global doc vector, storing the indexes of
+    # the playlists.
+    def recoll2playlists(self):
+        # The -1 entry is because we use index 0 for our root.
+        self._pldocsidx = [-1,]
+        for docidx in range(len(self._rcldocs)):
+            doc = self._rcldocs[docidx]
+            if doc["mtype"] == "audio/x-mpegurl":
+                self._pldocsidx.append(docidx)
+
+    # Compute index into our entries vector by 'parsing' the objid which is like
+    # {_idprefix}$pPn[$e]En Pn and En are idx0 and idx1
+    # idx0==0 -> our root. idx0 == len(ourlist) is valid too and does not point to an rcldoc built
+    # from an actual playlist file, but to our internal radio playlist
+    def _objidtoidx(self, objid):
+        #uplog("playlists:objidtoidx: %s" % objid)
+        if not objid.startswith(self._idprefix):
+            raise Exception(f"playlists:browse: bad objid prefix in {objid}")
+        # path is like $p{idx0} or $p{idx0}$e{idx1}
+        path = objid[len(self._idprefix):]
+        idx1 = -1
+        if not path:
+            # Browsing the root.
+            idx0 = 0
+        else:
+            if path[1] != 'p':
+                raise Exception(f"playlists:browse: bad objid {objid} path {path} no $p")
+            epos = path.find("$e")
+            if epos != -1:
+                idx0 = int(path[2:epos])
+                idx1 = int(path[epos+2:])
+            else:
+                idx0 = int(path[2:])
+        if idx0 > len(self._pldocsidx):
+            raise Exception(f"playlists:browse: bad objid {objid} idx0 {idx0} not in range")
+        return idx0,idx1
+
+    def _idxtoentry(self, idx):
+        upnpclass = "object.container.playlistContainer"
+        id = self._idprefix + "$p" + str(idx)
+        if idx == len(self._pldocsidx):
+            title = "*Upmpdcli Radios*"
+        elif idx >=1 and idx < len(self._pldocsidx):
+            doc = self._rcldocs[self._pldocsidx[idx]]
+            title = doc["title"] if doc["title"] else doc["filename"]
+        else:
+            return None
+        return direntry(id, self._idprefix, title, upnpclass=upnpclass)
+
+    # Return the contents of the playlist at index idx
+    def _playlistatidx(self, idx):
+        #uplog(f"playlistatidx: idx {idx}")
+        pldoc = self._rcldocs[self._pldocsidx[idx]]
+        plpath = uprclutils.docpath(pldoc)
+        folders = uprclinit.getTree('folders')
+        #uplog("playlists: plpath %s" % plpath)
+        entries = []
+        try:
+            m3u = uprclutils.M3u(plpath)
+        except Exception as ex:
+            uplog("M3u open failed: %s %s" % (plpath,ex))
+            return entries
+        cnt = 1
+        for url in m3u:
+            if m3u.urlRE.match(url):
+                # Actual URL (usually http). Create bogus doc
+                doc = folders.docforurl(url)
+            else:
+                docidx = folders.statpath(plpath, url)
+                if not docidx:
+                    continue
+                doc = self._rcldocs[docidx]
+                        
+            pid = self._idprefix + "$p" + str(idx)
+            id = pid +  "$e" + str(len(entries))
+            e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
+            if e:
+                entries.append(e)
+        #uplog(f"playlistatidx: idx {idx} -> {entries}")
+        return entries
+        
     # Browse method
-    # objid is like playlists$p<index>
+    # objid is like {_idprefix}$p<idx0> or {_idprefix}$p<idx0>$e<idx1> (meta only)
     # flag is meta or children.
     def browse(self, pid, flag, offset, count):
-        idx = self._objidtoidx(pid)
+        uplog(f"uprclplaylists: browse: pid {pid} flag {flag}")
+        idx0, idx1 = self._objidtoidx(pid)
 
-        folders = uprclinit.getTree('folders')
-        rcldocs = folders.rcldocs()
-        entries = []
-        if idx == 0:
-            # Browsing root
-            # Special entry for our radio list. The id is 1 beyond valid playlist ids
-            id = self._idprefix + '$p' + str(len(self.utidx))
-            title = "*Upmpdcli Radios*"
-            entries.append(direntry(id, pid, title, upnpclass='object.container.playlistContainer'))
-            # Regular playlist entries, from our doc list
-            for i in range(len(self.utidx))[1:]:
-                doc = rcldocs[self.utidx[i]]
-                id = self._idprefix + '$p' + str(i)
-                title = doc["title"] if doc["title"] else doc["filename"]
-                entries.append(
-                    direntry(id, pid, title, upnpclass='object.container.playlistContainer'))
-        elif idx == len(self.utidx):
-            for radio in self._radios:
-                entries.append(upradioconf.radioToEntry(pid, len(entries), radio))
-        else:
-            pldoc = rcldocs[self.utidx[idx]]
-            plpath = uprclutils.docpath(pldoc)
-            #uplog("playlists: plpath %s" % plpath)
-            try:
-                m3u = uprclutils.M3u(plpath)
-            except Exception as ex:
-                uplog("M3u open failed: %s %s" % (plpath,ex))
-                return entries
-            cnt = 1
-            for url in m3u:
-                if m3u.urlRE.match(url):
-                    # Actual URL (usually http). Create bogus doc
-                    doc = folders.docforurl(url)
+        if flag == "meta":
+            if idx0 == 0:
+                return self.rootentries(self, self._idprefix)
+            elif idx0 < len(self._pldocsidx):
+                if idx1 == -1:
+                    return [self._idxtoentry(idx0),]
                 else:
-                    docidx = folders.statpath(plpath, url)
-                    if not docidx:
-                        continue
-                    doc = rcldocs[docidx]
-                        
-                id = pid + '$e' + str(len(entries))
-                e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
-                if e:
-                    entries.append(e)
+                    entries = self._playlistatidx(idx0)
+                    if idx1 >= 0 and idx1 < len(entries):
+                        return [entries[idx1],]
+            elif idx0 == len(self._pldocsidx):
+                if idx1 == -1:
+                    return [self._idxtoentry(idx0),]
+                else:
+                    if idx1 > 0 and idx1 < len(self._radios):
+                        return [self._radios[idx1],]
+            return []
+
+        # Browsing children
+        entries = []
+        if idx0 == 0:
+            # Browsing root. Return contents
+            # Regular playlist entries, from our doc list.
+            for i in range(len(self._pldocsidx))[1:]:
+                entries.append(self._idxtoentry(i))
+            # Special entry for our radio list. The id is 1 beyond valid playlist ids
+            entries.append(self._idxtoentry(len(self._pldocsidx)))
+        elif idx0 == len(self._pldocsidx):
+            # Browsing the radio list
+            entries = self._radios
+        else:
+            entries = self._playlistatidx(idx0)
 
         return entries
