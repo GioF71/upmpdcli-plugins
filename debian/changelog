@@ -1,3 +1,15 @@
+upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media Server: uprcl, qobuz, upradios: properly implement UPnP Browse(Metadata), for the sole use
+    of Kodi, probably.
+  * Uprcl container sort: sort by file names if there are no tags (e.g. wav files).
+  * Uprcl: add uprclnotag view configuration variable to disable the "Tag View" entries in the
+    folders tree.   
+  * Make configuration parameter names case-insensitive.
+  * Small bugs fixes
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 01 Dec 2022 21:10:00 +0100
+
 upmpdcli (1.6.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * uprcl: process custom tags (not predefined anywhere) as regular ones.
