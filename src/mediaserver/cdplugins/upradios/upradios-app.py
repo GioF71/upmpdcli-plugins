@@ -70,7 +70,7 @@ def browse(a):
             entries.append(upradioconf.radioToEntry(objid, None, radio))
 
     encoded = json.dumps(entries)
-    msgproc.log(f"browse: returning --{entries}--")
+    # msgproc.log(f"browse: returning --{entries}--")
     return {"entries" : encoded, "nocache" : "0"}
 
 
