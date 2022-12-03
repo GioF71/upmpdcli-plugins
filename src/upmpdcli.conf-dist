@@ -223,6 +223,8 @@ uprcltitle = Local Music
 #upradiosuser = bugsbunny
 # Plugin Title.
 upradiostitle = Upmpdcli Radio List
+# Maximum number of threads to use while initializing the radio list
+#upradiosmaxthreads = 5
 
 # Upmpdcli BBC Sounds plugin parameters
 

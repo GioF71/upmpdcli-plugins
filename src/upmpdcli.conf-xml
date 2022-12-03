@@ -553,6 +553,13 @@ uprcltitle = Local Music
 # directory.</descr></var>
 upradiostitle = Upmpdcli Radio List
 
+# <var name="upradiosmaxthreads" type="int">
+# <brief>Maximum number of threads to use while initializing the radio list</brief>
+# <descr>Most radios are defined by playlist files which may need several network interactions
+# before the actual URL usable by the control point can be reached. We use multiple threads to speed
+# up this process, this is the maximum thread count.</descr></var>
+#upradiosmaxthreads = 5
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

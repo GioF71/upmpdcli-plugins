@@ -140,7 +140,9 @@ def radioToEntry(pid, id, radio):
         'res:mime': mime,
         'upnp:class': 'object.item.audioItem.musicTrack',
         'upnp:albumArtURI': radio["artUri"],
-        'tt': radio["title"]
+        'tt': radio["title"],
+        # This is for Kodi mostly, to avoid displaying a big "Unknown" placeholder
+        'upnp:artist': "Internet Radio"
     }
 
 def radioIndexFromId(objid):
