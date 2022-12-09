@@ -98,7 +98,8 @@ public:
                             const std::string& sk = std::string());
     virtual bool getBool(const std::string& name, bool dflt, const std::string& sk = std::string());
     virtual bool ok() const = 0;
-    virtual std::vector<std::string> getNames(const std::string& sk, const char* = 0) const = 0;
+    virtual std::vector<std::string> getNames(const std::string& sk,
+                                              const char* = nullptr) const = 0;
     virtual bool hasNameAnywhere(const std::string& nm) const = 0;
     virtual int erase(const std::string&, const std::string&) = 0;
     virtual int eraseKey(const std::string&) = 0;
@@ -254,7 +255,7 @@ public:
     /** Return all names in given submap. On win32, the pattern thing
         only works in recoll builds */
     virtual std::vector<std::string> getNames(
-        const std::string& sk, const char *pattern = 0) const override;
+        const std::string& sk, const char *pattern = nullptr) const override;
 
     /** Check if name is present in any submap. This is relatively expensive
      * but useful for saving further processing sometimes */

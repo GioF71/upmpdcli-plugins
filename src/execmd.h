@@ -159,21 +159,25 @@ public:
                const std::string *input = nullptr, std::string *output = nullptr);
 
     /** Same as doexec but cmd and args in one vector */
-    int doexec1(const std::vector<std::string>& args,
-                const std::string *input = nullptr, std::string *output = nullptr) {
-        if (args.empty()) {
+    int doexec(const std::vector<std::string>& args, const std::string *in=0, std::string *out=0) {
+        if (args.empty())
             return -1;
-        }
-        return doexec(args[0], std::vector<std::string>(args.begin() + 1, args.end()),
-                      input, output);
+        return doexec(args[0], std::vector<std::string>(args.begin() + 1, args.end()), in, out);
     }
 
     /*
-     * The next four methods can be used when a Q/A dialog needs to be
-     * performed with the command
+     * The next methods can be used when a Q/A dialog needs to be performed with the command
      */
     int startExec(const std::string& cmd, const std::vector<std::string>& args,
                   bool has_input, bool has_output);
+    /** Same as startExec but cmd and args in one vector */
+    int startExec(const std::vector<std::string>& args, bool has_input, bool has_output) {
+        if (args.empty())
+            return -1;
+        return startExec(args[0], std::vector<std::string>(args.begin()+1, args.end()),
+                         has_input, has_output);
+    }
+        
     int send(const std::string& data);
     int receive(std::string& data, int cnt = -1);
 

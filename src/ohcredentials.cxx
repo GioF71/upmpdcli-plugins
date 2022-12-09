@@ -229,7 +229,7 @@ public:
 
         if (!path_exists(keyfile)) {
             vector<string> acmd{opensslcmd, "genrsa", "-out", keyfile, "4096"};
-            int status = cmd.doexec1(acmd);
+            int status = cmd.doexec(acmd);
             chmod(keyfile.c_str(), 0600);
             if (status != 0) {
                 LOGERR("OHCredentials: could not create key\n");
@@ -277,7 +277,7 @@ public:
     bool decrypt(const string& in, string& out) {
         vector<string> acmd{opensslcmd, "pkeyutl", "-inkey",
                 keyfile, "-pkeyopt", "rsa_padding_mode:oaep", "-decrypt"};
-        int status = cmd.doexec1(acmd, &in, &out);
+        int status = cmd.doexec(acmd, &in, &out);
         if (status) {
             LOGERR("OHCredentials: decrypt failed\n");
             return false;

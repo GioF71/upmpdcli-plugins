@@ -768,10 +768,9 @@ bool MPDCli::setVolume(int volume, bool isMute)
         stringstream ss;
         ss << volume;
         args.push_back(ss.str());
-        if (ecmd.doexec1(args)) {
+        if (ecmd.doexec(args)) {
             // doexec returns the exit status, should be zero
-            LOGDEB("MPDCli::setVolume: " << m_onvolumechange[0] <<
-                   " failed " << volume << endl);
+            LOGDEB("MPDCli::setVolume: " << m_onvolumechange[0] << " failed " << volume << endl);
         }
     }
     m_stat.volume = volume;
