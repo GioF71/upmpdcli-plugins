@@ -38,6 +38,8 @@ audiomtypes = frozenset([
     'audio/mpeg',
     'audio/flac',
     'application/flac',
+    'audio/x-dsf',
+    'audio/x-dff',
     'audio/x-flac',
     'application/x-flac',
     'application/ogg',

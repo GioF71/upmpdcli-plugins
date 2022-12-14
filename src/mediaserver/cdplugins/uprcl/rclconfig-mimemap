@@ -4,3 +4,5 @@
 .ape = audio/ape
 .mpc = audio/x-musepack
 .wv = audio/x-wavpack
+.dsf = audio/x-dsf
+.dff = audio/x-dff

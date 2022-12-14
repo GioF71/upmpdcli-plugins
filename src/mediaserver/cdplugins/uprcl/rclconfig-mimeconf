@@ -3,3 +3,5 @@ audio/x-mpegurl = internal text/plain
 audio/ape = execm rclaudio.py
 audio/x-musepack = execm rclaudio.py
 audio/x-wavpack = execm rclaudio.py
+audio/x-dsf = execm rclaudio.py
+audio/x-dff = execm rclaudio.py

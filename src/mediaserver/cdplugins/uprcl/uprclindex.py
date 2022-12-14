@@ -71,7 +71,7 @@ def _initconfdir(confdir, topdirs):
     #f.write(b"idxlogfilename = /tmp/loguprcl.txt\n")
     #f.write(b"pylogfilename = /tmp/logpyuprcl.txt\n")
     f.write(b"noaspell = 1\n")
-    f.write(b"nomd5types = rclaudio rclimg\n")
+    f.write(b"nomd5types = rclaudio rclaudio.py rclimg rclimg.py\n")
     f.write(b"testmodifusemtime = 1\n")
     f.write(b"idxmetastoredlen = 20000\n")
     # We'd like to set this to zero, but this triggers the creation of
