@@ -472,28 +472,32 @@ def embedded_open(path):
         
     f = None
     size = 0
-    if 'audio/mp3' in mutf.mime:
-        for tagname in mutf.keys():
-            if tagname.startswith('APIC:'):
-                #self.em.rclog("mp3 img: %s" % mutf[tagname].mime)
-                mtype = mutf[tagname].mime
-                s = mutf[tagname].data
-                size = len(s)
-                f = io.BytesIO(s)
-    elif 'audio/flac' in mutf.mime:
-        if mutf.pictures:
-            mtype = mutf.pictures[0].mime
-            size = len(mutf.pictures[0].data)
-            f = io.BytesIO(mutf.pictures[0].data)
-    elif 'audio/mp4' in mutf.mime:
-        if 'covr' in mutf.keys():
-            format = mutf['covr'][0].imageformat 
-            if format == mutagen.mp4.AtomDataType.JPEG:
-                mtype = 'image/jpeg'
-            else:
-                mtype = 'image/png'
-            size = len(mutf['covr'][0])
-            f = io.BytesIO(mutf['covr'][0])
+
+    # First pretend that this is an ID3. These can come inside multiple file formats, don't try to
+    # select on MIME, just try it.
+    for tagname in mutf.keys():
+        if tagname.startswith('APIC:'):
+            #self.em.rclog("mp3 img: %s" % mutf[tagname].mime)
+            mtype = mutf[tagname].mime
+            s = mutf[tagname].data
+            size = len(s)
+            f = io.BytesIO(s)
+
+    if not f:
+        if 'audio/flac' in mutf.mime:
+            if mutf.pictures:
+                mtype = mutf.pictures[0].mime
+                size = len(mutf.pictures[0].data)
+                f = io.BytesIO(mutf.pictures[0].data)
+        elif 'audio/mp4' in mutf.mime:
+            if 'covr' in mutf.keys():
+                format = mutf['covr'][0].imageformat 
+                if format == mutagen.mp4.AtomDataType.JPEG:
+                    mtype = 'image/jpeg'
+                else:
+                    mtype = 'image/png'
+                size = len(mutf['covr'][0])
+                f = io.BytesIO(mutf['covr'][0])
 
     if f is None:
         raise Exception(f"can't open embedded image for {path}")
