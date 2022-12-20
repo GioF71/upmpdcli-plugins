@@ -154,7 +154,7 @@ def radioIndexFromId(objid):
 
 
 if __name__ == "__main__":
-    conf = conftree.ConfSimple("/etc/upmpdcli.conf", casesensitive=False)
-    radios = UpmpdcliRadios(conf)
+    from upmplgutils import getConfigObject
+    radios = UpmpdcliRadios(getConfigObject())
     for radio in radios:
         print("%s" % radio)

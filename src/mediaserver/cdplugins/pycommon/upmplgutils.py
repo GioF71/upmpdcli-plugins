@@ -31,6 +31,7 @@ import os
 import subprocess
 import pwd
 import errno
+import inspect
 
 import conftree
 
@@ -66,7 +67,12 @@ _g_upconfig = None
 def getOptionValue(nm, dflt = None):
     global _g_upconfig
     if _g_upconfig is None:
-        _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"], casesensitive=False)
+        members = dict(inspect.getmembers(conftree.ConfSimple.__init__.__code__))
+        var_names = members['co_varnames']
+        if "casesensitive" in var_names:
+            _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"], casesensitive=False)
+        else:
+            _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     value = _g_upconfig.get(nm)
     if value is not None:
         return value
@@ -77,7 +83,10 @@ def getOptionValue(nm, dflt = None):
         return dflt
     
     return value
+
 def getConfigObject():
+    if _g_upconfig is None:
+        getOptionValue("somebogusvalue")
     return _g_upconfig
 
 # Get user and password from service, from the main configuration
