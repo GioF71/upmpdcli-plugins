@@ -350,17 +350,6 @@ hralang:: Hra language setting
 (en/de). Some Highresaudio messages will be set in the
 appropriate language.
 
-=== Spotify streaming service parameters 
-
-[[spotifyuser]]
-spotifyuser:: Spotify user name. Your Spotify login name.
-
-[[spotifypass]]
-spotifypass:: Spotify password. The password for your Spotify account.
-
-[[spotifybitrate]]
-spotifybitrate:: Spotify preferred bitrate: 160 (default), 320 or 96. Unverified.
-
 === Tidal streaming service parameters 
 
 [[tidaluser]]
