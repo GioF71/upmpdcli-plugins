@@ -1,4 +1,4 @@
-AC_INIT([upmpdcli], [1.6.2], [jfd@lesbonscomptes.com],
+AC_INIT([upmpdcli], [1.6.3pre2], [jfd@lesbonscomptes.com],
              [upmpdcli], [http://www.lesbonscomptes.com/upmpdcli])
 AC_PREREQ([2.53])
 AC_CONFIG_MACRO_DIRS([m4])
@@ -48,9 +48,9 @@ if test X$enableQT = Xyes ; then
   AC_SUBST(QMAKE)
 fi
 
-AC_ARG_ENABLE(spotify, AS_HELP_STRING([--disable-spotify],
-              [Disable spotify streaming module.]),
-              enableSpotify=$enableval, enableSpotify="yes")
+AC_ARG_ENABLE(spotify, AS_HELP_STRING([--enable-spotify],
+              [Enable the spotify streaming module (does not work any more).]),
+              enableSpotify=$enableval, enableSpotify="no")
 AM_CONDITIONAL(ENABLESPOTIFY, [test X$enableSpotify = Xyes])
 
 

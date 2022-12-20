@@ -399,18 +399,6 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # appropriate language.</descr></var>
 #hralang = en
 
-# <grouptitle>Spotify streaming service parameters</grouptitle>
-
-# <var name="spotifyuser" type="string"><brief>Spotify user name.</brief>
-# <descr>Your Spotify login name.</descr></var>
-#spotifyuser = me@some.place
-# <var name="spotifypass" type="string"><brief>Spotify password.</brief>
-# <descr>The password for your Spotify account.</descr></var>
-#spotifypass = agoodpassword
-# <var name="spotifybitrate" type="int" values="96 320 160">
-# <brief>Spotify preferred bitrate: 160 (default), 320 or 96.</brief>
-# <descr>Unverified.</descr></var>
-#spotifybitrate = 160
 
 # <grouptitle>Tidal streaming service parameters</grouptitle>
 

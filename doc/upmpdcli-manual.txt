@@ -154,10 +154,10 @@ Additionally:
   (and usually runs in separate threads of the same process), but it is completely independant:
   *upmpdcli* can run as Renderer only, or Media Server only, or both, and the Media Server can be
   accessed by any Control Point and serve streams to any Renderer, not only to its co-hosted one.
-  The Upmpdcli Media Server implements gateways to external streaming services (Spotify,
-  Highresaudio, Qobuz, Deezer...), and also includes the *uprcl* module, which provides a Media
-  Server for local audio files. *uprcl* is based on the link:https://www.recoll.org[Recoll] medata
-  extraction and search functions.
+  The Upmpdcli Media Server implements gateways to external streaming services (Highresaudio, Qobuz,
+  Deezer...), and also includes the *uprcl* module, which provides a Media Server for local audio
+  files. *uprcl* is based on the link:https://www.recoll.org[Recoll] medata extraction and search
+  functions. 
 
 - Upmpdcli implements control functions for the Linn Songcast protocol, allowing the local machine
   to behave as a Songcast Receiver or Sender (with help from the closely related *sc2mpd* package,
@@ -572,39 +572,39 @@ the Receivers can be out of sync by several seconds.
 
 ==== Streaming Services and UPnP
 
-Streaming services like Qobuz, Highresaudio or Spotify give access to a huge catalog of music
-through a WEB programming interface which is also usable by programs other than their own
-applications.
+Streaming services like Qobuz, Highresaudio give access to a huge catalog of music through a WEB
+programming interface which may be also usable by programs other than their own applications.
 
-The only thing that they have in common with UPnP is that most of them use
-HTTP to retrieve the audio stream (as a short-lived URL). Spotify is an
-exception, and uses a specific protocol for streaming.
+Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
+some of the service APIs have made it impossible to access them from an open-source
+application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
 
-Given the importance of these services for music consumers, many UPnP
-Control Points and Renderers have been extended with specific interfaces to
-the different services.
+The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
+to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific
+protocol for streaming (this was finally deprecated in 2022).
 
-There are three main ways to integrate the streaming services in an UPnP
-framework, and knowing which way you are using will avoid confusion:
+Given the importance of these services for music consumers, many UPnP Control Points and Renderers
+have been extended with specific interfaces to the different services. In many cases, this is only
+feasible from a closed-source application, with an agreement with the service providers, to hide
+"secrets" inside the app.
 
-- The first approach is to have a UPnP Media Server act as a proxy for the
-  service: the catalog is browsed through a standard UPnP interface (the
-  Media Server translates this to the service API behind the scenes), and
-  the audio URIs are also accessed in an almost standard way (after a bit
-  of magic inside the Media Server). The one inconvenient of this approach
-  is that the special functions of the service (like managing the user
-  favourites lists) are mostly inaccessible. The advantage is that any
-  naive UPnP Control Point can access the streaming service. The Media
-  Server inside upmpdcli xref:UPMPDCLI-MS-STR-MS[implements this method].
+There are three main ways to integrate the streaming services in an UPnP framework, and knowing
+which way you are using will avoid confusion:
 
-- The second approach is to do everything inside the Control Point. The CP
-  uses the service API for browsing (and possibly do things like managing
-  favourites). The CP also mediates the HTTP access to the audio streams
-  (the URIs the CP sends to the Renderer point to itself, and it arranges
-  to forward the data from the service). This is implemented, for example,
-  by Bubble UPnP. The drawback of this approach is that the Control Point
-  device must not go to sleep or out of reach, else the music will stop
-  (maybe at the next track).
+- The first approach is to have a UPnP Media Server act as a proxy for the service: the catalog is
+  browsed through a standard UPnP interface (the Media Server translates this to the service API
+  behind the scenes), and the audio URIs are also accessed in an almost standard way (after a bit of
+  magic inside the Media Server). The one inconvenient of this approach is that the special
+  functions of the service (like managing the user favourites lists) are mostly inaccessible. The
+  advantage is that any naive UPnP Control Point can access the streaming service. The Media Server
+  inside upmpdcli xref:UPMPDCLI-MS-STR-MS[implements this method].
+
+- The second approach is to do everything inside the Control Point. The CP uses the service API for
+  browsing (and possibly do things like managing favourites). The CP also mediates the HTTP access
+  to the audio streams (the URIs the CP sends to the Renderer point to itself, and it arranges to
+  forward the data from the service). This is implemented, for example, by Bubble UPnP. The drawback
+  of this approach is that the Control Point device must not go to sleep or out of reach, else the
+  music will stop (maybe at the next track).
 
 - The third approach is to distribute the function between CP and
   Renderer. The Control Point performs the browsing and access to special
@@ -620,19 +620,18 @@ framework, and knowing which way you are using will avoid confusion:
 [[UPMPDCLI-MS-STR-MS]]
 ==== Accessing Streaming Services through the upmpdcli Media Server
   
-The Media Server function in Upmpdcli gives access to external streaming services: Spotify,
-Highresaudio and Qobuz currently work unconditionally (1.5.5).
+The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio and
+Qobuz currently work fine (1.6.2).
+
+The Deezer plugin works for low quality (but still usable) streams (128 kb/s mp3).
 
 NOTE::
 I am not sure about Tidal support: in any case it will only work if you can find a working
 application token, and even then, maybe not as their access control API is evolving. I have no
 access to an API key, so I can't even test.
 
-A plugin for Deezer has been added recently (2021-02-23 git or future
-1.5.9), and currently only provide access to 128 kb/s mp3 streams.
 
-You will need a valid subscription for any service that you want to use
-(for Spotify, this means a premium account, the free ones will not work).
+You will need a valid subscription for any service that you want to use.
 
 When the function is activated, *upmpdcli* creates a separate auxiliary Media
 Server, with the sole purpose of presenting the streaming server
@@ -778,40 +777,6 @@ The configuration parameters are described in the
 <<deezeruser,configuration section>>. Only `deezeruser` and `deezerpass`
 actually. 
 
-
-[[UPMPDCLI-MS-STR-SPOTIFY]]
-==== Using Spotify through the Upmpdcli Media Server
-
-You will need to install the upmpdcli-spotify module.
-
-You will need a premium account, the free ones do not work for this.
-
-Spotify is the only service which does not use regular (short-lived) HTTP
-URLs for accessing the streams, but rather a non standard transfer
-protocol, implemented in a specific library.
-
-The upmpdcli interface is based on a slightly modified version of the
-link:https://spotipy.readthedocs.io/en/latest/[Spotipy Python package] and
-the old `libspotify` library.
-
-The `libspotify` library is not distributed or installed with upmpdcli, you
-need to install it separately. Currently, the easiest way to obtain it is
-from the link:https://github.com/mopidy/libspotify-deb[Mopidy
-repository]. You can use the 'deb' packages on a Debian-derived system,
-else copy the dynamic object for your architecture to /usr/lib.
-
-NOTE: Using this module is contrary to the current Spotify terms of
-service, and you use the (supposedly deprecated) library under your
-own responsability.
-
-The authentication method is also more complicated than for the others, and
-will have you jump through a few hoops in addition to setting the password
-in the configuration file.
-
-You will need to set some configuration parameters, which are described in the
-<<spotifyuser,configuration section>> and then obtain an oauth2
-authorization token: follow the instructions in the <<SPOTIFY-AUTH,Spotify
-authorization annex>>.
 
 [[UPMPDCLI-MS-UPRADIOS]]
 === Upradios: Upmpdcli radio list plugin
@@ -1016,14 +981,6 @@ installation of additional dependancies:
 
 - --enable-confgui: build the configuration editor GUI. This will need
 the Qt development packages
-- -disable-spotify: do not include build the Spotify access module. This
-  used to be disabled by default, but is now enabled because it does not
-  create a build dependancy, as the interface include file is bundled,
-  and the library itself is dynamically opened at run time, not linked. Of
-  course, the library will need to be installed on the target machine for
-  the Spotify access to work. Currently, the easiest way to obtain it is
-  from the link:https://github.com/mopidy/libspotify-deb[Mopidy
-  repository].
   
 Once the source is extracted, the procedure is standard for each of the
 three packages:
@@ -1214,7 +1171,7 @@ files and the sc2mpd (git) source tree.
     cd ..
     debuild
 
-
+////
 [[SPOTIFY-AUTH]]
 == Annex: setting up Spotify access authorization
 
@@ -1257,6 +1214,7 @@ browser. You will need to execute the following steps to set things up:
 - Make sure that /var/cache/upmpdcli and its contents belong to upmpdcli:
 
     sudo chown -R upmpdcli /var/cache/upmpdcli/spotify
+////
 
 [[SC2MPD-INSTALL]]
 == Annex: Songcast installation walkthrough

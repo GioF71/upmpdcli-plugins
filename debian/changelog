@@ -1,3 +1,9 @@
+upmpdcli (1.6.3pre2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * UPRCL: support multiple values for tags
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 18 Dec 2022 10:10:00 +0100
+
 upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media Server: uprcl, qobuz, upradios: properly implement UPnP Browse(Metadata), for the sole use
