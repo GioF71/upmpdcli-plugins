@@ -98,13 +98,14 @@ class Untagged(object):
                 # Root children
                 for i in range(len(self.utidx))[1:]:
                     doc = rcldocs[self.utidx[i]]
+                    #uplog(f"UNTAGGED: {i} -> {doc['url']}")
                     id = self._idprefix + '$u' + str(i)
                     e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
                     if e:
                         entries.append(e)
         else:
             # Non root: only items in there. flag needs to be 'meta'
-            doc = rcldocs[idx]
+            doc = rcldocs[self.utidx[idx]]
             id = self._idprefix + '$u' + str(idx)
             e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
             if e:
