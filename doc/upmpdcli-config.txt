@@ -314,6 +314,17 @@ msfriendlyname:: Friendly name for the
 Media Server (if enabled). The default is to append
 "-mediaserver" to the friendlyname value.
 
+[[msrootalias]]
+msrootalias:: Media Server root alias Allows using any Media Server container as root, for skipping over the
+top levels (esp. the active plugin list if there is only one plugin).
+The value is an UPnP object Id. Common values:
+- 0$uprcl$ Direct access to the Local Media root
+- 0$uprcl$folders Direct access to the Local Media [folders] tree.
+An alias must begin with "0" (which is the well-known UPnP root object ID), followed by
+$pluginname$ where pluginname could be any subdirectory of /usr/share/upmpdcli/cdplugins except
+pycommon (e.g. uprcl, qobuz, upradios...), and the rest would depend on the plugin type.
+
+
 [[plgmicrohttphost]]
 plgmicrohttphost:: Hostname/IP address used in proxy URLs. The default is to use the same host/address as the UPnP
 server. Using localhost/127.0.0.1 instead loses the ability to stream to

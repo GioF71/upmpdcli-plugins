@@ -44,7 +44,7 @@ using namespace UPnPProvider;
 class ContentDirectory::Internal {
 public:
     Internal (ContentDirectory *sv, MediaServer *dv)
-        : service(sv), msdev(dv), updateID("1") { }
+        : service(sv), msdev(dv), updateID("1") {}
 
     ~Internal() {
         for (auto& it : plugins) {
@@ -56,7 +56,7 @@ public:
     // wait on first access
     void maybeStartSomePlugins(bool enabled);
 
-    void maybeInitUpnpHost() {
+    void maybeInit() {
         if (upnphost.empty()) {
             UpnpDevice *dev;
             if (!service || !(dev = service->getDevice())) {
@@ -69,15 +69,15 @@ public:
                 return;
             }
             upnpport = usport;
-            LOGDEB("ContentDirectory: upnphost "<< upnphost <<
-                   " upnpport " << upnpport << endl);
+            getOptionValue("msrootalias", rootalias);
+            LOGDEB("ContentDirectory: upnphost ["<< upnphost << "] upnpport [" << upnpport <<
+                   "] rootalias [" << rootalias << "]\n");
         }
     }
     
     CDPlugin *pluginFactory(const string& appname) {
         LOGDEB("ContentDirectory::pluginFactory: for " << appname << endl);
-
-        maybeInitUpnpHost();
+        maybeInit();
         return new PlgWithSlave(appname, service);
     }
 
@@ -99,6 +99,7 @@ public:
     unordered_map<string, CDPlugin *> plugins;
     string upnphost;
     int upnpport;
+    string rootalias;
     string updateID;
 };
 
@@ -299,10 +300,14 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
 {
     bool ok = false;
     std::string in_ObjectID;
+       
     ok = sc.get("ObjectID", &in_ObjectID);
     if (!ok) {
         LOGERR("ContentDirectory::actBrowse: no ObjectID in params\n");
         return UPNP_E_INVALID_PARAM;
+    }
+    if (!m->rootalias.empty() && in_ObjectID.find(m->rootalias) != 0) {
+        in_ObjectID = m->rootalias + in_ObjectID.substr(1);
     }
     std::string in_BrowseFlag;
     ok = sc.get("BrowseFlag", &in_BrowseFlag);
@@ -409,6 +414,9 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     if (!ok) {
         LOGERR("ContentDirectory::actSearch: no ContainerID in params\n");
         return UPNP_E_INVALID_PARAM;
+    }
+    if (!m->rootalias.empty() && in_ContainerID.find(m->rootalias) != 0) {
+        in_ContainerID = m->rootalias + in_ContainerID.substr(1);
     }
     std::string in_SearchCriteria;
     ok = sc.get("SearchCriteria", &in_SearchCriteria);
@@ -551,7 +559,7 @@ string ContentDirectory::microhttphost()
         LOGDEB("ContentDirectory::microhttphost: from config:" << host << "\n");
         return host;
     }
-    m->maybeInitUpnpHost();
+    m->maybeInit();
     return m->upnphost;
 }
 

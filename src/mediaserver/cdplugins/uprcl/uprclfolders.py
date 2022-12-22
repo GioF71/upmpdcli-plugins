@@ -518,7 +518,7 @@ class Folders(object):
 
         if flag == "meta":
             if not isitem:
-                raise Exception(f"uprclfolders:browse: browsechildren on non-item pid [{pid}]")
+                raise Exception(f"uprclfolders:browse: browsemeta on non-item pid [{pid}]")
             return self._browsemeta(pid, isitem, idx)
 
         #uplog(f"Folders browse: idx [{idx}] content: [{self._dirvec[idx]}]")

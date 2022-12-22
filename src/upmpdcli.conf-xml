@@ -356,6 +356,19 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # "-mediaserver" to the friendlyname value.</descr></var>
 #msfriendlyname = 
 
+# <var name="msrootalias" type="string">
+# <brief>Media Server root alias</brief>
+# <descr>Allows using any Media Server container as root, for skipping over the
+# top levels (esp. the active plugin list if there is only one plugin).
+# The value is an UPnP object Id. Common values:
+#   - 0$uprcl$ Direct access to the Local Media root
+#   - 0$uprcl$folders Direct access to the Local Media [folders] tree.
+# An alias must begin with "0" (which is the well-known UPnP root object ID), followed by
+# $pluginname$ where pluginname could be any subdirectory of /usr/share/upmpdcli/cdplugins except
+# pycommon (e.g. uprcl, qobuz, upradios...), and the rest would depend on the plugin type.
+# </descr></var>
+#msrootalias = 
+
 # <var name="plgmicrohttphost" type="string">
 # <brief>Hostname/IP address used in proxy URLs.</brief>
 # <descr>The default is to use the same host/address as the UPnP
