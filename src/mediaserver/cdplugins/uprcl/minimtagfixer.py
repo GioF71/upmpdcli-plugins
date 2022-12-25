@@ -58,19 +58,19 @@ class TagUpdateData(object):
         self.minimconfig = minimconfig.MinimConfig(self.minimcnffn)
         self.tgupfile = self.minimconfig.getsimplevalue("minimserver.tagUpdate")
         #uplog("Minim config read: tagUpdate: %s" % self.tgupfile)
-        self.tgupfile = self._makeabs(self.tgupfile)
-        if not os.path.exists(self.tgupfile):
-            uplog("gettagupdate: %s does not exist" % self.tgupfile)
-            return
+        if self.tgupfile:
+            self.tgupfile = self._makeabs(self.tgupfile)
+            if not os.path.exists(self.tgupfile):
+                uplog(f"gettagupdate: {self.tgupfile} does not exist")
+                return
         wlogfn = self.minimconfig.getsimplevalue("minimserver.writeTagChanges")
-        wlogfn = self._makeabs(wlogfn)
-        #uplog("gettagupdate: log file: %s" % wlogfn)
         if wlogfn:
+            wlogfn = self._makeabs(wlogfn)
             global _logfp
             try:
                 _logfp = open(wlogfn, "a")
             except Exception as ex:
-                uplog("can't open %s : %s" % (wlogfn, ex))
+                uplog(f"minimtagfixer: can't open {wlogfn} : {ex}")
         self.aliastags = self.minimconfig.getaliastags()
         self.tagvalue = self.minimconfig.gettagvalue()
 
@@ -93,8 +93,7 @@ class TagUpdateData(object):
         try:
             f = open(self.tgupfile, 'rb')
         except Exception as ex:
-            uplog("gettagupdate: can't open %s for reading: %s" %
-                  (self.tgupfile,ex))
+            uplog(f"gettagupdate: can't open {self.tgupfile} for reading: {ex}")
             return
 
         groups = []
@@ -185,16 +184,18 @@ def tagvalue(tags):
 
 
 def aliastags(tags):
+    #uplog(f"ALIASTAGS: {tud.aliastags}")
     if tud.aliastags:
         for orig, target, rep in tud.aliastags:
             try:
                 val = tags[orig]
-                #uplog("aliastags: Rep %s tags[%s]=[%s] tags[%s]=[%s]"%
-                #      (rep, orig, val, target, tags[target]))
-                if val and (rep or not tags[target]):
-                    #uplog("tags[%s] -> %s" % (target,val))
+                targetexists = "yes" if target in tags else "no"
+                #uplog(f"aliastags: Rep {rep} tags[{orig}]=[{val}] {target} in tags: {targetexists}")
+                if val and (rep or not target in tags or not tags[target]):
+                    #uplog(f"tags[{target}] -> {val}")
                     tags[target] = val
-            except:
+            except Exception as ex:
+                #uplog(f"EXCEPTION: {ex}")
                 pass
 
 
