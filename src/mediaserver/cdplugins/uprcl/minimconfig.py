@@ -20,8 +20,7 @@ class MinimConfig(object):
     def __init__(self, fn = ''):
         if fn:
             self.conf = conftree.ConfSimple(fn)
-            uplog("Minim config read: contentDir: %s" %
-                  self.conf.get("minimserver.contentDir"))
+            #uplog("Minim config read: contentDir: {self.conf.get('minimserver.contentDir')}")
         else:
             self.conf = conftree.ConfSimple('/dev/null')
         self.quotes = "\"'"
@@ -122,7 +121,7 @@ class MinimConfig(object):
                                              escape = self.escape,
                                              whitespace = self.whitespace)
             spats = conftree.stringsToString(lpats)
-        uplog("skippedNames from Minim excludePattern: %s" % spats)
+        #uplog("skippedNames from Minim excludePattern: %s" % spats)
         return spats
 
 
@@ -154,20 +153,20 @@ class MinimConfig(object):
     def getindextags(self):
         indextags = []
         sit = self.conf.get("minimserver.indexTags")
-        uplog("Minim:getindextags:in: [%s]" % sit)
+        #uplog("Minim:getindextags:in: [%s]" % sit)
         if sit:
             indextags = self.minimsplitsplit(sit)
-        uplog("Minim:getindextags:out: %s" % indextags)
+        #uplog("Minim:getindextags:out: %s" % indextags)
         return indextags
 
 
     def getitemtags(self):
         itemtags = []
         sit = self.conf.get("minimserver.itemTags")
-        uplog("Minim:getitemtags:in: [%s]" % sit)
+        #uplog("Minim:getitemtags:in: [%s]" % sit)
         if sit:
             itemtags = [i.strip() for i in sit.split(',')]
-        uplog("Minim:getitemtags:out: %s" % itemtags)
+        #uplog("Minim:getitemtags:out: %s" % itemtags)
         return itemtags
 
 
