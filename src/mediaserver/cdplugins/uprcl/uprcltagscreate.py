@@ -361,9 +361,10 @@ def _updatealbartistlist(conn, album_id, rowids):
 # directory order.
 def _setalbumcovers(conn, rcldocs):
     c = conn.cursor()
-    c.execute('''SELECT album_id FROM albums''')
+    c.execute('''SELECT album_id,albtitle FROM albums''')
     for r in c:
         albid = r[0]
+        albtitle = r[1]
         c1 = conn.cursor()
         stmt = '''SELECT docidx FROM tracks WHERE album_id = ? ORDER BY path'''
         c1.execute(stmt,  (albid,))
@@ -371,7 +372,7 @@ def _setalbumcovers(conn, rcldocs):
             docidx = r1[0]
             doc = rcldocs[docidx]
             arturi = uprclutils.docarturi(doc, uprclinit.getHttphp(), uprclinit.getPathPrefix(),
-                                          preferfolder=True)
+                                          preferfolder=True, albtitle=albtitle)
             if arturi:
                 cupd = conn.cursor()
                 #uplog(f"Setting albid {albid} albarturi to {arturi}")

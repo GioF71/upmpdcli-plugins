@@ -40,6 +40,7 @@ audiomtypes = frozenset([
     'application/flac',
     'audio/x-dsf',
     'audio/x-dff',
+    'audio/x-aiff',
     'audio/x-flac',
     'application/x-flac',
     'application/ogg',
@@ -286,12 +287,21 @@ def _trackarturi(doc, objpath, httphp, bpp):
     return None
 
 # Return folder-level art uri (e.g. /path/to/folder.jpg) if it exists
-def folderart(doc, httphp, bpp):
+def folderart(doc, httphp, bpp, albtitle=None):
     global _foldercache
 
     # If doc is a directory, this returns itself, else the father dir.
     folder = docfolder(doc)
-    
+
+    # If albtitle is set check for an image of the same name
+    if albtitle:
+        albtitle = albtitle.encode("UTF-8")
+        for fsimple in _artnamegen(albtitle):
+            path = os.path.join(folder, fsimple)
+            uplog(f"TESTING {path}")
+            if os.path.exists(path):
+                return _httpurl(httphp, path)
+
     # Look for an appropriate image in the file folder. Generating the charcase combinations would
     # be complicated so we list the folder and look for a case-insensitive match. As this is slow,
     # we cache the result.
@@ -327,7 +337,7 @@ def folderart(doc, httphp, bpp):
     return arturi
 
 
-def docarturi(doc, httphp, pathprefix, preferfolder=False):
+def docarturi(doc, httphp, pathprefix, preferfolder=False, albtitle=None):
     bpp = pathprefix.encode('utf-8')
     objpath = docpath(doc)
     #uplog("docarturi, looking for cover for %s" % objpath)
@@ -345,10 +355,10 @@ def docarturi(doc, httphp, pathprefix, preferfolder=False):
             if os.path.exists(artpath):
                 return _httpurl(httphp, os.path.join(bpp, artpath))
             
-    # TBD Here minimserver would look for the group then album disc then album art
-
+    # TBD Here minimserver would look for album disc before album art (which is taken care of by
+    # folderart() with albtitle set)
     # Look for folder level image file (e.g. cover.jpg)
-    arturi = folderart(doc, httphp, bpp)
+    arturi = folderart(doc, httphp, bpp, albtitle)
     if arturi:
         return arturi
 

@@ -1,8 +1,10 @@
-
+.aif = audio/x-aiff
+.aiff = audio/x-aiff
+.ape = audio/ape
+.dff = audio/x-dff
+.dsf = audio/x-dsf
 .m3u = audio/x-mpegurl
 .m3u8 = audio/x-mpegurl
-.ape = audio/ape
 .mpc = audio/x-musepack
+.wav = audio/x-wav
 .wv = audio/x-wavpack
-.dsf = audio/x-dsf
-.dff = audio/x-dff
