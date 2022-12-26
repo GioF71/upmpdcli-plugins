@@ -20,7 +20,6 @@ class MinimConfig(object):
     def __init__(self, fn = ''):
         if fn:
             self.conf = conftree.ConfSimple(fn)
-            #uplog("Minim config read: contentDir: {self.conf.get('minimserver.contentDir')}")
         else:
             self.conf = conftree.ConfSimple('/dev/null')
         self.quotes = "\"'"
