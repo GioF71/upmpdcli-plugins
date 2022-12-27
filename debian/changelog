@@ -1,13 +1,26 @@
-upmpdcli (1.6.3pre2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.7.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * UPRCL: support multiple values for tags
+  * Mediaserver: implement rootalias parameter to point to arbitrary
+    container inside the tree. This is to avoid useless navigation from
+    the actual root for people who, e.g., only use the uprcl '[folders]' tree.
+  * Uprcl: support multiple values for tags (e.g. multiple genres).
+  * Uprcl: fix miscellaneous small issues.
+  * Removed Spotify support as libspotify does not work any more.
   
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 27 Dec 2022 17:14:00 +0100
+
+upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Upradios: set upnp:artist to "Internet Radio" to avoid "Unknown artist" display
+    in some Control Points.
+  * Uprcl: Add id3 tag support for dsf and wav files
+    
  -- Jean-Francois Dockes <jf@dockes.org>  Sun, 18 Dec 2022 10:10:00 +0100
 
 upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Media Server: uprcl, qobuz, upradios: properly implement UPnP Browse(Metadata), for the sole use
-    of Kodi, probably.
+  * Media Server: uprcl, qobuz, upradios: properly implement UPnP Browse(Metadata),
+    for the sole use of Kodi, probably.
   * Uprcl container sort: sort by file names if there are no tags (e.g. wav files).
   * Uprcl: add uprclnotag view configuration variable to disable the "Tag View" entries in the
     folders tree.   
