@@ -141,23 +141,23 @@ SetNextTransportURI).
 == Upmpdcli overview
 
 
-Upmpdcli is xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD to actually
-process the audio data. It supports UPnP gapless track transitions and the OpenHome ohMedia services
-(including a Radio service to listen to Internet streams).
+Upmpdcli was originally xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD
+to actually process the audio data. The renderer supports UPnP gapless track transitions and the
+OpenHome ohMedia services (including a Radio service to listen to Internet streams).
 
-.The Grand Upmpdcli Scheme of Things
+.The Grand Upmpdcli Media Renderer Scheme of Things
 image::pics/upmpdcli.png["The Grand Scheme of Things"]
 
 Additionally:
 
-- The *upmpdcli* program also implements a Media Server. This function is hosted in the same program
-  (and usually runs in separate threads of the same process), but it is completely independant:
-  *upmpdcli* can run as Renderer only, or Media Server only, or both, and the Media Server can be
-  accessed by any Control Point and serve streams to any Renderer, not only to its co-hosted one.
-  The Upmpdcli Media Server implements gateways to external streaming services (Highresaudio, Qobuz,
-  Deezer...), and also includes the *uprcl* module, which provides a Media Server for local audio
-  files. *uprcl* is based on the link:https://www.recoll.org[Recoll] medata extraction and search
-  functions. 
+- The *upmpdcli* program also implements a xref:UPMPDCLI-MS[Media Server]. This function is hosted
+  in the same program (and usually runs in separate threads of the same process), but it is
+  completely independant: *upmpdcli* can run as Renderer only, or Media Server only, or both, and
+  the Media Server can be accessed by any Control Point and serve streams to any Renderer, not only
+  to its co-hosted one. The Upmpdcli Media Server implements gateways to external streaming services
+  (Highresaudio, Qobuz, Deezer...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*] module,
+  which provides a Media Server for local audio files. *uprcl* is based on the
+  link:https://www.recoll.org[Recoll] medata extraction and search functions.
 
 - Upmpdcli implements control functions for the Linn Songcast protocol, allowing the local machine
   to behave as a Songcast Receiver or Sender (with help from the closely related *sc2mpd* package,
@@ -567,58 +567,124 @@ the Receivers can be out of sync by several seconds.
 [[UPMPDCLI-MS]]
 == Upmpdcli as Media Server
 
+=== Overview
+
+The *upmpdcli* Media Server provides a number of separate functions, which can be activated through
+the configuration file.
+
+- The xref:UPMPDCLI-MS-UPRCL[uprcl] module enables access to your local audio media collection.
+- A number of xref:UPMPDCLI-MS-STR[modules] function as gateways for commercial streaming services.
+- Other plugins provide various functions: an xref:UPMPDCLI-MS-UPRADIOS[internet radio list], access
+  to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], and maybe others in the future.
+
+When the function is activated, *upmpdcli* creates a separate auxiliary Media
+Server. You will see it appear on the network if streaming service
+parameters are present in the configuration file. By default, the Media Server name is
+the `friendlyname` for the Upmpdcli instance, with _-mediaserver_ appended, but this can be changed
+in the xref:msfriendlyname[configuration].
+
+
+[[UPMPDCLI-MS-UPRCL]]
+=== Upmpdcli Uprcl: a Media Server for local files
+
+The Upmpdcli application includes a Media Server function for local music files, analog to
+MinimServer or ReadyMedia/MiniDLNA. The plugin module is named *uprcl*.
+
+Enable this function by installing the upmpdcli *uprcl* module (which may be a separate package,
+e.g. `upmpdcli-uprcl` on Debian), and uncommenting the bogus setting for the `uprcluser` variable in
+the upmpdcli configuration file. You may also want to set `uprclautostart` to 1 so that
+initialisation is performed as soon as the program start, and not on the first access. Also: you
+need to install link:http://www.recoll.org[Recoll] (just the command line and Python3 extension are
+needed) if your package manager did not do it for you.
+
+Why yet another Media Server ? Mostly because my favorite, MinimServer is great, and free, but not
+open-source, so I find it prudent to have an alternative. Also, fun :)
+
+*uprcl* only implements a small fraction of MinimServer vast list of capabilities at this point, but
+it's slowly making progress, and I find it works well enough, at least with the upmpdcli renderer,
+to now be my main Media Server.
+
+Some *uprcl* features:
+
+- Mostly written in Python (python3), except for the part shared with the streaming
+  media server plugins, which is in C++.
+- Tries to mimick the MinimServer tree view and functionality. We're
+  not quite there yet, many functions and niceties are still missing.
+- Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the
+  metadata and searching.
+- Uses Python3 Sqlite3 (on a memory DB) for the tags tree. 
+- Can retrieve some parameters from the MinimServer configuration
+  file. Will support more in the future.
+
+The list of MinimServer functions which are _not_ supported would be too
+long. Here follows what *uprcl* does support, at least partially:
+
+- `contentDir` will be used if `uprclmediadirs` is not set in
+  '/etc/upmpdcli.conf' 
+- `excludePattern`
+- `aliasTags`
+- `indexTags`
+- `showExtras`
+- Multidisc albums (partial).
+
+All in all, not a lot of the customization options are supported for now. I'd love feedback about
+what is missing most.
+
+Installation and configuration: have a look at the xref:uprcluser[configuration variables]
+
+NOTE: 'python3-mutagen' which is optional for default Recoll installations is required for uprcl
+(this is for the case where you install by hand, the package takes care of it).
+
+NOTE: uprcl needs Python 3.5 at least. This means that it does not work on Debian Jessie (8.x)
+
+
+[[UPMPDCLI-MS-UPRCL-SEARCH]]
+==== Upmpdcli/Uprcl searches
+
+The UPnP Media Server search function is based on a specific query
+language. This language is quite verbose, and most control points will not
+let you access it directly. Instead, they will usually provide a generic
+entry field in which you enter search terms.  Behind the scenes, they
+generate an UPnP search language string. This could be for example
+something like: `upnp:class = "object.item.audioItem" and dc:title
+contains "heaven"`
+
+If it supports search at all, the Media Server will then interpret the
+query string and return the results.
+
+If the Media Server is Upmpdcli/Uprcl, there is another step: the UPnP
+query string is translated into a Recoll one and Recoll is called to
+perform the actual search. There is no way to directly enter a Recoll
+search through the control point. However, two important Recoll
+capabilities should still be visible through the layers:
+
+.Stemming
+
+Stemming is the capability to expand a search to the common derivatives of
+a word. For example, a search for `floor` would be expanded to also look
+for `floors`, `flooring`, `floored`, etc. By default, stemming is enabled
+for Uprcl search. It can be turned off for any term by capitalizing the
+term (Entering `Stones` will only search for `stones`, not `stone` or
+`stoned`). Uprcl/Recoll searches are case-insensitive apart from this usage
+of capitalization.
+
+.Phrase searches
+
+By default, Uprcl/Recoll searches do not observe the order
+of terms: `red house` will be matched by a search for `house red` (or
+`houses red`). You can change this behaviour by quoting a sequence of
+words. A search for `"red house"` will only look for a text containing the
+words in order. This supposes that the Control Point does not change the
+user entry, but this is the case for at least some of them. Stemming
+expansion does not occur within phrase searches.
+
+Other Recoll capabilities, such as proximity searches should also be
+accessible, but probably less useful when searching music titles or artist
+names.
+
+
 [[UPMPDCLI-MS-STR]]
-=== Support for Streaming Services
-
-==== Streaming Services and UPnP
-
-Streaming services like Qobuz, Highresaudio give access to a huge catalog of music through a WEB
-programming interface which may be also usable by programs other than their own applications.
-
-Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
-some of the service APIs have made it impossible to access them from an open-source
-application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
-
-The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
-to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific
-protocol for streaming (this was finally deprecated in 2022).
-
-Given the importance of these services for music consumers, many UPnP Control Points and Renderers
-have been extended with specific interfaces to the different services. In many cases, this is only
-feasible from a closed-source application, with an agreement with the service providers, to hide
-"secrets" inside the app.
-
-There are three main ways to integrate the streaming services in an UPnP framework, and knowing
-which way you are using will avoid confusion:
-
-- The first approach is to have a UPnP Media Server act as a proxy for the service: the catalog is
-  browsed through a standard UPnP interface (the Media Server translates this to the service API
-  behind the scenes), and the audio URIs are also accessed in an almost standard way (after a bit of
-  magic inside the Media Server). The one inconvenient of this approach is that the special
-  functions of the service (like managing the user favourites lists) are mostly inaccessible. The
-  advantage is that any naive UPnP Control Point can access the streaming service. The Media Server
-  inside upmpdcli xref:UPMPDCLI-MS-STR-MS[implements this method].
-
-- The second approach is to do everything inside the Control Point. The CP uses the service API for
-  browsing (and possibly do things like managing favourites). The CP also mediates the HTTP access
-  to the audio streams (the URIs the CP sends to the Renderer point to itself, and it arranges to
-  forward the data from the service). This is implemented, for example, by Bubble UPnP. The drawback
-  of this approach is that the Control Point device must not go to sleep or out of reach, else the
-  music will stop (maybe at the next track).
-
-- The third approach is to distribute the function between CP and
-  Renderer. The Control Point performs the browsing and access to special
-  functions, and the Renderer knows how to access the service streams. This
-  is the OpenHome approach and can be considered the best of both worlds,
-  at the price of complexity and compatibility issues. This method is
-  implemented by the Linn Kazoo Control Point, and a number of Renderers,
-  the Linn and Lumin ones of course, but also,
-  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
-  * At the moment, the upmpdcli implementation only works for Qobuz, as
-    changes in the Tidal access method have made it impossible to support.
-
-[[UPMPDCLI-MS-STR-MS]]
-==== Accessing Streaming Services through the upmpdcli Media Server
+=== Accessing Streaming Services through the upmpdcli Media Server
   
 The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio and
 Qobuz currently work fine (1.6.2).
@@ -630,14 +696,7 @@ I am not sure about Tidal support: in any case it will only work if you can find
 application token, and even then, maybe not as their access control API is evolving. I have no
 access to an API key, so I can't even test.
 
-
 You will need a valid subscription for any service that you want to use.
-
-When the function is activated, *upmpdcli* creates a separate auxiliary Media
-Server, with the sole purpose of presenting the streaming server
-catalog. You will see it appear on the network if streaming service
-parameters are present in the configuration file. The Media Server name is
-the `friendlyname` for the Upmpdcli instance, with _-mediaserver_ appended.
 
 Streaming is not limited to the local Upmpdcli Renderer, and the Media
 Server will happily send music to other Renderers (within the limitations
@@ -662,36 +721,6 @@ the password: `chmod&#160;600&#160;/etc/upmpdcli.conf`.
 NOTE: I have no reason to believe that upmpdcli is technically mis-using the streaming services in
 any way, but it is definitely not approved by any of them, and you are using it under your own
 responsibility.
-
-[[UPMPDCLI-MS-STR-CRED]]
-=== Accessing the streaming services with OpenHome from Kazoo
-
-This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
-work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
-corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
-should be necessary on the renderer.
-
-This should also work with Lumin devices, but it does not currently, the reason is unknown. When
-feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
-configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
-
-Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
-dependancy, so you should check that it is installed. 
-
-The media service icons will appear in the Control Point interface, and the service will be
-accessible after entering the login and password.
-
-NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
-someone steals the machine or obtains root access, there is nothing to prevent them from getting the
-credentials.
-
-Of course Kazoo or Lumin can also access the services through the media server interface (after
-configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-MS[previous section]).
-
-For reference, this method is *not* usable with *Upplay*
-
-The notes which follow relate to accessing the services through the Upmpdcli Media Server.
-
 
 ////
 
@@ -730,8 +759,6 @@ It only works with a valid Tidal subscription and valid Tidal API token, which y
 The configuration parameters are described in the <<tidaluser,configuration section>>
 
 ////
-
-
 
 
 
@@ -777,6 +804,84 @@ The configuration parameters are described in the
 <<deezeruser,configuration section>>. Only `deezeruser` and `deezerpass`
 actually. 
 
+[[UPMPDCLI-MS-STR-UPNP]]
+==== Technical note: Streaming Services and UPnP
+
+Streaming services like Qobuz or Highresaudio give access to a huge catalog of music through a WEB
+programming interface which may be also usable by programs other than their own applications.
+
+Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
+some of the service APIs have made it impossible to access them from an open-source
+application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
+
+The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
+to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific
+protocol for streaming (this was finally deprecated in 2022).
+
+Given the importance of these services for music consumers, many UPnP Control Points and Renderers
+have been extended with specific interfaces to the different services. In many cases, this is only
+feasible from a closed-source application, with an agreement with the service providers, to hide
+"secrets" inside the app.
+
+There are three main ways to integrate the streaming services in an UPnP framework, and knowing
+which way you are using will avoid confusion:
+
+- The first approach is to have a UPnP Media Server act as a proxy for the service: the catalog is
+  browsed through a standard UPnP interface (the Media Server translates this to the service API
+  behind the scenes), and the audio URIs are also accessed in an almost standard way (after a bit of
+  magic inside the Media Server). The one inconvenient of this approach is that the special
+  functions of the service (like managing the user favourites lists) are mostly inaccessible. The
+  advantage is that any naive UPnP Control Point can access the streaming service. The Media Server
+  inside upmpdcli xref:UPMPDCLI-MS-STR-MS[implements this method].
+
+- The second approach is to do everything inside the Control Point. The CP uses the service API for
+  browsing (and possibly do things like managing favourites). The CP also mediates the HTTP access
+  to the audio streams (the URIs the CP sends to the Renderer point to itself, and it arranges to
+  forward the data from the service). This is implemented, for example, by Bubble UPnP. The drawback
+  of this approach is that the Control Point device must not go to sleep or out of reach, else the
+  music will stop (maybe at the next track).
+
+- The third approach is to distribute the function between CP and
+  Renderer. The Control Point performs the browsing and access to special
+  functions, and the Renderer knows how to access the service streams. This
+  is the OpenHome approach and can be considered the best of both worlds,
+  at the price of complexity and compatibility issues. This method is
+  implemented by the Linn Kazoo Control Point, and a number of Renderers,
+  the Linn and Lumin ones of course, but also,
+  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
+  * At the moment, the upmpdcli implementation only works for Qobuz, as
+    changes in the Tidal access method have made it impossible to support.
+
+
+[[UPMPDCLI-MS-STR-CRED]]
+==== Accessing Qobuz with OpenHome from Kazoo
+
+This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
+work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
+corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
+should be necessary on the renderer.
+
+This should also work with Lumin devices, but it does not currently, the reason is unknown. When
+feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
+configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+
+Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
+dependancy, so you should check that it is installed. 
+
+The media service icons will appear in the Control Point interface, and the service will be
+accessible after entering the login and password.
+
+NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
+someone steals the machine or obtains root access, there is nothing to prevent them from getting the
+credentials.
+
+Of course Kazoo or Lumin can also access the services through the media server interface (after
+configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-MS[previous section]).
+
+For reference, this method is *not* usable with *Upplay*
+
+The notes which follow relate to accessing the services through the Upmpdcli Media Server.
+
 
 [[UPMPDCLI-MS-UPRADIOS]]
 === Upradios: Upmpdcli radio list plugin
@@ -810,110 +915,6 @@ e.g. `upmpdcli-bbc` on Debian), and uncommenting the bogus setting for the `bbcu
 in the upmpdcli configuration file.
 
 The configuration parameters are described in the <<bbcuser,configuration section>>. 
-
-[[UPMPDCLI-MS-UPRCL]]
-=== Upmpdcli Uprcl: a Media Server for local files
-
-The Upmpdcli application includes a Media Server function for local music files, analog to
-MinimServer or ReadyMedia/MiniDLNA. The plugin module is named *uprcl*.
-
-Enable this function by installing the upmpdcli *uprcl* module (which may be a separate package,
-e.g. `upmpdcli-uprcl` on Debian), and uncommenting the bogus setting for the `uprcluser` variable
-in the upmpdcli configuration file. You may also want to set `uprclautostart` to 1 so that
-initialisation is performed as soon as the program start, and not on the first access. Also: you
-need to install Recoll (just the command line tools are needed) if your package manager did not do
-it for you.
-
-Why yet another Media Server ? Mostly because my favorite, MinimServer is great, and free, but not
-open-source, so I find it prudent to have an alternative. Also, fun :)
-
-*uprcl* only implements a small fraction of MinimServer vast list of capabilities at this point, but
-it's slowly making progress, and I find it works well enough, at least with the upmpdcli renderer,
-to now be my main Media Server.
-
-Some *uprcl* features:
-
-- Mostly written in Python (python3), except for the part shared with the streaming
-  media server plugins, which is in C++.
-- Tries to mimick the MinimServer tree view and functionality. We're
-  not quite there yet, many functions and niceties are still missing.
-- Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the
-  metadata and searching.
-- Uses Python3 Sqlite3 (on a memory DB) for the tags tree. 
-- Can retrieve some parameters from the MinimServer configuration
-  file. Will support more in the future.
-
-The list of MinimServer functions which are _not_ supported would be too
-long. Here follows what *uprcl* does support, at least partially, at this
-point (1.4.3pre):
-
-- `contentDir` will be used if `uprclmediadirs` is not set in
-  '/etc/upmpdcli.conf' 
-- `excludePattern`
-- `aliasTags`
-- `indexTags`
-- `showExtras`
-- Multidisc albums (partial).
-
-All in all, not a lot of the customization options are supported for
-now. I'd love feedback about what is missing most.
-
-
-Installation and configuration: have a look at the
-xref:uprcluser[configuration variables]
-
-NOTE: uprcl needs Python 3.5 at least. This means that it does not work on
-Debian Jessie (8.x)
-
-NOTE: 'python3-mutagen' which is optional for default Recoll installations is
-required for uprcl (this is for the case where you install by hand, the
-package takes care of it).
-
-[[UPRCL-SEARCH]]
-==== Upmpdcli/Uprcl searches
-
-The UPnP Media Server search function is based on a specific query
-language. This language is quite verbose, and most control points will not
-let you access it directly. Instead, they will usually provide a generic
-entry field in which you enter search terms.  Behind the scenes, they
-generate an UPnP search language string. This could be for example
-something like: `upnp:class = "object.item.audioItem" and dc:title
-contains "heaven"`
-
-If it supports search at all, the Media Server will then interpret the
-query string and return the results.
-
-If the Media Server is Upmpdcli/Uprcl, there is another step: the UPnP
-query string is translated into a Recoll one and Recoll is called to
-perform the actual search. There is no way to directly enter a Recoll
-search through the control point. However, two important Recoll
-capabilities should still be visible through the layers:
-
-.Stemming
-
-Stemming is the capability to expand a search to the common derivatives of
-a word. For example, a search for `floor` would be expanded to also look
-for `floors`, `flooring`, `floored`, etc. By default, stemming is enabled
-for Uprcl search. It can be turned off for any term by capitalizing the
-term (Entering `Stones` will only search for `stones`, not `stone` or
-`stoned`). Uprcl/Recoll searches are case-insensitive apart from this usage
-of capitalization.
-
-.Phrase searches
-
-By default, Uprcl/Recoll searches do not observe the order
-of terms: `red house` will be matched by a search for `house red` (or
-`houses red`). You can change this behaviour by quoting a sequence of
-words. A search for `"red house"` will only look for a text containing the
-words in order. This supposes that the Control Point does not change the
-user entry, but this is the case for at least some of them. Stemming
-expansion does not occur within phrase searches.
-
-Other Recoll capabilities, such as proximity searches should also be
-accessible, but probably less useful when searching music titles or artist
-names.
-
-
 
 
 [[UPMPDCLI-CONFIGURATION]]

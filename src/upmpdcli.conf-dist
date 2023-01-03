@@ -140,7 +140,7 @@ radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 
 # Friendly name for the Media Server (if enabled).
 #msfriendlyname =
-# Media Server root alias
+# Media Server root alias Object ID.
 #msrootalias =
 # Hostname/IP address used in proxy URLs.
 #plgmicrohttphost =

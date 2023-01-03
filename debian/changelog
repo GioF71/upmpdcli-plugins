@@ -1,6 +1,6 @@
 upmpdcli (1.7.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Mediaserver: implement rootalias parameter to point to arbitrary
+  * Media Server: implement rootalias parameter to point to arbitrary
     container inside the tree. This is to avoid useless navigation from
     the actual root for people who, e.g., only use the uprcl '[folders]' tree.
   * Uprcl: support multiple values for tags (e.g. multiple genres).

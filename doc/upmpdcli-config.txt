@@ -315,14 +315,18 @@ Media Server (if enabled). The default is to append
 "-mediaserver" to the friendlyname value.
 
 [[msrootalias]]
-msrootalias:: Media Server root alias Allows using any Media Server container as root, for skipping over the
-top levels (esp. the active plugin list if there is only one plugin).
-The value is an UPnP object Id. Common values:
-- 0$uprcl$ Direct access to the Local Media root
-- 0$uprcl$folders Direct access to the Local Media [folders] tree.
-An alias must begin with "0" (which is the well-known UPnP root object ID), followed by
-$pluginname$ where pluginname could be any subdirectory of /usr/share/upmpdcli/cdplugins except
-pycommon (e.g. uprcl, qobuz, upradios...), and the rest would depend on the plugin type.
+msrootalias:: Media Server root alias Object ID. Use the specified Media Server container as root. The Control Point will directly show this
+container when connecting, which will avoid having to skip over the top levels if you don't use
+them. (E.g. the active plugin list if there is only one plugin). The value is an UPnP object
+ID, which is unfortunately not generally obtainable from Control Points. However the commonly
+useful values are simple:
+- `0$uprcl$` Direct access to the Local Media root
+- `0$uprcl$folders` Direct access to the Local Media [folders] tree.
+
+An alias must begin with `0` (which is the mandatory UPnP root object ID), followed by
+`$pluginname$` where _pluginname_ could be any subdirectory of `/usr/share/upmpdcli/cdplugins`
+except `pycommon` (e.g. `uprcl`, `qobuz`, `upradios`...), and the rest would depend on the plugin
+type.
 
 
 [[plgmicrohttphost]]
