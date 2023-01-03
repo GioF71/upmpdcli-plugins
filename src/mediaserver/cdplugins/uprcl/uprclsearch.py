@@ -1,4 +1,4 @@
-# Copyright (C) 2017 J.F.Dockes
+# Copyright (C) 2017-2023 J.F.Dockes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,11 +32,13 @@ def _getchar(s, i):
 
 def _readword(s, i):
     w = ''
+    j = 0
     for j in range(i, len(s)):
         if s[j].isspace():
             return j,w
         w += s[j]
-    return j,w
+    #uplog(f"_readword returning {w} index {j+1} (len is {len(s)})")
+    return j+1,w
 
 # Called with '"' already read.
 # Upnp search term strings are double quoted, but we should not take
@@ -190,7 +192,6 @@ def _upnpsearchtorecoll(s):
             else:
                 i -= 1
                 i,w = _readword(s, i)
-                #uplog("_readword returned <%s>" % w)
 
             if w == 'contains':
                 oper = ':'
@@ -229,12 +230,15 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
     tags = uprclinit.getTree('tags')
     rcls = _upnpsearchtorecoll(upnps)
 
+    uplog(f"Search: recoll search: <{rcls}>")
+    if not rcls:
+        uplog(f"Upnp search string parse failed for [{upnps}]. Recoll search is empty")
+        return []
+
     filterdir = foldersobj.dirpath(inobjid)
     if filterdir and filterdir != "/":
         rcls += " dir:\"" + filterdir + "\""
-    
-    uplog("Search: recoll search: <%s>" % rcls)
-
+        
     rcldb = recoll.connect(confdir=rclconfdir)
     try:
         rclq = rcldb.query()
