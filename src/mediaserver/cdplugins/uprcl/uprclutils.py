@@ -298,7 +298,6 @@ def folderart(doc, httphp, bpp, albtitle=None):
         albtitle = albtitle.encode("UTF-8")
         for fsimple in _artnamegen(albtitle):
             path = os.path.join(folder, fsimple)
-            uplog(f"TESTING {path}")
             if os.path.exists(path):
                 return _httpurl(httphp, path)
 
