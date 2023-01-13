@@ -25,6 +25,7 @@ import mutagen
 import os
 import re
 import traceback
+import xml.sax.saxutils
 
 from recoll import recoll
 from upmplgutils import uplog
@@ -59,6 +60,9 @@ audiomtypes = frozenset([
 # Correspondance between Recoll field names (on the right), defined by
 # rclaudio and the Recoll configuration 'fields' file, and what
 # plgwithslave.cxx expects, which is less than consistent.
+# Some tags have no predefined fields in upmpdcli (e.g. composer, conductor), and we output them as
+# a didl fragment (see below). They are still listed here because the data is also used to define
+# the fields actually extracted in the results of the initial recoll listing (resultstore)
 upnp2rclfields = {
     'upnp:album' : 'album',
     'upnp:albumArtURI' : 'albumarturi',
@@ -131,14 +135,24 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
         li['upnp:artist'] = doc["albumartist"]
 
     # TBD Date format ?
-    #comment=
-    #composer=
-    #conductor=
     #discnumber=
     #genre=
     #lyricist=
     #lyrics=
 
+    # Some properties are not directly supported by the upmpdcli internal UpSong object, which only
+    # manages basic UPnP props. We send them directly as a DIDL fragment which will be incorporated
+    # in the final XML
+    didlfrag = ""
+    if doc["composer"]:
+        didlfrag += "<upnp:artist role=\"Composer\">" + \
+            xml.sax.saxutils.escape(doc["composer"]) + "</upnp:artist>"
+    if doc["conductor"]:
+        didlfrag += "<upnp:artist role=\"Conductor\">" + \
+            xml.sax.saxutils.escape(doc["conductor"]) + "</upnp:artist>"
+    if didlfrag:
+        li["didlfrag"] = didlfrag
+        
     try:
         val = li['upnp:originalTrackNumber']
         l = val.split('/')

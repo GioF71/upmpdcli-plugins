@@ -47,6 +47,10 @@ public:
     std::string upnpClass;
     std::string date;
     std::string dcdescription;
+
+    // A raw didl fragment to be added to the output when converting to DIDL. For Media Server
+    // modules which know more than we do (e.g. uprcl)
+    std::string didlfrag;
     
     // The entries in the following struct have misc uses, but as a
     // group, they describe an UPnP resource (for converting to DIDL

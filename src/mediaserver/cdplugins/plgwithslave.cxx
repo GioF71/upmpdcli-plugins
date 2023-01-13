@@ -387,8 +387,10 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries)
         JSONTOUPS(artist, upnp:artist);
         JSONTOUPS(upnpClass, upnp:class);
         JSONTOUPS(dcdescription, dc:description);
-        JSONTOUPS(date, dc:date)
-        JSONTOUPS(date, releasedate)
+        JSONTOUPS(date, dc:date);
+        JSONTOUPS(date, releasedate);
+        song.didlfrag = decoded[i].get("didlfrag", "").asString();
+    
         // tp is container ("ct") or item ("it")
         string stp = decoded[i].get("tp", "").asString();
         if (!stp.compare("ct")) {

@@ -221,6 +221,10 @@ string UpSong::didl(bool noresource) const
     UPNPXML(date, dc:date);
     UPNPXML(dcdescription, dc:description);
     UPNPXML(artUri, upnp:albumArtURI);
+
+    // Raw didl emitted by whoever created us
+    ss << didlfrag;
+    
     ss << "</" << typetag << ">";
     LOGDEB1("UpSong::didl(): " << ss.str() << endl);
     return ss.str();
