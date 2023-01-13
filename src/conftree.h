@@ -52,6 +52,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <cctype>
 
 #include "pathut.h"
 
