@@ -1,3 +1,10 @@
+upmpdcli (1.7.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Uprcl Media Server: report composers as <upnp:artist role="Composer">
+  * Uprcl: fix possible infinite loop while parsing search string.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 15 Jan 2023 10:41:00 +0100
+
 upmpdcli (1.7.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media Server: implement rootalias parameter to point to arbitrary
