@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2022 J.F.Dockes
+/* Copyright (C) 2004-2023 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -16,6 +16,10 @@
  */
 #ifndef _PATHUT_H_INCLUDED_
 #define _PATHUT_H_INCLUDED_
+
+// Miscellaneous pathname-related utility functions, some actually accessing the filesystem, some
+// purely textual. Work with Posix or Windows paths. All properly handle UTF-8 encoded non-ASCII
+// paths on Windows, which is their reason for existing in many cases.
 
 #include <string>
 #include <vector>
@@ -150,7 +154,6 @@ struct PathStat {
 };
 extern int path_fileprops(const std::string path, struct PathStat *stp, bool follow = true);
 
-
 /// Return separator for PATH environment variable
 extern std::string path_PATHsep();
 
@@ -201,6 +204,9 @@ typedef struct path_timeval {
 } path_timeval;
 bool path_utimes(const std::string& path, struct path_timeval times[2]);
 
+/// Open, path is utf-8 and we do the right thing on Windows.
+int path_open(const std::string& path, int flags, int mode = 0);
+
 /* Open file, trying to do the right thing with non-ASCII paths on
  * Windows, where it only works with MSVC at the moment if the path is
  * not ASCII, because it uses fstream(wchar_t*), which is an MSVC
@@ -213,21 +219,6 @@ bool path_utimes(const std::string& path, struct path_timeval times[2]);
  * @param mode is an std::fstream mode (ios::in etc.) */
 extern bool path_streamopen(const std::string& path, int mode, std::fstream& outstream);
 
-/// URI parser, loosely from rfc2396.txt
-class ParsedUri {
-public:
-    ParsedUri(std::string uri);
-    bool parsed{false};
-    std::string scheme;
-    std::string user;
-    std::string pass;
-    std::string host;
-    std::string port;
-    std::string path;
-    std::string query;
-    std::vector<std::pair<std::string,std::string>> parsedquery;
-    std::string fragment;
-};
 
 /// Lock/pid file class. This is quite close to the pidfile_xxx
 /// utilities in FreeBSD with a bit more encapsulation. I'd have used

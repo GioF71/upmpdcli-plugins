@@ -1104,97 +1104,6 @@ bool path_access(const std::string& path, int mode)
     return ACCESS(syspath, mode) == 0;
 }
 
-#ifndef NO_STD_REGEX
-static std::regex
-re_uriparse("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?",
-            std::regex::extended);
-
-ParsedUri::ParsedUri(std::string uri)
-{
-    std::smatch mr;
-    parsed = regex_match(uri, mr, re_uriparse);
-    if (!parsed)
-        return;
-    // cf http://www.ietf.org/rfc/rfc2396.txt
-    // scheme    = $2
-    // authority = $4
-    // path      = $5
-    // query     = $7
-    // fragment  = $9
-    if (mr[2].matched) {
-        scheme = mr[2].str();
-    }
-    if (mr[4].matched) {
-        string auth = mr[4].str();
-        // user:pass@host, user@host
-        string::size_type at = auth.find_first_of('@');
-        if (at != string::npos) {
-            host = auth.substr(at+1);
-            string::size_type colon = auth.find_first_of(':');
-            if (colon != string::npos && colon < at) {
-                user = auth.substr(0, colon);
-                pass = auth.substr(colon+1, at-colon-1);
-            } else {
-                user = auth.substr(0, at);
-            }
-        } else {
-            host.swap(auth);
-        }
-        string::size_type pc = host.find_first_of(':');
-        if (pc != string::npos) {
-            port = host.substr(pc+1);
-            host = host.substr(0, pc);
-        }
-    }
-    if (mr[5].matched) {
-        path = mr[5].str();
-    }
-    if (mr[7].matched) {
-        query = mr[7].str();
-        string::size_type pos=0, amp, eq;
-        string nm, val;
-        for (;;) {
-            nm.clear();
-            val.clear();
-            amp = query.find_first_of('&', pos);
-            //cerr << "pos " << pos << " amp " << amp << endl;
-            if (amp > pos && amp != string::npos) {
-                eq = query.find_first_of('=', pos);
-                if (eq > amp || eq == string::npos) {
-                    nm = query.substr(pos, amp-pos);
-                } else {
-                    nm = query.substr(pos, eq-pos);
-                    val = query.substr(eq+1, amp-eq-1);
-                }
-                pos = amp + 1;
-            } else if (amp == string::npos) {
-                if (pos < query.size()-1) {
-                    eq = query.find_first_of('=', pos);
-                    if (eq == string::npos) {
-                        nm = query.substr(pos);
-                    } else {
-                        nm = query.substr(pos, eq-pos);
-                        val = query.substr(eq+1);
-                    }
-                }
-                pos = query.size()-1;
-            } else {
-                pos++;
-            }
-            if (!nm.empty()) {
-                parsedquery.push_back(pair<string,string>(nm, val));
-            }
-            if (pos >= query.size()-1) {
-                break;
-            }
-        }
-        
-    }
-    if (mr[9].matched) {
-        fragment = mr[9].str();
-    }
-}
-#endif // NO_STD_REGEX
 
 /// Directory reading interface. UTF-8 on Windows.
 class PathDirContents::Internal {
@@ -1362,6 +1271,12 @@ int Pidfile::read_pid()
         return - 1;
     }
     return pid;
+}
+
+int path_open(const std::string& path, int flags, int mode)
+{
+    SYSPATH(path, syspath);
+    return OPEN(syspath, flags, mode);
 }
 
 int Pidfile::flopen()
