@@ -145,10 +145,12 @@ string g_configfilename;
 ConfSimple *g_state;
 bool g_enableL16 = true;
 bool g_lumincompat = false;
+bool g_mainShouldExit{false};
 
 static void onsig(int)
 {
     LOGDEB("Got sig" << endl);
+    g_mainShouldExit = true;
     for (auto& dev : devs) {
         // delete has a tendancy to crash (it works most of the time
         // though). Anyway, we're exiting, so just call shouldExit()
@@ -647,6 +649,9 @@ int main(int argc, char *argv[])
                           LibUPnP::UPNPPINIT_OPTION_END)) {
             break;
         }
+        if (g_mainShouldExit) {
+            return 1;
+        }
         sleep(libretrysecs);
         libretrysecs = MIN(2*libretrysecs, 120);
     }
@@ -691,7 +696,10 @@ int main(int argc, char *argv[])
                 return 1;
             }
             if (!mpdclip->ok()) {
-                LOGERR("MPD connection failed" << endl);
+                if (g_mainShouldExit) {
+                    return 1;
+                }
+                LOGERR("MPD connection failed" << "\n");
                 delete mpdclip;
                 mpdclip = 0;
                 sleep(mpdretrysecs);
