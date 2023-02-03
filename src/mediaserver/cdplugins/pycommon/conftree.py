@@ -137,12 +137,12 @@ class ConfSimple(object):
         return list(self.submaps[sk].keys())
 
     def getNames(self, sk = ''):
-        if not sk in self.submaps:
-            return None
         dodecode = False
         if type(sk) == type(u''):
             dodecode = True
             sk = sk.encode('utf-8')
+        if not sk in self.submaps:
+            return None
         names = self.getNamesbin(sk)
         if names and dodecode:
             names = [nm.decode('utf-8') for nm in names]
