@@ -230,7 +230,9 @@ bool OHRadio::readRadios()
     getRadiosFromConf(&config);
     // Also if radiolist is defined, get from there
     string radiolistfn;
-    if (getOptionValue("radiolist", radiolistfn)) {
+    getOptionValue("radiolist", radiolistfn,
+                   path_cat(path_cat(g_datadir, "radio_scripts"), "radiolist.conf"));
+    if (!radiolistfn.empty()) {
         ConfSimple rdconf(ConfSimple::CFSF_NOCASE|ConfSimple::CFSF_RO, radiolistfn);
             
         if (!rdconf.ok()) {

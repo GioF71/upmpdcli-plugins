@@ -18,7 +18,7 @@ import os
 import subprocess
 import threading
 
-from upmplgutils import uplog, direntry
+from upmplgutils import uplog, direntry, getOptionValue
 import conftree
 
 class UpmpdcliRadios(object):
@@ -87,7 +87,7 @@ class UpmpdcliRadios(object):
         else:
             self._maxthreads = 5
         self._readRadiosFromConf(upconfig)
-        radiolist = upconfig.get("radiolist")
+        radiolist = getOptionValue("radiolist", "/usr/share/upmpdcli/radio_scripts/radiolist.conf")
         if radiolist:
             radioconf = conftree.ConfSimple(radiolist)
             self._readRadiosFromConf(radioconf)

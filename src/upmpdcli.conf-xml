@@ -289,7 +289,7 @@
 # to the end of the file).</descr>
 #
 # </var>
-radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
+#radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 
 # <var name="radioscripts" type="fn">
 # <brief>Radio metadata scripts directory.</brief>

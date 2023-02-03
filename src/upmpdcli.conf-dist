@@ -104,7 +104,7 @@
 # The name of the room where the Product is located.
 #ohproductroom = Main Room
 # Path to an external file with radio definitions.
-radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
+#radiolist = /usr/share/upmpdcli/radio_scripts/radiolist.conf
 # Radio metadata scripts directory.
 #radioscripts = /usr/share/upmpdcli/radio_scripts
 # Manufacturer name. 
