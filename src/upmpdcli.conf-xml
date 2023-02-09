@@ -418,25 +418,6 @@
 #hralang = en
 
 
-# <grouptitle>Tidal streaming service parameters</grouptitle>
-
-# <var name="tidaluser" type="string"><brief>Tidal user name.</brief>
-# <descr>Your Tidal login name.</descr></var>
-#tidaluser = your tidal user name
-# <var name="tidalpass" type="string"><brief>Tidal password.</brief>
-# <descr>The password for your Tidal account.</descr></var>
-#tidalpass = your Tidal password
-# <var name="tidalapitoken" type="string"><brief>Tidal API token.</brief>
-# <descr>The default token distributed with upmpdcli does not work any
-# more. You will need to find a valid token and set here for the access to
-# work.</descr></var> 
-#tidalapitoken = thetoken
-# <var name="tidalquality" type="cstr" values="low high lossless">
-# <brief>Tidal stream quality.</brief> <descr>'low' and 'high' are aac
-# streams. 'lossless' is FLAC and will only work if your subscription
-# allows it.</descr></var>
-#tidalquality = low
-
 # <grouptitle>Qobuz streaming service parameters</grouptitle>
 
 # <var name="qobuzuser" type="string"><brief>Qobuz user name.</brief>
@@ -546,6 +527,7 @@ uprcltitle = Local Music
 # of the uprclmediadirs entries.</descr></var>
 #uprclpaths =
 
+
 # <grouptitle>Upmpdcli Radios plugin parameters</grouptitle>
 
 # <var name="upradiosuser" type="string"><brief>Bogus user name variable.</brief>
@@ -565,6 +547,13 @@ upradiostitle = Upmpdcli Radio List
 # before the actual URL usable by the control point can be reached. We use multiple threads to speed
 # up this process, this is the maximum thread count.</descr></var>
 #upradiosmaxthreads = 5
+
+# <grouptitle>Radio Browser (https://www.radio-browser.info/) plugin parameters</grouptitle>
+
+# <var name="radio-browseruser" type="string"><brief>Bogus user name variable.</brief>
+# <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
+#upradiosuser = bugsbunny
+
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 

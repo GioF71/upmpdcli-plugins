@@ -160,17 +160,6 @@
 # Hra language setting (en/de).
 #hralang = en
 
-# Tidal streaming service parameters
-
-# Tidal user name.
-#tidaluser = your tidal user name
-# Tidal password.
-#tidalpass = your Tidal password
-# Tidal API token.
-#tidalapitoken = thetoken
-# Tidal stream quality.
-#tidalquality = low
-
 # Qobuz streaming service parameters
 
 # Qobuz user name.
@@ -218,6 +207,11 @@ uprcltitle = Local Music
 upradiostitle = Upmpdcli Radio List
 # Maximum number of threads to use while initializing the radio list
 #upradiosmaxthreads = 5
+
+# Radio Browser (https://www.radio-browser.info/) plugin parameters
+
+# Bogus user name variable.
+#upradiosuser = bugsbunny
 
 # Upmpdcli BBC Sounds plugin parameters
 

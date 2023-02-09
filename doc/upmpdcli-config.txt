@@ -365,24 +365,6 @@ hralang:: Hra language setting
 (en/de). Some Highresaudio messages will be set in the
 appropriate language.
 
-=== Tidal streaming service parameters 
-
-[[tidaluser]]
-tidaluser:: Tidal user name. Your Tidal login name.
-
-[[tidalpass]]
-tidalpass:: Tidal password. The password for your Tidal account.
-
-[[tidalapitoken]]
-tidalapitoken:: Tidal API token. The default token distributed with upmpdcli does not work any
-more. You will need to find a valid token and set here for the access to
-work.
-
-[[tidalquality]]
-tidalquality:: Tidal stream quality. 'low' and 'high' are aac
-streams. 'lossless' is FLAC and will only work if your subscription
-allows it.
-
 === Qobuz streaming service parameters 
 
 [[qobuzuser]]
@@ -479,6 +461,11 @@ directory.
 upradiosmaxthreads:: Maximum number of threads to use while initializing the radio list Most radios are defined by playlist files which may need several network interactions
 before the actual URL usable by the control point can be reached. We use multiple threads to speed
 up this process, this is the maximum thread count.
+
+=== Radio Browser (https://www.radio-browser.info/) plugin parameters 
+
+[[radio-browseruser]]
+radio-browseruser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
 === Upmpdcli BBC Sounds plugin parameters 
 

@@ -50,6 +50,15 @@ Description: upmpdcli BBC radio plugin
  upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the web site and listen to
  them.
 
+Package: upmpdcli-radio-browser
+Architecture: all
+Section: contrib/sound
+Depends: upmpdcli, python3, python3-requests,${misc:Depends}
+Description: upmpdcli https://radio-browser.info plugin
+ upmpdcli-bbc allows you to browse the radio catalog through the Media Server interface and play
+ streams. You will need to install the pyradios Python3 module with pip3, it is not packaged at the
+ moment. 
+
 Package: upmpdcli-deezer
 Architecture: all
 Section: contrib/sound

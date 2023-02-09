@@ -575,7 +575,8 @@ the configuration file.
 - The xref:UPMPDCLI-MS-UPRCL[uprcl] module enables access to your local audio media collection.
 - A number of xref:UPMPDCLI-MS-STR[modules] function as gateways for commercial streaming services.
 - Other plugins provide various functions: an xref:UPMPDCLI-MS-UPRADIOS[internet radio list], access
-  to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], and maybe others in the future.
+  to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], or the xref:UPMPDCLI-MS-RADIO-BROWSER[Radio
+  Browser] Web radios catalog, and others in the future.
 
 When the function is activated, *upmpdcli* creates a separate auxiliary Media
 Server. You will see it appear on the network if streaming service
@@ -902,6 +903,19 @@ e.g. upmpdcli-radios on Debian), and uncommenting the bogus setting for the 'upr
 in the upmpdcli configuration file.
 
 The configuration parameters are described in the <<upradiosuser,configuration section>>. 
+
+[[UPMPDCLI-MS-RADIO-BROWSER]]
+=== Upmpdcli Radio Browser plugin
+
+The plugin allows access to the link:https://www.radio-browser.info/[Radio Browser] Web radios
+catalog. Radios can be selected by country, language and tag, and/or searched for by name.
+
+Enable this function by installing the upmpdcli radio-browser module (which may be a separate
+package), and uncommenting the bogus setting for the `radio-browseruser` variable
+in the upmpdcli configuration file.
+
+There are currently no additional configuration parameters. Any would go in the
+<<radio-browseruser,configuration section>>.  
 
 [[UPMPDCLI-MS-BBC]]
 === Upmpdcli BBC Sounds plugin

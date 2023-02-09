@@ -221,6 +221,10 @@ cdpluginsbbcdir = $(pkgdatadir)/cdplugins/bbc
 dist_cdpluginsbbc_DATA = \
                   src/mediaserver/cdplugins/bbc/bbc-app.py
 
+cdpluginsradiobrowserdir = $(pkgdatadir)/cdplugins/radio-browser
+dist_cdpluginsradiobrowser_DATA = \
+                  src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
+
 cdpluginsspotifydir = $(pkgdatadir)/cdplugins/spotify
 dist_cdpluginsspotify_DATA = \
                   src/mediaserver/cdplugins/spotify/spotify-app.py \
@@ -297,6 +301,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsbbcdir); chmod a+x bbc-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsradiobrowserdir); chmod a+x radio-browser-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
 	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py)
