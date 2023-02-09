@@ -104,29 +104,7 @@ def _crittotitle(crit):
     """Translate filtering field name to displayed title"""
     return _crittotitle_a[crit]
 
-
-@dispatcher.record('browse')
-def browse(a):
-    msgproc.log(f"browse: args: --{a}--")
-    _initradios()
-    if 'objid' not in a:
-        raise Exception("No objid in args")
-    objid = a['objid']
-
-    if objid.find(_g_myprefix) != 0:
-        raise Exception(f"radio-browser: bad objid {objid}: bad prefix")
-    path = objid[len(_g_myprefix):].lstrip("/")
-
-    entries = []
-    bflg = a['flag'] if 'flag' in a else 'children'
-    if bflg == 'meta':
-        # not for now. Only Kodi does this.
-        if path.find("$"):
-            entries = [_radiotoentry({"name": "name", "url_resolved": "http://google.com"}),]
-        else:
-            entries = [direntry(id, objid, "forkodi"),]
-        return _returnentries(entries)
-
+def _pathtocrits(path):
     if path:
         lpath = path.split("/")
     else:
@@ -134,7 +112,7 @@ def browse(a):
 
     # Compute the filtering criteria from the path
     # All field names we see: used to restrict those displayed at next step
-    crits = {}
+    setcrits = []
     # Arguments to the facets filtering object: tagname,value pairs
     filterargs = {}
     # Final values after walking the path. Decide how/what to display next
@@ -147,56 +125,84 @@ def browse(a):
         crit = lpath[idx]
         if idx < len(lpath)-1:
             value = htmlunescape(lpath[idx+1])
-            crits[crit] = value
+            setcrits.append(crit)
             filterargs[argtrans[crit]] = value
         else:
             value = None
             break
- 
-    # At this point we have a possibly empty dict of tagname->value filters (crits) and a possibly
-    # None value for the last tagname (the latter indicating that we want a list of possible
-    # values). A None crit can only happen if the path was empty (root)
-    if crit:
+    return crit, value, setcrits, filterargs
+
+def _objidtopath(objid):
+    if objid.find(_g_myprefix) != 0:
+        raise Exception(f"radio-browser: bad objid {objid}: bad prefix")
+    return objid[len(_g_myprefix):].lstrip("/")
+    
+@dispatcher.record('browse')
+def browse(a):
+    msgproc.log(f"browse: args: --{a}--")
+    _initradios()
+    if 'objid' not in a:
+        raise Exception("No objid in args")
+
+    objid = a['objid']
+    path = _objidtopath(objid)
+
+    entries = []
+    bflg = a['flag'] if 'flag' in a else 'children'
+    if bflg == 'meta':
+        # not for now. Only Kodi does this.
+        if path.find("$"):
+            entries = [_radiotoentry({"name": "name", "url_resolved": "http://google.com"}),]
+        else:
+            entries = [direntry(id, objid, "forkodi"),]
+        return _returnentries(entries)
+
+    lastcrit, lastvalue, setcrits, filterargs = _pathtocrits(path)
+
+    # A None lastcrit can only happen if the path was empty (root). Else lastvalue is empty if we
+    # want to display the possible values for lastcrit, else it's the filtering value (which we only
+    # use as part of filterargs). setcrits is the list of already frozen criteria (don't display
+    # them any more), and filterargs is the current state of the selection. setcrits and
+    # filterargs.keys() are equivalent may use different keys (e.g. countries vs countrycodes).
+    if lastcrit:
         filter = facets.RadioFacets(_g_rb, **filterargs)
     else:
         filter = None
 
-    if value is None:
-        # path was empty or ended with a tagname. Get the list of possible values.
-        if crit is None:
-            # Top level: path was empty. Just show tagnames
-            values = (("countrycodes", "countries"), ("languages", "languages"), ("tags", "tags"))
-        elif crit == "countrycodes":
+    if lastcrit == "radios":
+        # A path ending with "radios" means that we want the list of possible radios matching the
+        # filter.
+        for radio in filter.result:
+            entries.append(_radiotoentry(objid, None, radio))
+        return _returnentries(entries)
+
+    if lastvalue is None and lastcrit is not None:
+        # The path ended with a tagname. Get the list of possible values.
+        if lastcrit == "countrycodes":
             codes = [entry["name"] for entry in filter.countrycodes
                      if entry["name"] and entry["name"] in _ccodetoc]
             # Sort alphabetically for countries, popularity does not really make sense.
             values = sorted([(code, _ccodetoc[code]) for code in codes], key=lambda i: i[1])
-        elif crit == "languages":
+        elif lastcrit == "languages":
             values = [(entry["name"], entry["name"]) for entry in filter.languages]
-        elif crit == "tags":
+        elif lastcrit == "tags":
             values = [(entry["name"], entry["name"]) for entry in filter.tags]
-        elif crit == "radios":
-            # Path ending with "radios" means that we want the list of possible radios matching the
-            # filter.
-            for radio in filter.result:
-                entries.append(_radiotoentry(objid, None, radio))
-            return _returnentries(entries)
         else:
-            raise(Exception(f"Bad objid {objid} (bad tagname [{crit}])"))
+            raise(Exception(f"Bad objid {objid} (bad tagname [{lastcrit}])"))
         for value, title in values:
             if value:
                 id = objid + "/" + htmlescape(value, quote=True)
                 entries.append(direntry(id, objid, title))
     else:
-        # Path ends with tag value. List the remaining tagnames.
+        # Path is root or ends with tag value. List the remaining tagnames if any.
         for tagname in ("countrycodes", "languages", "tags"):
-            if not tagname in crits:
+            if not tagname in setcrits:
                 id = objid + "/" + tagname
                 entries.append(direntry(id, objid, _crittotitle(tagname)))
 
     # Link to the available radios at this stage. In root, we don't build the filter, so don't have
     # data here at the top level (don't want to show 30k radios).
-    if filter:
+    if filter and lastvalue:
         entries.append(direntry(objid + "/radios", objid, f"{len(filter.result)} radios"))
 
     # msgproc.log(f"browse: returning --{entries}--")
@@ -206,14 +212,17 @@ def browse(a):
 @dispatcher.record('search')
 def search(a):
     msgproc.log("search: [%s]" % a)
-    pid = a["objid"]
+    objid = a["objid"]
+    path = _objidtopath(objid)
+    lastcrit, lastvalue, setcrits, filterargs = _pathtocrits(path)
     _initradios()
     sstr = a["value"]
-    result = _g_rb.search(name=sstr)
+    filterargs["name"] = sstr
+    result = _g_rb.search(**filterargs)
     #uplog(f"SEARCH RESULT for [{sstr}]: {result}")
     entries = []
     for radio in result:
-        entries.append(_radiotoentry(pid, None, radio))
+        entries.append(_radiotoentry(objid, None, radio))
     return _returnentries(entries)
 
 
