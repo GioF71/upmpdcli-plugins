@@ -21,6 +21,7 @@ import json
 import re
 import cmdtalkplugin
 import conftree
+from html import escape as htmlescape, unescape as htmlunescape
 
 import pyradios
 from pyradios import facets
@@ -41,9 +42,15 @@ def _initradios():
     global _g_rb
     if not _g_rb:
         _g_rb = pyradios.RadioBrowser()
+        global _ccodetoc
+        _ccodetoc = {}
+        countries = _g_rb.countries()
+        for c in countries:
+            _ccodetoc[c["iso_3166_1"]] = c["name"]
 
 
 def _radiotoentry(pid, id, radio):
+    """Translate radio record from radio-browser into plugin output item"""
     #uplog(f"radioToEntry: pid {pid} id {id} radio {radio}")
     # if this comes from a 'browse meta', the id is set, else compute it
     if id is None:
@@ -83,13 +90,20 @@ def _radiotoentry(pid, id, radio):
 
 @dispatcher.record('trackuri')
 def trackuri(a):
-    # We generate URIs which directly point to the radio, so this
-    # method should never be called.
+    # We generate URIs which directly point to the radio, so this method should never be called.
     raise Exception("trackuri: should not be called for radio-browser!")
 
 
 def _returnentries(entries):
+    """Build plugin browse or search return value from items list"""
     return {"entries" : json.dumps(entries), "nocache" : "0"}
+
+
+_crittotitle_a = {"tags": "tags", "countrycodes": "countries", "languages": "languages"}
+def _crittotitle(crit):
+    """Translate filtering field name to displayed title"""
+    return _crittotitle_a[crit]
+
 
 @dispatcher.record('browse')
 def browse(a):
@@ -102,7 +116,6 @@ def browse(a):
     if objid.find(_g_myprefix) != 0:
         raise Exception(f"radio-browser: bad objid {objid}: bad prefix")
     path = objid[len(_g_myprefix):].lstrip("/")
-    #uplog(f"path: [{path}]")
 
     entries = []
     bflg = a['flag'] if 'flag' in a else 'children'
@@ -114,15 +127,17 @@ def browse(a):
             entries = [direntry(id, objid, "forkodi"),]
         return _returnentries(entries)
 
-
     if path:
         lpath = path.split("/")
     else:
         lpath = []
 
     # Compute the filtering criteria from the path
+    # All field names we see: used to restrict those displayed at next step
     crits = {}
+    # Arguments to the facets filtering object: tagname,value pairs
     filterargs = {}
+    # Final values after walking the path. Decide how/what to display next
     crit = None
     value = None
     argtrans = {"tags": "tag", "countrycodes": "countrycode", "languages": "language"}
@@ -131,7 +146,7 @@ def browse(a):
             continue
         crit = lpath[idx]
         if idx < len(lpath)-1:
-            value = lpath[idx+1]
+            value = htmlunescape(lpath[idx+1])
             crits[crit] = value
             filterargs[argtrans[crit]] = value
         else:
@@ -140,27 +155,26 @@ def browse(a):
  
     # At this point we have a possibly empty dict of tagname->value filters (crits) and a possibly
     # None value for the last tagname (the latter indicating that we want a list of possible
-    # values).
-    #uplog(f"crits [{crits}] crit [{crit}] value [{value}]")
+    # values). A None crit can only happen if the path was empty (root)
     if crit:
         filter = facets.RadioFacets(_g_rb, **filterargs)
     else:
         filter = None
 
     if value is None:
-        # Get the list of possible values for the tagname
+        # path was empty or ended with a tagname. Get the list of possible values.
         if crit is None:
             # Top level: path was empty. Just show tagnames
-            values = ("countrycodes", "languages", "tags")
+            values = (("countrycodes", "countries"), ("languages", "languages"), ("tags", "tags"))
         elif crit == "countrycodes":
-            values = filter.countrycodes
-            values = [entry["name"] for entry in values]
+            codes = [entry["name"] for entry in filter.countrycodes
+                     if entry["name"] and entry["name"] in _ccodetoc]
+            # Sort alphabetically for countries, popularity does not really make sense.
+            values = sorted([(code, _ccodetoc[code]) for code in codes], key=lambda i: i[1])
         elif crit == "languages":
-            values = filter.languages
-            values = [entry["name"] for entry in values]
+            values = [(entry["name"], entry["name"]) for entry in filter.languages]
         elif crit == "tags":
-            values = filter.tags
-            values = [entry["name"] for entry in values]
+            values = [(entry["name"], entry["name"]) for entry in filter.tags]
         elif crit == "radios":
             # Path ending with "radios" means that we want the list of possible radios matching the
             # filter.
@@ -169,18 +183,19 @@ def browse(a):
             return _returnentries(entries)
         else:
             raise(Exception(f"Bad objid {objid} (bad tagname [{crit}])"))
-        for value in values:
+        for value, title in values:
             if value:
-                id = objid + "/" + value
-                entries.append(direntry(id, objid, value))
+                id = objid + "/" + htmlescape(value, quote=True)
+                entries.append(direntry(id, objid, title))
     else:
-        # Path ends with tag value. List the remaining tagnamescriteria.
+        # Path ends with tag value. List the remaining tagnames.
         for tagname in ("countrycodes", "languages", "tags"):
             if not tagname in crits:
                 id = objid + "/" + tagname
-                entries.append(direntry(id, objid, tagname))
-    # Link to the available radios at this stage. We don't build the filter, so don't 
-    # have data here at the top level (don't want to show 30k radios).
+                entries.append(direntry(id, objid, _crittotitle(tagname)))
+
+    # Link to the available radios at this stage. In root, we don't build the filter, so don't have
+    # data here at the top level (don't want to show 30k radios).
     if filter:
         entries.append(direntry(objid + "/radios", objid, f"{len(filter.result)} radios"))
 
