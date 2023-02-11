@@ -204,6 +204,16 @@ bool pcSubst(const std::string& in, std::string& out,
 /** Substitute printf-like percents and %(nm), using result of function call */
 bool pcSubst(const std::string& i, std::string& o, std::function<std::string(const std::string&)>);
 
+/** Stupid little smart buffer handler avoiding value-initialization when not needed (e.g. for using
+    as read buffer **/
+class DirtySmartBuf {
+public:
+    DirtySmartBuf(size_t sz) { m_buf = new char[sz]; }
+    ~DirtySmartBuf() { delete [] m_buf; }
+    char *buf() { return m_buf; }
+  private:
+    char *m_buf;
+};
 
 /** Append system error message */
 void catstrerror(std::string *reason, const char *what, int _errno);
@@ -212,8 +222,7 @@ void catstrerror(std::string *reason, const char *what, int _errno);
  * makes it inaccessible */
 time_t portable_timegm(struct tm *tm);
 
-inline void leftzeropad(std::string& s, unsigned len)
-{
+inline void leftzeropad(std::string &s, unsigned len) {
     if (s.length() && s.length() < len) {
         s = s.insert(0, len - s.length(), '0');
     }

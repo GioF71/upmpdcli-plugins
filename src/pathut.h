@@ -41,11 +41,12 @@ extern void pathut_init_mt();
 extern void path_catslash(std::string& s);
 /// Concatenate 2 paths
 extern std::string path_cat(const std::string& s1, const std::string& s2);
+/// Concatenate 2 or more paths
+extern std::string path_cat(const std::string& s1, std::initializer_list<std::string> pathelts);
 /// Get the simple file name (get rid of any directory path prefix
 extern std::string path_getsimple(const std::string& s);
 /// Simple file name + optional suffix stripping
-extern std::string path_basename(const std::string& s,
-                                 const std::string& suff = std::string());
+extern std::string path_basename(const std::string& s, const std::string& suff = std::string());
 /// Component after last '.'
 extern std::string path_suffix(const std::string& s);
 /// Get the father directory
@@ -55,7 +56,7 @@ extern bool path_isabsolute(const std::string& s);
 /// Test if path is root (x:/). root is defined by root/.. == root
 extern bool path_isroot(const std::string& p);
 /// Test if sub is a subdirectory of top. This is a textual test,
-/// links not allowed
+/// links not allowed. Uses path_canon to clean up paths.
 extern bool path_isdesc(const std::string& top, const std::string& sub);
 
 /// Clean up path by removing duplicated / and resolving ../ + make it absolute

@@ -106,9 +106,8 @@ bool OHReceiver::makestate(unordered_map<string, string> &st)
         if (m_cmd) {
             int status;
             if (m_cmd->maybereap(&status)) {
-                LOGDEB("OHReceiver: sc2cmd exited with status " << status
-                       << endl);
-                m_cmd = shared_ptr<ExecCmd>(new ExecCmd());
+                LOGDEB("OHReceiver: sc2cmd exited with status " << status << "\n");
+                m_cmd = std::make_shared<ExecCmd>();
             }
         }
     }
@@ -168,7 +167,7 @@ bool OHReceiver::iPlay()
     // queue and execute next/play), or play it directly to the sound card
     if (m_cmd)
         m_cmd->zapChild();
-    m_cmd = shared_ptr<ExecCmd>(new ExecCmd());
+    m_cmd = std::make_shared<ExecCmd>();
     vector<string> args;
     if (m_pm == OHReceiverParams::OHRP_ALSA) {
         args.push_back("-d");

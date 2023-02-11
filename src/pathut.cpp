@@ -218,21 +218,14 @@ bool wchartoutf8(const wchar_t *in, std::string& out, size_t wlen)
         fwprintf(stderr, L"wchartoutf8: conversion error1 for [%s]\n", in);
         return false;
     }
-    char *cp = (char *)malloc(bytes+1);
-    if (nullptr == cp) {
-        LOGERR("wchartoutf8: malloc failed\n");
-        return false;
-    }
-    bytes = ::WideCharToMultiByte(
-        CP_UTF8, flags, in, wlen, cp, bytes, nullptr, nullptr);
+    DirstySmartBuf buffer(bytes+1);
+    bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, buffer.buf(), bytes, nullptr, nullptr);
     if (bytes <= 0) {
         LOGERR("wchartoutf8: CONVERSION ERROR2\n");
-        free(cp);
         return false;
     }
-    cp[bytes] = 0;
+    buffer.buf()[bytes] = 0;
     out = cp;
-    free(cp);
     //fwprintf(stderr, L"wchartoutf8: in: [%s]\n", in);
     //fprintf(stderr, "wchartoutf8: out:  [%s]\n", out.c_str());
     return true;
@@ -554,9 +547,22 @@ void path_catslash(string& s)
 
 string path_cat(const string& s1, const string& s2)
 {
-    string res = s1;
-    path_catslash(res);
-    res +=  s2;
+    string res = s1.empty() ? "./" : s1;
+    if (!s2.empty()) {
+        path_catslash(res);
+        res +=  s2;
+    }
+    return res;
+}
+
+std::string path_cat(const std::string& s1, std::initializer_list<std::string> pathelts)
+{
+    string res = s1.empty() ? "./" : s1;
+    for (const auto& p : pathelts) {
+        if (!p.empty()) {
+            res = path_cat(res, p);
+        }
+    }
     return res;
 }
 
@@ -613,7 +619,15 @@ string path_getsimple(const string& s)
 
 string path_basename(const string& s, const string& suff)
 {
-    string simple = path_getsimple(s);
+    // Unlike path_getsimple(), we ignore right-side '/' chars, like the basename command does.
+#ifdef _WIN32
+    path_slashize(s);
+#endif
+    if (path_isroot(s))
+        return s;
+    string simple(s);
+    rtrimstring(simple, "/");
+    simple = path_getsimple(simple);
     string::size_type pos = string::npos;
     if (suff.length() && simple.length() > suff.length()) {
         pos = simple.rfind(suff);
@@ -769,6 +783,8 @@ bool path_isroot(const string& path)
 
 bool path_isdesc(const string& _top, const string& _sub)
 {
+    if (_top.empty() || _sub.empty())
+        return false;
     string top = path_canon(_top);
     string sub = path_canon(_sub);
     path_catslash(top);

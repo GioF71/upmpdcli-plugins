@@ -8,7 +8,7 @@ AM_CPPFLAGS = -DDEBUG -g -Wall \
             -I$(top_srcdir)/src/mediaserver/cdplugins \
             -DDATADIR=\"${pkgdatadir}\" -DCONFIGDIR=\"${sysconfdir}\"
 
-AM_CXXFLAGS = -std=c++11 
+AM_CXXFLAGS = -std=c++14
 
 bin_PROGRAMS = upmpdcli scctl
 

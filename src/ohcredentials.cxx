@@ -68,8 +68,7 @@ struct ServiceCreds {
     ServiceCreds(const ServiceCreds&) = delete;
     ServiceCreds &operator=(const ServiceCreds &) = delete;
     ServiceCreds() {}
-    ServiceCreds(const string& inm, const string& u, const string& p,
-                 const string& ep)
+    ServiceCreds(const string& inm, const string& u, const string& p, const string& ep)
         : servicename(inm), user(u), password(p), encryptedpass(ep) {
 
         if (servicename == "qobuz") {
@@ -264,8 +263,8 @@ public:
         string shortid = it1->second;
         auto it = creds.find(in_Id);
         if (it == creds.end()) {
-            creds[in_Id] = std::unique_ptr<ServiceCreds>(
-                new ServiceCreds(shortid, in_UserName, plainpass, in_Password));
+            creds[in_Id] =
+                std::make_unique<ServiceCreds>(shortid, in_UserName, plainpass, in_Password);
         } else if (!in_UserName.empty()) {
             it->second->user = in_UserName;
             it->second->password = plainpass;
@@ -385,8 +384,7 @@ public:
                 credsconf.get(shortid + "pass", pass) && 
                 credsconf.get(shortid + "epass", epass)) {
                 LOGDEB("OHCreds: using saved creds for " << id << endl);
-                creds[id] =
-                    std::unique_ptr<ServiceCreds>(new ServiceCreds(shortid, user, pass, epass));
+                creds[id] = std::make_unique<ServiceCreds>(shortid, user, pass, epass);
             }
         }
     }
