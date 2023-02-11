@@ -41,7 +41,7 @@ class RawApi(object):
             self.appid = self.spoofer.getAppId()
             
         self.version = '0.2'
-        self.baseUrl = 'http://www.qobuz.com/api.json/'
+        self.baseUrl = 'https://www.qobuz.com/api.json/'
         self.user_auth_token = None
         self.user_id = None
         self.error = None
