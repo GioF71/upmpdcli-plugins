@@ -315,9 +315,9 @@ bool UpMpd::checkContentFormat(const string& uri, const string& didl,
     
     const std::unordered_set<std::string>& supportedformats =
         Protocolinfo::the()->getsupportedformats();
-
+    auto decoded_uri = url_decode(uri);
     for (const auto& resource : dobj.m_resources) {
-        if (!resource.m_uri.compare(uri)) {
+        if (url_decode(resource.m_uri) == decoded_uri) {
             ProtocolinfoEntry e;
             if (!resource.protoInfo(e)) {
                 LOGERR("checkContentFormat: resource has no protocolinfo\n");
