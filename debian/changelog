@@ -1,3 +1,13 @@
+upmpdcli (1.7.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix URL comparison issue which could cause false diags in checkContentFormat()
+  * Change the default value for checkcontentformat from true to false.
+  * Qobuz: always use https.
+  * New radio-browser Media Server plugin for https://www.radio-browser.info/
+  * Ensure that we exit when getting a terminating signal while waiting for mpd during init
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 13 Feb 2023 14:12:00 +0100
+
 upmpdcli (1.7.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Uprcl Media Server: report composers as <upnp:artist role="Composer">
