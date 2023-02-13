@@ -1363,6 +1363,49 @@ string valToString(const vector<CharFlags>& flags, unsigned int val)
     return out;
 }
 
+// Decode %-encoded URL. No encoding method is defined here because the problem is too complex and
+// ambiguous (at least 3 RFCs + comments). Decoding however is unambiguous.
+static inline int h2d(int c) {
+    if ('0' <= c && c <= '9')
+        return c - '0';
+    else if ('A' <= c && c <= 'F')
+        return 10 + c - 'A';
+    else if ('a' <= c && c <= 'f')
+        return 10 + c - 'a';
+    else 
+        return -1;
+}
+
+std::string url_decode(const std::string &in)
+{
+    if (in.size() <= 2)
+        return in;
+    std::string out;
+    out.reserve(in.size());
+    const char *cp = in.c_str();
+    std::string::size_type i = 0;
+    for (; i < in.size() - 2; i++) {
+        if (cp[i] == '%') {
+            int d1 = h2d(cp[i+1]);
+            int d2 = h2d(cp[i+2]);
+            if (d1 != -1 && d2 != -1) {
+                out += (d1 << 4) + d2;
+            } else {
+                out += '%';
+                out += cp[i+1];
+                out += cp[i+2];
+            }
+            i += 2;
+        } else {
+            out += cp[i];
+        }
+    }
+    while (i < in.size()) {
+        out += cp[i++];
+    }
+    return out;
+}
+
 // Initialization for static stuff to be called from main thread before going
 // multiple
 void smallut_init_mt()

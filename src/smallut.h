@@ -285,6 +285,9 @@ extern std::string flagsToString(const std::vector<CharFlags>&, unsigned int val
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);
 
+/// Decode percent-encoded URL
+extern std::string url_decode(const std::string&);
+
 } // End namespace MedocUtils
 
 using namespace MedocUtils;
