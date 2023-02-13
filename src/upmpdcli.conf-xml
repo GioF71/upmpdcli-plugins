@@ -118,7 +118,7 @@
 # information from the input metadata and check it against our supported
 # formats. Set this option to 0 if a control point or media server sends
 # good audio data with bad metadata.</descr></var>
-#checkcontentformat = 1
+#checkcontentformat = 0
 
 # <var name="iconpath" type="fn"><brief>Path to the Renderer icon.</brief>
 # <descr>The image will be displayed by Control Points which support

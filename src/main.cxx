@@ -345,9 +345,10 @@ int main(int argc, char *argv[])
     bool ownqueue = getBoolOptionValue("ownqueue", true);
     string mpdpassword;
     getOptionValue("mpdpassword", mpdpassword);
-    if (getOptionValue("checkcontentformat", value) && !value.empty() && !stringToBool(value)) {
-        // If option is specified and 0, set nocheck flag
-        opts.options |= UpMpd::upmpdNoContentFormatCheck;
+    opts.options |= UpMpd::upmpdNoContentFormatCheck;
+    if (getOptionValue("checkcontentformat", value) && !value.empty() && stringToBool(value)) {
+        // If option is specified and 1, unset nocheck flag
+        opts.options &= ~UpMpd::upmpdNoContentFormatCheck;
     }
     bool ohmetapersist = getBoolOptionValue("ohmetapersist", true);
     string iconpath(DATADIR "/icon.png");
