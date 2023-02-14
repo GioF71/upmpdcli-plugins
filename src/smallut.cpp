@@ -329,7 +329,7 @@ template <class T> void stringsToCSV(const T& tokens, string& s, char sep)
 template <class T> std::string commonprefix(const T& values)
 {
     if (values.empty())
-        return std::string();
+        return {};
     if (values.size() == 1)
         return *values.begin();
     unsigned int i = 0;
@@ -1304,14 +1304,11 @@ string SimpleRegexp::getMatch(const string& val, int i) const
 #endif // !windows, using C regexps
 
 SimpleRegexp::SimpleRegexp(const string& exp, int flags, int nmatch)
-    : m(new Internal(exp, flags, nmatch))
+    : m(std::make_unique<Internal>(exp, flags, nmatch))
 {
 }
 
-SimpleRegexp::~SimpleRegexp()
-{
-    delete m;
-}
+SimpleRegexp::~SimpleRegexp() = default;
 
 bool SimpleRegexp::ok() const
 {

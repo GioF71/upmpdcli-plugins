@@ -59,7 +59,9 @@ extern bool path_isroot(const std::string& p);
 /// links not allowed. Uses path_canon to clean up paths.
 extern bool path_isdesc(const std::string& top, const std::string& sub);
 
-/// Clean up path by removing duplicated / and resolving ../ + make it absolute
+/// Clean up path by removing duplicated / and resolving ../ + make it absolute.
+/// Except for possibly obtaining the current directory, the processing
+/// is purely textual and does not deal with symbolic link or file existence.
 extern std::string path_canon(const std::string& s, const std::string *cwd = nullptr);
 
 /// Check that path refers to same file. Uses dev/ino on Linux,

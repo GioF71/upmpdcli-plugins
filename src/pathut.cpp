@@ -838,9 +838,6 @@ string path_absolute(const string& is)
 
 string path_canon(const string& is, const string* cwd)
 {
-    if (is.length() == 0) {
-        return is;
-    }
     string s = is;
 #ifdef _WIN32
     path_slashize(s);
@@ -860,29 +857,27 @@ string path_canon(const string& is, const string* cwd)
     vector<string> elems;
     stringToTokens(s, elems, "/");
     vector<string> cleaned;
-    for (vector<string>::const_iterator it = elems.begin();
-         it != elems.end(); it++) {
-        if (*it == "..") {
+    for (const auto& elem : elems) {
+        if (elem == "..") {
             if (!cleaned.empty()) {
                 cleaned.pop_back();
             }
-        } else if (it->empty() || *it == ".") {
+        } else if (elem.empty() || elem == ".") {
         } else {
-            cleaned.push_back(*it);
+            cleaned.push_back(elem);
         }
     }
     string ret;
     if (!cleaned.empty()) {
-        for (vector<string>::const_iterator it = cleaned.begin();
-             it != cleaned.end(); it++) {
+        for (const auto& elem : cleaned) {
             ret += "/";
 #ifdef _WIN32
-            if (it == cleaned.begin() && path_strlookslikedrive(*it)) {
+            if (ret == "/" && path_strlookslikedrive(elem)) {
                 // Get rid of just added initial "/"
                 ret.clear();
             }
 #endif
-            ret += *it;
+            ret += elem;
         }
     } else {
         ret = "/";
@@ -1057,7 +1052,7 @@ bool path_samefile(const std::string& p1, const std::string& p2)
     std::string cp1, cp2;
     cp1 = path_canon(p1);
     cp2 = path_canon(p2);
-    return !cp1.compare(cp2);
+    return cp1 == cp2;
 #else
     struct stat st1, st2;
     if (stat(p1.c_str(), &st1))
