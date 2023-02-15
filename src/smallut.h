@@ -106,7 +106,7 @@ extern bool parsedateinterval(const std::string& s, DateInterval *di);
 extern int monthdays(int mon, int year);
 
 
-/** Note for all templated functions: 
+/** Note for all templated functions:
  * By default, smallut.cpp has explicit instantiations for common
  * containers (list, vector, set, etc.). If this is not enough, or
  * conversely, if you want to minimize the module size, you can chose
@@ -203,14 +203,16 @@ bool pcSubst(const std::string& in, std::string& out, const std::map<char, std::
 bool pcSubst(const std::string& in, std::string& out,
              const std::map<std::string, std::string>& subs);
 /** Substitute printf-like percents and %(nm), using result of function call */
-bool pcSubst(const std::string& i, std::string& o, std::function<std::string(const std::string&)>);
+bool pcSubst(const std::string& i, std::string& o, const std::function<std::string(const std::string&)>&);
 
 /** Stupid little smart buffer handler avoiding value-initialization when not needed (e.g. for using
     as read buffer **/
 class DirtySmartBuf {
 public:
-    DirtySmartBuf(size_t sz) { m_buf = new char[sz]; }
+    explicit DirtySmartBuf(size_t sz) : m_buf(new char[sz]) {}
     ~DirtySmartBuf() { delete [] m_buf; }
+    DirtySmartBuf(const DirtySmartBuf&) = delete;
+    DirtySmartBuf& operator=(const DirtySmartBuf&) = delete;
     char *buf() { return m_buf; }
   private:
     char *m_buf;
@@ -253,7 +255,7 @@ public:
     /// Calls simpleMatch()
     bool operator() (const std::string& val) const;
 
-    /// Replace the first occurrence of regexp. 
+    /// Replace the first occurrence of regexp.
     std::string simpleSub(const std::string& input, const std::string& repl);
 
     /// Check after construction
