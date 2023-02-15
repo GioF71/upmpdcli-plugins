@@ -48,7 +48,7 @@
 # Store metadata into the OpenHome "metatext" variable.
 #ohinfotexttodata = 0
 # Check that input format is supported.
-#checkcontentformat = 1
+#checkcontentformat = 0
 # Path to the Renderer icon.
 #iconpath = /usr/share/upmpdcli/icon.png
 # Save the streaming services login parameters to disk.
@@ -211,7 +211,7 @@ upradiostitle = Upmpdcli Radio List
 # Radio Browser (https://www.radio-browser.info/) plugin parameters
 
 # Bogus user name variable.
-#upradiosuser = bugsbunny
+#radio-browseruser = bugsbunny
 
 # Upmpdcli BBC Sounds plugin parameters
 

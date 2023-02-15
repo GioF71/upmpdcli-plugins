@@ -552,7 +552,7 @@ upradiostitle = Upmpdcli Radio List
 
 # <var name="radio-browseruser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
-#upradiosuser = bugsbunny
+#radio-browseruser = bugsbunny
 
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
