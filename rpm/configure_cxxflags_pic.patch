@@ -3,30 +3,15 @@
 # configure.ac.
 
 diff --git a/Makefile.am b/Makefile.am
-index b07950d..13be515 100644
+index ff13879..1893025 100644
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -8,7 +8,7 @@ AM_CPPFLAGS = -DDEBUG -g -Wall \
              -I$(top_srcdir)/src/mediaserver/cdplugins \
              -DDATADIR=\"${pkgdatadir}\" -DCONFIGDIR=\"${sysconfdir}\"
  
--AM_CXXFLAGS = -std=c++11 
-+AM_CXXFLAGS = -std=c++11  -fPIC
+-AM_CXXFLAGS = -std=c++14
++AM_CXXFLAGS = -std=c++14 -fPIC
  
  bin_PROGRAMS = upmpdcli scctl
  
-diff --git a/configure.ac b/configure.ac
-index af57ff3..718a1ae 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -11,7 +11,10 @@ AM_INIT_AUTOMAKE([1.10 no-define subdir-objects foreign])
- if test X"$CXXFLAGS" = X;then
-    CXXFLAGS="-std=c++11 -g -O2"
- fi
-+SAVED_CXXFLAGS=$CXXFLAGS
-+CXXFLAGS="$CXXFLAGS -fPIC"
- AC_PROG_CXX
-+CXXFLAGS=$SAVED_CXXFLAGS
- 
- # ! Not sure that this is needed for upmpdcli and not only libupnpp
- # libupnp is configured with large file support, and we need to do the same,
