@@ -138,11 +138,8 @@ ShmSeg::~ShmSeg()
             LOGSYSERR("ShmSeg::~ShmSeg", "shmctl RMID", m->shmid);
         }
     }
-    // just in case
-    m->seg = nullptr;
-    m->bytes = 0;
-    m->shmid = -1;
-    m->ok = false;
+    delete m;
+    m = nullptr;
 }
 
 #define LOCKAREASIZE (((sizeof(pthread_mutex_t)+7)/8)*8)
