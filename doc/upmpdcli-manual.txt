@@ -287,13 +287,7 @@ Radio stations can be defined in the configuration (at the end because of
 the use of section indicators), or in in a separate file by setting the
 <<ohproductroom,`radiolist`>> parameter in the main configuration.
 
-A radio is defined in a configuration section with a name beginning with `radio`
-(e.g. _[radio{nbsp}my{nbsp}radio{nbsp}name]_). The only mandatory value in the section is the `url`
-one, which should point to the actual audio stream or to the station playlist link which will
-redirect to it (more detail in the <<RADIO-SCRIPTS,radio scripts section>>). `artUrl` points to a
-static logo image for the station.
-
-An example of a simple radio station definition follows:
+In both cases, a radio definition entry will look like the following:
 
 ----
 [radio Radio Eins]
@@ -301,9 +295,21 @@ url = http://opml.radiotime.com/Tune.ashx?id=s25111
 artUrl = http://cdn-radiotime-logos.tunein.com/s25111q.png
 ----
 
-Radio definitions may also include paths to scripts to be executed for
-retrieving the metadata and album art for the currently playing song. See
-the <<RADIO-SCRIPTS,radio scripts section>> for more detail.
+A radio is defined in a configuration section with a name beginning with `radio`
+(e.g. _[radio{nbsp}my{nbsp}radio{nbsp}name]_). The `radio` string is mandatory and allows the
+section to be recognized as a radio definition.
+
+Inside the section, the only mandatory entry is the `url`
+one, which should point either to the actual audio stream, or to the station playlist link which
+will redirect to it.
+
+You can also set `artUrl` to point to a static icon image for the radio station.
+
+The upmpdcli OpenHome radio source also has the capability to display cover art and metadata for the
+currently playing stream, if the Internet radio makes it available. This is implemented by executing
+a script to fetch the appropriate data.
+
+See the <<RADIO-SCRIPTS,radio scripts section>> for more detail.
 
 [[UPMPDCLI-SONGCAST]]
 == Upmpdcli and Songcast
