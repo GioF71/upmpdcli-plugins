@@ -16,6 +16,8 @@
 http-get:*:application/flac:*,
 http-get:*:application/x-flac:*,
 http-get:*:application/ogg:*,
+http-get:*:application/vnd.apple.mpegurl:*,
+http-get:*:application/x-mpegurl:*,
 http-get:*:audio/flac:*,
 http-get:*:audio/x-flac:*,
 http-get:*:audio/aac:*,
