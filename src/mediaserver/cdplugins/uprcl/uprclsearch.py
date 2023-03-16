@@ -36,11 +36,13 @@ def _readword(s, i):
     j = 0
     for j in range(i, len(s)):
         if s[j].isspace():
-            #uplog(f"_readword returning index {j} word <{w}>")
-            return j,w
+            # Because of the j+1 after the loop
+            j -= 1
+            break
         w += s[j]
-    #uplog(f"_readword returning (eos) index {j+1} word <{w}>")
-    return j+1,w
+    j += 1
+    #uplog(f"_readword returning index {j} word <{w}>")
+    return j,w
 
 # Called with '"' already read.
 # Upnp search term strings are double quoted, but we should not take
@@ -80,7 +82,7 @@ def _parsestring(s, i=0):
                 if s[j] == '\\':
                     escape = True
                 elif s[j] == '"':
-                    j += 2
+                    j += 1
                     break
                 else:
                     str += s[j]
@@ -127,7 +129,7 @@ def _makeSearchExp(out, v, field, oper, neg):
         return
 
     # Test coming from, e.g. <upnp:class derivedfrom object.container.album>
-    if oper == ':' and len(v) == 1:
+    if (oper == ':' or oper == '=') and len(v) == 1:
         if v[0].startswith("object.container"):
             v = ['inode/directory',]
         elif v[0].startswith("object.item"):
@@ -188,7 +190,7 @@ def _upnpsearchtorecoll(s):
         i,c = _getchar(s, i)
         if not c:
             break
-        #uplog("_upnpsearchtorecoll: nextchar: <%s>" % c)
+        #uplog(f"_upnpsearchtorecoll: nextchar: <{c}>")
 
         if c.isspace():
             continue
@@ -200,7 +202,8 @@ def _upnpsearchtorecoll(s):
             out = ["mime:*"]
             break
 
-        if c == '(' or c == ')': 
+        if c == '(' or c == ')':
+            #uplog(f"Appending <{c}>")
             out.append(c)
         elif c == '>' or c == '<' or c == '=':
             oper += c
@@ -316,6 +319,8 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
 if __name__ == '__main__':
     s = '(upnp:artist derivedFrom  "abc\\"def\\g") or (dc:title:xxx) '
     s = 'upnp:class derivedfrom "object.container.album" and dc:title contains "n"'
+    if len(sys.argv) > 1:
+        s = sys.argv[1]
     print("INPUT: %s" % s)
     o = _upnpsearchtorecoll(s)
     print("OUTPUT: %s" % o)
