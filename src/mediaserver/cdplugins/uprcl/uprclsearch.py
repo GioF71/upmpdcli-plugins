@@ -31,13 +31,15 @@ def _getchar(s, i):
         return i,None
 
 def _readword(s, i):
+    #uplog(f"_readword: input: <{s[i:]}>")
     w = ''
     j = 0
     for j in range(i, len(s)):
         if s[j].isspace():
+            #uplog(f"_readword returning index {j} word <{w}>")
             return j,w
         w += s[j]
-    #uplog(f"_readword returning {w} index {j+1} (len is {len(s)})")
+    #uplog(f"_readword returning (eos) index {j+1} word <{w}>")
     return j+1,w
 
 # Called with '"' already read.
@@ -46,10 +48,10 @@ def _readword(s, i):
 # quoted, and become phrases, and lists of words which we interpret as
 # an AND search (comma-separated). Internal quotes come backslash-escaped
 def _parsestring(s, i=0):
-    #uplog("parseString: input: <%s>" % s[i:])
+    #uplog(f"parseString: input: <{s[i:]}>")
     # First change '''"hello \"one phrase\"''' world" into
     #  '''hello "one phrase" world'''
-    # Note that we can't handle quoted dquotes inside string
+    # Note that we can't handle quoted dquotes inside phrase string
     str = ''
     escape = False
     instring = False
@@ -84,6 +86,7 @@ def _parsestring(s, i=0):
                     str += s[j]
                 
     tokens = stringToStrings(str)
+    #uplog(f"parseString: return: j {j} tokens {tokens}")
     return j, tokens
 
 
@@ -111,16 +114,21 @@ def _separatePhrasesAndWords(v):
             phrases.append(w)
     return (swords, phrases)
 
-# the v list contains terms and phrases. Fields maybe several space
-# separated field specs, which we should OR (ex: for search title or
-# filename).
+# the v list contains terms and phrases. Fields maybe several space separated field specs, which we
+# should OR (ex: for search title or filename).
 def _makeSearchExp(out, v, field, oper, neg):
-    uplog("_makeSearchExp: v <%s> field <%s> oper <%s> neg <%s>" %
-          (v, field, oper, neg))
+    #uplog(f"_makeSearchExp: v <{v}> field <{field}> oper <{oper}> neg <{neg}>")
 
     if oper == 'I':
         return
 
+    # Test coming from, e.g. <upnp:class derivedfrom object.container.album>
+    if oper == ':' and len(v) == 1:
+        if v[0].startswith("object.container"):
+            v = ['inode/directory',]
+        elif v[0].startswith("object.item"):
+            v = ['*',]
+            
     swords,phrases = _separatePhrasesAndWords(v)
 
     if neg:
@@ -150,7 +158,17 @@ def _makeSearchExp(out, v, field, oper, neg):
     if len(fields) > 1:
         out.append(") ")
         
-
+# Upnp searches are made of relExps which are always (selector, operator, value), there are no unary
+# operators. The relExpse can be joined with and/or and grouped with parentheses, but they are
+# always triplets, which make things reasonably easy to translate into a recoll search, just
+# translating the relExps into field clauses and forwarding the booleans and parentheses.
+#
+# Also the set of unquoted keywords or operators is unambiguous and all un-reserved values are
+# quoted, so that we don't even use a state machine, but rely of comparing token values for guessing
+# where we are in the syntax
+#
+# This is all quite approximative though, but simpler than a formal parser, and works in practise
+# because we rely on recoll to deal with logical operators and parentheses.
 def _upnpsearchtorecoll(s):
     uplog("_upnpsearchtorecoll:in: <%s>" % s)
 
@@ -193,14 +211,16 @@ def _upnpsearchtorecoll(s):
                 i -= 1
                 i,w = _readword(s, i)
 
+            w = w.lower()
             if w == 'contains':
                 oper = ':'
-            elif w == 'doesNotContain':
+            elif w == 'doesnotcontain':
                 neg = True
                 oper = ':'
-            elif w == 'derivedFrom' or w == 'exists':
-                # upnp:class derivedfrom "object.container.album"
-                # exists??
+            elif w == 'derivedfrom':
+                oper = ':'
+            elif w == 'exists':
+                # somefield exists true
                 # can't use this, will be ignored
                 oper = 'I'
             elif w == 'true' or w == 'false':
@@ -217,11 +237,14 @@ def _upnpsearchtorecoll(s):
                 # use parentheses
                 out.append('OR')
             else:
-                try:
-                    field = uprclutils.upnp2rclfields[w]
-                except Exception as ex:
-                    #uplog("Field translation error: %s"%ex)
-                    field = (w,)
+                if w == 'upnp:class':
+                    field = 'mime'
+                else:
+                    try:
+                        field = uprclutils.upnp2rclfields[w]
+                    except Exception as ex:
+                        #uplog(f"Field translation error: {ex}")
+                        field = w
 
     return " ".join(out)
 
@@ -286,6 +309,7 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
 
 if __name__ == '__main__':
     s = '(upnp:artist derivedFrom  "abc\\"def\\g") or (dc:title:xxx) '
+    s = 'upnp:class derivedfrom "object.container.album" and dc:title contains "n"'
     print("INPUT: %s" % s)
-    o = upnpsearchtorecoll(s)
+    o = _upnpsearchtorecoll(s)
     print("OUTPUT: %s" % o)
