@@ -90,12 +90,16 @@ def _parsestring(s, i=0):
     return j, tokens
 
 
-def _searchClauses(out, field, oper, words, phrases):
+def _searchClauses(out, neg, field, oper, words, phrases):
     if words:
+        if neg:
+            out.append("-")
         out.append(field)
         out.append(oper)
         out.append(words)
     for ph in phrases:
+        if neg:
+            out.append("-")
         out.append(field)
         out.append(oper)
         out.append('"' + ph + '"')
@@ -127,12 +131,10 @@ def _makeSearchExp(out, v, field, oper, neg):
         if v[0].startswith("object.container"):
             v = ['inode/directory',]
         elif v[0].startswith("object.item"):
-            v = ['*',]
+            neg = True
+            v = ['inode/directory',]
             
     swords,phrases = _separatePhrasesAndWords(v)
-
-    if neg:
-        out.append(" -")
 
     # Special-case 'title' because we want to also match directory names
     # ((title:keyword) OR (filename:keyword AND mime:inode/directory))
@@ -147,13 +149,16 @@ def _makeSearchExp(out, v, field, oper, neg):
     for i in range(len(fields)):
         field = fields[i]
         out.append(" (")
-        _searchClauses(out, field, oper, swords, phrases)
+        _searchClauses(out, neg, field, oper, swords, phrases)
         # We'd like to do the following to avoid matching reg file names but
         # recoll takes all mime: clause as global filters, so can't work
         # if i == 1: out.append(" AND mime:inode/directory")
         out.append(")")
         if len(fields) == 2 and i == 0:
-            out.append(" OR ")
+            if neg:
+                out.append(" AND ")
+            else:
+                out.append(" OR ")
 
     if len(fields) > 1:
         out.append(") ")
@@ -253,13 +258,14 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
     tags = uprclinit.getTree('tags')
     rcls = _upnpsearchtorecoll(upnps)
 
-    uplog(f"Search: recoll search: <{rcls}>")
     if not rcls:
         uplog(f"Upnp search string parse failed for [{upnps}]. Recoll search is empty")
         return []
+    uplog(f"Search: recoll search: <{rcls}>")
 
     filterdir = foldersobj.dirpath(inobjid)
     if filterdir and filterdir != "/":
+        #uplog(f"filterdir: <{filterdir}>")
         rcls += " dir:\"" + filterdir + "\""
         
     rcldb = recoll.connect(confdir=rclconfdir)
@@ -285,7 +291,7 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
             e = None
             if doc["rcludi"].find("albid") == 0:
                 albid = doc["rcludi"][5:]
-                uplog("rcludi %s albid %s" % (doc["rcludi"], albid))
+                #uplog(f"Search: album: {doc['rcludi']} albid {albid}")
                 e = tags.direntryforalbid(albid)
             else:
                 # Objidfordoc uses the path from the url to walk the
@@ -295,12 +301,12 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
                 # at the moment. Of course, this breaks the recommendation
                 # for the objids to be consistent and unchanging
                 id = foldersobj.objidfordoc(doc)
-                uplog("Search: id [%s] for doc udi [%s]\n" % (id, doc["rcludi"]))
+                #uplog("Search: id [%s] for doc udi [%s]\n" % (id, doc["rcludi"]))
                 e = uprclutils.rcldoctoentry(id, inobjid, httphp, pathprefix, doc)
+            #uplog(f"Search: entry: {e}")
             if e:
                 entries.append(e)
-        if (maxcnt > 0 and len(entries) >= maxcnt) or \
-               len(docs) != rclq.arraysize:
+        if (maxcnt > 0 and len(entries) >= maxcnt) or len(docs) != rclq.arraysize:
             break
     uplog("Search retrieved %d docs" % (len(entries),))
 
