@@ -81,7 +81,7 @@ extern void stringtolower(std::string& io);
 extern std::string stringtolower(const std::string& io);
 extern void stringtoupper(std::string& io);
 extern std::string stringtoupper(const std::string& io);
-extern bool beginswith(const std::string& big, const std::string& small);
+extern bool beginswith(const std::string& b, const std::string& sml);
 
 // Parse date interval specifier into pair of y,m,d dates.  The format
 // for the time interval is based on a subset of iso 8601 with

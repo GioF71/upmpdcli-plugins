@@ -894,7 +894,7 @@ static bool parseperiod(vector<string>::const_iterator& it,
 }
 
 #ifdef _WIN32
-int setenv(const char *name, const char *value, int overwrite)
+static int setenv(const char* name, const char* value, int overwrite)
 {
     if (!overwrite) {
         const char *cp = getenv(name);
@@ -904,7 +904,7 @@ int setenv(const char *name, const char *value, int overwrite)
     }
     return _putenv_s(name, value);
 }
-void unsetenv(const char *name)
+static void unsetenv(const char* name)
 {
     _putenv_s(name, "");
 }
@@ -1138,14 +1138,11 @@ std::string hexprint(const std::string& in, char separ)
     return out;
 }
 
-
-// We'd like these static, but then, as only one is used, this
-// triggers a 'defined but not used' warning.
-char *_check_strerror_r(int, char *errbuf)
+[[maybe_unused]] static char* _check_strerror_r(int, char* errbuf)
 {
     return errbuf;
 }
-char *_check_strerror_r(char *cp, char *)
+[[maybe_unused]] static char* _check_strerror_r(char* cp, char*)
 {
     return cp;
 }

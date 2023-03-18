@@ -144,8 +144,8 @@ bool path_access(const std::string& path, int mode);
 /// The rest is zeroed.
 /// @ret 0 for success
 struct PathStat {
-    enum PstType {PST_REGULAR, PST_SYMLINK, PST_DIR, PST_OTHER};
-    PstType pst_type;
+    enum PstType {PST_REGULAR, PST_SYMLINK, PST_DIR, PST_OTHER, PST_INVALID};
+    PstType pst_type{PST_INVALID};
     int64_t pst_size;
     uint64_t pst_mode;
     int64_t pst_mtime;

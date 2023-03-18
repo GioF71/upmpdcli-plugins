@@ -911,14 +911,17 @@ in the upmpdcli configuration file.
 The configuration parameters are described in the <<upradiosuser,configuration section>>. 
 
 [[UPMPDCLI-MS-RADIO-BROWSER]]
-=== Upmpdcli Radio Browser plugin
+=== Upmpdcli plugin for the Radio Browser Web site
 
 The plugin allows access to the link:https://www.radio-browser.info/[Radio Browser] Web radios
 catalog. Radios can be selected by country, language and tag, and/or searched for by name.
 
-Enable this function by installing the upmpdcli radio-browser module (which may be a separate
-package), and uncommenting the bogus setting for the `radio-browseruser` variable
-in the upmpdcli configuration file.
+This uses the link:https://pypi.org/project/pyradios/[pyradios] Python module, which you should
+first install, for example with with pip3.
+
+Then enable the function by installing the upmpdcli radio-browser module (which may be a separate
+package), and uncommenting the bogus setting for the `radio-browseruser` variable in the upmpdcli
+configuration file.
 
 There are currently no additional configuration parameters. Any would go in the
 <<radio-browseruser,configuration section>>.  
