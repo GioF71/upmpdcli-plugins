@@ -1,3 +1,10 @@
+upmpdcli (1.7.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix issues in upnp to recoll search translation.
+  * Fix potential issues with parallel requests.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sat, 18 Mar 2023 13:12:00 +0100
+
 upmpdcli (1.7.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix URL comparison issue which could cause false diags in checkContentFormat()
