@@ -1,4 +1,4 @@
-/* Copyright (C) 2016 J.F.Dockes
+/* Copyright (C) 2016-2023 J.F.Dockes
  *       This program is free software; you can redistribute it and/or modify
  *       it under the terms of the GNU Lesser General Public License as published by
  *       the Free Software Foundation; either version 2.1 of the License, or
@@ -14,7 +14,6 @@
  *       Free Software Foundation, Inc.,
  *       59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
 #include "config.h"
 
 #include "contentdirectory.hxx"
@@ -76,7 +75,7 @@ public:
     }
     
     CDPlugin *pluginFactory(const string& appname) {
-        LOGDEB("ContentDirectory::pluginFactory: for " << appname << endl);
+        LOGDEB("ContentDirectory::pluginFactory: for " << appname << "\n");
         maybeInit();
         return new PlgWithSlave(appname, service);
     }
@@ -138,7 +137,7 @@ ContentDirectory::~ContentDirectory()
 
 int ContentDirectory::actGetSearchCapabilities(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("ContentDirectory::actGetSearchCapabilities: " << endl);
+    LOGDEB("ContentDirectory::actGetSearchCapabilities: " << "\n");
 
     std::string out_SearchCaps(
         "upnp:class,upnp:artist,dc:creator,upnp:album,dc:title");
@@ -148,7 +147,7 @@ int ContentDirectory::actGetSearchCapabilities(const SoapIncoming& sc, SoapOutgo
 
 int ContentDirectory::actGetSortCapabilities(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("ContentDirectory::actGetSortCapabilities: " << endl);
+    LOGDEB("ContentDirectory::actGetSortCapabilities: " << "\n");
 
     std::string out_SortCaps;
     data.addarg("SortCaps", out_SortCaps);
@@ -157,7 +156,7 @@ int ContentDirectory::actGetSortCapabilities(const SoapIncoming& sc, SoapOutgoin
 
 int ContentDirectory::actGetSystemUpdateID(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("ContentDirectory::actGetSystemUpdateID: " << endl);
+    LOGDEB("ContentDirectory::actGetSystemUpdateID: " << "\n");
 
     std::string out_Id = m->updateID;
     data.addarg("Id", out_Id);
@@ -173,7 +172,7 @@ static bool makerootdir()
     set<string> entries;
     if (!listdir(pathplg, reason, entries)) {
         LOGERR("ContentDirectory::makerootdir: can't read " << pathplg <<
-               " : " << reason << endl);
+               " : " << reason << "\n");
         return false;
     }
 
@@ -220,7 +219,7 @@ bool ContentDirectory::mediaServerNeeded()
 // Returns totalmatches
 static size_t readroot(int offs, int cnt, vector<UpSong>& out)
 {
-    //LOGDEB("readroot: offs " << offs << " cnt " << cnt << endl);
+    //LOGDEB("readroot: offs " << offs << " cnt " << cnt << "\n");
     if (rootdir.empty()) {
         makerootdir();
     }
@@ -344,7 +343,7 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
            " BrowseFlag " << in_BrowseFlag << " Filter " << in_Filter <<
            " StartingIndex " << in_StartingIndex <<
            " RequestedCount " << in_RequestedCount <<
-           " SortCriteria " << in_SortCriteria << endl);
+           " SortCriteria " << in_SortCriteria << "\n");
 
     last_objid = in_ObjectID;
     
@@ -396,7 +395,7 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
         out_Result += entries[i].didl();
     } 
     out_Result += tailDIDL();
-    LOGDEB1("ContentDirectory::Browse: didl: " << out_Result << endl);
+    LOGDEB1("ContentDirectory::Browse: didl: " << out_Result << "\n");
     
     data.addarg("Result", out_Result);
     LOGDEB1("ContentDirectory::actBrowse: result [" << out_Result << "]\n");
@@ -454,7 +453,7 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
            " SearchCriteria " << in_SearchCriteria <<
            " Filter " << in_Filter << " StartingIndex " << in_StartingIndex <<
            " RequestedCount " << in_RequestedCount <<
-           " SortCriteria " << in_SortCriteria << endl);
+           " SortCriteria " << in_SortCriteria << "\n");
 
     vector<string> sortcrits;
     stringToStrings(in_SortCriteria, sortcrits);
@@ -494,6 +493,7 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     out_UpdateID = m->updateID;
     out_Result = headDIDL();
     for (unsigned int i = 0; i < entries.size(); i++) {
+        LOGDEB1("Search result title: " << entries[i].title << "\n");
         out_Result += entries[i].didl();
     } 
     out_Result += tailDIDL();
@@ -502,6 +502,8 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     data.addarg("NumberReturned", out_NumberReturned);
     data.addarg("TotalMatches", out_TotalMatches);
     data.addarg("UpdateID", out_UpdateID);
+    LOGDEB0("ContentDirectory::actSearch: " << " SearchCriteria " << in_SearchCriteria <<
+            " returns " << out_NumberReturned << " results\n");
     return UPNP_E_SUCCESS;
 }
 
