@@ -1,9 +1,10 @@
-upmpdcli (1.7.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.7.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix issues in upnp to recoll search translation.
   * Fix potential issues with parallel requests.
+  * Index artist documents so that they can be searched for
   
- -- Jean-Francois Dockes <jf@dockes.org>  Sat, 18 Mar 2023 13:12:00 +0100
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 19 Mar 2023 16:12:00 +0100
 
 upmpdcli (1.7.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
