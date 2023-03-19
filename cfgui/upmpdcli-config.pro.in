@@ -2,7 +2,7 @@ TEMPLATE	= app
 LANGUAGE	= C++
 
 VPATH = @srcdir@
-QMAKE_CXXFLAGS += -std=c++11 -I../ -DENABLE_XMLCONF
+QMAKE_CXXFLAGS += -std=c++14 -I../ -DENABLE_XMLCONF
 	       
 
 DEFINES += MDU_INCLUDE_LOG=\'<libupnpp/log.h>\'
