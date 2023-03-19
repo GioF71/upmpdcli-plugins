@@ -301,12 +301,11 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
                 #uplog(f"Search: artist: {doc['rcludi']} albid {albid}")
                 e = tags.direntryforartid(artid)
             else:
-                # Objidfordoc uses the path from the url to walk the
-                # _dirvec and determine the right entry if doc is a
-                # container. If doc is an item, the returned id is bogus
-                # (0$uprcl$folders$seeyoulater), because it's not useful
-                # at the moment. Of course, this breaks the recommendation
-                # for the objids to be consistent and unchanging
+                # Objidfordoc uses the path from the url to walk the _dirvec and determine the right
+                # entry if doc is a container. If doc is an item, the returned id is not usable but
+                # still unique (based on the xdocid). We used to return
+                # (0$uprcl$folders$seeyoulater), but this ennoys bubble to no end.  This still
+                # breaks the recommendation for the objids to be consistent and unchanging
                 id = foldersobj.objidfordoc(doc)
                 #uplog("Search: id [%s] for doc udi [%s]\n" % (id, doc["rcludi"]))
                 e = uprclutils.rcldoctoentry(id, inobjid, httphp, pathprefix, doc)

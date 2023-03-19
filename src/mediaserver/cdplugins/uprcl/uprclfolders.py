@@ -655,10 +655,11 @@ class Folders(object):
         id=None
         if doc["mtype"] == 'inode/directory':
             id = self._objidforpath(doc)
-        #else:
-        #    # Note: not currently doing anything, see method comments
-        #    id = self._objidforxdocid(doc)
-
-        if not id:
-            id = self._idprefix + '$' + 'seeyoulater'
+        else:
+            # Note: we should have something like objidforxdocid (above) for using consistent
+            # objids, but it's not currently doing anything, see method comments. Use unique but
+            # different id instead for now.
+            #id = self._objidforxdocid(doc)
+            id = self._idprefix + '$xdocid' + doc.xdocid
+        #uplog(f"objidfordoc: returning {id}")
         return id
