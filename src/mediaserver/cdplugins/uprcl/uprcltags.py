@@ -338,6 +338,18 @@ class Tagged(object):
                                upnpclass='object.container.album.musicAlbum')
         return None
 
+    # Called when the recoll search finds an artist record result.
+    def direntryforartid(self, artid):
+        intartid = int(artid)
+        c = self._conn.cursor()
+        stmt = "SELECT value FROM artist WHERE artist_id = ?"
+        args = (int(artid),)
+        c.execute(stmt, args)
+        for r in c:
+            pid = uprclinit.getObjPrefix() + '=Artist'
+            id = pid + '$' + artid
+            return direntry(id, pid, r[0], upnpclass='object.container.person.musicArtist')
+        return None
 
     # This is called when an 'albums' element is encountered in the
     # selection path. i is the index of the albums element. The tree under

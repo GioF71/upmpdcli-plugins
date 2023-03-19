@@ -296,6 +296,10 @@ def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix)
                 albid = doc["rcludi"][5:]
                 #uplog(f"Search: album: {doc['rcludi']} albid {albid}")
                 e = tags.direntryforalbid(albid)
+            elif doc["rcludi"].find("artid") == 0:
+                artid = doc["rcludi"][5:]
+                #uplog(f"Search: artist: {doc['rcludi']} albid {albid}")
+                e = tags.direntryforartid(artid)
             else:
                 # Objidfordoc uses the path from the url to walk the
                 # _dirvec and determine the right entry if doc is a

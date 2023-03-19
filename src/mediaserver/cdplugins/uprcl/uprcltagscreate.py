@@ -413,7 +413,7 @@ def _setalbumartists(conn):
         c1.execute("UPDATE albums SET artist_id = ? WHERE album_id = ?", (albumartist, r[0]))
 
 
-# Update the recoll index for the albums
+# Add albums to the recoll index so they can be searched for
 def _albumstorecoll(conn):
     rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
     c = conn.cursor()
@@ -431,7 +431,23 @@ def _albumstorecoll(conn):
         if r[5]:
             doc["albumartist"] = r[5]
         doc["url"] = "file://" + r[1]
-        # uplog("_albumstorecoll: creating album for: %s" % doc["album"])
+        # uplog(f"_albumstorecoll: indexing album {doc['album']}")
+        rcldb.addOrUpdate(udi, doc)
+    
+# Add artists to the recoll index so they can be searched for
+def _artiststorecoll(conn):
+    rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
+    c = conn.cursor()
+    #                 0         1
+    stmt = "SELECT artist_id, value    FROM artist"
+    c.execute(stmt, ())
+    for r in c:
+        udi = "artid" + str(r[0])
+        doc = recoll.Doc()
+        doc["title"] = r[1]
+        doc["mtype"] = "inode/directory"
+        doc["url"] = "file://artists/" + r[1] # Not used ever
+        # uplog(f"_artiststorecoll: indexing artist {doc['title']}")
         rcldb.addOrUpdate(udi, doc)
     
 
@@ -638,5 +654,6 @@ def recolltosql(conn, rcldocs):
     conn.commit()
     end = timer()
     _albumstorecoll(conn)
+    _artiststorecoll(conn)
     uplog(f"recolltosql: processed {totcnt} docs in {end-start:.1f} Seconds")
  
