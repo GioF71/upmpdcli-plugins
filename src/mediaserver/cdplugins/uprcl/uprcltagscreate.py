@@ -430,10 +430,12 @@ def _albumstorecoll(conn):
         doc["mtype"] = "inode/directory"
         if r[5]:
             doc["albumartist"] = r[5]
+            doc["artist"] = r[5]
         doc["url"] = "file://" + r[1]
         # uplog(f"_albumstorecoll: indexing album {doc['album']}")
         rcldb.addOrUpdate(udi, doc)
     
+
 # Add artists to the recoll index so they can be searched for
 def _artiststorecoll(conn):
     rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)

@@ -12,11 +12,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from __future__ import print_function
+
+'''Translate an UPnP search string into a Recoll one and run the search. Note that the translation 
+is not exact, we are just making a best effort.'''
 
 import sys
-
 import re
+
 from recoll import recoll
 
 from upmplgutils import uplog
@@ -30,30 +32,32 @@ def _getchar(s, i):
     else:
         return i,None
 
+
 def _readword(s, i):
+    '''Extract word from whole string s starting at offset i. Return final position and word.
+    The final position will point to whitespace or EOS'''
     #uplog(f"_readword: input: <{s[i:]}>")
     w = ''
-    j = 0
     for j in range(i, len(s)):
         if s[j].isspace():
-            # Because of the j+1 after the loop
-            j -= 1
             break
         w += s[j]
-    j += 1
+    # If we broke at the end of string, increment to indicate eos
+    if j == len(s) -1:
+        j += 1
     #uplog(f"_readword returning index {j} word <{w}>")
     return j,w
 
-# Called with '"' already read.
-# Upnp search term strings are double quoted, but we should not take
-# them as recoll phrases. We separate parts which are internally
-# quoted, and become phrases, and lists of words which we interpret as
-# an AND search (comma-separated). Internal quotes come backslash-escaped
+
 def _parsestring(s, i=0):
+    '''Parse double-quoted string looking like ["hello \"one phrase\" world"]
+    Called with the first quote already read.
+    Upnp search term strings are double quoted, but we should not take them as recoll phrases. 
+    We separate parts which are internally (backslash-escaped) quoted, and become phrases, and 
+    lists of words which we interpret as an AND search (comma-separated).
+    Note that we don't handle possible quotes inside an escape-quoted phrase string.'''
+
     #uplog(f"parseString: input: <{s[i:]}>")
-    # First change '''"hello \"one phrase\"''' world" into
-    #  '''hello "one phrase" world'''
-    # Note that we can't handle quoted dquotes inside phrase string
     str = ''
     escape = False
     instring = False
@@ -71,8 +75,7 @@ def _parsestring(s, i=0):
                     escape = True
                 else:
                     str += s[j]
-
-        else:
+        else: # Not inside internal string
             if escape:
                 str += s[j]
                 escape = False
@@ -92,7 +95,23 @@ def _parsestring(s, i=0):
     return j, tokens
 
 
+def _separatePhrasesAndWords(v):
+    '''Built separate lists for phrases and words from parseString output'''
+    swords = ""
+    phrases = []
+    for w in v:
+        if len(w.split()) == 1:
+            if swords:
+                swords += ","
+            swords += w
+        else:
+            phrases.append(w)
+    return (swords, phrases)
+
+
 def _searchClauses(out, neg, field, oper, words, phrases):
+    '''Build recoll search clauses out of list of words and phrases and given negation, field name 
+    and operator, e.g. [title:word, title:"some phrase"] '''
     if words:
         if neg:
             out.append("-")
@@ -108,27 +127,20 @@ def _searchClauses(out, neg, field, oper, words, phrases):
     return out
 
 
-def _separatePhrasesAndWords(v):
-    swords = ""
-    phrases = []
-    for w in v:
-        if len(w.split()) == 1:
-            if swords:
-                swords += ","
-            swords += w
-        else:
-            phrases.append(w)
-    return (swords, phrases)
-
-# the v list contains terms and phrases. Fields maybe several space separated field specs, which we
-# should OR (ex: for search title or filename).
 def _makeSearchExp(out, v, field, oper, neg):
+    '''Process data from an UPnP relExp triplet.
+    Build a recoll search expression, given:
+    v: terms or phrases out of _parseString.
+    field: which we may expand to multiple ORed values (e.g. title -> title or filename)
+    oper: :, = etc. "I" for ignore.
+    neg: exclusion'''
+
     #uplog(f"_makeSearchExp: v <{v}> field <{field}> oper <{oper}> neg <{neg}>")
 
-    if oper == 'I':
+    if oper == "I":
         return
 
-    # Test coming from, e.g. <upnp:class derivedfrom object.container.album>
+    # Test coming from, e.g. <upnp:class derivedfrom/= object.container.album>
     if (oper == ':' or oper == '=') and len(v) == 1:
         if v[0].startswith("object.container"):
             v = ['inode/directory',]
@@ -138,8 +150,8 @@ def _makeSearchExp(out, v, field, oper, neg):
             
     swords,phrases = _separatePhrasesAndWords(v)
 
-    # Special-case 'title' because we want to also match directory names
-    # ((title:keyword) OR (filename:keyword AND mime:inode/directory))
+    # Special-case 'title' because we want to also match the file name. Possibly only for
+    # directories, but there is no way to do inside a single query (see comment further).
     if field == 'title':
         fields = (field, 'filename')
     else:
@@ -152,9 +164,10 @@ def _makeSearchExp(out, v, field, oper, neg):
         field = fields[i]
         out.append(" (")
         _searchClauses(out, neg, field, oper, swords, phrases)
-        # We'd like to do the following to avoid matching reg file names but
-        # recoll takes all mime: clause as global filters, so can't work
-        # if i == 1: out.append(" AND mime:inode/directory")
+        # We'd like to do the following to avoid matching regular file names (maybe: what of the
+        # untagged files?) but recoll takes all mime: clause as global filters, so can't work
+        # anyway:
+        #if i == 1: out.append(" AND mime:inode/directory")
         out.append(")")
         if len(fields) == 2 and i == 0:
             if neg:
@@ -164,21 +177,28 @@ def _makeSearchExp(out, v, field, oper, neg):
 
     if len(fields) > 1:
         out.append(") ")
-        
+
+# Some fields are found in searches but not in the upnp2rclfield dict, which would lead to a search
+# failure
+_fieldaliases = {
+    "dc:creator": "upnp:artist",
+}
+
 # Upnp searches are made of relExps which are always (selector, operator, value), there are no unary
-# operators. The relExpse can be joined with and/or and grouped with parentheses, but they are
+# operators. The relExp-s can be joined with and/or and grouped with parentheses, but they are
 # always triplets, which make things reasonably easy to translate into a recoll search, just
 # translating the relExps into field clauses and forwarding the booleans and parentheses.
 #
 # Also the set of unquoted keywords or operators is unambiguous and all un-reserved values are
-# quoted, so that we don't even use a state machine, but rely of comparing token values for guessing
-# where we are in the syntax
+# quoted, so that we don't even use a state machine, but rely of comparing token values for
+# determining our syntactic state.
 #
-# This is all quite approximative though, but simpler than a formal parser, and works in practise
-# because we rely on recoll to deal with logical operators and parentheses.
+# This is all quite approximative though, but simpler than a formal parser, and mostly works in
+# practise because we rely on recoll to deal with logical operators and parentheses.
 def _upnpsearchtorecoll(s):
-    uplog("_upnpsearchtorecoll:in: <%s>" % s)
+    uplog(f"_upnpsearchtorecoll:in: <{s}>")
 
+    # Simplify: turn all whitespace sequences into single spaces
     s = re.sub('[\t\n\r\f ]+', ' ', s)
 
     out = []
@@ -209,15 +229,19 @@ def _upnpsearchtorecoll(s):
             oper += c
         else:
             if c == '"':
+                # Quoted strings are always values (3rd triplet elements) and values are always
+                # quoted. Read it, then generate and append one or several recoll search clauses,
+                # according to the already read 1st and 2nd triplet elements.
                 i,v = _parsestring(s, i)
                 _makeSearchExp(out, v, field, oper, neg)
                 field = ""
                 oper = ""
                 neg = False
                 continue
-            else:
-                i -= 1
-                i,w = _readword(s, i)
+
+            # Unquoted word.
+            i -= 1
+            i,w = _readword(s, i)
 
             w = w.lower()
             if w == 'contains':
@@ -239,30 +263,37 @@ def _upnpsearchtorecoll(s):
                 # Recoll has implied AND, but see next
                 pass
             elif w == 'or':
-                # Does not work because OR/AND priorities are reversed
-                # between recoll and upnp. This would be very
-                # difficult to correct, let's hope that the callers
-                # use parentheses
+                # Does not work because OR/AND priorities are reversed between recoll and upnp. This
+                # would be very difficult to correct, let's hope that the callers use parentheses
                 out.append('OR')
             else:
                 if w == 'upnp:class':
                     field = 'mime'
                 else:
                     try:
+                        if w in _fieldaliases:
+                            w = _fieldaliases[w]
                         field = uprclutils.upnp2rclfields[w]
                     except Exception as ex:
-                        #uplog(f"Field translation error: {ex}")
-                        field = w
+                        uplog(f"Field translation error for <{w}>: {ex}. Ignoring search.")
+                        # Recoll would just ignore an unknown field spec and search the main
+                        # text. We don't want to do this, it yields confusing results (happens for
+                        # example with someting like: upnp:artist[@role="composer"] from kazoo
+                        return None
 
     return " ".join(out)
 
-# inobjid is for the container this search is run from.
+
 def search(foldersobj, rclconfdir, inobjid, upnps, idprefix, httphp, pathprefix):
+    '''Run UPnP search operation. inobjid is for the container this search is run from.'''
+
     tags = uprclinit.getTree('tags')
+
+    # Translate UPnP search string to recoll one
     rcls = _upnpsearchtorecoll(upnps)
 
     if not rcls:
-        uplog(f"Upnp search string parse failed for [{upnps}]. Recoll search is empty")
+        uplog(f"Upnp search string parse failed or ignored for [{upnps}]. Recoll search is empty")
         return []
     uplog(f"Search: recoll search: <{rcls}>")
 
