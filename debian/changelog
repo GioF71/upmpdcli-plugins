@@ -1,11 +1,14 @@
-upmpdcli (1.7.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.7.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Fix issues in upnp-to-recoll search translation, and improve search behaviour with some control
-    points (bubble and kazoo).
+  * Media Server: fix issues in upnp-to-recoll search translation, and improve search behaviour with
+    some control points (bubble and kazoo).
   * Fix potential issues with parallel requests.
-  * Index artist documents so that they can be searched for
-  
- -- Jean-Francois Dockes <jf@dockes.org>  Mon, 20 Mar 2023 08:57:00 +0100
+  * Uprcl: index artist documents so that they can be searched for
+  * When a search request is relative to objid "0", use the plugin root instead of last browsed
+    container.
+  * Avoid phantom entries by adjusting the result count for entries filtered out by class.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 21 Mar 2023 16:31:00 +0100
 
 upmpdcli (1.7.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
