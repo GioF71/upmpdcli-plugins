@@ -85,11 +85,7 @@ public:
         if (it != plugins.end()) {
             return it->second;
         } else {
-            CDPlugin *plug = pluginFactory(appname);
-            if (plug) {
-                plugins[appname] = plug;
-            }
-            return plug;
+            return plugins[appname] = pluginFactory(appname);
         }
     }
 
@@ -102,14 +98,11 @@ public:
     string updateID;
 };
 
-static const string
-sTpContentDirectory("urn:schemas-upnp-org:service:ContentDirectory:1");
-static const string
-sIdContentDirectory("urn:upnp-org:serviceId:ContentDirectory");
+static const string sTpContentDirectory("urn:schemas-upnp-org:service:ContentDirectory:1");
+static const string sIdContentDirectory("urn:upnp-org:serviceId:ContentDirectory");
 
 ContentDirectory::ContentDirectory(MediaServer *dev, bool enabled)
-    : UpnpService(sTpContentDirectory, sIdContentDirectory,
-                  "ContentDirectory.xml", dev),
+    : UpnpService(sTpContentDirectory, sIdContentDirectory, "ContentDirectory.xml", dev),
       m(new Internal(this, dev))
 {
     dev->addActionMapping(
@@ -171,8 +164,7 @@ static bool makerootdir()
     string reason;
     set<string> entries;
     if (!listdir(pathplg, reason, entries)) {
-        LOGERR("ContentDirectory::makerootdir: can't read " << pathplg <<
-               " : " << reason << "\n");
+        LOGERR("ContentDirectory::makerootdir: can't read " << pathplg << " : " << reason << "\n");
         return false;
     }
 
@@ -195,8 +187,8 @@ static bool makerootdir()
         // from the plugin name.
         string title;
         if (!getOptionValue(entry + "title", title)) {
-            title = stringtoupper((const string&)entry.substr(0,1)) +
-                entry.substr(1, entry.size()-1);
+            title = stringtoupper((const string&)entry.substr(0, 1)) +
+                entry.substr(1, entry.size() - 1);
         }
         rootdir.push_back(UpSong::container("0$" + entry + "$", "0", title));
     }
@@ -258,6 +250,14 @@ static string appForId(const string& id)
     return id.substr(dol0 + 1, dol1 - dol0 -1);
 }
 
+std::string CDPluginServices::pluginRootFromObjid(const std::string& objid)
+{
+    auto app = appForId(objid);
+    if (app.empty()) { // ??
+        return "0";
+    } 
+    return std::string("0$") + app + "$";
+}
 
 void ContentDirectory::Internal::maybeStartSomePlugins(bool enabled)
 {
@@ -471,8 +471,8 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
         // plugin to pass the search to. Substitute last browsed. Yes
         // it does break in multiuser mode, and yes it's preposterous.
         LOGERR("ContentDirectory::actSearch: Can't search in root. "
-               "Substituting last browsed container\n");
-        in_ContainerID = last_objid;
+               "Substituting plugin root for last browsed container\n");
+        in_ContainerID = pluginRootFromObjid(last_objid);
     }
 
     // Pass off request to appropriate app, defined by 1st elt in id
@@ -480,8 +480,7 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     CDPlugin *plg = m->pluginForApp(app);
     if (plg) {
         totalmatches = plg->search(in_ContainerID, in_StartingIndex,
-                                   in_RequestedCount, in_SearchCriteria,
-                                   entries, sortcrits);
+                                   in_RequestedCount, in_SearchCriteria, entries, sortcrits);
     } else {
         LOGERR("ContentDirectory::Search: unknown app: [" << app << "]\n");
         return UPNP_E_INVALID_PARAM;

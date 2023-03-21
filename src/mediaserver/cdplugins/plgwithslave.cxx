@@ -67,7 +67,7 @@ public:
 
 class ContentCacheEntry {
 public:
-    int toResult(const string& classfilter, int stidx, int cnt, vector<UpSong>& entries) const;
+    int toResult(int stidx, int cnt, vector<UpSong>& entries) const;
     time_t m_time{time(0)};
     int m_offset{0};
     int m_total{-1};
@@ -212,7 +212,7 @@ bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
     string pp = string("UPMPD_PATHPREFIX=") + pathpref;
     string exepath = path_cat(g_datadir, "cdplugins");
     exepath = path_cat(exepath, appname);
-    exepath = path_cat(exepath, appname + "-app" + ".py");
+    exepath = path_cat(exepath, appname + "-app.py");
 
     if (!cmd.startCmd(exepath, {/*args*/}, /* env */ {pythonpath, configname, hostport, pp})) {
         LOGERR("PlgWithSlave::maybeStartCmd: startCmd failed\n");
@@ -385,7 +385,8 @@ static void decodeResource(const Json::Value entry, UpSong::Res &res)
 
 #define JSONTOUPS(fld, nm) {catstring(song.fld, decoded[i].get(#nm, "").asString());}
 
-static int resultToEntries(const string& encoded, vector<UpSong>& entries)
+static int resultToEntries(const string& encoded, vector<UpSong>& entries,
+                           const std::string& classfilter = std::string())
 {
     Json::Value decoded;
     istringstream input(encoded);
@@ -395,8 +396,7 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries)
 
     entries.reserve(decoded.size());
     for (unsigned int i = 0; i < decoded.size(); i++) {
-        entries.emplace_back();
-        UpSong& song = entries.back();
+        UpSong song;
         JSONTOUPS(id, id);
         JSONTOUPS(parentid, pid);
         JSONTOUPS(title, tt);
@@ -434,37 +434,35 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries)
                 }
             }
         } else {
-            LOGERR("PlgWithSlave::result: bad type in entry: " << stp <<
-                   "(title: " << song.title << ")\n");
+            LOGERR("PlgWithSlave::result: bad type: <" << stp << "> (titl: " << song.title << ")\n");
             continue;
         }
-        LOGDEB1("PlgWitSlave::result: pushing: " << song.dump() << "\n");
+        if (!classfilter.empty() && song.upnpClass.find(classfilter) != 0) {
+            LOGDEB1("PlgWithSlave::resultToEntries: class mismatch " << classfilter << "\n");
+            continue;
+        }
+        LOGDEB1("PlgWithSlave::resultToEntries: pushing: " << song.dump() << "\n");
+        entries.push_back(song);
     }
     return decoded.size();
 }
 
 
-int ContentCacheEntry::toResult(const string& classfilter, int stidx, int cnt,
-                                vector<UpSong>& entries) const
+int ContentCacheEntry::toResult(int stidx, int cnt, vector<UpSong>& entries) const
 {
-    LOGDEB0("searchCacheEntryToResult: filter " << classfilter << " start " <<
+    LOGDEB0("searchCacheEntryToResult: start " <<
             stidx << " cnt " << cnt << " m_offset " << m_offset <<
             " m_results.size " << m_results.size() << "\n");
 
     if (stidx < m_offset) {
         // we're missing a part
-        LOGERR("ContentCacheEntry::toResult: stidx " << stidx << " < offset " <<
-               m_offset << "\n");
+        LOGERR("ContentCacheEntry::toResult: stidx " << stidx << " < offset " << m_offset << "\n");
         return -1;
     }
 
     if (cnt > 0)
         entries.reserve(cnt);
     for (int i = stidx - m_offset; i < int(m_results.size()); i++) {
-        if (!classfilter.empty() && m_results[i].upnpClass.find(classfilter) != 0) {
-            LOGDEB0("ContentCacheEntry::toResult: drop entry not matching " << classfilter <<"\n");
-            continue;
-        }
         LOGDEB1("ContentCacheEntry::toResult: pushing class " <<
                 m_results[i].upnpClass << " tt " << m_results[i].title << "\n");
         entries.push_back(m_results[i]);
@@ -557,7 +555,7 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
             }
             if (cep->m_offset <= stidx &&
                 int(cep->m_results.size()) - (stidx - cep->m_offset) >= cnt) {
-                return cep->toResult("", stidx, cnt, entries);
+                return cep->toResult(stidx, cnt, entries);
             }
         }
     }
@@ -600,49 +598,40 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
         e.m_offset = resoffs;
         e.m_total = total;
         resultToEntries(ite->second, e.m_results);
-        return e.toResult("", stidx, cnt, entries);
+        return e.toResult(stidx, cnt, entries);
     } else {
         return resultToEntries(ite->second, entries);
     }
 }
 
-int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& searchstr,
-                         vector<UpSong>& entries, const vector<string>& sortcrits)
+// Computing a pre-cooked query for simple-minded plugins.
+//
+// The plugins also receive the original search string, and, e.g. Uprcl, uses it instead of the
+// simplified parameters.
+//
+// Note that none of the qobuz/gmusic/tidal plugins actually use the slavefield part (defining in
+// what field the term should match).
+// 
+// Ok, so the upnp query language is quite powerful, but most our plugins, not so much. We prepare a
+// simplified search by getting rid of parenthesis and then trying to find the first searchExp on a
+// field we can handle, pretend the operator is "contains" and just do it. I so don't want to
+// implement a parser for the query language when the services don't support anything complicated
+// anyway.
+static bool eli5(const std::string& searchstr, std::string& slavefield, std::string& value,
+                 std::string& classfilter, std::string& objkind)
 {
-    std::unique_lock<std::mutex> lock(m->mutex);
-    LOGDEB("PlgWithSlave::search: [" << searchstr << "]\n");
-    entries.clear();
-    if (!m->maybeStartCmd()) {
-        return errorEntries(ctid, entries);
-    }
-
-    // Computing a pre-cooked query for simple-minded plugins (uprcl uses the real search string).
-    //
-    // Note that none of the qobuz/gmusic/tidal plugins actually use the slavefield part (defining
-    // in what field the term should match).
-    // 
-    // Ok, so the upnp query language is quite powerful, but us, not so much. We get rid of
-    // parenthesis and then try to find the first searchExp on a field we can handle, pretend the
-    // operator is "contains" and just do it. I so don't want to implement a parser for the query
-    // language when the services don't support anything complicated anyway, and the users don't
-    // even want it...
     string ss;
     neutchars(searchstr, ss, "()");
-
     // The search had better be space-separated. no upnp:artist="beatles" for you
     vector<string> vs;
     stringToStrings(ss, vs);
-
     // The sequence can now be either [field, op, value], or
     // [field, op, value, and/or, field, op, value,...]
     if ((vs.size() + 1) % 4 != 0) {
         LOGERR("PlgWithSlave::search: bad search string: [" << searchstr << "]\n");
-        return errorEntries(ctid, entries);
+        return false;
     }
-    string slavefield;
-    string value;
-    string classfilter;
-    string objkind;
+
     for (unsigned int i = 0; i < vs.size()-2; i += 4) {
         const string& upnpproperty = vs[i];
         LOGDEB("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");
@@ -675,12 +664,30 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
             break;
         }
     }
+    return true;
+}
+
+
+int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& searchstr,
+                         vector<UpSong>& entries, const vector<string>& sortcrits)
+{
+    std::unique_lock<std::mutex> lock(m->mutex);
+    LOGDEB("PlgWithSlave::search: [" << searchstr << "]\n");
+    entries.clear();
+    if (!m->maybeStartCmd()) {
+        return errorEntries(ctid, entries);
+    }
+
+    string slavefield, value, classfilter, objkind;
+    if (!eli5(searchstr, slavefield, value, classfilter, objkind)) {
+        return errorEntries(ctid, entries);
+    }        
 
     // In cache ?
     string cachekey(m_name + ":" + ctid + ":" + searchstr);
     auto cep = m->scache.get(cachekey);
     if (cep) {
-        int total = cep->toResult(classfilter, stidx, cnt, entries);
+        int total = cep->toResult(stidx, cnt, entries);
         return total;
     }
 
@@ -726,6 +733,6 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
     ContentCacheEntry& e = nocache ? entry : m->scache.set(cachekey, entry);
     e.m_offset = resoffs;
     e.m_total = total;
-    resultToEntries(ite->second, e.m_results);
-    return e.toResult(classfilter, stidx, cnt, entries);
+    resultToEntries(ite->second, e.m_results, classfilter);
+    return e.toResult(stidx, cnt, entries);
 }

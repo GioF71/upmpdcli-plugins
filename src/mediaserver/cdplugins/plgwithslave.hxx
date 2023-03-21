@@ -41,16 +41,14 @@ public:
     
     // Returns totalmatches
     virtual int browse(
-    const std::string& objid, int stidx, int cnt,
-    std::vector<UpSong>& entries,
-    const std::vector<std::string>& sortcrits = std::vector<std::string>(),
-    BrowseFlag flg = BFChildren);
+        const std::string& objid, int stidx, int cnt, std::vector<UpSong>& entries,
+        const std::vector<std::string>& sortcrits = std::vector<std::string>(),
+        BrowseFlag flg = BFChildren);
 
     virtual int search(
-    const std::string& ctid, int stidx, int cnt,
-    const std::string& searchstr,
-    std::vector<UpSong>& entries,
-    const std::vector<std::string>& sortcrits = std::vector<std::string>());
+        const std::string& ctid, int stidx, int cnt,
+        const std::string& searchstr, std::vector<UpSong>& entries,
+        const std::vector<std::string>& sortcrits = std::vector<std::string>());
 
     // This is for internal use only, but moving it to Internal would
     // make things quite more complicated for a number of reasons.
