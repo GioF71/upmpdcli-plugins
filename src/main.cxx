@@ -627,7 +627,7 @@ int main(int argc, char *argv[])
         if (getOptionValue("upnplogfilename", upnplogfilename)) {
             int upnploglevel = getIntOptionValue("upnploglevel", LibUPnP::LogLevelError);
             if (upnploglevel != LibUPnP::LogLevelNone) {
-                LibUPnP::setLogFileName(upnplogfilename, LibUPnP::LogLevel(loglevel));
+                LibUPnP::setLogFileName(upnplogfilename, LibUPnP::LogLevel(upnploglevel));
             }
         }
     }
