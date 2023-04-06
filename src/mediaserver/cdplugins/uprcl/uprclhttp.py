@@ -43,7 +43,9 @@ def _checkhost():
 def main():
     if not _checkhost():
         return bottle.HTTPResponse(status=404)
-    what =  bottle.request.forms.get('what')
+    # Using params.get will work with either the form's POST or an URL GET query value
+    # See https://bottlepy.org/docs/dev/tutorial.html#request-data
+    what =  bottle.request.params.get('what')
     #uplog("bottle:main: what value is %s" % what)
 
     status = uprclinit.updaterunning()
