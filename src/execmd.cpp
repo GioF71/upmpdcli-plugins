@@ -55,6 +55,7 @@
 #include "netcon.h"
 #include "closefrom.h"
 #include "smallut.h"
+#include "pathut.h"
 #ifdef MDU_INCLUDE_LOG
 #include MDU_INCLUDE_LOG
 #else
@@ -165,11 +166,8 @@ static bool exec_is_there(const char *candidate)
     struct stat fin;
 
     /* XXX work around access(2) false positives for superuser */
-    if (access(candidate, X_OK) == 0 &&
-            stat(candidate, &fin) == 0 &&
-            S_ISREG(fin.st_mode) &&
-            (getuid() != 0 ||
-             (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
+    if (access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 && S_ISREG(fin.st_mode) &&
+        (getuid() != 0 ||  (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
         return true;
     }
     return false;
@@ -180,13 +178,12 @@ bool ExecCmd::which(const string& cmd, string& exepath, const char* path)
     if (cmd.empty()) {
         return false;
     }
-    if (cmd[0] == '/') {
+    if (path_isabsolute(cmd)) {
         if (exec_is_there(cmd.c_str())) {
             exepath = cmd;
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     const char *pp;
@@ -200,12 +197,9 @@ bool ExecCmd::which(const string& cmd, string& exepath, const char* path)
     }
 
     vector<string> pels;
-    stringToTokens(pp, pels, ":");
-    for (vector<string>::iterator it = pels.begin(); it != pels.end(); it++) {
-        if (it->empty()) {
-            *it = ".";
-        }
-        string candidate = (it->empty() ? string(".") : *it) + "/" + cmd;
+    stringToTokens(pp, pels, path_PATHsep());
+    for (const auto& dir : pels) {
+        string candidate = path_cat(dir, cmd);
         if (exec_is_there(candidate.c_str())) {
             exepath = candidate;
             return true;
@@ -466,12 +460,10 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
     {
         // Debug and logging
         string command = cmd + " ";
-        for (vector<string>::const_iterator it = args.begin();
-                it != args.end(); it++) {
-            command += "{" + *it + "} ";
+        for (const auto& arg : args) {
+            command += "{" + arg + "} ";
         }
-        LOGDEB("ExecCmd::startExec: (" << has_input << "|" << has_output <<
-               ") " << command << "\n");
+        LOGDEB("ExecCmd::startExec: (" << has_input << "|" << has_output << ") " << command << "\n");
     }
 
     // The resource manager ensures resources are freed if we return early
@@ -504,9 +496,8 @@ int ExecCmd::startExec(const string& cmd, const vector<string>& args,
     // Fill up argv
     argv[0] = cmd.c_str();
     int i = 1;
-    vector<string>::const_iterator it;
-    for (it = args.begin(); it != args.end(); it++) {
-        argv[i++] = it->c_str();
+    for (const auto& arg : args) {
+        argv[i++] = arg.c_str();
     }
     argv[i] = nullptr;
 
@@ -1123,8 +1114,7 @@ void ReExec::insertArgs(const vector<string>& args, int idx)
 
 void ReExec::removeArg(const string& arg)
 {
-    for (vector<string>::iterator it = m_argv.begin();
-            it != m_argv.end(); it++) {
+    for (auto it = m_argv.begin(); it != m_argv.end(); it++) {
         if (*it == arg) {
             it = m_argv.erase(it);
         }
@@ -1141,9 +1131,8 @@ void ReExec::reexec()
     FILE *fp = stdout; //fopen("/tmp/exectrace", "w");
     if (fp) {
         fprintf(fp, "reexec: pwd: [%s] args: ", cwd ? cwd : "getcwd failed");
-        for (vector<string>::const_iterator it = m_argv.begin();
-                it != m_argv.end(); it++) {
-            fprintf(fp, "[%s] ", it->c_str());
+        for (const auto& arg: m_argv) {
+            fprintf(fp, "[%s] ", arg.c_str());
         }
         fprintf(fp, "\n");
     }
@@ -1177,9 +1166,8 @@ void ReExec::reexec()
 
     // Fill up argv
     int i = 0;
-    vector<string>::const_iterator it;
-    for (it = m_argv.begin(); it != m_argv.end(); it++) {
-        argv[i++] = it->c_str();
+    for (const auto& arg : m_argv) {
+        argv[i++] = arg.c_str();
     }
     argv[i] = nullptr;
     execvp(m_argv[0].c_str(), (char *const*)argv);

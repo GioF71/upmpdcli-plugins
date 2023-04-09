@@ -139,6 +139,8 @@ bool path_access(const std::string& path, int mode);
 /// bare stat() to ensure consistent use of the time fields (on
 /// windows, we set ctime=mtime as ctime is actually the creation
 /// time, for which we have no use).
+/// st_btime (birth time) is only really set on Ux/Linux if statx() is available and the file system
+/// supports it. Else it is set to st_ctime. On Windows it is set to the creation time.
 /// Only st_mtime, st_ctime, st_size, st_mode (file type bits) are set on
 /// all systems. st_dev and st_ino are set for special posix usage.
 /// The rest is zeroed.
@@ -154,11 +156,12 @@ struct PathStat {
     uint64_t pst_dev;
     uint64_t pst_blocks;
     uint64_t pst_blksize;
+    int64_t pst_btime;
 };
 extern int path_fileprops(const std::string path, struct PathStat *stp, bool follow = true);
 
 /// Return separator for PATH environment variable
-extern std::string path_PATHsep();
+extern const std::string& path_PATHsep();
 
 /// Directory reading interface. UTF-8 on Windows.
 class PathDirContents {
