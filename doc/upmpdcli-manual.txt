@@ -940,6 +940,51 @@ in the upmpdcli configuration file.
 The configuration parameters are described in the <<bbcuser,configuration section>>. 
 
 
+[[UPMPDCLI-MS-SUBSONIC]]
+=== Upmpdcli SubSonic plugin
+
+The plugin allows access to a SubSonic server. 
+Specifically, it has been tested against a link:https://www.navidrome.org[Navidrome] instance,
+but there is nothng Navidrome-specific in the code.
+The python package link:https://pypi.org/project/subsonic-connector/0.1.10/[subsonic-connector version 0.1.10] must be installed.
+
+Only a limited set of features are currently available:
+
+- List Newest Albums
+- List Random Albums
+- List Genres
+- Search Albums
+- Search Tracks
+
+Clicking on a Genre will show a list of albums belonging to that genre.
+
+Enable this function by uncommenting the bogus setting for the `subsonicuser` variable
+in the upmpdcli configuration file.
+So will also need to specify:
+
+- subsonicbaseurl
+- subsonicport
+- subsonicuser
+- subsonicpassword
+
+For example if your server is https://my-navidrome.mydomain.com, you will need to set
+
+- subsonicbaseurl = https://my-navidrome.mydomain.com
+- subsonicport = 443
+
+if your server is http://my-navidrome.homelab.local:4533, you will need to set
+
+- subsonicbaseurl = http://my-navidrome.homelab.local
+- subsonicport = 4533
+
+Consider that mpd will need to access those url, as well as your phone/tablet if you
+plan to use BubbleUpnpServer. Consider using ip addresses if your android phone has difficulties
+resolving local network hostnames. If this happens, you might not be able to see the
+album covers, for example.
+
+There are currently no additional configuration parameters. Any would go in the
+<<subsonicuser,configuration section>>.  
+
 [[UPMPDCLI-CONFIGURATION]]
 == Upmpdcli configuration file reference
 
