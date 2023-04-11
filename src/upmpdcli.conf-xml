@@ -554,6 +554,23 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #radio-browseruser = bugsbunny
 
+# <grouptitle>SubSonic plugin parameters</grouptitle>
+
+# <var name="subsonicuser" type="string"><brief>SubSonic User name variable.</brief>
+# <descr>Decides if the service should be started. Set it to the appropriate user name.</descr></var>
+#subsonicuser = subsonic
+
+# <var name="subsonicpassword" type="string"><brief>SubSonic Password variable.</brief>
+# <descr>Required for SubSonic authentication. Set it to the appropriate user name.</descr></var>
+#subsonicpassword = subsonicpassword
+
+# <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
+# <descr>URL of the server, without the port. Specify http or https</descr></var>
+#subsonicbaseurl = https://subsonic.mydomain.com
+
+# <var name="subsonicuser" type="string"><brief>SubSonic server port.</brief>
+# <descr>The port of the SubSonic server</descr></var>
+#subsonicport = 443
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 

@@ -476,6 +476,20 @@ bbcuser:: Bogus user name variable. Set this to activate the plugin, the value i
 [[bbcprogrammedays]]
 bbcprogrammedays:: Past days in BBC Sounds catalog listing. This controls how many days are listed in the station displays.
 
+=== Subsonic plugin parameters
+
+[[subsonicuser]]
+subsonicuser:: Bogus user name variable. Decides if the service should be started. Set it to the username to be used to access the SubSonic server.
+
+[[subsonicpassword]]
+subsonicpassword:: Password for the SubSonic server
+
+[[subsonicbaseurl]]
+subsonicpassword:: Base url for the SubSonic server
+
+[[subsonicport]]
+subsonicpassword:: Port of the SubSonic server (mandatory)
+
 === Songcast Receiver parameters 
 
 [[sclogfilename]]
