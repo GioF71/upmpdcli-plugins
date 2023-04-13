@@ -150,7 +150,8 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
     arturi = connector.buildCoverArtUrl(current_album.getId())
-    return direntry(id, 
+    return direntry(
+        id, 
         objid, 
         title = title, 
         artist = artist,
@@ -210,13 +211,16 @@ def _is_thing(lastvalue : str, thing_name : str) -> bool:
             return last == thing_name
     return False
 
-def _get_thing(lastvalue : str, thing_name : str) -> str:
+def _get_thing(lastvalue : str, thing_name : str, join : bool = False) -> str:
     lpath = lastvalue.split("-")
     if lpath and len(lpath) > 1:
         last = lpath[0]
         #msgproc.log(f"browse: is-album for {lastvalue}: last = --{last}--")
         if last == thing_name:
-            return lpath[1]
+            if join:
+                return "-".join(lpath[1:])
+            else:
+                return lpath[1]
     return None
 
 def _get_albums(request_type : str, size : int = __items_per_page, offset : int = 0) -> list[Album]:
@@ -252,10 +256,6 @@ def _load_albums_by_type(objid, query_type : str, entries : list, tagType : TagT
         # cache genre art
         current_genre : str = current_album.getGenre()
         _cache_element_value(ElementType.GENRE, current_genre, current_album.getId())
-    if __enable_next and sz == __items_per_page:
-        # create next
-        id = objid + "/" + query_type + "-" + str(int(offset) + 1)
-        entries.append(direntry(id, objid, "Next"))
 
 @dispatcher.record('browse')
 def browse(a):
@@ -303,7 +303,7 @@ def browse(a):
         # reply with the list
         if lastvalue and _is_thing(lastvalue, ElementType.GENRE.getName()):
             #return list by genre
-            select_genre : str = _get_thing(lastvalue, ElementType.GENRE.getName())
+            select_genre : str = _get_thing(lastvalue, ElementType.GENRE.getName(), join = True)
             albumListResponse : Response[AlbumList] = connector.getAlbumList(
                 ltype = ListType.BY_GENRE, 
                 genre = select_genre,
@@ -311,6 +311,7 @@ def browse(a):
             genres_tag_cached : bool = False
             if albumListResponse.isOk():
                 albumList : list[Album] = albumListResponse.getObj().getAlbums()
+                msgproc.log(f"got {len(albumList)} albums for genre {select_genre}")
                 current_album : Album
                 for current_album in albumList:
                     if not genres_tag_cached:
@@ -350,7 +351,10 @@ def browse(a):
             for tagname in (TagType.NEWEST.getTagName(), TagType.RANDOM.getTagName(), TagType.GENRES.getTagName()):
                 id = objid + "/" + _escape_objid(tagname)
                 art_id = _get_cached_element(ElementType.TAG, tagname)
-                entry : dict = direntry(id, objid, _crittotitle(tagname))
+                entry : dict = direntry(
+                    id = id, 
+                    pid = objid, 
+                    title = _crittotitle(tagname))
                 if art_id:
                     entry['upnp:albumArtURI'] = connector.buildCoverArtUrl(art_id)
                 entries.append(entry)
