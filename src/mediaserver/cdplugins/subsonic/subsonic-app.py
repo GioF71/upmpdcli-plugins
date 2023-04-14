@@ -18,6 +18,10 @@ from subsonic_connector.genres import Genres
 from subsonic_connector.genre import Genre
 from subsonic_connector.list_type import ListType
 from subsonic_connector.search_result import SearchResult
+from subsonic_connector.artists import Artists
+from subsonic_connector.artists_initial import ArtistsInitial
+from subsonic_connector.artist import Artist
+from subsonic_connector.artist_list_item import ArtistListItem
 
 import libsonic
 
@@ -26,7 +30,8 @@ class ElementType(Enum):
     TAG   = 0, "tag"
     ALBUM = 1, "album"
     GENRE = 2, "genre"
-    TRACK = 3, "track"
+    ARTIST = 3, "artist"
+    TRACK = 4, "track"
 
     def __init__(self, 
             num : int, 
@@ -39,9 +44,10 @@ class ElementType(Enum):
 
 class TagType(Enum):
     
-    RANDOM = 0, "random", ElementType.ALBUM.getName(), "Random Albums"
-    NEWEST = 1, "newest", ElementType.ALBUM.getName(), "Newest Albums"
+    NEWEST = 0, "newest", ElementType.ALBUM.getName(), "Newest Albums"
+    RANDOM = 1, "random", ElementType.ALBUM.getName(), "Random Albums"
     GENRES = 2, "genres", ElementType.GENRE.getName(), "Genres"
+    ARTISTS = 3, "artists", ElementType.ARTIST.getName(), "Artists"
 
     def __init__(self, 
             num : int, 
@@ -105,8 +111,6 @@ def _cache_element_value(element_type : ElementType, key : str, value : str):
     if not key in cache:
         msgproc.log(f"_cache_element_value: caching: {key} to {value} on type {element_type.getName()}")
         cache[key] = value
-    #else:
-    #    msgproc.log(f"_cache_element_value: already available: {key}")
 
 def _get_cached_element(element_type : ElementType, key : str) -> str | None:
     cache : dict = _get_element_cache(element_type)
@@ -149,9 +153,9 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
     title = current_album.getTitle()
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
     arturi = connector.buildCoverArtUrl(current_album.getId())
-    return direntry(
-        id, 
+    return direntry(id, 
         objid, 
         title = title, 
         artist = artist,
@@ -168,10 +172,28 @@ def _genre_to_entry(objid, current_genre : Genre) -> direntry:
         genre_art_uri = connector.buildCoverArtUrl(genre_art)
     else:
         msgproc.log(f"_genre_to_entry cache entry miss for {current_genre.getName()}")
-    return direntry(id, 
+    entry = direntry(id, 
         objid, 
         name,
         arturi = genre_art_uri)
+    return entry
+
+def _artist_to_entry(objid, current_artist_list_item : ArtistListItem) -> direntry:
+    id : str = _create_objid_for(objid, ElementType.ARTIST, current_artist_list_item.getId())
+    name : str = current_artist_list_item.getName()
+    msgproc.log(f"_artist_to_entry for {name}")
+    artist_art_uri = None
+    artist_art : str = _get_cached_element(ElementType.ARTIST, current_artist_list_item.getId())
+    if artist_art:
+        msgproc.log(f"_artist_to_entry cache entry hit for {current_artist_list_item.getId()}")
+        artist_art_uri = connector.buildCoverArtUrl(artist_art)
+    else:
+        msgproc.log(f"_artist_to_entry cache entry miss for {current_artist_list_item.getId()}")
+    entry = direntry(id, 
+        objid, 
+        name,
+        arturi = artist_art_uri)
+    return entry
 
 def _song_to_entry(objid, current_song: Song, albumArtURI : str = None) -> dict:
     entry = {}
@@ -180,7 +202,6 @@ def _song_to_entry(objid, current_song: Song, albumArtURI : str = None) -> dict:
     entry['pid'] = current_song.getId()
     entry['upnp:class'] = 'object.item.audioItem.musicTrack'
     entry['uri'] = connector.buildSongUrlBySong(current_song)
-    #msgproc.log(f"_song_to_entry: uri: --{entry['uri']}--")
     entry['tt'] = current_song.getTitle()
     entry['tp']= 'it'
     entry['discnumber'] = current_song.getDiscNumber()
@@ -215,12 +236,8 @@ def _get_thing(lastvalue : str, thing_name : str, join : bool = False) -> str:
     lpath = lastvalue.split("-")
     if lpath and len(lpath) > 1:
         last = lpath[0]
-        #msgproc.log(f"browse: is-album for {lastvalue}: last = --{last}--")
         if last == thing_name:
-            if join:
-                return "-".join(lpath[1:])
-            else:
-                return lpath[1]
+            return "-".join(lpath[1:])
     return None
 
 def _get_albums(request_type : str, size : int = __items_per_page, offset : int = 0) -> list[Album]:
@@ -320,7 +337,7 @@ def browse(a):
                     _cache_element_value(ElementType.GENRE, select_genre, current_album.getId())
                     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
                     entries.append(_album_to_entry(objid, current_album))
-                return _returnentries(entries)
+            return _returnentries(entries)
         else:
             genres_response : Response[Genres] = connector.getGenres()
             if genres_response.isOk():
@@ -333,7 +350,39 @@ def browse(a):
                         entry : dict = _genre_to_entry(objid, current_genre)
                         entries.append(entry)
             return _returnentries(entries)
-    
+
+    if TagType.ARTISTS.getTagName() == lastcrit:
+        msgproc.log(f"match 4 with lastcrit: {lastcrit}")
+        # reply with the list
+        if lastvalue and _is_thing(lastvalue, ElementType.ARTIST.getName()):
+            #return albums by artist
+            artist_tag_cached : bool = False
+            select_artist_id : str = _get_thing(lastvalue, ElementType.ARTIST.getName())
+            artist_response : Response[Artist] = connector.getArtist(select_artist_id)
+            if artist_response.isOk():
+                album_list : list[Album] = artist_response.getObj().getAlbumList()
+                current_album : Album
+                for current_album in album_list:
+                    if not artist_tag_cached:
+                        _cache_element_value(ElementType.TAG, TagType.ARTISTS.getTagName(), current_album.getId())    
+                        artist_tag_cached = True
+                    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+                    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                    entries.append(_album_to_entry(objid, current_album))
+            return _returnentries(entries)    
+        else:
+            artists_response : Response[Artists] = connector.getArtists()
+            if artists_response.isOk():
+                artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
+                current_artists_initial : ArtistsInitial
+                for current_artists_initial in artists_initial:
+                    msgproc.log(f"current artists initial = {current_artists_initial.getName()}")
+                    current_artist : ArtistListItem
+                    for current_artist in current_artists_initial.getArtistListItems():
+                        msgproc.log(f"current artist name = {current_artist.getName()}")
+                        entries.append(_artist_to_entry(objid, current_artist))
+            return _returnentries(entries)
+
     if lastvalue is None and lastcrit is not None:
         msgproc.log(f"match 3 with lastcrit: {lastcrit}")
         # process selection
@@ -348,7 +397,8 @@ def browse(a):
         # Path is root or ends with tag value. List the remaining tagnames if any.
         if not lastcrit:
             msgproc.log("match 0a")
-            for tagname in (TagType.NEWEST.getTagName(), TagType.RANDOM.getTagName(), TagType.GENRES.getTagName()):
+            for tag in TagType:
+                tagname : str = tag.getTagName()
                 id = objid + "/" + _escape_objid(tagname)
                 art_id = _get_cached_element(ElementType.TAG, tagname)
                 entry : dict = direntry(
@@ -437,7 +487,8 @@ def search(a):
 _crittotitle_a = {
     TagType.NEWEST.getTagName(): TagType.NEWEST.getTagTitle(), 
     TagType.RANDOM.getTagName(): TagType.RANDOM.getTagTitle(), 
-    TagType.GENRES.getTagName(): TagType.GENRES.getTagTitle()
+    TagType.GENRES.getTagName(): TagType.GENRES.getTagTitle(),
+    TagType.ARTISTS.getTagName(): TagType.ARTISTS.getTagTitle()
 }
 def _crittotitle(crit):
     """Translate filtering field name to displayed title"""
