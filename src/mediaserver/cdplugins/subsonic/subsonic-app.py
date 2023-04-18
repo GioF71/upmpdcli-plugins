@@ -23,6 +23,9 @@ from subsonic_connector.artists_initial import ArtistsInitial
 from subsonic_connector.artist import Artist
 from subsonic_connector.artist_list_item import ArtistListItem
 
+from codec import Codec
+from album_util import ignorable, sort_song_list
+
 import libsonic
 
 class ElementType(Enum):
@@ -85,6 +88,7 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
     def getApiVersion(self) -> str: return libsonic.API_VERSION
     def getAppName(self) -> str: return "upmpdcli"
 
+
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = "0$subsonic$"
 setidprefix("subsonic")
@@ -98,6 +102,8 @@ __items_per_page : int = int(getOptionValue("subsonicitemsperpage", "100"))
 __enable_next : bool = False
 
 __caches : dict[str, object] = {}
+
+__genre_codec : Codec = Codec()
 
 def _get_element_cache(element_type : ElementType) -> dict:
     if element_type.getName() in __caches:
@@ -162,7 +168,7 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
         arturi = arturi)
 
 def _genre_to_entry(objid, current_genre : Genre) -> direntry:
-    id : str = _create_objid_for(objid, ElementType.GENRE, current_genre.getName())
+    id : str = _create_objid_for(objid, ElementType.GENRE, __genre_codec.encode(current_genre.getName()))
     name : str = current_genre.getName()
     msgproc.log(f"_genre_to_entry for {name}")
     genre_art_uri = None
@@ -214,7 +220,6 @@ def _song_to_entry(objid, current_song: Song, albumArtURI : str = None) -> dict:
         albumArtURI = connector.buildCoverArtUrl(current_song.getId())
     entry['upnp:albumArtURI'] = albumArtURI
     entry['duration'] = str(current_song.getDuration())
-    #msgproc.log(f"_song_to_entry album_id {current_song.getId()} genre {current_song.getGenre()}")
     return entry
 
 def _get_thing_type(lastvalue : str) -> bool:
@@ -232,7 +237,7 @@ def _is_thing(lastvalue : str, thing_name : str) -> bool:
             return last == thing_name
     return False
 
-def _get_thing(lastvalue : str, thing_name : str, join : bool = False) -> str:
+def _get_thing(lastvalue : str, thing_name : str) -> str:
     lpath = lastvalue.split("-")
     if lpath and len(lpath) > 1:
         last = lpath[0]
@@ -255,7 +260,9 @@ def _load_album_tracks(objid, album_id : str, entries : list):
     if albumResponse.isOk():
         current_song : Song
         albumArtURI : str = connector.buildCoverArtUrl(albumResponse.getObj().getId())
-        for current_song in albumResponse.getObj().getSongs():
+        song_list : list[Song] = albumResponse.getObj().getSongs()
+        song_list = sort_song_list(song_list)
+        for current_song in song_list:
             entry = _song_to_entry(objid, current_song, albumArtURI)
             entries.append(entry)
 
@@ -320,7 +327,7 @@ def browse(a):
         # reply with the list
         if lastvalue and _is_thing(lastvalue, ElementType.GENRE.getName()):
             #return list by genre
-            select_genre : str = _get_thing(lastvalue, ElementType.GENRE.getName(), join = True)
+            select_genre : str = __genre_codec.decode(_get_thing(lastvalue, ElementType.GENRE.getName()))
             albumListResponse : Response[AlbumList] = connector.getAlbumList(
                 ltype = ListType.BY_GENRE, 
                 genre = select_genre,
