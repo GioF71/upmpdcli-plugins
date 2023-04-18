@@ -982,8 +982,7 @@ plan to use BubbleUpnpServer. Consider using ip addresses if your android phone 
 resolving local network hostnames. If this happens, you might not be able to see the
 album covers, for example.
 
-There are currently no additional configuration parameters. Any would go in the
-<<subsonicuser,configuration section>>.  
+There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
 
 [[UPMPDCLI-CONFIGURATION]]
 == Upmpdcli configuration file reference
