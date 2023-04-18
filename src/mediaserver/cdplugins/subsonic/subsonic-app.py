@@ -99,6 +99,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 __items_per_page : int = int(getOptionValue("subsonicitemsperpage", "100"))
+__append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"))
 __enable_next : bool = False
 
 __caches : dict[str, object] = {}
@@ -156,7 +157,11 @@ def _escape_objid(value : str) -> str:
 
 def _album_to_entry(objid, current_album : Album) -> direntry:
     id : str = _create_objid_for(objid, ElementType.ALBUM, current_album.getId())
-    title = current_album.getTitle()
+    title : str
+    if __append_year_to_album == 1:
+        title = "{} [{}]".format(current_album.getTitle(), current_album.getYear())
+    else:
+        title = current_album.getTitle()
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
     _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
@@ -184,17 +189,20 @@ def _genre_to_entry(objid, current_genre : Genre) -> direntry:
         arturi = genre_art_uri)
     return entry
 
-def _artist_to_entry(objid, current_artist_list_item : ArtistListItem) -> direntry:
-    id : str = _create_objid_for(objid, ElementType.ARTIST, current_artist_list_item.getId())
-    name : str = current_artist_list_item.getName()
+def _artist_to_entry(
+        objid, 
+        artist_id : str,
+        artist_name : str) -> direntry:
+    id : str = _create_objid_for(objid, ElementType.ARTIST, artist_id)
+    name : str = artist_name
     msgproc.log(f"_artist_to_entry for {name}")
     artist_art_uri = None
-    artist_art : str = _get_cached_element(ElementType.ARTIST, current_artist_list_item.getId())
+    artist_art : str = _get_cached_element(ElementType.ARTIST, artist_id)
     if artist_art:
-        msgproc.log(f"_artist_to_entry cache entry hit for {current_artist_list_item.getId()}")
+        msgproc.log(f"_artist_to_entry cache entry hit for {artist_id}")
         artist_art_uri = connector.buildCoverArtUrl(artist_art)
     else:
-        msgproc.log(f"_artist_to_entry cache entry miss for {current_artist_list_item.getId()}")
+        msgproc.log(f"_artist_to_entry cache entry miss for {artist_id}")
     entry = direntry(id, 
         objid, 
         name,
@@ -281,6 +289,21 @@ def _load_albums_by_type(objid, query_type : str, entries : list, tagType : TagT
         current_genre : str = current_album.getGenre()
         _cache_element_value(ElementType.GENRE, current_genre, current_album.getId())
 
+def __load_albums_by_artist(objid, artist_id : str, entries : list):
+    artist_tag_cached : bool = False
+    artist_response : Response[Artist] = connector.getArtist(artist_id)
+    if artist_response.isOk():
+        album_list : list[Album] = artist_response.getObj().getAlbumList()
+        current_album : Album
+        for current_album in album_list:
+            if not artist_tag_cached:
+                _cache_element_value(ElementType.TAG, TagType.ARTISTS.getTagName(), current_album.getId())    
+                artist_tag_cached = True
+            _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+            _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+            entries.append(_album_to_entry(objid, current_album))
+
+
 @dispatcher.record('browse')
 def browse(a):
     msgproc.log(f"browse: args: --{a}--")
@@ -360,22 +383,10 @@ def browse(a):
 
     if TagType.ARTISTS.getTagName() == lastcrit:
         msgproc.log(f"match 4 with lastcrit: {lastcrit}")
-        # reply with the list
+        # reply with the list by artist
         if lastvalue and _is_thing(lastvalue, ElementType.ARTIST.getName()):
             #return albums by artist
-            artist_tag_cached : bool = False
-            select_artist_id : str = _get_thing(lastvalue, ElementType.ARTIST.getName())
-            artist_response : Response[Artist] = connector.getArtist(select_artist_id)
-            if artist_response.isOk():
-                album_list : list[Album] = artist_response.getObj().getAlbumList()
-                current_album : Album
-                for current_album in album_list:
-                    if not artist_tag_cached:
-                        _cache_element_value(ElementType.TAG, TagType.ARTISTS.getTagName(), current_album.getId())    
-                        artist_tag_cached = True
-                    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-                    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-                    entries.append(_album_to_entry(objid, current_album))
+            __load_albums_by_artist(objid, _get_thing(lastvalue, ElementType.ARTIST.getName()), entries)
             return _returnentries(entries)    
         else:
             artists_response : Response[Artists] = connector.getArtists()
@@ -387,7 +398,10 @@ def browse(a):
                     current_artist : ArtistListItem
                     for current_artist in current_artists_initial.getArtistListItems():
                         msgproc.log(f"current artist name = {current_artist.getName()}")
-                        entries.append(_artist_to_entry(objid, current_artist))
+                        entries.append(_artist_to_entry(
+                            objid, 
+                            current_artist.getId(), 
+                            current_artist.getName()))
             return _returnentries(entries)
 
     if lastvalue is None and lastcrit is not None:
@@ -399,6 +413,14 @@ def browse(a):
             album_id : str = _get_thing(lastcrit, ElementType.ALBUM.getName())
             _load_album_tracks(objid, album_id, entries)
             return _returnentries(entries)
+    
+        if _is_thing(lastcrit, ElementType.ARTIST.getName()):
+            msgproc.log(f"match 3a (artist) with lastcrit --{lastcrit}--")
+            # load albums from the selected artist
+            artist_id : str = _get_thing(lastcrit, ElementType.ARTIST.getName())
+            __load_albums_by_artist(objid, artist_id, entries)
+            return _returnentries(entries)
+
     else:
         msgproc.log("match 0")
         # Path is root or ends with tag value. List the remaining tagnames if any.
@@ -443,7 +465,7 @@ def search(a):
     value : str = a["value"]
     field : str = a["field"]
     
-    msgproc.log(f"search for {value} as {field}")
+    msgproc.log(f"Search for [{value}] as {field}")
     
     if ElementType.ALBUM.getName() == field:
         # search albums by specified value
@@ -488,6 +510,22 @@ def search(a):
             entries.append(_song_to_entry(objid, current_song))
         return _returnentries(entries)
     
+    if ElementType.ARTIST.getName() == field:
+        # search artists
+        search_result : SearchResult = connector.search(value, 
+            artistCount = __items_per_page, 
+            songCount = 0,
+            albumCount = 0)
+        artist_list : list[Artist] = search_result.getArtists()
+        current_artist : Artist
+        for current_artist in artist_list:
+            msgproc.log(f"found artist {current_artist.getName()}")
+            entries.append(_artist_to_entry(
+                objid, 
+                current_artist.getId(),
+                current_artist.getName()))
+        return _returnentries(entries)
+
     # msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 

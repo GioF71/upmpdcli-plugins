@@ -566,11 +566,19 @@ upradiostitle = Upmpdcli Radio List
 
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
-#subsonicbaseurl = https://subsonic.mydomain.com
+#subsonicbaseurl = http://subsonic.localdomain.local
 
-# <var name="subsonicuser" type="string"><brief>SubSonic server port.</brief>
+# <var name="subsonicport" type="int"><brief>SubSonic server port.</brief>
 # <descr>The port of the SubSonic server</descr></var>
-#subsonicport = 443
+#subsonicport = 4533
+
+# <var name="subsonicitemsperpage" type="int"><brief>Items per page</brief>
+# <descr>Number of items per page</descr></var>
+#subsonicitemsperpage = 100
+
+# <var name="subsonicappendyeartoalbum" type="bool"><brief>Append year to album</brief>
+# <descr>If enabled, the year will be appended to the album in the lists. Enabled by default.</descr></var>
+#subsonicappendyeartoalbum = 1
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
