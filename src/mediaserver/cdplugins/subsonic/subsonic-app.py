@@ -100,7 +100,8 @@ msgproc = cmdtalkplugin.Processor(dispatcher)
 
 __items_per_page : int = int(getOptionValue("subsonicitemsperpage", "100"))
 __append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"))
-__enable_next : bool = False
+__append_codecs_to_album : int = int(getOptionValue("subsonicappendcodecstoalbum", "1"))
+__whitelist_codecs : list[str] = str(getOptionValue("subsonicwhitelistcodecs", "alac,wav,flac,dsf")).split(",")
 
 __caches : dict[str, object] = {}
 
@@ -157,11 +158,23 @@ def _escape_objid(value : str) -> str:
 
 def _album_to_entry(objid, current_album : Album) -> direntry:
     id : str = _create_objid_for(objid, ElementType.ALBUM, current_album.getId())
-    title : str
+    title : str = current_album.getTitle()
     if __append_year_to_album == 1:
-        title = "{} [{}]".format(current_album.getTitle(), current_album.getYear())
-    else:
-        title = current_album.getTitle()
+        title = "{} [{}]".format(title, current_album.getYear())
+    if __append_codecs_to_album == 1:
+        song_list : list[Song] = current_album.getSongs()
+        if len(song_list) == 0:
+            # load album
+            song_list, _ = _get_album_tracks(current_album.getId())
+        codecs : list[str] = []
+        song : Song
+        for song in song_list:
+            if not song.getSuffix() in __whitelist_codecs:
+                if not song.getSuffix() in codecs:
+                    codecs.append(song.getSuffix())
+        codecs_str = "|".join(codecs)
+        if len(codecs) > 0:
+            title = "{} [{}]".format(title, codecs_str)
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
     _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
@@ -263,7 +276,8 @@ def _get_albums(request_type : str, size : int = __items_per_page, offset : int 
         return albumListResponse.getObj().getAlbums()
     return None        
 
-def _load_album_tracks(objid, album_id : str, entries : list):
+def _get_album_tracks(album_id : str) -> tuple[list[Song], str]:
+    result : list[Song] = []
     albumResponse : Response[Album] = connector.getAlbum(album_id)
     if albumResponse.isOk():
         current_song : Song
@@ -271,8 +285,15 @@ def _load_album_tracks(objid, album_id : str, entries : list):
         song_list : list[Song] = albumResponse.getObj().getSongs()
         song_list = sort_song_list(song_list)
         for current_song in song_list:
-            entry = _song_to_entry(objid, current_song, albumArtURI)
-            entries.append(entry)
+            result.append(current_song)
+    albumArtURI : str = connector.buildCoverArtUrl(albumResponse.getObj().getId())
+    return result, albumArtURI
+
+def _load_album_tracks(objid, album_id : str, entries : list):
+    song_list, albumArtURI = _get_album_tracks(album_id)
+    for current_song in song_list:
+        entry = _song_to_entry(objid, current_song, albumArtURI)
+        entries.append(entry)
 
 def _load_albums_by_type(objid, query_type : str, entries : list, tagType : TagType):
     offset : str = 0
@@ -529,15 +550,9 @@ def search(a):
     # msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 
-_crittotitle_a = {
-    TagType.NEWEST.getTagName(): TagType.NEWEST.getTagTitle(), 
-    TagType.RANDOM.getTagName(): TagType.RANDOM.getTagTitle(), 
-    TagType.GENRES.getTagName(): TagType.GENRES.getTagTitle(),
-    TagType.ARTISTS.getTagName(): TagType.ARTISTS.getTagTitle()
-}
 def _crittotitle(crit):
     """Translate filtering field name to displayed title"""
-    return _crittotitle_a[crit]
+    return _getTagTypeByName(crit).getTagTitle()
 
 def _pathtocrits(path):
     if path:
