@@ -213,6 +213,21 @@ upradiostitle = Upmpdcli Radio List
 # Bogus user name variable.
 #radio-browseruser = bugsbunny
 
+# SubSonic plugin parameters
+
+# SubSonic User name variable.
+#subsonicuser = subsonic
+# SubSonic Password variable.
+#subsonicpassword = subsonicpassword
+# SubSonic server base url.
+#subsonicbaseurl = http://subsonic.localdomain.local
+# SubSonic server port.
+#subsonicport = 4533
+# Items per page
+#subsonicitemsperpage = 100
+# Append year to album
+#subsonicappendyeartoalbum = 1
+
 # Upmpdcli BBC Sounds plugin parameters
 
 # Bogus user name variable.

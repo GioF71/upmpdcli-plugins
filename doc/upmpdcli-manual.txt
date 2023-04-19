@@ -945,8 +945,11 @@ The configuration parameters are described in the <<bbcuser,configuration sectio
 
 The plugin allows access to a SubSonic server. 
 Specifically, it has been tested against a link:https://www.navidrome.org[Navidrome] instance,
-but there is nothng Navidrome-specific in the code.
-The python package link:https://pypi.org/project/subsonic-connector/0.1.10/[subsonic-connector version 0.1.10] must be installed.
+but there is nothing Navidrome-specific in the code.
+
+The plugin needs the installation of two additional Python packages:
+link:https://pypi.org/project/subsonic-connector/0.1.10/[subsonic-connector version 0.1.10] and
+link:https://pypi.org/project/py-sonic/[py-sonic].
 
 Only a limited set of features are currently available:
 
