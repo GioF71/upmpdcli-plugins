@@ -49,7 +49,7 @@ class __Decorated_Song:
     def __init__(self, song : Song):
         self._song = song
         self._disc : int = song.getDiscNumber() if song.getDiscNumber() else 0
-        self._track : int = song.getTrack()
+        self._track : int = song.getTrack() if song.getTrack() else 0
         path : str = os.path.dirname(song.getPath())
         last_path = os.path.basename(os.path.normpath(path))
         last_path_ignorable : bool = ignorable(last_path)
@@ -64,8 +64,10 @@ class __Decorated_Song:
 def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
     cmp : int
     cmp = -1 if left._path < right._path else 0 if left._path == right._path else 1
-    if cmp == 0: cmp = -1 if left._disc < right._disc else 0 if left._disc == right._disc else 1
-    if cmp == 0: cmp = -1 if left._track < right._track else 0 if left._track == right._track else 1
+    if cmp == 0:
+        cmp = -1 if left._disc < right._disc else 0 if left._disc == right._disc else 1
+    if cmp == 0: 
+        cmp = -1 if left._track < right._track else 0 if left._track == right._track else 1
     return cmp
 
 def sort_song_list(song_list : list[Song]) -> list[Song]:
