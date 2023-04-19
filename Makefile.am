@@ -273,6 +273,12 @@ dist_uprclbottleviews_DATA = \
     src/mediaserver/cdplugins/uprcl/bottle/views/header.tpl \
     src/mediaserver/cdplugins/uprcl/bottle/views/main.tpl
     
+cdpluginssubsonicdir = $(pkgdatadir)/cdplugins/subsonic
+dist_cdpluginssubsonic_DATA = \
+                 src/mediaserver/cdplugins/subsonic/album_util.py \
+                 src/mediaserver/cdplugins/subsonic/codec.py \
+                 src/mediaserver/cdplugins/subsonic/subsonic-app.py
+
 EXTRA_DIST = \
     autogen.sh \
     cfgui/Makefile \
@@ -293,14 +299,15 @@ install-data-hook:
 	(cd $(DESTDIR)$(sysconfdir); test -f upmpdcli.conf || \
 		mv upmpdcli.conf-dist upmpdcli.conf; chmod 600 upmpdcli.conf)
 	(cd $(DESTDIR)$(pkgdatadir); test -d src_scripts || mkdir src_scripts)
-	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
-	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsbbcdir); chmod a+x bbc-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
+	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
+	(cd $(DESTDIR)/$(cdpluginssubsonicdir); chmod a+x subsonic-app.py) 
+	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
+	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsradiobrowserdir); chmod a+x radio-browser-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)

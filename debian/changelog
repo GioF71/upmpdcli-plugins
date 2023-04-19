@@ -1,3 +1,10 @@
+upmpdcli (1.7.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media Server: new Subsonic connector plugin by Fulco Giovanni: allows streaming music from a
+    Subsonic/Navidrome server to an UPnP renderer.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 19 Apr 2023 10:43:00 +0100
+
 upmpdcli (1.7.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media Server: fix issues in upnp-to-recoll search translation, and improve search behaviour with
