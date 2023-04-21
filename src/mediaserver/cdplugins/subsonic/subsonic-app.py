@@ -167,13 +167,21 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
             # load album
             song_list, _ = _get_album_tracks(current_album.getId())
         codecs : list[str] = []
+        whitelist_count : int = 0
+        blacklist_count : int = 0
         song : Song
         for song in song_list:
-            if not song.getSuffix() in __whitelist_codecs:
-                if not song.getSuffix() in codecs:
-                    codecs.append(song.getSuffix())
-        codecs_str = "|".join(codecs)
-        if len(codecs) > 0:
+            if not song.getSuffix() in codecs:
+                codecs.append(song.getSuffix())
+                if not song.getSuffix() in __whitelist_codecs:
+                    blacklist_count += 1
+                else:
+                    whitelist_count += 1
+        # show or not?
+        all_whitelisted : bool = len(codecs) == whitelist_count
+        all_blacklisted : bool = len(codecs) == blacklist_count
+        if len(codecs) > 1 or not all_whitelisted:
+            codecs_str = ",".join(codecs)
             title = "{} [{}]".format(title, codecs_str)
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
@@ -290,6 +298,8 @@ def _get_album_tracks(album_id : str) -> tuple[list[Song], str]:
     return result, albumArtURI
 
 def _load_album_tracks(objid, album_id : str, entries : list):
+    song_list : list[Song]
+    albumArtURI : str
     song_list, albumArtURI = _get_album_tracks(album_id)
     for current_song in song_list:
         entry = _song_to_entry(objid, current_song, albumArtURI)
