@@ -31,8 +31,9 @@ def ignorable(last_path : str) -> bool:
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
             # is there a number after that?
-            potential_discnumber : str = last_path[len(name)]
-            if __is_int(potential_discnumber): return True
+            if len(last_path) > len(name):
+                potential_discnumber : str = last_path[len(name)]
+                if __is_int(potential_discnumber): return True
 
     # second case: start with a starter, then there is a number after a splitter
     for name, member in Starter.__members__.items():
@@ -60,14 +61,16 @@ class __Decorated_Song:
 
     def getSong(self) -> Song: return self._song
     def getPath(self) -> str: return self._path
+    def getDisc(self) -> int: return self._disc
+    def getTrack(self) -> int: return self._track
 
 def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
     cmp : int
-    cmp = -1 if left._path < right._path else 0 if left._path == right._path else 1
+    cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
     if cmp == 0:
-        cmp = -1 if left._disc < right._disc else 0 if left._disc == right._disc else 1
+        cmp = -1 if left.getDisc() < right.getDisc() else 0 if left.getDisc() == right.getDisc() else 1
     if cmp == 0: 
-        cmp = -1 if left._track < right._track else 0 if left._track == right._track else 1
+        cmp = -1 if left.getTrack() < right.getTrack() else 0 if left.getTrack() == right.getTrack() else 1
     return cmp
 
 def sort_song_list(song_list : list[Song]) -> list[Song]:
