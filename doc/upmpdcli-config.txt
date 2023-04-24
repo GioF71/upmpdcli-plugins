@@ -491,7 +491,10 @@ subsonicpassword:: Base url for the SubSonic server
 subsonicpassword:: Port of the SubSonic server (mandatory)
 
 [[subsonicitemsperpage]]
-subsonicitemsperpage:: Number of items per page (optional, defaults to 100)
+subsonicitemsperpage:: Number of items per page (optional, defaults to 36)
+
+[[subsonicmaxpages]]
+subsonicmaxpages:: Max number of pages (optional, defaults to 36)
 
 [[subsonicappendyeartoalbum]]
 subsonicappendyeartoalbum:: If set to 1 (default), the year will be appended to the album title

@@ -223,8 +223,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
 #subsonicport = 4533
-# Items per page
-#subsonicitemsperpage = 100
+# SubSonic items per page
+#subsonicitemsperpage = 36
+# SubSonic max pages
+#subsonicmaxpages = 36
 # Append year to album
 #subsonicappendyeartoalbum = 1
 
