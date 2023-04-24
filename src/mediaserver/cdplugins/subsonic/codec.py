@@ -12,7 +12,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import uuid
+
+import hashlib
 
 class Codec:
 
@@ -23,7 +24,7 @@ class Codec:
     def encode(self, name : str) -> str:
         by_id : str = self.__by_name[name] if name in self.__by_name else None
         if not by_id:
-            new_id : str = uuid.uuid4().hex
+            new_id : str = self.__computeMD5hash(name)
             self.__by_id[new_id] = name
             self.__by_name[name] = new_id
             by_id = new_id
@@ -31,5 +32,9 @@ class Codec:
     
     def decode(self, id : str) -> str:
         if id in self.__by_id: return self.__by_id[id]
-        raise Exception("Id not found")
+        raise Exception(f"Id [{id}] not found")
 
+    def __computeMD5hash(self, val : str):
+        m = hashlib.md5()
+        m.update(val.encode('utf-8'))
+        return m.hexdigest()

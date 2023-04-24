@@ -40,7 +40,7 @@ def __is_int(value : str) -> bool:
         return False
 
 
-def ignorable(last_path : str) -> bool:
+def _ignorable(last_path : str) -> bool:
     # first case: start with a starter, then there is a number without a splitter
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
@@ -59,15 +59,25 @@ def ignorable(last_path : str) -> bool:
 
     return False
 
+def get_dir_from_path(path : str ) -> str:
+    return os.path.dirname(path)
+
+def get_album_base_path(path : str) -> str:
+    last_path = os.path.basename(os.path.normpath(path))
+    last_path_ignorable : bool = _ignorable(last_path)
+    if last_path_ignorable:
+        return os.path.split(path)[0]
+    return path
+
 class __Decorated_Song:
 
     def __init__(self, song : Song):
         self._song = song
         self._disc : int = song.getDiscNumber() if song.getDiscNumber() else 0
         self._track : int = song.getTrack() if song.getTrack() else 0
-        path : str = os.path.dirname(song.getPath())
+        path : str = get_dir_from_path(song.getPath())
         last_path = os.path.basename(os.path.normpath(path))
-        last_path_ignorable : bool = ignorable(last_path)
+        last_path_ignorable : bool = _ignorable(last_path)
         if last_path_ignorable:
             self._path = os.path.split(path)[0]
         else:
@@ -87,15 +97,26 @@ def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) 
         cmp = -1 if left.getTrack() < right.getTrack() else 0 if left.getTrack() == right.getTrack() else 1
     return cmp
 
-def sort_song_list(song_list : list[Song]) -> list[Song]:
+class MultiCodecAlbum(Enum):
+    NO = 0
+    YES = 1
+
+def sort_song_list(song_list : list[Song]) -> tuple[list[Song], MultiCodecAlbum]:
     dec_list : list[__Decorated_Song] = []
+    codec_dict : dict[str, int] = {}
+    multi_codec : MultiCodecAlbum = MultiCodecAlbum.NO
     for song in song_list:
         dec : __Decorated_Song = __Decorated_Song(song)
         dec_list.append(dec)
+        if not song.getSuffix() in codec_dict:
+            codec_dict[song.getSuffix()] = 1
+        else:
+            codec_dict[song.getSuffix()] = codec_dict[song.getSuffix()] + 1
+    multi_codec = MultiCodecAlbum.YES if len(codec_dict) > 1 else MultiCodecAlbum.NO
     dec_list.sort(key = cmp_to_key(__compare_decorated_song))
     result : list[song] = []
     current : __Decorated_Song
     for current in dec_list:
         result.append(current.getSong())
-    return result
+    return result, multi_codec
     
