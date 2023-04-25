@@ -54,6 +54,7 @@ class ElementType(Enum):
     TRACK = 4, "track"
     NEWEST_PAGED_PAGE = 5, "newest_paged_page"
     NEWEST_SINGLE_PAGE = 6, "newest_single_page"
+    GENRE_PAGE = 7, "genre_page"
 
     def __init__(self, 
             num : int, 
@@ -96,6 +97,20 @@ class TagType(Enum):
     def getQueryType(self) -> str:
         return self.query_type
     
+class ItemDictKey(Enum):
+    
+    GENRE = 0, 'genre'
+    PAGE = 1, 'page'
+    
+    def __init__(self, 
+            num : int, 
+            key_name : str):
+        self.num : int = num
+        self.key_name : str = key_name
+    
+    def getName(self) -> str:
+        return self.key_name
+    
 def _getTagTypeByName(tag_name : str) -> TagType:
     msgproc.log(f"_getTagTypeByName with {tag_name}")
     for _, member in TagType.__members__.items():
@@ -133,6 +148,8 @@ __caches : dict[str, object] = {}
 
 __genre_codec : Codec = Codec()
 __newest_page_codec : Codec = Codec()
+__genre_page_codec : Codec = Codec()
+__genre_page_map : dict[str, object] = {}
 
 def _get_element_cache(element_type : ElementType) -> dict:
     if element_type.getName() in __caches:
@@ -189,14 +206,8 @@ def _get_album_id(source : dict):
 def _set_album_id(album_id : str, target : dict):
     target['album_id'] = album_id
 
-def _get_album_art_uri(source : dict):
-    return source['upnp:albumArtURI'] if 'upnp:albumArtURI' in source else None
-
 def _set_album_art_uri(album_art_uri : str, target : dict):
     target['upnp:albumArtURI'] = album_art_uri
-
-def _get_track_number(source : dict):
-    return source['upnp:originalTrackNumber'] if 'upnp:originalTrackNumber' in source else None
 
 def _set_track_number(track_number : str, target : dict):
     target['upnp:originalTrackNumber'] = track_number
@@ -272,6 +283,29 @@ def _newest_page_to_entry(objid, p_0_based : int, low : int) -> direntry:
     art_id : str = _get_cached_element(ElementType.NEWEST_PAGED_PAGE, item_id)
     if art_id:
         #msgproc.log(f"_newest_page_to_entry cache entry hit for {item_id}")
+        art_uri = connector.buildCoverArtUrl(art_id)
+        _set_album_art_uri(art_uri, entry)
+    #else:
+    #    msgproc.log(f"_newest_page_to_entry cache entry miss for {item_id}")
+    return entry
+
+def _genre_page_to_entry(objid, genre : str, p_0_based : int, low : int) -> direntry:
+    name : str = "Page {}".format(p_0_based + 1)
+    # need a unique key
+    key_str: str = "{}-{}-{}".format(ElementType.GENRE_PAGE.getName(), low, genre)
+    item_id_dict : dict[str, str] = {}
+    item_id_dict[ItemDictKey.GENRE.getName()] = genre
+    item_id_dict[ItemDictKey.PAGE.getName()] = p_0_based
+    item_id : str = __genre_page_codec.encode(key_str)
+    __genre_page_map[item_id] = item_id_dict
+    
+    id : str = _create_objid_for(objid, ElementType.GENRE_PAGE, item_id)
+    entry = direntry(id, 
+        objid, 
+        name)
+    art_uri = None
+    art_id : str = _get_cached_element(ElementType.GENRE_PAGE, item_id)
+    if art_id:
         art_uri = connector.buildCoverArtUrl(art_id)
         _set_album_art_uri(art_uri, entry)
     #else:
@@ -428,7 +462,7 @@ def _load_albums_by_type(
         current_genre : str = current_album.getGenre()
         _cache_element_value(ElementType.GENRE, current_genre, current_album.getId())
 
-def __load_albums_by_artist(objid, artist_id : str, entries : list):
+def __load_albums_by_artist(objid, artist_id : str, entries : list) -> list:
     artist_tag_cached : bool = False
     artist_response : Response[Artist] = connector.getArtist(artist_id)
     if artist_response.isOk():
@@ -441,7 +475,30 @@ def __load_albums_by_artist(objid, artist_id : str, entries : list):
             _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
             _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
             entries.append(_album_to_entry(objid, current_album))
+    return entries
 
+def _create_genre_pages(objid, genre : str, entries : list) -> list:
+    low : int = 1
+    for p in range(0, __max_pages):
+        upper = low + __items_per_page
+        #msgproc.log(f"will add {low} to {upper - 1}")
+        entries.append(_genre_page_to_entry(objid, genre, p, low))
+        low = upper
+    return entries
+
+def _create_list_of_genres(objid, entries : list) -> list:
+    genres_response : Response[Genres] = connector.getGenres()
+    if genres_response.isOk():
+        genre_list = genres_response.getObj().getGenres()
+        genre_list.sort(key = lambda x: x.getName())
+        current_genre : Genre
+        for current_genre in genre_list:
+            #msgproc.log(f"genre {current_genre.getName()} albumCount {current_genre.getAlbumCount()}")
+            if current_genre.getAlbumCount() > 0:
+                entry : dict = _genre_to_entry(objid, current_genre)
+                entries.append(entry)
+    return entries
+    
 
 @dispatcher.record('browse')
 def browse(a):
@@ -513,37 +570,14 @@ def browse(a):
     if TagType.GENRES.getTagName() == lastcrit:
         msgproc.log(f"match 2 with lastcrit: {lastcrit}")
         # reply with the list
-        if lastvalue and _is_thing(lastvalue, ElementType.GENRE.getName()):
-            #return list by genre
-            select_genre : str = __genre_codec.decode(_get_thing(lastvalue, ElementType.GENRE.getName()))
-            albumListResponse : Response[AlbumList] = connector.getAlbumList(
-                ltype = ListType.BY_GENRE, 
-                genre = select_genre,
-                size = __items_per_page)
-            genres_tag_cached : bool = False
-            if albumListResponse.isOk():
-                albumList : list[Album] = albumListResponse.getObj().getAlbums()
-                msgproc.log(f"got {len(albumList)} albums for genre {select_genre}")
-                current_album : Album
-                for current_album in albumList:
-                    if not genres_tag_cached:
-                        _cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), current_album.getId())    
-                        genres_tag_cached = True
-                    _cache_element_value(ElementType.GENRE, select_genre, current_album.getId())
-                    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-                    entries.append(_album_to_entry(objid, current_album))
+        if lastvalue:
+            if _is_thing(lastvalue, ElementType.GENRE.getName()):
+                genre : str = __genre_codec.decode(_get_thing(lastvalue, ElementType.GENRE.getName()))
+                entries = _create_genre_pages(objid, genre, entries)
             return _returnentries(entries)
         else:
-            genres_response : Response[Genres] = connector.getGenres()
-            if genres_response.isOk():
-                genre_list = genres_response.getObj().getGenres()
-                genre_list.sort(key = lambda x: x.getName())
-                current_genre : Genre
-                for current_genre in genre_list:
-                    #msgproc.log(f"genre {current_genre.getName()} albumCount {current_genre.getAlbumCount()}")
-                    if current_genre.getAlbumCount() > 0:
-                        entry : dict = _genre_to_entry(objid, current_genre)
-                        entries.append(entry)
+            # reply with list of genres
+            entries = _create_list_of_genres(objid, entries)
             return _returnentries(entries)
 
     if TagType.ARTISTS.getTagName() == lastcrit:
@@ -551,7 +585,7 @@ def browse(a):
         # reply with the list by artist
         if lastvalue and _is_thing(lastvalue, ElementType.ARTIST.getName()):
             #return albums by artist
-            __load_albums_by_artist(objid, _get_thing(lastvalue, ElementType.ARTIST.getName()), entries)
+            entries = __load_albums_by_artist(objid, _get_thing(lastvalue, ElementType.ARTIST.getName()), entries)
             return _returnentries(entries)    
         else:
             artists_response : Response[Artists] = connector.getArtists()
@@ -583,9 +617,39 @@ def browse(a):
             msgproc.log(f"match 3a (artist) with lastcrit --{lastcrit}--")
             # load albums from the selected artist
             artist_id : str = _get_thing(lastcrit, ElementType.ARTIST.getName())
-            __load_albums_by_artist(objid, artist_id, entries)
+            entries = __load_albums_by_artist(objid, artist_id, entries)
             return _returnentries(entries)
-
+        
+        if _is_thing(lastcrit, ElementType.GENRE_PAGE.getName()):
+            msgproc.log(f"match 3a (genre_page) with lastcrit --{lastcrit}--")
+            #return genre list page by genre
+            genre_page_id : str = _get_thing(lastcrit, ElementType.GENRE_PAGE.getName())
+            msgproc.log(f"match 3a (genre_page) genre_page_id {genre_page_id}")
+            item_dict : dict = __genre_page_map[genre_page_id]
+            select_genre : str = item_dict[ItemDictKey.GENRE.getName()]
+            page : int = item_dict[ItemDictKey.PAGE.getName()]
+            msgproc.log(f"match 3a (genre_page) genre_page_id {genre_page_id} genre {select_genre} page {page}")
+            offset : int = page * __items_per_page
+            albumListResponse : Response[AlbumList] = connector.getAlbumList(
+                ltype = ListType.BY_GENRE, 
+                genre = select_genre,
+                offset = offset,
+                size = __items_per_page)
+            once : bool = False
+            if albumListResponse.isOk():
+                albumList : list[Album] = albumListResponse.getObj().getAlbums()
+                msgproc.log(f"got {len(albumList)} albums for genre {select_genre}")
+                current_album : Album
+                for current_album in albumList:
+                    if not once:
+                        _cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), current_album.getId())    
+                        _cache_element_value(ElementType.GENRE_PAGE, genre_page_id, current_album.getId())
+                        once = True
+                    _cache_element_value(ElementType.GENRE, select_genre, current_album.getId())
+                    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                    entries.append(_album_to_entry(objid, current_album))
+            return _returnentries(entries)
+        
     else:
         msgproc.log("match 0")
         # Path is root or ends with tag value. List the remaining tagnames if any.
