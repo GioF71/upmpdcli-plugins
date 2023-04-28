@@ -467,6 +467,29 @@ up this process, this is the maximum thread count.
 [[radio-browseruser]]
 radio-browseruser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+=== SubSonic plugin parameters 
+
+[[subsonicuser]]
+subsonicuser:: SubSonic User name variable. Decides if the service should be started. Set it to the appropriate user name.
+
+[[subsonicpassword]]
+subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate user name.
+
+[[subsonicbaseurl]]
+subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
+
+[[subsonicport]]
+subsonicport:: SubSonic server port. The port of the SubSonic server
+
+[[subsonicitemsperpage]]
+subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic
+
+[[subsonicmaxpages]]
+subsonicmaxpages:: SubSonic max pages Max number of pages for SubSonic
+
+[[subsonicappendyeartoalbum]]
+subsonicappendyeartoalbum:: Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
+
 === Upmpdcli BBC Sounds plugin parameters 
 
 [[bbcuser]]
@@ -475,35 +498,6 @@ bbcuser:: Bogus user name variable. Set this to activate the plugin, the value i
 
 [[bbcprogrammedays]]
 bbcprogrammedays:: Past days in BBC Sounds catalog listing. This controls how many days are listed in the station displays.
-
-=== Subsonic plugin parameters
-
-[[subsonicuser]]
-subsonicuser:: Bogus user name variable. Decides if the service should be started. Set it to the username to be used to access the SubSonic server.
-
-[[subsonicpassword]]
-subsonicpassword:: Password for the SubSonic server
-
-[[subsonicbaseurl]]
-subsonicpassword:: Base url for the SubSonic server
-
-[[subsonicport]]
-subsonicpassword:: Port of the SubSonic server (mandatory)
-
-[[subsonicitemsperpage]]
-subsonicitemsperpage:: Number of items per page (optional, defaults to 36)
-
-[[subsonicmaxpages]]
-subsonicmaxpages:: Max number of pages (optional, defaults to 36)
-
-[[subsonicappendyeartoalbum]]
-subsonicappendyeartoalbum:: If set to 1 (default), the year will be appended to the album title
-
-[[subsonicappendcodecstoalbum]]
-subsonicappendcodecstoalbum:: If set to 1 (default), the codec will be appended to the album title unless codec is whitelisted
-
-[[subsonicwhitelistcodecs]]
-subsonicwhitelistcodecs:: List of comma-separated whitelisted codecs, defaults to flac,wav,alac,dsf
 
 === Songcast Receiver parameters 
 

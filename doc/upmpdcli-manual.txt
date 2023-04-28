@@ -21,6 +21,7 @@ provisions. Upmpdcli is not audited for security issues, and, as far as I
 know, it is full of exploitable bugs. Do not run it on an Internet-facing
 host.
 
+
 [[UPNP]]
 == UPnP and all that
 
@@ -335,7 +336,7 @@ not capture anything besides what *mpd*, or an explicitely setup additional
 source are playing (e.g. Skype phone conversations are out of reach).
 
 [[UPMPDCLI-SONGCAST-COMPAT]]
-=== Upmpdcli Songcast Control Point compatibility
+=== Songcast Control Point compatibility
 
 Upmpdcli Senders and Receivers can be mixed with Linn ones and controlled
 from Upplay or Bubble DS (an maybe other control points).
@@ -352,7 +353,7 @@ source). The Lumin IOS app will reset the Source to Playlist when
 connecting, so it is unusable in this context.
 
 [[UPMPDCLI-RECEIVER]]
-=== Upmpdcli Songcast Receiver
+=== Songcast Receiver
 
 *sc2mpd* can play the *Songcast* audio stream in two modes:
 
@@ -454,7 +455,7 @@ not active by default, you can enable it by setting the <<sclogfilename,
 works if if `scplaymethod` is _alsa_.
 
 [[UPMPDCLI-SENDER]]
-=== Upmpdcli Songcast Sender
+=== Songcast Sender
 
 Upmpdcli Sender mode allows you to broadcast the Playlist or Radio source
 (or the output of any process which can write to a Fifo, e.g. *arecord*) to
@@ -539,7 +540,7 @@ that you'd better use the Control Point approaches if at all possible.
 [[UPMPDCLI-MULTIROOM-SYNC]]
 ==== Synchronisation issues
 
-The short version is: for good syncrhronization, all *sc2mpd* instances
+The short version is: for good synchronization, all *sc2mpd* instances
 must be configured to play directly to the audio driver with `scplaymethod
 = alsa`. See the xref:sclogfilename[configuration section].
 
@@ -571,28 +572,42 @@ impossible to achieve when going through *mpd*, and the second reason why
 the Receivers can be out of sync by several seconds.
 
 [[UPMPDCLI-MS]]
-== Upmpdcli as Media Server
+== Upmpdcli Media Server
 
 === Overview
 
 The *upmpdcli* Media Server provides a number of separate functions, which can be activated through
 the configuration file.
 
-- The xref:UPMPDCLI-MS-UPRCL[uprcl] module enables access to your local audio media collection.
-- A number of xref:UPMPDCLI-MS-STR[modules] function as gateways for commercial streaming services.
-- Other plugins provide various functions: an xref:UPMPDCLI-MS-UPRADIOS[internet radio list], access
-  to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], or the xref:UPMPDCLI-MS-RADIO-BROWSER[Radio
-  Browser] Web radios catalog, and others in the future.
+- The xref:UPMPDCLI-MS-UPRCL[uprcl] plugin enables access to your local audio media collection.
 
-When the function is activated, *upmpdcli* creates a separate auxiliary Media
-Server. You will see it appear on the network if streaming service
-parameters are present in the configuration file. By default, the Media Server name is
-the `friendlyname` for the Upmpdcli instance, with _-mediaserver_ appended, but this can be changed
-in the xref:msfriendlyname[configuration].
+- The xref:UPMPDCLI-MS-SUBSONIC[subsonic] plugin proxies access from a Subsonic/Navidrome server to
+  UPnP.
 
+- Several xref:UPMPDCLI-MS-STR[plugins] function as gateways for commercial streaming services such
+  as Qobuz.
 
+- And other plugins provide various functions: an xref:UPMPDCLI-MS-UPRADIOS[access to the upmpdcli
+  internet radio list], access to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], or the
+  xref:UPMPDCLI-MS-RADIO-BROWSER[Radio Browser] Web radios catalog...
+
+When at least one plugin is activated, *upmpdcli* creates a separate auxiliary Media Server. By
+default, the Media Server name is the `friendlyname` for the Upmpdcli instance, with _-mediaserver_
+appended, but this can be changed in the xref:msfriendlyname[configuration].
+
+In general, a plugin is activated by being installed, and having its user name defined in the
+configuration file (e.g. for a plugin named _myplugin_ `mypluginuser = somevalue`). Depending on the
+plugin, the variable value maybe real (e.g. a Qobuz user name), or bogus and unused. 
+
+A description of each of the plugins follows. Some of them need the additional installation of
+Python extensions from Pypi. These should be done globally, or in some alternate way ensuring that
+they are visible to the boot-started `upmpdcli`. If a given dependency is packaged by your
+distribution, it may have been installed with the plugin.YMMV: look at the error output with, e.g.
+`journalctl` if things do not work.
+
+'''
 [[UPMPDCLI-MS-UPRCL]]
-=== Upmpdcli Uprcl: a Media Server for local files
+=== Uprcl Media Server
 
 The Upmpdcli application includes a Media Server function for local music files, analog to
 MinimServer or ReadyMedia/MiniDLNA. The plugin module is named *uprcl*.
@@ -602,7 +617,13 @@ e.g. `upmpdcli-uprcl` on Debian), and uncommenting the bogus setting for the `up
 the upmpdcli configuration file. You may also want to set `uprclautostart` to 1 so that
 initialisation is performed as soon as the program start, and not on the first access. Also: you
 need to install link:http://www.recoll.org[Recoll] (just the command line and Python3 extension are
-needed) if your package manager did not do it for you.
+needed) if your package manager did not do it for you. If you are using the upmpdcli repositories
+(on Launchpad for Ubuntu or the lesbonscomptes server for Debian), this will happen automatically.
+
+NOTE: 'python3-mutagen' which is optional for default Recoll installations is required for uprcl
+(this is for the case where you install by hand, the package takes care of it).
+
+NOTE: uprcl needs Python 3.5 at least. This means that it does not work on Debian Jessie (8.x)
 
 Why yet another Media Server ? Mostly because my favorite, MinimServer is great, and free, but not
 open-source, so I find it prudent to have an alternative. Also, fun :)
@@ -613,18 +634,17 @@ to now be my main Media Server.
 
 Some *uprcl* features:
 
-- Mostly written in Python (python3), except for the part shared with the streaming
-  media server plugins, which is in C++.
-- Tries to mimick the MinimServer tree view and functionality. We're
-  not quite there yet, many functions and niceties are still missing.
-- Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the
-  metadata and searching.
+- Mostly written in Python (python3), except for the part shared with the streaming media server
+  plugins, which is in C++.
+- Tries to mimick the MinimServer tree view and functionality. We're not quite there yet, many
+  functions and niceties are still missing.
+- Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the metadata and searching.
 - Uses Python3 Sqlite3 (on a memory DB) for the tags tree. 
-- Can retrieve some parameters from the MinimServer configuration
-  file. Will support more in the future.
+- Can retrieve some parameters from the MinimServer configuration file. Will support more in the
+  future.
 
-The list of MinimServer functions which are _not_ supported would be too
-long. Here follows what *uprcl* does support, at least partially:
+The list of MinimServer functions which are _not_ supported would be too long. Here follows what
+*uprcl* does support, at least partially:
 
 - `contentDir` will be used if `uprclmediadirs` is not set in
   '/etc/upmpdcli.conf' 
@@ -639,10 +659,8 @@ what is missing most.
 
 Installation and configuration: have a look at the xref:uprcluser[configuration variables]
 
-NOTE: 'python3-mutagen' which is optional for default Recoll installations is required for uprcl
-(this is for the case where you install by hand, the package takes care of it).
-
-NOTE: uprcl needs Python 3.5 at least. This means that it does not work on Debian Jessie (8.x)
+The server also starts a minimal Web interface displaying the current running status and allowing to
+ask for an incremental or full scan of the media directories. By default, this runs on port 9090.
 
 
 [[UPMPDCLI-MS-UPRCL-SEARCH]]
@@ -689,28 +707,73 @@ Other Recoll capabilities, such as proximity searches should also be
 accessible, but probably less useful when searching music titles or artist
 names.
 
+'''
+[[UPMPDCLI-MS-SUBSONIC]]
+=== SubSonic plugin
 
+The plugin allows access to a SubSonic server.  Specifically, it has been tested against a
+link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidrome-specific in the
+code.
+
+NOTE: The plugin needs the installation of two additional Python packages:
+link:https://pypi.org/project/subsonic-connector/0.1.10/[subsonic-connector version 0.1.10] and
+link:https://pypi.org/project/py-sonic/[py-sonic].
+
+Only a limited set of features are currently available:
+
+- List Newest Albums
+- List Random Albums
+- List Genres
+- Search Albums
+- Search Tracks
+
+Clicking on a Genre will show a list of albums belonging to that genre.
+
+Enable this function by uncommenting the bogus setting for the `subsonicuser` variable
+in the upmpdcli configuration file.
+So will also need to specify:
+
+- subsonicbaseurl
+- subsonicport
+- subsonicuser
+- subsonicpassword
+
+For example if your server is https://my-navidrome.mydomain.com, you will need to set
+
+- subsonicbaseurl = https://my-navidrome.mydomain.com
+- subsonicport = 443
+
+if your server is http://my-navidrome.homelab.local:4533, you will need to set
+
+- subsonicbaseurl = http://my-navidrome.homelab.local
+- subsonicport = 4533
+
+Consider that mpd will need to access those url, as well as your phone/tablet if you
+plan to use BubbleUpnpServer. Consider using ip addresses if your android phone has difficulties
+resolving local network hostnames. If this happens, you might not be able to see the
+album covers, for example.
+
+There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
+
+'''
 [[UPMPDCLI-MS-STR]]
-=== Accessing Streaming Services through the upmpdcli Media Server
+=== Streaming Services
   
 The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio and
 Qobuz currently work fine (1.6.2).
 
 The Deezer plugin works for low quality (but still usable) streams (128 kb/s mp3).
 
-NOTE::
-I am not sure about Tidal support: in any case it will only work if you can find a working
+NOTE: I am not sure about Tidal support: in any case it will only work if you can find a working
 application token, and even then, maybe not as their access control API is evolving. I have no
 access to an API key, so I can't even test.
 
 You will need a valid subscription for any service that you want to use.
 
-Streaming is not limited to the local Upmpdcli Renderer, and the Media
-Server will happily send music to other Renderers (within the limitations
-set by the service).
+Streaming is not limited to the local Upmpdcli Renderer, and the Media Server will happily send
+music to other Renderers (within the limitations set by the service).
 
-Two conditions must be true for the Media Server to appear with an entry
-for a streaming service:
+Two conditions must be true for the Media Server to appear with an entry for a streaming service:
 
  - The code for the service plugin must be installed. This comes generally
    in a separate package (e.g _upmpdcli-qobuz_).
@@ -719,6 +782,9 @@ for a streaming service:
 
 Some other parameters (e.g. a password) may be needed for the access to
 work, depending on the specific service. See the service-specific notes below.
+
+There are several possible approaches for proxying access to streaming services. We have a little
+more detailed documentation in a xref:UPMPDCLI-MS-STR-UPNP[separate section].
 
 NOTE: The streaming services passwords are stored in the upmpdcli
 configuration file ('/etc/upmpdcli.conf'). The installer does not make this
@@ -768,130 +834,100 @@ The configuration parameters are described in the <<tidaluser,configuration sect
 ////
 
 
-
+'''
 [[UPMPDCLI-MS-STR-QOBUZ]]
-==== Using Qobuz through the Upmpdcli Media Server
+=== Qobuz
 
-This is based on the service API from the
-link:https://github.com/tidalf/plugin.audio.qobuz[Kodi add-on], by Joachim
-Basmaison and Cyril Leclerc, with the upper-level code adapted from the
-Tidal add-on. The WEB API is not officially supported by Qobuz, and may
-just stop to work one day.
+This is based on the service API from the link:https://github.com/tidalf/plugin.audio.qobuz[Kodi
+add-on], by Joachim Basmaison and Cyril Leclerc, with the upper-level code adapted from the Tidal
+add-on. The WEB API is not officially supported by Qobuz, and may just stop to work one day.
 
-NOTE: the Qobuz search does not allow searching a specific field (like the
-artist name or song title). All objects matching a query in any field are
-returned. This means that, e.g., the field choice of upplay search is
-ignored.
+NOTE: The plugin uses the `requests` Python3 package, which is usually installed as a package
+dependency. Else install it from Pypi.
+
+NOTE: the Qobuz search does not allow searching a specific field (like the artist name or song
+title). All objects matching a query in any field are returned. This means that, e.g., the field
+choice of upplay search is ignored.
 
 You need a valid Qobuz subscription.
 
 Enable this function by installing the upmpdcli Qobuz module (which may be a separate package,
-e.g. upmpdcli-qobuz on Debian), and adding your login and password to the configuration.
+e.g. upmpdcli-qobuz on Debian), and adding your login and password to the configuration (as
+`qobuzuer` and `qobuzpass`).
 
-The configuration parameters are described in the
-<<qobuzuser,configuration section>>
+The configuration parameters are described in the <<qobuzuser,configuration section>>
+
+If you are using the Linn Kazoo Control Point, upmpdcli has support for the `Credentials` service,
+which facilitates configuration. Details xref:UPMPDCLI-MS-STR-CRED[here].
 
 
+'''
 [[UPMPDCLI-MS-STR-DEEZER]]
-==== Using Deezer through the Upmpdcli Media Server
+=== Deezer
 
 You will need a premium (paid) account.
 
-The plugin is based on code from the
-link:https://github.com/Valentin271/DeezerKodi.git[Kodi add-on], by 
-Jakub Gawron (kubatek94) and ? (Valentin271).
+The plugin is based on code from the link:https://github.com/Valentin271/DeezerKodi.git[Kodi
+add-on], by Jakub Gawron (kubatek94) and ? (Valentin271).
 
-It uses the Deezer "television" API and only provides access to 128 kb/s
-MP3 streams.
+It uses the Deezer "television" API and only provides access to 128 kb/s MP3 streams.
+
+NOTE: The plugin uses the `requests` Python3 package, which is usually installed as a package
+dependency. Else install it from Pypi.
+
 
 Enable this function by installing the upmpdcli Deezer module (which may be a separate package,
 e.g. upmpdcli-deezer on Debian), and adding your login and password to the configuration.
 
-The configuration parameters are described in the
-<<deezeruser,configuration section>>. Only `deezeruser` and `deezerpass`
-actually. 
-
-[[UPMPDCLI-MS-STR-UPNP]]
-==== Technical note: Streaming Services and UPnP
-
-Streaming services like Qobuz or Highresaudio give access to a huge catalog of music through a WEB
-programming interface which may be also usable by programs other than their own applications.
-
-Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
-some of the service APIs have made it impossible to access them from an open-source
-application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
-
-The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
-to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific
-protocol for streaming (this was finally deprecated in 2022).
-
-Given the importance of these services for music consumers, many UPnP Control Points and Renderers
-have been extended with specific interfaces to the different services. In many cases, this is only
-feasible from a closed-source application, with an agreement with the service providers, to hide
-"secrets" inside the app.
-
-There are three main ways to integrate the streaming services in an UPnP framework, and knowing
-which way you are using will avoid confusion:
-
-- The first approach is to have a UPnP Media Server act as a proxy for the service: the catalog is
-  browsed through a standard UPnP interface (the Media Server translates this to the service API
-  behind the scenes), and the audio URIs are also accessed in an almost standard way (after a bit of
-  magic inside the Media Server). The one inconvenient of this approach is that the special
-  functions of the service (like managing the user favourites lists) are mostly inaccessible. The
-  advantage is that any naive UPnP Control Point can access the streaming service. The Media Server
-  inside upmpdcli xref:UPMPDCLI-MS-STR-MS[implements this method].
-
-- The second approach is to do everything inside the Control Point. The CP uses the service API for
-  browsing (and possibly do things like managing favourites). The CP also mediates the HTTP access
-  to the audio streams (the URIs the CP sends to the Renderer point to itself, and it arranges to
-  forward the data from the service). This is implemented, for example, by Bubble UPnP. The drawback
-  of this approach is that the Control Point device must not go to sleep or out of reach, else the
-  music will stop (maybe at the next track).
-
-- The third approach is to distribute the function between CP and
-  Renderer. The Control Point performs the browsing and access to special
-  functions, and the Renderer knows how to access the service streams. This
-  is the OpenHome approach and can be considered the best of both worlds,
-  at the price of complexity and compatibility issues. This method is
-  implemented by the Linn Kazoo Control Point, and a number of Renderers,
-  the Linn and Lumin ones of course, but also,
-  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
-  * At the moment, the upmpdcli implementation only works for Qobuz, as
-    changes in the Tidal access method have made it impossible to support.
+The configuration parameters are described in the <<deezeruser,configuration section>>. Only
+`deezeruser` and `deezerpass` actually.
 
 
-[[UPMPDCLI-MS-STR-CRED]]
-==== Accessing Qobuz with OpenHome from Kazoo
+'''
+[[UPMPDCLI-MS-RADIO-BROWSER]]
+=== radio-browser.info
 
-This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
-work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
-corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
-should be necessary on the renderer.
+The plugin allows access to the link:https://www.radio-browser.info/[Radio Browser] Web radios
+catalog. Radios can be selected by country, language and tag, and/or searched for by name.
 
-This should also work with Lumin devices, but it does not currently, the reason is unknown. When
-feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
-configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+This uses the link:https://pypi.org/project/pyradios/[pyradios] Python module.
 
-Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
-dependancy, so you should check that it is installed. 
+NOTE: `pyradios` is usually not packaged by the Linux distributions (e.g. Debian). You need to
+install it separately, using, e.g. `pip3`.
 
-The media service icons will appear in the Control Point interface, and the service will be
-accessible after entering the login and password.
+Then enable the function by installing the upmpdcli radio-browser module (which may be a separate
+package), and uncommenting the bogus setting for the `radio-browseruser` variable in the upmpdcli
+configuration file.
 
-NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
-someone steals the machine or obtains root access, there is nothing to prevent them from getting the
-credentials.
-
-Of course Kazoo or Lumin can also access the services through the media server interface (after
-configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-MS[previous section]).
-
-For reference, this method is *not* usable with *Upplay*
-
-The notes which follow relate to accessing the services through the Upmpdcli Media Server.
+There are currently no additional configuration parameters. Any would go in the
+<<radio-browseruser,configuration section>>.  
 
 
+'''
+[[UPMPDCLI-MS-BBC]]
+=== BBC Sounds
+
+The plugin allows access to the link:https://www.bbc.co.uk/sounds[BBC Sounds] resource for listening
+to past BBC programs. It normally lists the 30 previous days, this can be changed with a
+<<bbcuser, configuration variable>>.
+
+Enable this function by installing the upmpdcli BBC module (which may be a separate package,
+e.g. `upmpdcli-bbc` on Debian), and uncommenting the bogus setting for the `bbcuser` variable
+in the upmpdcli configuration file.
+
+The configuration parameters are described in the <<bbcuser,configuration section>>. 
+
+NOTE: the plugin needs the installation of additional Python3 packages, which may or may not be
+packaged by your distribution. link:https://pypi.org/project/beautifulsoup4/[beautifulsoup4 (aka
+bs4)],  link:https://pypi.org/project/python-dateutil/[dateutil],
+link:https://pypi.org/project/feedparser/[feedparser], and
+link:https://pypi.org/project/requests/[requests]. Install them as packages if possible, else, from
+Pypi. 
+
+
+'''
 [[UPMPDCLI-MS-UPRADIOS]]
-=== Upradios: Upmpdcli radio list plugin
+=== Upradios radio list
 
 This is a minuscule plugin which just exports the Upmpdcli <<radio-stations,radio list>> as a
 playlist, so that other renderers on the network can use it.
@@ -910,85 +946,10 @@ in the upmpdcli configuration file.
 
 The configuration parameters are described in the <<upradiosuser,configuration section>>. 
 
-[[UPMPDCLI-MS-RADIO-BROWSER]]
-=== Upmpdcli plugin for the Radio Browser Web site
 
-The plugin allows access to the link:https://www.radio-browser.info/[Radio Browser] Web radios
-catalog. Radios can be selected by country, language and tag, and/or searched for by name.
-
-This uses the link:https://pypi.org/project/pyradios/[pyradios] Python module, which you should
-first install, for example with with pip3.
-
-Then enable the function by installing the upmpdcli radio-browser module (which may be a separate
-package), and uncommenting the bogus setting for the `radio-browseruser` variable in the upmpdcli
-configuration file.
-
-There are currently no additional configuration parameters. Any would go in the
-<<radio-browseruser,configuration section>>.  
-
-[[UPMPDCLI-MS-BBC]]
-=== Upmpdcli BBC Sounds plugin
-
-The plugin allows access to the link:https://www.bbc.co.uk/sounds[BBC Sounds] resource for listening
-to past BBC programs. It normally lists the 30 previous days, this can be changed with a
-<<bbcuser, configuration variable>>.
-
-Enable this function by installing the upmpdcli BBC module (which may be a separate package,
-e.g. `upmpdcli-bbc` on Debian), and uncommenting the bogus setting for the `bbcuser` variable
-in the upmpdcli configuration file.
-
-The configuration parameters are described in the <<bbcuser,configuration section>>. 
-
-
-[[UPMPDCLI-MS-SUBSONIC]]
-=== Upmpdcli SubSonic plugin
-
-The plugin allows access to a SubSonic server. 
-Specifically, it has been tested against a link:https://www.navidrome.org[Navidrome] instance,
-but there is nothing Navidrome-specific in the code.
-
-The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.1.10/[subsonic-connector version 0.1.10] and
-link:https://pypi.org/project/py-sonic/[py-sonic].
-
-Only a limited set of features are currently available:
-
-- List Newest Albums
-- List Random Albums
-- List Genres
-- Search Albums
-- Search Tracks
-
-Clicking on a Genre will show a list of albums belonging to that genre.
-
-Enable this function by uncommenting the bogus setting for the `subsonicuser` variable
-in the upmpdcli configuration file.
-So will also need to specify:
-
-- subsonicbaseurl
-- subsonicport
-- subsonicuser
-- subsonicpassword
-
-For example if your server is https://my-navidrome.mydomain.com, you will need to set
-
-- subsonicbaseurl = https://my-navidrome.mydomain.com
-- subsonicport = 443
-
-if your server is http://my-navidrome.homelab.local:4533, you will need to set
-
-- subsonicbaseurl = http://my-navidrome.homelab.local
-- subsonicport = 4533
-
-Consider that mpd will need to access those url, as well as your phone/tablet if you
-plan to use BubbleUpnpServer. Consider using ip addresses if your android phone has difficulties
-resolving local network hostnames. If this happens, you might not be able to see the
-album covers, for example.
-
-There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
-
+'''
 [[UPMPDCLI-CONFIGURATION]]
-== Upmpdcli configuration file reference
+== Configuration file reference
 
 A description of upmpdcli configuration variables follow. As of upmpdcli 1.6.0, all
 values can also be set through environment variables named UPMPD_XXX where XXX is the
@@ -1286,6 +1247,86 @@ browser. You will need to execute the following steps to set things up:
 
     sudo chown -R upmpdcli /var/cache/upmpdcli/spotify
 ////
+
+
+[[UPMPDCLI-MS-STR-UPNP]]
+==== Technical note: Streaming Services and UPnP
+
+Streaming services like Qobuz or Highresaudio give access to a huge catalog of music through a WEB
+programming interface which may be also usable by programs other than their own applications.
+
+Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
+some of the service APIs have made it impossible to access them from an open-source
+application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
+
+The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
+to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific
+protocol for streaming (this was finally deprecated in 2022).
+
+Given the importance of these services for music consumers, many UPnP Control Points and Renderers
+have been extended with specific interfaces to the different services. In many cases, this is only
+feasible from a closed-source application, with an agreement with the service providers, to hide
+"secrets" inside the app.
+
+There are three main ways to integrate the streaming services in an UPnP framework, and knowing
+which way you are using will avoid confusion:
+
+- The first approach is to have a UPnP Media Server act as a proxy for the service: the catalog is
+  browsed through a standard UPnP interface (the Media Server translates this to the service API
+  behind the scenes), and the audio URIs are also accessed in an almost standard way (after a bit of
+  magic inside the Media Server). The one inconvenient of this approach is that the special
+  functions of the service (like managing the user favourites lists) are mostly inaccessible. The
+  advantage is that any naive UPnP Control Point can access the streaming service. The Media Server
+  inside upmpdcli xref:UPMPDCLI-MS-STR-UPNP[implements this method].
+
+- The second approach is to do everything inside the Control Point. The CP uses the service API for
+  browsing (and possibly do things like managing favourites). The CP also mediates the HTTP access
+  to the audio streams (the URIs the CP sends to the Renderer point to itself, and it arranges to
+  forward the data from the service). This is implemented, for example, by Bubble UPnP. The drawback
+  of this approach is that the Control Point device must not go to sleep or out of reach, else the
+  music will stop (maybe at the next track).
+
+- The third approach is to distribute the function between CP and
+  Renderer. The Control Point performs the browsing and access to special
+  functions, and the Renderer knows how to access the service streams. This
+  is the OpenHome approach and can be considered the best of both worlds,
+  at the price of complexity and compatibility issues. This method is
+  implemented by the Linn Kazoo Control Point, and a number of Renderers,
+  the Linn and Lumin ones of course, but also,
+  xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
+  * At the moment, the upmpdcli implementation only works for Qobuz, as
+    changes in the Tidal access method have made it impossible to support.
+
+
+
+[[UPMPDCLI-MS-STR-CRED]]
+==== Accessing Qobuz with OpenHome from Kazoo
+
+This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
+work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
+corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
+should be necessary on the renderer.
+
+This should also work with Lumin devices, but it does not currently, the reason is unknown. When
+feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
+configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+
+Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
+dependancy, so you should check that it is installed. 
+
+The media service icons will appear in the Control Point interface, and the service will be
+accessible after entering the login and password.
+
+NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
+someone steals the machine or obtains root access, there is nothing to prevent them from getting the
+credentials.
+
+Of course Kazoo or Lumin can also access the services through the media server interface (after
+configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]).
+
+For reference, this method is *not* usable with *Upplay*
+
+The notes which follow relate to accessing the services through the Upmpdcli Media Server.
 
 [[SC2MPD-INSTALL]]
 == Annex: Songcast installation walkthrough
