@@ -473,7 +473,7 @@ radio-browseruser:: Bogus user name variable. Decides if the service should be s
 subsonicuser:: SubSonic User name variable. Decides if the service should be started. Set it to the appropriate user name.
 
 [[subsonicpassword]]
-subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate user name.
+subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
 
 [[subsonicbaseurl]]
 subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
