@@ -72,7 +72,8 @@ class TagType(Enum):
     NEWEST_FLOWING = 0, "newest_flowing", "Newest Albums (Flowing)", "newest"
     NEWEST_PAGED = 1, "newest_paged", "Newest Albums (Paged)", "newest"
     NEWEST_SINGLE = 2, "newest_single", "Newest Albums (Single Page)", "newest"
-    RANDOM = 10, "random", "Random Albums", "random"
+    RANDOM_FLOWING = 10, "random_flowing", "Random Albums (Flowing)", "random"
+    RANDOM = 11, "random", "Random Albums", "random"
     GENRES = 20, "genres", "Genres", None
     ARTISTS = 30, "artists", "Artists", None
     ARTISTS_INDEXED = 40, "artists_indexed", "Artists (By Initial)", None
@@ -705,22 +706,33 @@ def _create_newest_page(objid, offset : int, newest_page_id : str, entries : lis
             _cache_element_value(ElementType.TAG, TagType.NEWEST_PAGED.getTagName(), art_id)
     return entries
 
-def _process_next_page_newest_flowing(objid, value : str, entries : list) -> list:
+def _process_next_page_flowing(objid, value : str, tag_type : TagType, entries : list) -> list:
     next_page_identifier : ItemIdentifier = __thing_map[value]
     offset : int = next_page_identifier.get(ItemIdentifierKey.OFFSET)
-    msgproc.log(f"_process_next_page_newest_flowing offset {offset}")
-    album_list : list[Album] = _get_albums(TagType.NEWEST_FLOWING.getQueryType(), offset = offset)
+    msgproc.log(f"_process_next_page_flowing tag_type {tag_type} offset {offset}")
+    album_list : list[Album] = _get_albums(tag_type.getQueryType(), offset = offset)
     entries = _load_albums_from_album_list(objid, album_list, entries)
     if (len(album_list) == __items_per_page):
         entries.append(_next_to_entry(
             objid,
             ElementType.NEXT_PAGE,
-            TagType.NEWEST_FLOWING.getTagName(),
+            tag_type.getTagName(),
             offset + __items_per_page))
     # image for tag
     if len(album_list) > 0:
-        _cache_element_value(ElementType.TAG, TagType.NEWEST_FLOWING.getTagName(), album_list[0].getId())
+        _cache_element_value(ElementType.TAG, tag_type.getTagName(), album_list[0].getId())
     return entries
+
+def _present_album(objid, value, entries : list) -> list:
+    album_id : str = _get_thing(value, ElementType.ALBUM.getName())
+    _load_album_tracks(objid, album_id, entries)
+    return entries
+
+def _in_tag_list(tag_candidate : str, tag_types : list[TagType]) -> bool:
+    for tag_type in tag_types:
+        if tag_candidate == tag_type.getTagName():
+            return True
+    return False
 
 @dispatcher.record('browse')
 def browse(a):
@@ -747,14 +759,16 @@ def browse(a):
         msgproc.log(f"match 0c lastcrit: {lastcrit}")
         if _is_thing(lastcrit, ElementType.ALBUM.getName()):
             msgproc.log(f"match 0c (album) with lastcrit --{lastcrit}--")
-            album_id : str = _get_thing(lastcrit, ElementType.ALBUM.getName())
-            _load_album_tracks(objid, album_id, entries)
+            entries = _present_album(objid, lastcrit, entries)
             return _returnentries(entries)
 
-    if (TagType.NEWEST_PAGED.getTagName() == lastcrit 
-        or TagType.NEWEST_FLOWING.getTagName() == lastcrit 
-        or TagType.NEWEST_SINGLE.getTagName() == lastcrit 
-        or TagType.RANDOM.getTagName() == lastcrit):
+    if _in_tag_list(
+            lastcrit, [
+                TagType.NEWEST_PAGED, 
+                TagType.NEWEST_FLOWING, 
+                TagType.NEWEST_SINGLE, 
+                TagType.RANDOM, 
+                TagType.RANDOM_FLOWING]):
         msgproc.log(f"match 1 with lastcrit: {lastcrit}")
         # reply with the list
         if lastvalue:
@@ -772,12 +786,14 @@ def browse(a):
                 return _returnentries(entries)
             elif _is_thing(lastvalue, ElementType.NEXT_PAGE.getName()):
                 msgproc.log(f"match 1e (ElementType.NEXT_PAGE) with lastvalue: {lastvalue}")
-                _process_next_page_newest_flowing(objid, lastvalue, entries)
+                if TagType.NEWEST_FLOWING.getTagName() == lastcrit:
+                    _process_next_page_flowing(objid, lastvalue, TagType.NEWEST_FLOWING, entries)
+                elif TagType.RANDOM_FLOWING.getTagName() == lastcrit:
+                    _process_next_page_flowing(objid, lastvalue, TagType.RANDOM_FLOWING, entries)
                 return _returnentries(entries)
         else:
             if TagType.NEWEST_PAGED.getTagName() == lastcrit:
                 entries = _create_newest_pages(objid, entries)
-                return _returnentries(entries)
             elif TagType.NEWEST_FLOWING.getTagName() == lastcrit:
                 entries = _load_albums_by_type(objid, entries, _getTagTypeByName(lastcrit))
                 # current offset is 0, next is current + items per page
@@ -788,10 +804,19 @@ def browse(a):
                         TagType.NEWEST_FLOWING.getTagName(),
                         __items_per_page)
                     entries.append(next_page)
-                return _returnentries(entries)
+            elif TagType.RANDOM_FLOWING.getTagName() == lastcrit:
+                entries = _load_albums_by_type(objid, entries, _getTagTypeByName(lastcrit))
+                # current offset is 0, next is current + items per page
+                if (len(entries) == __items_per_page):
+                    next_page : dict = _next_to_entry(
+                        objid,
+                        ElementType.NEXT_PAGE,
+                        TagType.RANDOM_FLOWING.getTagName(),
+                        __items_per_page)
+                    entries.append(next_page)
             else:
                 _load_albums_by_type(objid, entries, _getTagTypeByName(lastcrit))
-                return _returnentries(entries)
+            return _returnentries(entries)
     
     if TagType.GENRES.getTagName() == lastcrit:
         msgproc.log(f"match 2 with lastcrit: {lastcrit}")
@@ -800,11 +825,10 @@ def browse(a):
             if _is_thing(lastvalue, ElementType.GENRE.getName()):
                 genre : str = _get_thing(lastvalue, ElementType.GENRE.getName())
                 entries = _create_genre_pages(objid, genre, entries)
-            return _returnentries(entries)
         else:
             # reply with list of genres
             entries = _create_list_of_genres(objid, entries)
-            return _returnentries(entries)
+        return _returnentries(entries)
 
     if TagType.ARTISTS.getTagName() == lastcrit:
         msgproc.log(f"match 4 with lastcrit: {lastcrit}")
@@ -812,10 +836,9 @@ def browse(a):
         if lastvalue and _is_thing(lastvalue, ElementType.ARTIST.getName()):
             #return albums by artist
             entries = __load_albums_by_artist(objid, _get_thing(lastvalue, ElementType.ARTIST.getName()), entries)
-            return _returnentries(entries)    
         else:
             entries = _create_list_of_artists(objid, entries)
-            return _returnentries(entries)
+        return _returnentries(entries)
         
     if TagType.ARTISTS_INDEXED.getTagName() == lastcrit:
         msgproc.log(f"match 4 with lastcrit: {lastcrit}")
@@ -825,10 +848,9 @@ def browse(a):
             msgproc.log(f"match 4 (album-initial) with lastcrit: {lastcrit}")
             artist_initial : str = _get_thing(lastvalue, ElementType.ARTIST_INITIAL.getName())
             entries = __load_artists_by_initial(objid, artist_initial, entries)
-            return _returnentries(entries)    
         else:
             entries = _create_list_of_artist_initials(objid, entries)
-            return _returnentries(entries)
+        return _returnentries(entries)
         
     if lastvalue is None and lastcrit is not None:
         msgproc.log(f"match 3 with lastcrit: {lastcrit}")
@@ -841,13 +863,18 @@ def browse(a):
                 next_page_type : str = _get_thing(lastcrit, ElementType.NEXT_PAGE.getName())
                 msgproc.log(f"match 3n (next) with next_page_type {next_page_type} lastcrit --{lastcrit}--")
                 offset : int = item_identifier.get(ItemIdentifierKey.OFFSET)
-                album_list : list[Album] = _get_albums(TagType.NEWEST_FLOWING.getQueryType(), offset = offset)
+                flowing_tag_type : TagType
+                if TagType.NEWEST_FLOWING.getTagName() == next_page_type:
+                    flowing_tag_type = TagType.NEWEST_FLOWING
+                elif TagType.RANDOM_FLOWING.getTagName() == next_page_type:
+                    flowing_tag_type = TagType.RANDOM_FLOWING
+                album_list : list[Album] = _get_albums(flowing_tag_type.getQueryType(), offset = offset)
                 entries = _load_albums_from_album_list(objid, album_list, entries)
                 if (len(album_list) == __items_per_page):
                     entries.append(_next_to_entry(
                         objid,
                         ElementType.NEXT_PAGE,
-                        TagType.NEWEST_FLOWING.getTagName(),
+                        flowing_tag_type.getTagName(),
                         offset + __items_per_page))
             return _returnentries(entries)
 
@@ -905,7 +932,9 @@ def browse(a):
                     msgproc.log(f"match 0b (next_page) with lastvalue --{lastcrit}--")
                     next_page_type : str = _get_thing(lastvalue, ElementType.NEXT_PAGE.getName())
                     if TagType.NEWEST_FLOWING.getTagName() == next_page_type:
-                        entries = _process_next_page_newest_flowing(objid, lastvalue, entries)
+                        entries = _process_next_page_flowing(objid, lastvalue, TagType.NEWEST_FLOWING, entries)
+                    elif TagType.RANDOM_FLOWING.getTagName() == next_page_type:
+                        entries = _process_next_page_flowing(objid, lastvalue, TagType.RANDOM_FLOWING, entries)
                 return _returnentries(entries)
                     
     #msgproc.log(f"browse: returning --{entries}--")
