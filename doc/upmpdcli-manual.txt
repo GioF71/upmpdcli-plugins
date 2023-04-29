@@ -3,8 +3,9 @@
 
 == Introduction
 
-Upmpdcli is primarily an UPnP Renderer, using the MPD music player for audio stream processing. It
-has a number of additional or alternative functions.
+link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli] is primarily an UPnP Renderer, using the MPD
+music player for audio stream processing. It has a number of additional or alternative functions
+exposed through an UPnP Media Server.
 
 Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high quality DAC I2S
 daugtherboard) you can transform it into a state of the art network streamer.
@@ -142,9 +143,10 @@ SetNextTransportURI).
 == Upmpdcli overview
 
 
-Upmpdcli was originally xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD
-to actually process the audio data. The renderer supports UPnP gapless track transitions and the
-OpenHome ohMedia services (including a Radio service to listen to Internet streams).
+link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli] was originally
+xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD to actually process the
+audio data. The renderer supports UPnP gapless track transitions and the OpenHome ohMedia services
+(including a Radio service to listen to Internet streams).
 
 .The Grand Upmpdcli Media Renderer Scheme of Things
 image::pics/upmpdcli.png["The Grand Scheme of Things"]
