@@ -43,6 +43,8 @@ from album_util import get_album_base_path
 from album_util import get_dir_from_path
 from album_util import MultiCodecAlbum
 
+from genre_artist_cache import GenreArtistCache
+
 import libsonic
 
 class ElementType(Enum):
@@ -169,6 +171,8 @@ __thing_map : dict[str, ItemIdentifier] = {}
 
 __artist_initial_by_id : dict[str, str] = {}
 
+_genre_artist_cache : GenreArtistCache = GenreArtistCache()
+
 def _get_element_cache(element_type : ElementType) -> dict:
     if element_type.getName() in __caches:
         return __caches[element_type.getName()]
@@ -280,6 +284,8 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
     album_identifier : ItemIdentifier = _create_thing_identifier(ElementType.ALBUM.getName(), current_album.getId())
     #msgproc.log(f"_album_to_entry storing with thing_key {thing_key} id {id}")
     __thing_map[thing_key] = album_identifier
+    cached : bool = _genre_artist_cache.add(current_album.getGenre(), current_album.getArtistId())
+    #msgproc.log(f"_album_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
     return entry
 
 def _genre_to_entry(objid, current_genre : Genre) -> direntry:
@@ -332,15 +338,6 @@ def _genre_page_to_entry(objid, genre : str, p_0_based : int, low : int) -> dire
     thing_id : str = "{}-{}-{}".format(ElementType.GENRE_PAGE.getName(), low, genre)
     thing_key : str = __thing_codec.encode(thing_id)
     id : str = _create_objid_simple(objid, thing_key)
-    
-    item_identifier : ItemIdentifier = ItemIdentifier()
-    item_identifier.set(ItemIdentifierKey.GENRE, genre)
-    item_identifier.set(ItemIdentifierKey.PAGE_NUMBER, p_0_based)
-
-    #item_id : str = __genre_page_codec.encode(thing_id)
-    #__genre_page_map[item_id] = item_identifier
-    
-    #id : str = _create_objid_for(objid, ElementType.GENRE_PAGE, item_id)
     name : str = "Page {}".format(p_0_based + 1)
     entry = direntry(id, 
         objid, 
@@ -786,10 +783,9 @@ def browse(a):
                 return _returnentries(entries)
             elif _is_thing(lastvalue, ElementType.NEXT_PAGE.getName()):
                 msgproc.log(f"match 1e (ElementType.NEXT_PAGE) with lastvalue: {lastvalue}")
-                if TagType.NEWEST_FLOWING.getTagName() == lastcrit:
-                    _process_next_page_flowing(objid, lastvalue, TagType.NEWEST_FLOWING, entries)
-                elif TagType.RANDOM_FLOWING.getTagName() == lastcrit:
-                    _process_next_page_flowing(objid, lastvalue, TagType.RANDOM_FLOWING, entries)
+                tag_type : TagType = _getTagTypeByName(lastcrit)
+                if not tag_type: raise Exception(f"Invalid tag {lastcrit}")
+                _process_next_page_flowing(objid, lastvalue, tag_type, entries)
                 return _returnentries(entries)
         else:
             if TagType.NEWEST_PAGED.getTagName() == lastcrit:
@@ -896,7 +892,6 @@ def browse(a):
             msgproc.log(f"match 3a (genre_page) with lastcrit --{lastcrit}--")
             #return genre list page by genre for requested genre and offset
             genre_identifier : ItemIdentifier = __thing_map[lastcrit]
-            #genre : str = _get_thing(lastcrit, ElementType.GENRE_PAGE.getName())
             genre : str = genre_identifier.get(ItemIdentifierKey.GENRE)
             page_number : int = genre_identifier.get(ItemIdentifierKey.PAGE_NUMBER)
             offset : int = page_number * __items_per_page
@@ -931,10 +926,10 @@ def browse(a):
                 elif _is_thing(lastvalue, ElementType.NEXT_PAGE.getName()):
                     msgproc.log(f"match 0b (next_page) with lastvalue --{lastcrit}--")
                     next_page_type : str = _get_thing(lastvalue, ElementType.NEXT_PAGE.getName())
-                    if TagType.NEWEST_FLOWING.getTagName() == next_page_type:
-                        entries = _process_next_page_flowing(objid, lastvalue, TagType.NEWEST_FLOWING, entries)
-                    elif TagType.RANDOM_FLOWING.getTagName() == next_page_type:
-                        entries = _process_next_page_flowing(objid, lastvalue, TagType.RANDOM_FLOWING, entries)
+                    tag_type : TagType = _getTagTypeByName(next_page_type)
+                    if not tag_type: raise Exception(f"Invalid tag {next_page_type}")
+                    _process_next_page_flowing(objid, lastvalue, tag_type, entries)
+
                 return _returnentries(entries)
                     
     #msgproc.log(f"browse: returning --{entries}--")

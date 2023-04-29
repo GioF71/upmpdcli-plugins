@@ -275,6 +275,7 @@ dist_uprclbottleviews_DATA = \
     
 cdpluginssubsonicdir = $(pkgdatadir)/cdplugins/subsonic
 dist_cdpluginssubsonic_DATA = \
+                 src/mediaserver/cdplugins/subsonic/genre_artist_cache.py \
                  src/mediaserver/cdplugins/subsonic/album_util.py \
                  src/mediaserver/cdplugins/subsonic/codec.py \
                  src/mediaserver/cdplugins/subsonic/subsonic-app.py
