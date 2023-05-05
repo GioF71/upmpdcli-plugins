@@ -16,8 +16,10 @@ import os
 from re import split
 from enum import Enum
 from functools import cmp_to_key
+import copy
 
 from subsonic_connector.song import Song
+from subsonic_connector.album import Album
 
 __split_characters : list[str] = [' ', '-', '_']
 
@@ -59,6 +61,9 @@ def _ignorable(last_path : str) -> bool:
 
     return False
 
+def get_last_path_element(path : str) -> str:
+    return os.path.basename(os.path.normpath(path))
+    
 def get_dir_from_path(path : str ) -> str:
     return os.path.dirname(path)
 
@@ -101,13 +106,42 @@ class MultiCodecAlbum(Enum):
     NO = 0
     YES = 1
 
-def sort_song_list(song_list : list[Song]) -> tuple[list[Song], MultiCodecAlbum]:
+class SortSongListResult:
+
+    def __init__(
+            self, 
+            codec_set_by_path : dict[str, set[str]],
+            song_list : list[Song], 
+            multi_codec_album : MultiCodecAlbum):
+        self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
+        self._song_list : list[Song] = song_list
+        self._multi_codec_album : MultiCodecAlbum = multi_codec_album
+
+    def getCodecSetByPath(self) -> set[str]:
+        return self._codec_set_by_path
+
+    def getAlbumVersionCount(self) -> int:
+        return len(self._codec_set_by_path.keys())
+    
+    def getSongList(self) -> list[Song]:
+        return copy.deepcopy(self._song_list)
+    
+    def getMultiCodecAlbum(self) -> MultiCodecAlbum:
+        return self._multi_codec_album
+
+def sort_song_list(song_list : list[Song]) -> SortSongListResult:
     dec_list : list[__Decorated_Song] = []
     codec_dict : dict[str, int] = {}
     multi_codec : MultiCodecAlbum = MultiCodecAlbum.NO
+    codec_set_by_path : dict[str, set[str]] = {}
     for song in song_list:
         dec : __Decorated_Song = __Decorated_Song(song)
         dec_list.append(dec)
+        if not dec.getPath() in codec_set_by_path:
+            codec_set_by_path[dec.getPath()] = set()
+        codec_per_path_set : set[str] = codec_set_by_path[dec.getPath()]
+        if not song.getSuffix() in codec_per_path_set:
+            codec_per_path_set.add(song.getSuffix())
         if not song.getSuffix() in codec_dict:
             codec_dict[song.getSuffix()] = 1
         else:
@@ -118,5 +152,40 @@ def sort_song_list(song_list : list[Song]) -> tuple[list[Song], MultiCodecAlbum]
     current : __Decorated_Song
     for current in dec_list:
         result.append(current.getSong())
-    return result, multi_codec
+    return SortSongListResult(
+        codec_set_by_path = codec_set_by_path,
+        song_list = result, 
+        multi_codec_album = multi_codec)
     
+class AlbumTracks:
+
+    def __init__(
+            self, 
+            codec_set_by_path : dict[str, set[str]],
+            album : Album, 
+            song_list : list[Song], 
+            art_uri : str, 
+            multi_codec_album : MultiCodecAlbum):
+        self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
+        self._album : Album = album
+        self._song_list : list[Song] = song_list
+        self._art_uri : str = art_uri
+        self._multi_codec_album : MultiCodecAlbum = multi_codec_album
+
+    def getCodecSetByPath(self) -> dict[str, set[str]]:
+        return copy.deepcopy(self._codec_set_by_path)
+
+    def getAlbumVersionCount(self) -> int:
+        return len(self._codec_set_by_path.keys())
+    
+    def getAlbum(self) -> Album: 
+        return self._album
+
+    def getSongList(self) -> list[Song]: 
+        return copy.deepcopy(self._song_list)
+
+    def getArtUri(self) -> str: 
+        return self._art_uri
+
+    def getMultiCodecAlbum(self) -> MultiCodecAlbum: 
+        return self._multi_codec_album

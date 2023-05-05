@@ -38,11 +38,20 @@ from subsonic_connector.artists_initial import ArtistsInitial
 from subsonic_connector.artist import Artist
 from subsonic_connector.artist_list_item import ArtistListItem
 
+from item_identifier_key import ItemIdentifierKey
+from item_identifier import ItemIdentifier
+
 from codec import Codec
+
 from album_util import sort_song_list
 from album_util import get_album_base_path
 from album_util import get_dir_from_path
+from album_util import get_last_path_element
 from album_util import MultiCodecAlbum
+from album_util import AlbumTracks
+from album_util import SortSongListResult
+
+from item_cache import ItemCache
 
 from genre_artist_cache import GenreArtistCache
 
@@ -112,39 +121,6 @@ class TagType(Enum):
     def getQueryType(self) -> str:
         return self.query_type
     
-class ItemIdentifierKey(Enum):
-    
-    THING_NAME = 0, 'thing_name'
-    THING_VALUE = 1, 'thing_value'
-    GENRE = 2, 'genre'
-    PAGE_NUMBER = 3, 'page_number'
-    ALBUM_ID = 4, 'album_id'
-    OFFSET = 5, 'offset'
-    TAG_TYPE = 6, 'tag_type'
-    
-    def __init__(self, 
-            num : int, 
-            key_name : str):
-        self.num : int = num
-        self.key_name : str = key_name
-    
-    def getName(self) -> str:
-        return self.key_name
-    
-class ItemIdentifier:
-    
-    def __init__(self):
-        self.__dict = {}
-
-    def has(self, key : ItemIdentifierKey):
-        return key.getName() in self.__dict
-    
-    def get(self, key : ItemIdentifierKey):
-        return self.__dict[key.getName()] if key.getName() in self.__dict else None
-
-    def set(self, key : ItemIdentifierKey, value):
-        self.__dict[key.getName()] = value
-
 def _is_tag(tag_candidate : str) -> bool:
     for _, member in TagType.__members__.items():
         if member.getTagName() == tag_candidate: return True
@@ -186,7 +162,7 @@ __tag_enabled_default : dict[str, bool] = {
 __caches : dict[str, object] = {}
 
 __thing_codec : Codec = Codec()
-__thing_map : dict[str, ItemIdentifier] = {}
+__item_cache : ItemCache = ItemCache()
 
 __artist_initial_by_id : dict[str, str] = {}
 
@@ -300,7 +276,7 @@ def __initial_caching():
     __initial_caching_by_artist_initials()
     __initial_caching_tags()
 
-__subsonic_plugin_release : str = "0.1.0"
+__subsonic_plugin_release : str = "0.1.2"
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
 # something to do (e.g. the _g_init thing, but this could be something else).
@@ -311,9 +287,10 @@ def _initsubsonic():
         return True
 
     # Do whatever is needed here
-    msgproc.log(f"Subsonic plugin release {__subsonic_plugin_release}")
-    msgproc.log(f"initializing ...")
+    msgproc.log(f"Subsonic Plugin Release {__subsonic_plugin_release}")
+    msgproc.log(f"Subsonic Initializing ...")
     __initial_caching()
+    msgproc.log(f"Subsonic Initialization complete.")
             
     _g_init = True
     return True
@@ -342,45 +319,38 @@ def _get_album_id(source : dict):
 def _set_album_id(album_id : str, target : dict):
     target['album_id'] = album_id
 
-def _set_album_art_uri(album_art_uri : str, target : dict):
+def _set_album_art_from_uri(album_art_uri : str, target : dict):
     target['upnp:albumArtURI'] = album_art_uri
+
+def _set_album_art_from_album_id(album_id : str, target : dict):
+    art_uri : str = connector.buildCoverArtUrl(album_id)
+    _set_album_art_from_uri(art_uri, target)
 
 def _set_track_number(track_number : str, target : dict):
     target['upnp:originalTrackNumber'] = track_number
 
-def _set_album_art_uri(album_art_uri : str, target : dict):
-    target['upnp:albumArtURI'] = album_art_uri
-
-def _album_to_entry(objid, current_album : Album) -> direntry:
-    thing_id : str = "{}-{}".format(ElementType.ALBUM.getName(), current_album.getId())
+def _album_version_to_entry(
+        objid, 
+        current_album : Album, 
+        version_number : int, 
+        album_version_path : str,
+        codec_set : set[str]) -> direntry:
+    thing_id : str = "{}-version-{}-{}".format(
+        ElementType.ALBUM.getName(), 
+        version_number,
+        current_album.getId())
     thing_key : str = __thing_codec.encode(thing_id)
     id : str = _create_objid_simple(objid, thing_key)
-    title : str = current_album.getTitle()
+    title : str = f"Version #{version_number}"
     if __append_year_to_album == 1 and current_album.getYear() is not None:
         title = "{} [{}]".format(title, current_album.getYear())
-    if __append_codecs_to_album == 1:
-        song_list : list[Song] = current_album.getSongs()
-        # load album
-        _, song_list, _, _ = _get_album_tracks(current_album.getId())
-        codecs : list[str] = []
-        whitelist_count : int = 0
-        blacklist_count : int = 0
-        song : Song
-        for song in song_list:
-            if not song.getSuffix() in codecs:
-                codecs.append(song.getSuffix())
-                if not song.getSuffix() in __whitelist_codecs:
-                    blacklist_count += 1
-                else:
-                    whitelist_count += 1
-        # show or not?
-        all_whitelisted : bool = len(codecs) == whitelist_count
-        if len(codecs) > 1 or not all_whitelisted:
-            codecs.sort()
-            codecs_str = ",".join(codecs)
-            title = "{} [{}]".format(title, codecs_str)
+    codecs_str : str = ",".join(codec_set)
+    title = "{} [{}]".format(title, codecs_str)
+    last_path : str = get_last_path_element(album_version_path)
+    title = "{} [{}]".format(title, last_path)
     artist = current_album.getArtist()
     _cache_element_value(ElementType.GENRE_PAGED, current_album.getGenre(), current_album.getId())
+    _cache_element_value(ElementType.GENRE_FLOWING, current_album.getGenre(), current_album.getId())
     _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
     if current_album.getArtistId() in __artist_initial_by_id:
         _cache_element_value(ElementType.ARTIST_INITIAL, __artist_initial_by_id[current_album.getArtistId()], current_album.getId())
@@ -392,9 +362,63 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
         arturi = arturi)
     _set_album_id(current_album.getId(), entry)
     #msgproc.log(f"_album_to_entry creating album_identifier for album_id {current_album.getId()}")
-    album_identifier : ItemIdentifier = _create_thing_identifier(ElementType.ALBUM.getName(), current_album.getId())
+    album_identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
+    album_identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH, album_version_path)
     #msgproc.log(f"_album_to_entry storing with thing_key {thing_key} id {id}")
-    __thing_map[thing_key] = album_identifier
+    __item_cache.add(thing_key, album_identifier)
+    #msgproc.log(f"_album_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
+    return entry
+
+def _album_to_entry(objid, current_album : Album) -> direntry:
+    thing_id : str = "{}-{}".format(ElementType.ALBUM.getName(), current_album.getId())
+    thing_key : str = __thing_codec.encode(thing_id)
+    id : str = _create_objid_simple(objid, thing_key)
+    title : str = current_album.getTitle()
+    if __append_year_to_album == 1 and current_album.getYear() is not None:
+        title = "{} [{}]".format(title, current_album.getYear())
+    if __append_codecs_to_album == 1:
+        song_list : list[Song] = current_album.getSongs()
+        # load album
+        album_tracks : AlbumTracks = _get_album_tracks(current_album.getId())
+        song_list : list[Song] = album_tracks.getSongList()
+        codecs : list[str] = []
+        whitelist_count : int = 0
+        blacklist_count : int = 0
+        song : Song
+        for song in song_list:
+            if not song.getSuffix() in codecs:
+                codecs.append(song.getSuffix())
+                if not song.getSuffix() in __whitelist_codecs:
+                    blacklist_count += 1
+                else:
+                    whitelist_count += 1
+        # show version count if count > 1
+        if album_tracks.getAlbumVersionCount() > 1:
+            title = "{} [{} versions]".format(title, album_tracks.getAlbumVersionCount())
+        # show or not?
+        all_whitelisted : bool = len(codecs) == whitelist_count
+        if len(codecs) > 1 or not all_whitelisted:
+            codecs.sort()
+            codecs_str : str = ",".join(codecs)
+            title = "{} [{}]".format(title, codecs_str)
+    artist = current_album.getArtist()
+    _cache_element_value(ElementType.GENRE_PAGED, current_album.getGenre(), current_album.getId())
+    _cache_element_value(ElementType.GENRE_FLOWING, current_album.getGenre(), current_album.getId())
+    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+    if current_album.getArtistId() in __artist_initial_by_id:
+        _cache_element_value(ElementType.ARTIST_INITIAL, __artist_initial_by_id[current_album.getArtistId()], current_album.getId())
+    arturi = connector.buildCoverArtUrl(current_album.getId())
+    entry : dict = direntry(id, 
+        objid, 
+        title = title, 
+        artist = artist,
+        arturi = arturi)
+    _set_album_id(current_album.getId(), entry)
+    #msgproc.log(f"_album_to_entry creating album_identifier for album_id {current_album.getId()}")
+    album_identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
+    album_identifier.set(ItemIdentifierKey.ALBUM_TRACKS, album_tracks)
+    #msgproc.log(f"_album_to_entry storing with thing_key {thing_key} id {id}")
+    __item_cache.add(thing_key, album_identifier)
     #msgproc.log(f"_album_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
     return entry
 
@@ -415,11 +439,11 @@ def _genre_flowing_to_entry(objid, current_genre : Genre) -> direntry:
         objid, 
         name,
         arturi = genre_art_uri)
-    genre_identifier : ItemIdentifier = _create_thing_identifier(
+    genre_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_FLOWING.getName(), 
         current_genre.getName())
     #msgproc.log(f"_genre_paged_to_entry storing with thing_key {thing_key} id {id}")
-    __thing_map[thing_key] = genre_identifier
+    __item_cache.add(thing_key, genre_identifier)
     return entry
 
 def _genre_paged_to_entry(objid, current_genre : Genre) -> direntry:
@@ -439,11 +463,11 @@ def _genre_paged_to_entry(objid, current_genre : Genre) -> direntry:
         objid, 
         name,
         arturi = genre_art_uri)
-    genre_identifier : ItemIdentifier = _create_thing_identifier(
+    genre_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_PAGED.getName(), 
         current_genre.getName())
     #msgproc.log(f"_genre_paged_to_entry storing with thing_key {thing_key} id {id}")
-    __thing_map[thing_key] = genre_identifier
+    __item_cache.add(thing_key, genre_identifier)
     return entry
 
 def _newest_page_to_entry(objid, p_0_based : int, low : int) -> direntry:
@@ -458,13 +482,12 @@ def _newest_page_to_entry(objid, p_0_based : int, low : int) -> direntry:
     art_uri = None
     art_id : str = _get_cached_element(ElementType.NEWEST_PAGED_PAGE, thing_key)
     if art_id:
-        art_uri = connector.buildCoverArtUrl(art_id)
-        _set_album_art_uri(art_uri, entry)
-    newest_page_identifier : ItemIdentifier = _create_thing_identifier(
+        _set_album_art_from_album_id(art_id, entry)
+    newest_page_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.NEWEST_PAGED_PAGE.getName(), 
         p_0_based)
     newest_page_identifier.set(ItemIdentifierKey.PAGE_NUMBER, p_0_based)
-    __thing_map[thing_key] = newest_page_identifier
+    __item_cache.add(thing_key, newest_page_identifier)
     return entry
 
 def _genre_page_to_entry(objid, genre : str, p_0_based : int, low : int) -> direntry:
@@ -479,15 +502,14 @@ def _genre_page_to_entry(objid, genre : str, p_0_based : int, low : int) -> dire
     art_uri = None
     art_id : str = _get_cached_element(ElementType.GENRE_PAGED_PAGE, thing_key)
     if art_id:
-        art_uri = connector.buildCoverArtUrl(art_id)
-        _set_album_art_uri(art_uri, entry)
-    genre_page_identifier : ItemIdentifier = _create_thing_identifier(
+        _set_album_art_from_album_id(art_id, entry)
+    genre_page_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_PAGED_PAGE.getName(), 
         genre)
     # no ambiguity as the value does not fully describe the item
     genre_page_identifier.set(ItemIdentifierKey.GENRE, genre)
     genre_page_identifier.set(ItemIdentifierKey.PAGE_NUMBER, p_0_based)
-    __thing_map[thing_key] = genre_page_identifier
+    __item_cache.add(thing_key, genre_page_identifier)
     return entry
 
 def _genre_artist_to_entry(
@@ -517,11 +539,11 @@ def _genre_artist_to_entry(
         objid, 
         artist_name,
         arturi = artist_art_uri)
-    artist_identifier : ItemIdentifier = _create_thing_identifier(
+    artist_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_ARTIST.getName(), 
         artist_id)
     artist_identifier.set(ItemIdentifierKey.GENRE, genre)
-    __thing_map[thing_key] = artist_identifier
+    __item_cache.add(thing_key, artist_identifier)
     return entry
 
 def _artist_to_entry(
@@ -543,10 +565,10 @@ def _artist_to_entry(
         objid, 
         artist_name,
         arturi = artist_art_uri)
-    artist_identifier : ItemIdentifier = _create_thing_identifier(
+    artist_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(), 
         artist_id)
-    __thing_map[thing_key] = artist_identifier
+    __item_cache.add(thing_key, artist_identifier)
     return entry
 
 def _next_to_entry(
@@ -563,12 +585,12 @@ def _next_to_entry(
     entry = direntry(id, 
         objid, 
         "Next")
-    next_identifier : ItemIdentifier = _create_thing_identifier(
+    next_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.NEXT_PAGE.getName(), 
         next_page_type.getTagName())
     next_identifier.set(ItemIdentifierKey.TAG_TYPE, next_page_type)
     next_identifier.set(ItemIdentifierKey.OFFSET, offset)
-    __thing_map[thing_key] = next_identifier
+    __item_cache.add(thing_key, next_identifier)
     return entry
 
 def _artist_list_item_to_entry(
@@ -586,10 +608,10 @@ def _artist_list_item_to_entry(
         objid, 
         artist_initial,
         arturi = artist_art_uri)
-    artist_initial_identifier : ItemIdentifier = _create_thing_identifier(
+    artist_initial_identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_INITIAL.getName(), 
         artist_initial)
-    __thing_map[thing_key] = artist_initial_identifier
+    __item_cache.add(thing_key, artist_initial_identifier)
     return entry
 
 def _song_to_entry(
@@ -618,33 +640,9 @@ def _song_to_entry(
     entry['res:mime'] = song.getContentType()
     if not albumArtURI:
         albumArtURI = connector.buildCoverArtUrl(song.getId())
-    _set_album_art_uri(albumArtURI, entry)
+    _set_album_art_from_uri(albumArtURI, entry)
     entry['duration'] = str(song.getDuration())
     return entry
-
-def _get_thing_type(lastvalue : str) -> bool:
-    lpath = lastvalue.split("-")
-    if lpath and len(lpath) > 1:
-        last = lpath[0]
-        return last
-    return False
-
-def _create_thing_identifier(name : str, value : str) -> ItemIdentifier:
-    id : ItemIdentifier = ItemIdentifier()
-    id.set(ItemIdentifierKey.THING_NAME, name)
-    id.set(ItemIdentifierKey.THING_VALUE, value)
-    return id    
-
-def _is_thing(value : str, thing_name : str) -> bool:
-    id : ItemIdentifier = __thing_map[value] if value in __thing_map else None
-    if not id or not id.has(ItemIdentifierKey.THING_NAME): return False
-    return thing_name == id.get(ItemIdentifierKey.THING_NAME)
-
-def _get_thing(value : str, thing_name : str) -> str:
-    id : ItemIdentifier = __thing_map[value] if value in __thing_map else None
-    if not id or not id.has(ItemIdentifierKey.THING_NAME): return None
-    if not thing_name == id.get(ItemIdentifierKey.THING_NAME): return None
-    return id.get(ItemIdentifierKey.THING_VALUE)
 
 def _get_albums(query_type : str, size : int = __items_per_page, offset : int = 0) -> list[Album]:
     albumListResponse : Response[AlbumList]
@@ -656,48 +654,62 @@ def _get_albums(query_type : str, size : int = __items_per_page, offset : int = 
         return albumListResponse.getObj().getAlbums()
     return None        
 
-def _get_album_tracks(album_id : str) -> tuple[Album, list[Song], str, MultiCodecAlbum]:
+def _get_album_tracks(album_id : str) -> AlbumTracks:
     result : list[Song] = []
     albumResponse : Response[Album] = connector.getAlbum(album_id)
-    if albumResponse.isOk():
-        current_song : Song
-        albumArtURI : str = connector.buildCoverArtUrl(albumResponse.getObj().getId())
-        song_list : list[Song] = albumResponse.getObj().getSongs()
-        multi_codec_album : MultiCodecAlbum
-        song_list, multi_codec_album = sort_song_list(song_list)
-        for current_song in song_list:
-            result.append(current_song)
-    albumArtURI : str = connector.buildCoverArtUrl(albumResponse.getObj().getId())
-    return albumResponse.getObj(), result, albumArtURI, multi_codec_album
+    if not albumResponse.isOk(): raise Exception(f"Album with id {album_id} not found")
+    album : Album = albumResponse.getObj()
+    albumArtURI : str = connector.buildCoverArtUrl(album.getId())
+    song_list : list[Song] = album.getSongs()
+    sort_song_list_result : SortSongListResult = sort_song_list(song_list)
+    current_song : Song
+    for current_song in sort_song_list_result.getSongList():
+        result.append(current_song)
+    albumArtURI : str = connector.buildCoverArtUrl(album.getId())
+    return AlbumTracks(
+        codec_set_by_path = sort_song_list_result.getCodecSetByPath(),
+        album = album, 
+        song_list = result, 
+        art_uri = albumArtURI,
+        multi_codec_album = sort_song_list_result.getMultiCodecAlbum())
 
-def _load_album_tracks(objid, album_id : str, entries : list):
-    album : Album
-    song_list : list[Song]
-    albumArtURI : str
-    multi_codec_album : MultiCodecAlbum
-    album, song_list, albumArtURI, multi_codec_album = _get_album_tracks(album_id)
+def _load_album_tracks(
+        objid, 
+        album_id : str, 
+        album_version_path : str,
+        entries : list):
+    #msgproc.log(f"_load_album_tracks with album_version_path [{album_version_path}]")
+    album_tracks : AlbumTracks = _get_album_tracks(album_id)
+    album : Album = album_tracks.getAlbum()
+    song_list : list[Song] = album_tracks.getSongList()
+    albumArtURI : str = album_tracks.getArtUri()
+    multi_codec_album : MultiCodecAlbum = album_tracks.getMultiCodecAlbum()
     _cache_element_value(ElementType.GENRE_FLOWING_ALBUMS, album.getGenre(), album.getId())
     current_base_path : str = None
     track_num : int = 0
     for current_song in song_list:
-        new_base_path = get_album_base_path(get_dir_from_path(current_song.getPath()))
-        if not current_base_path:
-            track_num = 1
-        elif current_base_path == new_base_path:
-            track_num += 1
-        # maybe incorporate this in first condition in or
-        # Wait for a test case to make suie it still works...
-        elif not (current_base_path == new_base_path):
-            track_num = 1
-        #msgproc.log(f"_load_album_tracks current_base_path {current_base_path} new_base_path {new_base_path} track_num {track_num}")
-        current_base_path = new_base_path
-        entry = _song_to_entry(
-            objid = objid, 
-            song = current_song, 
-            albumArtURI = albumArtURI, 
-            multi_codec_album = multi_codec_album,
-            track_num = str(track_num))
-        entries.append(entry)
+        song_path : str = get_dir_from_path(current_song.getPath())
+        song_path = get_album_base_path(song_path)
+        #msgproc.log(f"_load_album_tracks song path is [{song_path}]")
+        if album_version_path is None or album_version_path == song_path:
+            new_base_path : str = get_album_base_path(get_dir_from_path(current_song.getPath()))
+            if not current_base_path:
+                track_num = 1
+            elif current_base_path == new_base_path:
+                track_num += 1
+            # maybe incorporate this in first condition in or
+            # Wait for a test case to make suie it still works...
+            elif not (current_base_path == new_base_path):
+                track_num = 1
+            #msgproc.log(f"_load_album_tracks current_base_path {current_base_path} new_base_path {new_base_path} track_num {track_num}")
+            current_base_path = new_base_path
+            entry = _song_to_entry(
+                objid = objid, 
+                song = current_song, 
+                albumArtURI = albumArtURI, 
+                multi_codec_album = multi_codec_album,
+                track_num = str(track_num))
+            entries.append(entry)
 
 def _load_albums_from_album_list(
         objid, 
@@ -857,8 +869,7 @@ def _create_list_of_artist_initials(objid, entries : list) -> list:
         entries.append(entry)
         art_id = _get_cached_element(ElementType.ARTIST_INITIAL, current_artists_initial.getName())
         if art_id:
-            art_uri : str = connector.buildCoverArtUrl(art_id)
-            _set_album_art_uri(art_uri, entry)
+            _set_album_art_from_album_id(art_id, entry)
         current_artist : ArtistListItem
         # populate cache of artist by initial
         for current_artist in current_artists_initial.getArtistListItems():
@@ -921,9 +932,13 @@ def _process_next_page_flowing(objid, item_identifier : ItemIdentifier, tag_type
         _cache_element_value(ElementType.TAG, tag_type.getTagName(), album_list[0].getId())
     return entries
 
-def _present_album(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def _present_album(
+        objid, 
+        item_identifier : ItemIdentifier, 
+        entries : list) -> list:
     album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    _load_album_tracks(objid, album_id, entries)
+    album_version_path : str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH)
+    _load_album_tracks(objid, album_id, album_version_path, entries)
     return entries
 
 def _show_tags(objid, entries : list) -> list:
@@ -932,21 +947,21 @@ def _show_tags(objid, entries : list) -> list:
             tagname : str = tag.getTagName()
             thing_id : str = "{}-{}".format(ElementType.TAG.getName(), tagname)
             thing_key : str = __thing_codec.encode(thing_id)
-            tag_identifier : ItemIdentifier = _create_thing_identifier(ElementType.TAG.getName(), tagname)
-            __thing_map[thing_key] = tag_identifier
+            tag_identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
+            __item_cache.add(thing_key, tag_identifier)
             id : str = _create_objid_simple(objid, thing_key)
             #id = objid + "/" + _escape_objid(tagname)
-            art_id = _get_cached_element(ElementType.TAG, tagname)
             entry : dict = direntry(
                 id = id, 
                 pid = objid, 
                 title = _getTagTypeByName(tagname).getTagTitle())
+            art_id = _get_cached_element(ElementType.TAG, tagname)
             if art_id:
-                _set_album_art_uri(connector.buildCoverArtUrl(art_id), entry)
+                _set_album_art_from_album_id(art_id, entry)
             entries.append(entry)
     return entries
 
-def _handler_tag_newest_paged(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_tag_newest_paged(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     low : int = 1
     for p in range(0, __max_pages):
         upper = low + __items_per_page
@@ -954,8 +969,8 @@ def _handler_tag_newest_paged(objid, item_key : str, item_identifier : ItemIdent
         low = upper
     return entries    
 
-def _handler_tag_newest_flowing(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
-    entries = _load_albums_by_type(objid, entries, _getTagTypeByName(value))
+def _handler_tag_newest_flowing(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    entries = _load_albums_by_type(objid, entries, TagType.NEWEST_FLOWING)
     # current offset is 0, next is current + items per page
     if (len(entries) == __items_per_page):
         next_page : dict = _next_to_entry(
@@ -966,8 +981,8 @@ def _handler_tag_newest_flowing(objid, item_key : str, item_identifier : ItemIde
         entries.append(next_page)
     return entries
 
-def _handler_tag_random_flowing(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
-    entries = _load_albums_by_type(objid, entries, _getTagTypeByName(value))
+def _handler_tag_random_flowing(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    entries = _load_albums_by_type(objid, entries, TagType.RANDOM_FLOWING)
     # current offset is 0, next is current + items per page
     if (len(entries) == __items_per_page):
         next_page : dict = _next_to_entry(
@@ -978,17 +993,20 @@ def _handler_tag_random_flowing(objid, item_key : str, item_identifier : ItemIde
         entries.append(next_page)
     return entries
 
-def _handler_random(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
-    return _load_albums_by_type(objid, entries, _getTagTypeByName(value))
+def _handler_random(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _load_albums_by_type(objid, entries, TagType.RANDOM)
 
-def _handler_tag_genres_paged(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_tag_genres_paged(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_genres(objid, entries)
 
-def _handler_tag_genres_flowing(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_tag_genres_flowing(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_genres_flowing(objid, entries)
 
-def _handler_element_genre_paged(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
-    return _create_genre_pages(objid, value, entries)
+def _handler_element_genre_paged(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _create_genre_pages(
+        objid = objid, 
+        genre = item_identifier.get(ItemIdentifierKey.THING_VALUE), 
+        entries = entries)
 
 def _genre_flowing_add_artists_node(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     genre : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1005,16 +1023,15 @@ def _genre_flowing_add_artists_node(objid, item_identifier : ItemIdentifier, ent
         # try with genre
         art_id : str = _get_cached_element(ElementType.GENRE_FLOWING, genre)
     if art_id:
-        art_uri : str = connector.buildCoverArtUrl(art_id)
-        _set_album_art_uri(art_uri, artists_entry)
+        _set_album_art_from_album_id(art_id, artists_entry)
     else:
         msgproc.log(f"_genre_flowing_add_artists_node art not found for {ElementType.GENRE_FLOWING_ARTISTS.getName()} genre {genre}")
     entries.append(artists_entry)
-    identifier : ItemIdentifier = _create_thing_identifier(
+    identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_FLOWING_ARTISTS.getName(), 
         genre)
     identifier.set(ItemIdentifierKey.GENRE, genre)
-    __thing_map[thing_key] = identifier
+    __item_cache.add(thing_key, identifier)
     return entries
 
 def _genre_flowing_add_albums_node(
@@ -1039,18 +1056,17 @@ def _genre_flowing_add_albums_node(
             # try with genre
             art_id : str = _get_cached_element(ElementType.GENRE_FLOWING, genre)
         if art_id:
-            art_uri = connector.buildCoverArtUrl(art_id)
-            _set_album_art_uri(art_uri, artists_entry)
+            _set_album_art_from_album_id(art_id, artists_entry)
     entries.append(artists_entry)
-    identifier : ItemIdentifier = _create_thing_identifier(
+    identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_FLOWING_ALBUMS.getName(), 
         genre)
     identifier.set(ItemIdentifierKey.GENRE, genre)
     identifier.set(ItemIdentifierKey.OFFSET, offset)
-    __thing_map[thing_key] = identifier
+    __item_cache.add(thing_key, identifier)
     return entries
 
-def _handler_element_genre_flowing(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_genre_flowing(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     # add nodes for flowing albums by genre
     msgproc.log(f"_handler_element_genre_flowing")
     entries = _genre_flowing_add_artists_node(objid, item_identifier, entries)
@@ -1086,7 +1102,7 @@ def _load_all_artists_by_genre(genre : str) -> set[str]:
         offset += len(album_list)
     return artist_id_set
 
-def _handler_element_genre_flowing_artists(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_genre_flowing_artists(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     msgproc.log(f"_handler_element_genre_flowing_artists")
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE)
     msgproc.log(f"_handler_element_genre_flowing_artists genre {genre}")
@@ -1112,7 +1128,7 @@ def _handler_element_genre_flowing_artists(objid, item_key : str, item_identifie
                     current.getName()))
     return entries
 
-def _handler_element_genre_flowing_albums(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_genre_flowing_albums(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     msgproc.log(f"_handler_element_genre_flowing_albums")
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE)
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET)
@@ -1144,15 +1160,15 @@ def _handler_element_genre_flowing_albums(objid, item_key : str, item_identifier
             entries = entries)
     return entries
 
-def _handler_tag_artists(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_tag_artists(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_artists(objid, entries)
 
-def _handler_tag_artists_indexed(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_tag_artists_indexed(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_artist_initials(objid, entries)
 
-def _handler_element_newest_paged_page(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
-    msgproc.log(f"_handler_element_newest_paged_page item_key {item_key} value {value}")
-    page_key : int = __thing_map[item_key].get(ItemIdentifierKey.PAGE_NUMBER)
+def _handler_element_newest_paged_page(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_newest_paged_page item_key {item_key} value {item_identifier.get(ItemIdentifierKey.THING_VALUE)}")
+    page_key : int = item_identifier.get(ItemIdentifierKey.PAGE_NUMBER)
     newest_page_offset : int = page_key * __items_per_page
     msgproc.log(f"match 1d (NEWEST_PAGED_PAGE) page_key: {page_key} offset {newest_page_offset}")
     _create_newest_page(
@@ -1162,25 +1178,25 @@ def _handler_element_newest_paged_page(objid, item_key : str, item_identifier : 
         entries = entries)
     return entries
 
-def _handler_element_next_page(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_next_page(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     tag_type : TagType = item_identifier.get(ItemIdentifierKey.TAG_TYPE)
     if not tag_type: raise Exception(f"_handler_element_next_page --Invalid tag--")
     _process_next_page_flowing(objid, item_identifier, tag_type, entries)
     return entries
 
-def _handler_element_artist_initial(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_artist_initial(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     msgproc.log(f"_handler_element_artist_initial item_key {item_key}")
     artist_initial : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     msgproc.log(f"_handler_element_artist_initial item_key {item_key} artist_initial {artist_initial}")
     entries = __load_artists_by_initial(objid, artist_initial, entries)
     return entries
 
-def _handler_element_artist(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_artist(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     artist : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     entries = __load_albums_by_artist(objid, artist, entries)
     return entries
 
-def _handler_element_genre_artist(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_genre_artist(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE)
     msgproc.log(f"_handler_element_genre_artist artist_id {artist_id} genre {genre}")
@@ -1192,7 +1208,7 @@ def _handler_element_genre_artist(objid, item_key : str, item_identifier : ItemI
         entries = entries)
     return entries
 
-def _handler_element_genre_paged_page(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_genre_paged_page(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
     msgproc.log(f"_handler_element_genre_paged_page item_key {item_key}")
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE)
     msgproc.log(f"_handler_element_genre_paged_page item_key {item_key} genre {genre}")
@@ -1206,7 +1222,24 @@ def _handler_element_genre_paged_page(objid, item_key : str, item_identifier : I
         entries = entries)
     return entries
 
-def _handler_element_album(objid, item_key : str, item_identifier : ItemIdentifier, value : str, entries : list) -> list:
+def _handler_element_album(objid, item_key : str, item_identifier : ItemIdentifier, entries : list) -> list:
+    album_tracks : AlbumTracks = item_identifier.get(ItemIdentifierKey.ALBUM_TRACKS)
+    if album_tracks and album_tracks.getAlbumVersionCount() > 1:
+        msgproc.log(f"_handler_element_album we should now present the {album_tracks.getAlbumVersionCount()} versions")    
+        version_counter : int = 0
+        album_version_path : str
+        codec_set : set[str]
+        for album_version_path in album_tracks.getCodecSetByPath().keys():
+            codec_set : set[str] = album_tracks.getCodecSetByPath()[album_version_path]
+            album_version_entry : dict = _album_version_to_entry(
+                objid = objid,
+                current_album = album_tracks.getAlbum(),
+                version_number = version_counter + 1,
+                album_version_path = album_version_path,
+                codec_set = codec_set)
+            entries.append(album_version_entry)
+            version_counter += 1
+        return entries
     return _present_album(objid, item_identifier, entries)
 
 __tag_action_dict : dict = {
@@ -1251,9 +1284,9 @@ def browse(a):
         # show tags
         entries = _show_tags(objid, entries)
         return _returnentries(entries)
-    elif last_path_item in __thing_map:
+    elif __item_cache.has(last_path_item):
         # decode
-        item_identifier : ItemIdentifier = __thing_map[last_path_item]
+        item_identifier : ItemIdentifier = __item_cache.get(last_path_item)
         thing_name : str = item_identifier.get(ItemIdentifierKey.THING_NAME)
         thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
         msgproc.log(f"browse: item_identifier name: --{thing_name}-- value: --{thing_value}--")
@@ -1262,7 +1295,7 @@ def browse(a):
             tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
             if tag_handler:
                 msgproc.log(f"browse: found tag handler for: --{thing_value}--")
-                entries = tag_handler(objid, last_path_item, item_identifier, thing_value, entries)
+                entries = tag_handler(objid, last_path_item, item_identifier, entries)
                 return _returnentries(entries)
             else:
                 msgproc.log(f"browse: tag handler for: --{thing_value}-- not found")
@@ -1271,7 +1304,7 @@ def browse(a):
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
             if elem_handler:
                 msgproc.log(f"browse: found elem handler for: --{thing_name}--")
-                entries = elem_handler(objid, last_path_item, item_identifier, thing_value, entries)
+                entries = elem_handler(objid, last_path_item, item_identifier, entries)
             else:
                 msgproc.log(f"browse: element handler for: --{thing_name}-- not found")
     return _returnentries(entries)
