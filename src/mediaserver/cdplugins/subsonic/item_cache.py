@@ -6,9 +6,6 @@ class ItemCache:
     def __init__(self):
         self.__thing_map : dict[str, ItemIdentifier] = {}
         
-    def get_thing_map(self) -> dict[str, ItemIdentifier]:
-        return self.__thing_map
-    
     def has(self, key : str) -> bool:
         return key in self.__thing_map
     

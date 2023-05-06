@@ -10,7 +10,9 @@ class ItemIdentifierKey(Enum):
     OFFSET = 5, 'offset'
     TAG_TYPE = 6, 'tag_type',
     ALBUM_TRACKS = 7, 'album_tracks',
-    ALBUM_VERSION_PATH = 8, 'album_path'
+    ALBUM_VERSION_PATH = 8, 'album_path',
+    SONG_DATA = 9, 'song_data',
+    ENTRY_ID = 11, 'entry_id'
     
     def __init__(self, 
             num : int, 
