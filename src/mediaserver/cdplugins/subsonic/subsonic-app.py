@@ -204,7 +204,7 @@ def __initial_caching():
     __initial_caching_by_artist_initials()
     __initial_caching_tags()
 
-__subsonic_plugin_release : str = "0.1.3"
+__subsonic_plugin_release : str = "0.1.4"
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
 # something to do (e.g. the _g_init thing, but this could be something else).
