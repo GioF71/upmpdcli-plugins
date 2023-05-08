@@ -225,8 +225,6 @@ upradiostitle = Upmpdcli Radio List
 #subsonicport = 4533
 # SubSonic items per page
 #subsonicitemsperpage = 36
-# SubSonic max pages
-#subsonicmaxpages = 36
 # Append year to album
 #subsonicappendyeartoalbum = 1
 

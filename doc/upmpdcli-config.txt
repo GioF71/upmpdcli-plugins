@@ -484,9 +484,6 @@ subsonicport:: SubSonic server port. The port of the SubSonic server
 [[subsonicitemsperpage]]
 subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic
 
-[[subsonicmaxpages]]
-subsonicmaxpages:: SubSonic max pages Max number of pages for SubSonic
-
 [[subsonicappendyeartoalbum]]
 subsonicappendyeartoalbum:: Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
 

@@ -13,28 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import hashlib
+import base64
 
 class Codec:
 
-    def __init__(self):
-        self.__by_name : dict[str, str] = {}
-        self.__by_id : dict[str, str] = {}
-
     def encode(self, name : str) -> str:
-        by_id : str = self.__by_name[name] if name in self.__by_name else None
-        if not by_id:
-            new_id : str = self.__computeMD5hash(name)
-            self.__by_id[new_id] = name
-            self.__by_name[name] = new_id
-            by_id = new_id
-        return by_id
-    
-    def decode(self, id : str) -> str:
-        if id in self.__by_id: return self.__by_id[id]
-        raise Exception(f"Id [{id}] not found")
+        message_bytes : bytes = name.encode('ascii')
+        base64_bytes : bytes = base64.b64encode(message_bytes)
+        id : str = base64_bytes.decode('ascii')
+        return id
 
-    def __computeMD5hash(self, val : str):
-        m = hashlib.md5()
-        m.update(val.encode('utf-8'))
-        return m.hexdigest()
+    def decode(self, id : str) -> str:
+        base64_bytes : bytes = id.encode('ascii')
+        message_bytes : bytes = base64.b64decode(base64_bytes)
+        name : str = message_bytes.decode('ascii')
+        return name

@@ -576,10 +576,6 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Number of items per page for SubSonic</descr></var>
 #subsonicitemsperpage = 36
 
-# <var name="subsonicmaxpages" type="int"><brief>SubSonic max pages</brief>
-# <descr>Max number of pages for SubSonic</descr></var>
-#subsonicitemsperpage = 36
-
 # <var name="subsonicappendyeartoalbum" type="bool"><brief>Append year to album</brief>
 # <descr>If enabled, the year will be appended to the album in the lists. Enabled by default.</descr></var>
 #subsonicappendyeartoalbum = 1
