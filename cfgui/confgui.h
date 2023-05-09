@@ -127,7 +127,7 @@ class ConfParamW;
 /** The top level widget has tabs, each tab/panel has multiple widgets
  *  for setting parameter values */
 class ConfTabsW : public QDialog {
-    Q_OBJECT;
+    Q_OBJECT
 
 public:
     ConfTabsW(QWidget *parent, const QString& title, ConfLinkFact *linkfact);

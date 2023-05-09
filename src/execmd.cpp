@@ -702,6 +702,7 @@ public:
         m_cmd->m_tocmd.reset();
     }
     virtual int data(NetconData *con, Netcon::Event reason) {
+        PRETEND_USE(reason);
         if (!m_input) {
             return -1;
         }
@@ -749,6 +750,7 @@ public:
         : m_output(output), m_advise(advise) {
     }
     virtual int data(NetconData *con, Netcon::Event reason) {
+        PRETEND_USE(reason);
         char buf[8192];
         int n = con->receive(buf, 8192);
         LOGDEB1("ExecReader: got " << (n) << " from command\n");
@@ -938,6 +940,7 @@ class GetlineWatchdog : public ExecCmdAdvise {
 public:
     GetlineWatchdog(int secs) : m_secs(secs), tstart(time(nullptr)) {}
     void newData(int cnt) {
+        PRETEND_USE(cnt);
         if (time(nullptr) - tstart >= m_secs) {
             throw std::runtime_error("getline timeout");
         }

@@ -1210,6 +1210,7 @@ int NetconServLis::initperms(const char *serv)
 // using the selectloop thing
 int  NetconServLis::cando(Netcon::Event reason)
 {
+    PRETEND_USE(reason);
     delete accept();
     return 1;
 }

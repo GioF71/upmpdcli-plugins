@@ -764,7 +764,7 @@ string displayableBytes(int64_t size)
         unit = " GB ";
         roundable = double(size) / 1E9;
     }
-    size = int64_t(round(roundable));
+    size = int64_t(std::round(roundable));
     return lltodecstr(size).append(unit);
 }
 

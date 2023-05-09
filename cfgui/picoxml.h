@@ -27,33 +27,34 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.  
-**********************************************************/
+ **********************************************************/
 
 #ifndef _PICOXML_H_INCLUDED_
 #define _PICOXML_H_INCLUDED_
 
 /** 
- * PicoXMLParser: a single include file parser for an XML-like, but
- * restricted language, adequate for config files, not for arbitrary
- * externally generated data.
+ * PicoXMLParser: a single include file parser for an XML-like, but restricted language, adequate
+ * for config files, not for arbitrary externally generated data.
  * 
  *  - The code depends on nothing but the C++ standard library
- *  - The input to the parser is a single c++ string. Does not deal with
+ *  - The input to the parser is a single C++ string. We do not deal with
  *    input in several pieces or files.
- *  - SAX mode only. You have access to the tag stack. I've always
- *    found DOM mode less usable.
+ *  - SAX mode only. You have access to the current tag stack. 
  *  - Checks for proper tag nesting and not much else.
- *  - ! No CDATA
- *  - ! Attributes should really really not contain XML special chars.
+ *  - MISSING support: 
+ *    - NO literal '>' inside attribute values. Use &gt;
+ *    - No CDATA support
+ *    - No DOCTYPE support
+ *    - No processing of namespaces.
+ *  - Not fast: a lot of std::string and memory allocations.
  *
- * A typical input would be like the following (you can add XML
- * declarations, whitespace and newlines to taste).
+ * A typical input would be like the following (you can add XML declarations, whitespace and 
+ * newlines to taste).
  *
  * <top>top chrs1<sub attr="attrval">sub chrs</sub>top chrs2 <emptyelt /></top>
  *
- * Usage: subclass PicoXMLParser, overriding the methods in the
- *  "protected:" section (look there for more details), call the
- * constructor with your input, then call parse().
+ * Usage: subclass PicoXMLParser, overriding the methods in the "protected:" section (look there 
+ * for more details), call the constructor with your input, then call parse().
  */
 
 #include <string>
@@ -151,8 +152,7 @@ private:
     std::vector<std::string> m_tagstack;
 
     void _startelem(const std::string& tagname,
-                    const std::map<std::string, std::string>& attrs, bool empty)
-    {
+                    const std::map<std::string, std::string>& attrs, bool empty) {
         m_path.push_back(StackEl(tagname));
         StackEl& lastelt = m_path.back();
         lastelt.start_index = m_pos;
@@ -167,8 +167,7 @@ private:
         }
     }
 
-    void _endelem(const std::string& tagname)
-    {
+    void _endelem(const std::string& tagname) {
         m_tagstack.pop_back();
         endElement(tagname);
         EndElement(tagname.c_str());
@@ -188,9 +187,10 @@ private:
         
         for (;;) {
             // Current char is '<' and the next char is not '?'
-            //std::cerr<< "m_pos "<< m_pos<<" char "<< m_in[m_pos]<<std::endl;
-            // skipComment also processes 
-            if (!skipComment()) {
+            //std::cerr << "m_pos " << m_pos << " char " << m_in[m_pos] << "\n";
+            // skipComment also processes
+            bool wascomment;
+            if (!skipComment(wascomment)) {
                 return false;
             }
             if (nomore()) {
@@ -200,6 +200,8 @@ private:
                 }
                 return true;
             }
+            if (wascomment)
+                continue;
             m_pos++;
             if (nomore()) {
                 m_reason << "EOF within tag";
@@ -220,9 +222,7 @@ private:
                 return false;
             }
                     
-            std::string tag =
-                m_in.substr(spos + isendtag,
-                            m_pos - (spos + 1 + isendtag + emptyel));
+            std::string tag = m_in.substr(spos + isendtag, m_pos - (spos + 1 + isendtag + emptyel));
             //std::cerr << "TAG NAME [" << tag << "]\n";
             trimtag(tag);
             std::map<std::string, std::string> attrs;
@@ -231,8 +231,7 @@ private:
             }
             if (isendtag) {
                 if (m_tagstack.empty() || tag.compare(m_tagstack.back())) {
-                    m_reason << "Closing not open tag " << tag <<
-                        " at cpos " << m_pos;
+                    m_reason << "Closing not open tag " << tag << " at cpos " << m_pos;
                     return false;
                 }
                 _endelem(tag);
@@ -283,10 +282,10 @@ private:
             return -1;
         return m_in[m_pos + 1 + sz];
     }
-    void trimtag(std::string& tagname) {
-        std::string::size_type trimpos = tagname.find_last_not_of(" \t\n\r");
+    void trimtag(std::string& tag) {
+        std::string::size_type trimpos = tag.find_last_not_of(" \t\n\r");
         if (trimpos != std::string::npos) {
-            tagname = tagname.substr(0, trimpos+1);
+            tag = tag.substr(0, trimpos+1);
         }
     }
 
@@ -313,14 +312,14 @@ private:
         return true;
     }
 
-    bool skipComment() {
+    bool skipComment(bool& wascomment) {
+        wascomment = false;
         if (nomore()) {
             return true;
         }
         if (m_in[m_pos] != '<') {
             m_reason << "Internal error: skipComment called with wrong "
-                "start: m_pos " <<
-                m_pos << " char [" << m_in[m_pos] << "]\n";
+                "start: m_pos " << m_pos << " char [" << m_in[m_pos] << "]\n";
             return false;
         }
         if (peek() == '!' && peek(1) == '-' && peek(2) == '-') {
@@ -329,13 +328,13 @@ private:
                 return false;
             }
             // Process possible characters until next tag
+            wascomment = true;
             return _chardata();
         }
         return true;
     }
     
-    bool parseattrs(std::string& tag,
-                    std::map<std::string, std::string>& attrs) {
+    bool parseattrs(std::string& tag, std::map<std::string, std::string>& attrs) {
         //std::cerr << "parseattrs: [" << tag << "]\n";
         attrs.clear();
         std::string::size_type spos = tag.find_first_of(" \t\n\r");
@@ -379,7 +378,7 @@ private:
                 m_reason << "Missing closing quote at cpos " << m_pos+spos;
                 return false;
             }
-            attrs[attrnm] = tag.substr(spos, epos - spos);
+            attrs[attrnm] = unQuote(tag.substr(spos, epos - spos));
             //std::cerr << "attr value [" << attrs[attrnm] << "]\n";
             if (epos == tag.size() - 1) {
                 break;
@@ -407,8 +406,7 @@ private:
         std::string::const_iterator it = s.begin();
         while (it != s.end()) {
             if (*it != '&') {
-                out += *it;
-                it++;
+                out += *it++;
                 continue;
             }
             if (it == s.end()) {
@@ -418,8 +416,7 @@ private:
             it++;
             std::string code;
             while (it != s.end() && *it != ';') {
-                code += *it;
-                it++;
+                code += *it++;
             }
             if (it == s.end()) {
                 // Unexpected
