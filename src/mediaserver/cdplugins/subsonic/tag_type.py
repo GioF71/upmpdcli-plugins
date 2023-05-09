@@ -7,6 +7,7 @@ class TagType(Enum):
     GENRES = 20, "genres", "Genres", None
     ARTISTS_ALL = 30, "artists_all", "Artists", None
     ARTISTS_INDEXED = 40, "artists_ndx", "Artists (By Initial)", None
+    PLAYLISTS = 50, "playlists", "Playlists", None
 
     def __init__(self, 
             num : int, 

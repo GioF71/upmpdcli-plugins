@@ -37,6 +37,9 @@ from subsonic_connector.artists import Artists
 from subsonic_connector.artists_initial import ArtistsInitial
 from subsonic_connector.artist import Artist
 from subsonic_connector.artist_list_item import ArtistListItem
+from subsonic_connector.playlists import Playlists
+from subsonic_connector.playlist import Playlist
+from subsonic_connector.playlist_entry import PlaylistEntry
 
 from tag_type import TagType
 from element_type import ElementType
@@ -53,6 +56,8 @@ from album_util import get_last_path_element
 from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
 from album_util import SortSongListResult
+
+import secrets
 
 import libsonic
 
@@ -90,6 +95,7 @@ __whitelist_codecs : list[str] = str(getOptionValue("subsonicwhitelistcodecs", "
 __allow_blacklisted_codec_in_song : int = int(getOptionValue("subsonicallowblacklistedcodecinsong", "1"))
 
 __tag_enabled_prefix : str = "subsonictagenabled"
+__autostart : int = int(getOptionValue("subsonicautostart", "0"))
 
 __tag_enabled_default : dict[str, bool] = {
     TagType.RANDOM.getTagName(): True, # example
@@ -199,12 +205,49 @@ def __initial_caching_tags():
         _cache_element_value(ElementType.TAG, tag_type.getTagName(), album_list[index].getId())
         index += 1
 
+def __initial_caching_genre(genre : str):
+    msgproc.log(f"Processing genre [{genre}]")
+    if _is_element_cached(ElementType.GENRE, genre):
+        msgproc.log(f"Genre [{genre}] already has art, skipping")
+        return
+    msgproc.log(f"Genre {genre} has not art yet, looking for an album")
+    # pick an album for the genre
+    album_list_res : Response[AlbumList] = connector.getAlbumList(
+        ltype = ListType.BY_GENRE, 
+        size = __subsonic_max_return_size, 
+        genre = genre)
+    if album_list_res.isOk() and album_list_res.getObj() and len(album_list_res.getObj().getAlbums()) > 0:
+        album_list : AlbumList = album_list_res.getObj()
+        album : Album = secrets.choice(album_list.getAlbums())
+        if album:
+            msgproc.log(f"Caching genre [{genre}] with album_id [{album.getId()}]")
+            _cache_element_value(ElementType.GENRE, genre, album.getId())
+
+def __initial_caching_genres():
+    genres_response : Response[Genres] = connector.getGenres()
+    if not genres_response.isOk(): return
+    genre_list = genres_response.getObj().getGenres()
+    for current_genre in genre_list:
+        genre : str = current_genre.getName()
+        if genre: __initial_caching_genre(genre)
+
+def __initial_caching_playlists():
+    response : Response[Playlists] = connector.getPlaylists()
+    if not response.isOk(): return
+    playlists : Playlists = response.getObj().getPlaylists()
+    if len(playlists) == 0: return
+    select_playlist : Playlist = secrets.choice(playlists)
+    if not select_playlist: return
+    _cache_element_value(ElementType.TAG, TagType.PLAYLISTS.getTagName(), select_playlist.getCoverArt())
+
 def __initial_caching():
     __initial_caching_by_newest()
     __initial_caching_by_artist_initials()
     __initial_caching_tags()
+    __initial_caching_genres()
+    __initial_caching_playlists()
 
-__subsonic_plugin_release : str = "0.1.4"
+__subsonic_plugin_release : str = "0.1.5"
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
 # something to do (e.g. the _g_init thing, but this could be something else).
@@ -400,6 +443,21 @@ def _artist_to_entry(
         objid, 
         artist_name,
         arturi = artist_art_uri)
+    return entry
+
+def _playlist_to_entry(
+        objid, 
+        playlist : Playlist) -> direntry:
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.PLAYLIST.getName(), 
+        playlist.getId())
+    id : str = _create_objid_simple(objid, __thing_codec.encode(json.dumps(identifier.getDictionary())))
+    art_uri = connector.buildCoverArtUrl(playlist.getCoverArt()) if playlist.getCoverArt() else None
+    entry = direntry(id, 
+        objid, 
+        playlist.getName())
+    if art_uri:
+        _set_album_art_from_uri(art_uri, entry)
     return entry
 
 def _artist_list_item_to_entry(
@@ -600,7 +658,7 @@ def __load_albums_by_genre_artist(
     current_album : Album
     artist_tag_cached : bool = False
     for current_album in album_list:
-        if genre in current_album.getGenre():
+        if current_album.getGenre() and genre in current_album.getGenre():
             if not artist_tag_cached:
                 _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
                 artist_tag_cached = True
@@ -660,6 +718,53 @@ def _create_list_of_artists(objid, entries : list) -> list:
                 current_artist.getId(), 
                 current_artist.getName()))
             __artist_initial_by_id[current_artist.getId()] = current_artists_initial.getName()
+    return entries
+
+def _create_list_of_playlist(objid, entries : list) -> list:
+    response : Response[Playlists] = connector.getPlaylists()
+    if not response.isOk(): return entries
+    playlists : Playlists = response.getObj()
+    playlist : Playlist
+    for playlist in playlists.getPlaylists():
+        entry : dict = _playlist_to_entry(
+            objid, 
+            playlist)
+        entries.append(entry)
+    return entries
+
+def _playlist_entry_to_entry(
+        objid, 
+        playlist_entry : PlaylistEntry) -> dict:
+    entry = {}
+    identifier : ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), playlist_entry.getId())
+    id : str = _create_objid_simple(objid, __thing_codec.encode(json.dumps(identifier.getDictionary())))
+    entry['id'] = id
+    entry['pid'] = playlist_entry.getId()
+    entry['upnp:class'] = 'object.item.audioItem.musicTrack'
+    song_uri : str = connector.buildSongUrl(playlist_entry.getId())
+    entry['uri'] = song_uri
+    title : str = playlist_entry.getTitle()
+    entry['tt'] = title
+    entry['tp']= 'it'
+    _set_track_number(playlist_entry.getTrack(), entry)
+    entry['upnp:artist'] = playlist_entry.getArtist()
+    entry['upnp:album'] = playlist_entry.getAlbum()
+    entry['res:mime'] = playlist_entry.getContentType()
+    albumArtURI : str = connector.buildCoverArtUrl(playlist_entry.getId())
+    if albumArtURI: _set_album_art_from_uri(albumArtURI, entry)
+    entry['duration'] = str(playlist_entry.getDuration())
+    return entry
+
+def _create_list_of_playlist_entries(objid, playlist_id : str, entries : list) -> list:
+    response : Response[Playlist] = connector.getPlaylist(playlist_id)
+    if not response.isOk(): return entries
+    entry_list : list[PlaylistEntry] = response.getObj().getEntries()
+    playlist_entry : PlaylistEntry
+    for playlist_entry in entry_list:
+        entry : dict = _playlist_entry_to_entry(
+            objid,
+            playlist_entry)
+        entries.append(entry)
     return entries
 
 def _create_list_of_artist_initials(objid, entries : list) -> list:
@@ -909,6 +1014,13 @@ def _handler_tag_artists(objid, item_identifier : ItemIdentifier, entries : list
 def _handler_tag_artists_indexed(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_artist_initials(objid, entries)
 
+def _handler_tag_playlists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _create_list_of_playlist(objid, entries)
+
+def _handler_element_playlist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    return _create_list_of_playlist_entries(objid, playlist_id, entries)
+
 def _handler_element_artist_initial(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_initial : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     entries = __load_artists_by_initial(objid, artist_initial, entries)
@@ -971,7 +1083,8 @@ __tag_action_dict : dict = {
     TagType.RANDOM.getTagName(): _handler_tag_random_flowing,
     TagType.GENRES.getTagName(): _handler_tag_genres_flowing,
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
-    TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed
+    TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
+    TagType.PLAYLISTS.getTagName(): _handler_tag_playlists
 }
 
 __elem_action_dict : dict = {
@@ -982,6 +1095,7 @@ __elem_action_dict : dict = {
     ElementType.ALBUM.getName(): _handler_element_album,
     ElementType.GENRE_ARTIST_LIST.getName(): _handler_element_genre_flowing_artists,
     ElementType.GENRE_ALBUM_LIST.getName(): _handler_element_genre_album_list,
+    ElementType.PLAYLIST.getName(): _handler_element_playlist,
     ElementType.TRACK.getName(): _handler_element_track
 }
 
@@ -1095,5 +1209,8 @@ def search(a):
     #msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 
+if __autostart == 1:
+    _initsubsonic()
+msgproc.log("Subsonic running")
 msgproc.mainloop()
 

@@ -10,7 +10,8 @@ class ElementType(Enum):
     ARTIST = 6, "artist"
     GENRE_ARTIST = 7, "genre_artist"
     ARTIST_INITIAL = 8, "artist_initial"
-    TRACK = 9, "track"
+    TRACK = 9, "track",
+    PLAYLIST = 10, "playlist"
 
     def __init__(self, 
             num : int, 
