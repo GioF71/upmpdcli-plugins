@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+__subsonic_plugin_release : str = "0.1.6"
+
 import cmdtalkplugin
 import conftree
 import json
@@ -22,7 +24,6 @@ from upmplgutils import *
 from enum import Enum
 from upmplgutils import uplog, setidprefix, direntry, getOptionValue
 
-from subsonic_connector.configuration import ConfigurationInterface
 from subsonic_connector.connector import Connector
 from subsonic_connector.response import Response
 from subsonic_connector.album_list import AlbumList
@@ -40,6 +41,8 @@ from subsonic_connector.artist_list_item import ArtistListItem
 from subsonic_connector.playlists import Playlists
 from subsonic_connector.playlist import Playlist
 from subsonic_connector.playlist_entry import PlaylistEntry
+
+from config import UpmpdcliSubsonicConfig
 
 from tag_type import TagType
 from element_type import ElementType
@@ -76,15 +79,6 @@ def _getTagTypeByName(tag_name : str) -> TagType:
         if tag_name == member.getTagName():
             return member
     raise Exception(f"_getTagTypeByName with {tag_name} NOT found")
-
-class UpmpdcliSubsonicConfig(ConfigurationInterface):
-    
-    def getBaseUrl(self) -> str: return getOptionValue('subsonicbaseurl')
-    def getPort(self) -> int: return getOptionValue('subsonicport')
-    def getUserName(self) -> str: return getOptionValue('subsonicuser')
-    def getPassword(self) -> str: return getOptionValue('subsonicpassword')
-    def getApiVersion(self) -> str: return libsonic.API_VERSION
-    def getAppName(self) -> str: return "upmpdcli"
 
 __subsonic_max_return_size : int = 500 # hard limit
 
@@ -240,14 +234,23 @@ def __initial_caching_playlists():
     if not select_playlist: return
     _cache_element_value(ElementType.TAG, TagType.PLAYLISTS.getTagName(), select_playlist.getCoverArt())
 
+def __initial_caching_recently_played():
+    response : Response[AlbumList] = connector.getAlbumList(
+        ltype = ListType.RECENT, 
+        size = 1)
+    if not response.isOk(): return
+    album_list : list[Album] = response.getObj().getAlbums()
+    if len(album_list) == 0: return
+    select : Album = album_list[0]
+    _cache_element_value(ElementType.TAG, TagType.RECENTLY_PLAYED.getTagName(), select.getId())
+
 def __initial_caching():
     __initial_caching_by_newest()
     __initial_caching_by_artist_initials()
     __initial_caching_tags()
     __initial_caching_genres()
     __initial_caching_playlists()
-
-__subsonic_plugin_release : str = "0.1.5"
+    __initial_caching_recently_played()
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
 # something to do (e.g. the _g_init thing, but this could be something else).
@@ -536,6 +539,8 @@ def _get_albums(query_type : str, size : int = __items_per_page, offset : int = 
         albumListResponse = connector.getNewestAlbumList(size = size, offset = offset)
     elif TagType.RANDOM.getQueryType() == query_type:
         albumListResponse = connector.getRandomAlbumList(size = size, offset = offset)
+    elif TagType.RECENTLY_PLAYED.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(ltype = ListType.RECENT, size = size, offset = offset)
     if not albumListResponse.isOk(): raise Exception(f"Cannot execute query {query_type} for size {size} offset {offset}")
     return albumListResponse.getObj().getAlbums()
 
@@ -617,7 +622,6 @@ def _load_albums_by_type(
         tagType : TagType,
         offset : int = 0,
         size : int = __items_per_page) -> list:
-    #offset : str = str(offset)
     albumList : list[Album] = _get_albums(tagType.getQueryType(), size = size, offset = str(offset))
     sz : int = len(albumList)
     current_album : Album
@@ -658,16 +662,18 @@ def __load_albums_by_genre_artist(
     current_album : Album
     artist_tag_cached : bool = False
     for current_album in album_list:
-        if current_album.getGenre() and genre in current_album.getGenre():
-            if not artist_tag_cached:
-                _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
-                artist_tag_cached = True
-            _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-            #msgproc.log(f"__load_albums_by_genre_artist caching for {ElementType.GENRE_ARTIST_LIST.getName()} {genre} to album_id:{current_album.getId()}")
-            _cache_element_value(ElementType.GENRE_ARTIST_LIST, genre, current_album.getId())
-            #msgproc.log(f"__load_albums_by_genre_artist caching for {ElementType.GENRE_ARTIST_LIST.getName()} {current_album.getGenre()} album_id:{current_album.getId()}")
-            _cache_element_value(ElementType.GENRE_ARTIST_LIST, current_album.getGenre(), current_album.getId())
-            entries.append(_album_to_entry(objid, current_album))
+        # TODO filter by genre. Currently does not work properly
+        # TODO because getGenre() only reports one genre
+        # TODO so the next 'if' has been disabled
+        # TODO in order to avoid empty lists
+        #if current_album.getGenre() and genre in current_album.getGenre():
+        if not artist_tag_cached:
+            _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
+            artist_tag_cached = True
+        _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+        _cache_element_value(ElementType.GENRE_ARTIST_LIST, genre, current_album.getId())
+        _cache_element_value(ElementType.GENRE_ARTIST_LIST, current_album.getGenre(), current_album.getId())
+        entries.append(_album_to_entry(objid, current_album))
     return entries
 
 def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> list:
@@ -840,6 +846,22 @@ def _handler_tag_newest_flowing(objid, item_identifier : ItemIdentifier, entries
         next_page : dict = _create_tag_next_entry(
             objid = objid, 
             tag = TagType.NEWEST, 
+            offset = offset + len(entries))
+        entries.append(next_page)
+    return entries
+
+def _handler_tag_recently_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    entries = _load_albums_by_type(
+        objid = objid, 
+        entries = entries, 
+        tagType = TagType.RECENTLY_PLAYED, 
+        offset = offset)
+    # offset is: current offset + the entries length
+    if (len(entries) == __items_per_page):
+        next_page : dict = _create_tag_next_entry(
+            objid = objid, 
+            tag = TagType.RECENTLY_PLAYED, 
             offset = offset + len(entries))
         entries.append(next_page)
     return entries
@@ -1033,13 +1055,26 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
 
 def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    artist_response : Response[Artist] = connector.getArtist(artist_id)
+    if not artist_response.isOk(): raise Exception(f"Cannot retrieve artist by id {artist_id}")
+    artist : Artist = artist_response.getObj()
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
-    msgproc.log(f"_handler_element_genre_artist artist_id {artist_id} genre {genre}")
-    entries = __load_albums_by_genre_artist(
-        objid, 
-        artist_id = artist_id, 
-        genre = genre, 
-        entries = entries)
+    album_list : list[Album] = None
+    offset : int = 0
+    while not album_list or len(album_list) == __subsonic_max_return_size:
+        album_list_response : Response[AlbumList] = connector.getAlbumList(
+            ltype = ListType.BY_GENRE,
+            size = __subsonic_max_return_size,
+            genre = genre)
+        if not album_list_response.isOk(): raise Exception(f"Failed to load albums for genre {genre} offset {offset}")
+        album_list : list[Album] = album_list_response.getObj().getAlbums()
+        album : Album
+        for album in album_list:
+            if artist.getName() in album.getArtist():
+                # add the album
+                album_entry : dict = _album_to_entry(objid, album)       
+                entries.append(album_entry)
+        offset += len(album_list)
     return entries
 
 def _handler_element_album(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1080,6 +1115,7 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
 
 __tag_action_dict : dict = {
     TagType.NEWEST.getTagName(): _handler_tag_newest_flowing,
+    TagType.RECENTLY_PLAYED.getTagName(): _handler_tag_recently_played,
     TagType.RANDOM.getTagName(): _handler_tag_random_flowing,
     TagType.GENRES.getTagName(): _handler_tag_genres_flowing,
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,

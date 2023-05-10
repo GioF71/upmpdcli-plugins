@@ -2,12 +2,13 @@ from enum import Enum
 
 class TagType(Enum):
     
-    NEWEST = 0, "newest", "Newest Albums", "newest"
-    RANDOM = 10, "random", "Random Albums", "random"
-    GENRES = 20, "genres", "Genres", None
-    ARTISTS_ALL = 30, "artists_all", "Artists", None
-    ARTISTS_INDEXED = 40, "artists_ndx", "Artists (By Initial)", None
-    PLAYLISTS = 50, "playlists", "Playlists", None
+    NEWEST = 0, "n", "Newest Albums", "newest"
+    RECENTLY_PLAYED = 10, "rp", "Recently Played", "recent"
+    RANDOM = 20, "r", "Random Albums", "random"
+    GENRES = 30, "g", "Genres", None
+    ARTISTS_ALL = 40, "a_all", "Artists", None
+    ARTISTS_INDEXED = 50, "a_ndx", "Artists (By Initial)", None
+    PLAYLISTS = 60, "pl", "Playlists", None
 
     def __init__(self, 
             num : int, 

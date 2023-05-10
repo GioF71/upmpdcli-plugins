@@ -725,9 +725,14 @@ Only a limited set of features are currently available:
 
 - List Newest Albums
 - List Random Albums
-- List Genres
+- List Recently Played Albums
+- List Genres: each Genre return Albums and the relevant Artists
+- List Artists (All)
+- List Artists (By Initial)
+- List Playlists
 - Search Albums
 - Search Tracks
+- Search Artists
 
 Clicking on a Genre will show a list of albums belonging to that genre.
 
