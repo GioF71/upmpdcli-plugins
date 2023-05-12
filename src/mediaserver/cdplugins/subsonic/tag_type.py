@@ -4,11 +4,14 @@ class TagType(Enum):
     
     NEWEST = 0, "n", "Newest Albums", "newest"
     RECENTLY_PLAYED = 10, "rp", "Recently Played", "recent"
-    RANDOM = 20, "r", "Random Albums", "random"
-    GENRES = 30, "g", "Genres", None
-    ARTISTS_ALL = 40, "a_all", "Artists", None
-    ARTISTS_INDEXED = 50, "a_ndx", "Artists (By Initial)", None
-    PLAYLISTS = 60, "pl", "Playlists", None
+    HIGHEST_RATED = 20, "hr", "Highest Rated", "highest"
+    FAVOURITES = 30, "fav", "Favourites", "starred"
+    MOST_PLAYED = 40, "mp", "Most Played", "frequent"
+    RANDOM = 50, "r", "Random Albums", "random"
+    GENRES = 60, "g", "Genres", None
+    ARTISTS_ALL = 70, "a_all", "Artists", None
+    ARTISTS_INDEXED = 80, "a_ndx", "Artists (By Initial)", None
+    PLAYLISTS = 90, "pl", "Playlists", None
 
     def __init__(self, 
             num : int, 

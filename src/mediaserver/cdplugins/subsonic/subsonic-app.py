@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.6"
+__subsonic_plugin_release : str = "0.1.7"
 
 import cmdtalkplugin
 import conftree
@@ -43,6 +43,7 @@ from subsonic_connector.playlist import Playlist
 from subsonic_connector.playlist_entry import PlaylistEntry
 
 from config import UpmpdcliSubsonicConfig
+from config import subsonic_max_return_size
 
 from tag_type import TagType
 from element_type import ElementType
@@ -60,9 +61,14 @@ from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
 from album_util import SortSongListResult
 
+from art_retriever import tag_art_retriever
+from art_retriever import element_art_retriever
+from art_retriever import art_by_artist_dict_creator
+from art_retriever import art_by_artist_initial_dict_creator
+from art_retriever import artist_art_retriever
 import secrets
 
-import libsonic
+import time
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = "0$subsonic$"
@@ -80,7 +86,7 @@ def _getTagTypeByName(tag_name : str) -> TagType:
             return member
     raise Exception(f"_getTagTypeByName with {tag_name} NOT found")
 
-__subsonic_max_return_size : int = 500 # hard limit
+__subsonic_max_return_size : int = subsonic_max_return_size
 
 __items_per_page : int = min(__subsonic_max_return_size, int(getOptionValue("subsonicitemsperpage", "36")))
 __append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"))
@@ -145,7 +151,7 @@ def __initial_caching_by_newest():
         for album in album_list:
             if not first_processed:
                 # action to do once
-                _cache_element_value(ElementType.TAG, TagType.NEWEST.getTagName(), album.getId())
+                #_cache_element_value(ElementType.TAG, TagType.NEWEST.getTagName(), album.getId())
                 _cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), album.getId())
                 _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), album.getId())
                 _cache_element_value(ElementType.TAG, TagType.ARTISTS_INDEXED.getTagName(), album.getId())
@@ -185,24 +191,10 @@ def __initial_caching_of_artist_initial(current_artists_initial : ArtistsInitial
             # finished for initial
             return
 
-def __initial_caching_tags():
-    tag_type_list : list[TagType] = [
-        TagType.GENRES,
-        TagType.ARTISTS_ALL, 
-        TagType.ARTISTS_INDEXED, 
-        TagType.RANDOM]
-    sz : int = len(tag_type_list)
-    album_list : list[Album] = _get_albums(TagType.RANDOM.getQueryType(), sz)
-    index : int = 0
-    tag_type : TagType
-    for tag_type in tag_type_list:
-        _cache_element_value(ElementType.TAG, tag_type.getTagName(), album_list[index].getId())
-        index += 1
-
 def __initial_caching_genre(genre : str):
     msgproc.log(f"Processing genre [{genre}]")
     if _is_element_cached(ElementType.GENRE, genre):
-        msgproc.log(f"Genre [{genre}] already has art, skipping")
+        #msgproc.log(f"Genre [{genre}] already has art, skipping")
         return
     msgproc.log(f"Genre {genre} has not art yet, looking for an album")
     # pick an album for the genre
@@ -225,32 +217,10 @@ def __initial_caching_genres():
         genre : str = current_genre.getName()
         if genre: __initial_caching_genre(genre)
 
-def __initial_caching_playlists():
-    response : Response[Playlists] = connector.getPlaylists()
-    if not response.isOk(): return
-    playlists : Playlists = response.getObj().getPlaylists()
-    if len(playlists) == 0: return
-    select_playlist : Playlist = secrets.choice(playlists)
-    if not select_playlist: return
-    _cache_element_value(ElementType.TAG, TagType.PLAYLISTS.getTagName(), select_playlist.getCoverArt())
-
-def __initial_caching_recently_played():
-    response : Response[AlbumList] = connector.getAlbumList(
-        ltype = ListType.RECENT, 
-        size = 1)
-    if not response.isOk(): return
-    album_list : list[Album] = response.getObj().getAlbums()
-    if len(album_list) == 0: return
-    select : Album = album_list[0]
-    _cache_element_value(ElementType.TAG, TagType.RECENTLY_PLAYED.getTagName(), select.getId())
-
 def __initial_caching():
     __initial_caching_by_newest()
     __initial_caching_by_artist_initials()
-    __initial_caching_tags()
     __initial_caching_genres()
-    __initial_caching_playlists()
-    __initial_caching_recently_played()
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
 # something to do (e.g. the _g_init thing, but this could be something else).
@@ -399,6 +369,18 @@ def _genre_flowing_to_entry(objid, current_genre : Genre) -> direntry:
     #msgproc.log(f"_genre_flowing_to_entry storing with thing_key {thing_key} id {id}")
     return entry
 
+def _get_artist_art(artist_id : str) -> str:
+    artist_art : str = _get_cached_element(ElementType.ARTIST, artist_id)
+    if not artist_art:
+        # might be new, search for art
+        msgproc.log(f"_get_artist_art searching artist_art for artist_id {artist_id}")
+        identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST, artist_id)
+        artist_art = artist_art_retriever(connector, identifier)
+        if artist_art:
+            # cache art
+            _cache_element_value(ElementType.ARTIST, artist_id, artist_art)
+    return artist_art
+
 def _genre_artist_to_entry(
         objid, 
         artist_id : str,
@@ -414,7 +396,7 @@ def _genre_artist_to_entry(
     artist_art : str = _get_cached_element(ElementType.GENRE_ARTIST, artist_id)
     if not artist_art:
         # try art for artist in general
-        artist_art : str = _get_cached_element(ElementType.ARTIST, artist_id)
+        artist_art : str = _get_artist_art(artist_id)
     if artist_art:
         #msgproc.log(f"_genre_artist_to_entry cache entry hit for {artist_id}")
         artist_art_uri = connector.buildCoverArtUrl(artist_art)
@@ -429,19 +411,20 @@ def _genre_artist_to_entry(
 def _artist_to_entry(
         objid, 
         artist_id : str,
-        artist_name : str) -> direntry:
+        artist_name : str,
+        art_by_artist_id : dict[str, str] = None) -> direntry:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(), 
         artist_id)
     id : str = _create_objid_simple(objid, __thing_codec.encode(json.dumps(identifier.getDictionary())))
-    #msgproc.log(f"_artist_to_entry for {artist_name}")
-    artist_art_uri = None
-    artist_art : str = _get_cached_element(ElementType.ARTIST, artist_id)
+    artist_art_uri : str = None
+    artist_art : str = art_by_artist_id[artist_id] if art_by_artist_id and artist_id in art_by_artist_id else None
+    if not artist_art:
+        #msgproc.log(f"_artist_to_entry no entry for artist_id {artist_id} artist_name {artist_name}")
+        # TODO avoid caches!
+        artist_art = _get_artist_art(artist_id)
     if artist_art:
-        #msgproc.log(f"_artist_to_entry cache entry hit for {artist_id}")
         artist_art_uri = connector.buildCoverArtUrl(artist_art)
-    #else:
-    #    msgproc.log(f"_artist_to_entry cache entry miss for {artist_id}")
     entry = direntry(id, 
         objid, 
         artist_name,
@@ -465,14 +448,17 @@ def _playlist_to_entry(
 
 def _artist_list_item_to_entry(
         objid, 
-        artist_initial : str) -> direntry:
+        artist_initial : str,
+        art_by_initial : dict[str, str] = None) -> direntry:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_INITIAL.getName(), 
         artist_initial)
     id : str = _create_objid_simple(objid, __thing_codec.encode(json.dumps(identifier.getDictionary())))
     #msgproc.log(f"_artist_list_item_to_entry initial {artist_initial}")
     artist_art_uri = None
-    artist_art : str = _get_cached_element(ElementType.ARTIST_INITIAL, artist_initial)
+    artist_art : str = art_by_initial[artist_initial] if art_by_initial and artist_initial in art_by_initial else None
+    if not artist_art:
+        artist_art = _get_cached_element(ElementType.ARTIST_INITIAL, artist_initial)
     if artist_art:
         artist_art_uri = connector.buildCoverArtUrl(artist_art)
     entry = direntry(id, 
@@ -541,6 +527,12 @@ def _get_albums(query_type : str, size : int = __items_per_page, offset : int = 
         albumListResponse = connector.getRandomAlbumList(size = size, offset = offset)
     elif TagType.RECENTLY_PLAYED.getQueryType() == query_type:
         albumListResponse = connector.getAlbumList(ltype = ListType.RECENT, size = size, offset = offset)
+    elif TagType.MOST_PLAYED.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(ltype = ListType.FREQUENT, size = size, offset = offset)
+    elif TagType.HIGHEST_RATED.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(ltype = ListType.HIGHEST, size = size, offset = offset)
+    elif TagType.FAVOURITES.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(ltype = ListType.STARRED, size = size, offset = offset)
     if not albumListResponse.isOk(): raise Exception(f"Cannot execute query {query_type} for size {size} offset {offset}")
     return albumListResponse.getObj().getAlbums()
 
@@ -676,7 +668,27 @@ def __load_albums_by_genre_artist(
         entries.append(_album_to_entry(objid, current_album))
     return entries
 
+def __create_art_by_artist_id_cache() -> dict[str, str]:
+    start : float = time.time()
+    msgproc.log(f"__create_art_by_artist_id_cache creating art cache ...")
+    art_by_artist_id : dict[str, str] = art_by_artist_dict_creator(connector)
+    end : float = time.time()
+    #print(end - start)
+    msgproc.log(f"__create_art_by_artist_id_cache art cache created. Elapsed (sec) {end - start}")
+    return art_by_artist_id
+
+def __create_art_by_initial_cache() -> dict[str, str]:
+    start : float = time.time()
+    msgproc.log(f"__create_art_by_initial_cache creating art cache ...")
+    art_by_artist_id : dict[str, str] = art_by_artist_initial_dict_creator(connector)
+    end : float = time.time()
+    #print(end - start)
+    msgproc.log(f"__create_art_by_initial_cache art cache created. Elapsed (sec) {end - start}")
+    return art_by_artist_id
+
 def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> list:
+    # caching disabled, too slow
+    #art_by_artist_id : dict[str, str] = __create_art_by_artist_id_cache()
     artists_response : Response[Artists] = connector.getArtists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
@@ -687,12 +699,13 @@ def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> li
             for current_artist in current_artists_initial.getArtistListItems():
                 if not current_artist.getId() in __artist_initial_by_id:
                     __artist_initial_by_id[current_artist.getId()] = current_artists_initial.getName()
+                msgproc.log(f"__load_artists_by_initial loading art for artist_id {current_artist.getId()} artist_name {current_artist.getName()}")
                 entry : dict = _artist_to_entry(
                     objid, 
                     current_artist.getId(), 
                     current_artist.getName())
                 # if artist has art, set that art for initials
-                artist_art : str = _get_cached_element(ElementType.ARTIST, current_artist.getId())
+                artist_art : str = _get_artist_art(current_artist.getId())
                 if artist_art:
                     _cache_element_value(ElementType.TAG, TagType.ARTISTS_INDEXED.getTagName(), artist_art)
                 entries.append(entry)
@@ -712,6 +725,8 @@ def _create_list_of_genres_flowing(objid, entries : list) -> list:
     return entries
 
 def _create_list_of_artists(objid, entries : list) -> list:
+    # caching disabled, too slow
+    #art_by_artist_id : dict[str, str] = __create_art_by_artist_id_cache()
     artists_response : Response[Artists] = connector.getArtists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
@@ -719,10 +734,11 @@ def _create_list_of_artists(objid, entries : list) -> list:
     for current_artists_initial in artists_initial:
         current_artist : ArtistListItem
         for current_artist in current_artists_initial.getArtistListItems():
+            #msgproc.log(f"_create_list_of_artists loading art for artist_id {current_artist.getId()} artist_name {current_artist.getName()}")
             entries.append(_artist_to_entry(
-                objid, 
-                current_artist.getId(), 
-                current_artist.getName()))
+                objid = objid, 
+                artist_id = current_artist.getId(), 
+                artist_name = current_artist.getName()))
             __artist_initial_by_id[current_artist.getId()] = current_artists_initial.getName()
     return entries
 
@@ -774,15 +790,18 @@ def _create_list_of_playlist_entries(objid, playlist_id : str, entries : list) -
     return entries
 
 def _create_list_of_artist_initials(objid, entries : list) -> list:
+    #disabled, too slow
+    #art_by_initial : dict[str, str] = __create_art_by_initial_cache()
     artists_response : Response[Artists] = connector.getArtists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
     for current_artists_initial in artists_initial:
         entry : dict = _artist_list_item_to_entry(
-            objid, 
-            current_artists_initial.getName())
+            objid = objid, 
+            artist_initial = current_artists_initial.getName())
         entries.append(entry)
+        # TODO avoid caches!
         art_id = _get_cached_element(ElementType.ARTIST_INITIAL, current_artists_initial.getName())
         if art_id:
             _set_album_art_from_album_id(art_id, entry)
@@ -828,59 +847,48 @@ def _show_tags(objid, entries : list) -> list:
                 id = id, 
                 pid = objid, 
                 title = _getTagTypeByName(tag.getTagName()).getTagTitle())
-            art_id = _get_cached_element(ElementType.TAG, tag.getTagName())
+            art_id : str = None
+            if tagname in tag_art_retriever:
+                art_id = tag_art_retriever[tagname](connector)
+            #if not art_id: art_id = _get_cached_element(ElementType.TAG, tag.getTagName())
             if art_id:
                 _set_album_art_from_album_id(art_id, entry)
             entries.append(entry)
     return entries
 
-def _handler_tag_newest_flowing(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def __handler_tag_type(objid, item_identifier : ItemIdentifier, tag_type : TagType, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     entries = _load_albums_by_type(
         objid = objid, 
         entries = entries, 
-        tagType = TagType.NEWEST, 
+        tagType = tag_type, 
         offset = offset)
     # offset is: current offset + the entries length
     if (len(entries) == __items_per_page):
         next_page : dict = _create_tag_next_entry(
             objid = objid, 
-            tag = TagType.NEWEST, 
+            tag = tag_type, 
             offset = offset + len(entries))
         entries.append(next_page)
     return entries
+
+def _handler_tag_newest_flowing(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_type(objid, item_identifier, TagType.NEWEST, entries)
+
+def _handler_tag_most_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_type(objid, item_identifier, TagType.MOST_PLAYED, entries)
+
+def _handler_tag_favourites(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_type(objid, item_identifier, TagType.FAVOURITES, entries)
+
+def _handler_tag_highest_rated(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_type(objid, item_identifier, TagType.HIGHEST_RATED, entries)
 
 def _handler_tag_recently_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    entries = _load_albums_by_type(
-        objid = objid, 
-        entries = entries, 
-        tagType = TagType.RECENTLY_PLAYED, 
-        offset = offset)
-    # offset is: current offset + the entries length
-    if (len(entries) == __items_per_page):
-        next_page : dict = _create_tag_next_entry(
-            objid = objid, 
-            tag = TagType.RECENTLY_PLAYED, 
-            offset = offset + len(entries))
-        entries.append(next_page)
-    return entries
+    return __handler_tag_type(objid, item_identifier, TagType.RECENTLY_PLAYED, entries)
 
 def _handler_tag_random_flowing(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    entries = _load_albums_by_type(
-        objid = objid, 
-        entries = entries, 
-        tagType = TagType.RANDOM,
-        offset = offset)
-    # current offset is 0, next is current + items per page
-    if (len(entries) == __items_per_page):
-        next_page : dict = _create_tag_next_entry(
-            objid = objid, 
-            tag = TagType.RANDOM, 
-            offset = offset + len(entries))
-        entries.append(next_page)
-    return entries
+    return __handler_tag_type(objid, item_identifier, TagType.RANDOM, entries)
 
 def _handler_tag_genres_flowing(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_genres_flowing(objid, entries)
@@ -1116,6 +1124,9 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
 __tag_action_dict : dict = {
     TagType.NEWEST.getTagName(): _handler_tag_newest_flowing,
     TagType.RECENTLY_PLAYED.getTagName(): _handler_tag_recently_played,
+    TagType.HIGHEST_RATED.getTagName(): _handler_tag_highest_rated,
+    TagType.MOST_PLAYED.getTagName(): _handler_tag_most_played,
+    TagType.FAVOURITES.getTagName(): _handler_tag_favourites,
     TagType.RANDOM.getTagName(): _handler_tag_random_flowing,
     TagType.GENRES.getTagName(): _handler_tag_genres_flowing,
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
@@ -1238,10 +1249,9 @@ def search(a):
         for current_artist in artist_list:
             msgproc.log(f"found artist {current_artist.getName()}")
             entries.append(_artist_to_entry(
-                objid, 
-                current_artist.getId(),
-                current_artist.getName()))
-
+                objid = objid, 
+                artist_id = current_artist.getId(),
+                artist_name = current_artist.getName()))
     #msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 
