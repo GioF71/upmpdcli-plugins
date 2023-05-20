@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.8"
+__subsonic_plugin_release : str = "0.1.9"
 
 import cmdtalkplugin
 import json
@@ -39,6 +39,8 @@ from subsonic_connector.artist_list_item import ArtistListItem
 from subsonic_connector.playlists import Playlists
 from subsonic_connector.playlist import Playlist
 from subsonic_connector.playlist_entry import PlaylistEntry
+from subsonic_connector.internet_radio_stations import InternetRadioStations
+from subsonic_connector.internet_radio_station import InternetRadioStation
 
 from config import UpmpdcliSubsonicConfig
 from config import subsonic_max_return_size
@@ -66,7 +68,7 @@ from art_retriever import artist_initial_art_retriever
 from subsonic_util import get_random_art_by_genre
 
 import secrets
-
+import mimetypes
 import time
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
@@ -463,6 +465,28 @@ def _playlist_to_entry(
         _set_album_art_from_uri(art_uri, entry)
     return entry
 
+def _station_to_entry(
+        objid, 
+        station : InternetRadioStation) -> direntry:
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.INTERNET_RADIO.getName(), 
+        station.getId())
+    id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
+    entry : dict = {}
+    entry['id'] = id
+    entry['pid'] = station.getId()
+    entry['upnp:class'] = 'object.item.audioItem.audioBroadcast'
+    stream_url : str = station.getStreamUrl()
+    entry['uri'] = stream_url
+    entry['tt'] = station.getName()
+    entry['tp']= 'it'
+    entry['upnp:artist'] = "Internet Radio"
+    mime_type : str = mimetypes.guess_type(stream_url)[0]
+    msgproc.log(f"_station_to_entry guessed mimetype [{mime_type}] for stream_url [{stream_url}]")
+    if not mime_type: mime_type = "audio/mpeg"
+    entry['res:mime'] = mime_type
+    return entry
+
 def _song_data_to_entry(objid, entry_id : str, song : Song) -> dict:
     entry : dict = {}
     entry['id'] = entry_id
@@ -695,6 +719,18 @@ def _create_list_of_playlist(objid, entries : list) -> list:
         entry : dict = _playlist_to_entry(
             objid, 
             playlist)
+        entries.append(entry)
+    return entries
+
+def _create_list_of_internet_radio(objid, entries : list) -> list:
+    response : Response[InternetRadioStations] = connector.getInternetRadioStations()
+    if not response.isOk(): return entries
+    stations : InternetRadioStations = response.getObj()
+    station : InternetRadioStation
+    for station in stations.getStations():
+        entry : dict = _station_to_entry(
+            objid, 
+            station)
         entries.append(entry)
     return entries
 
@@ -984,6 +1020,9 @@ def _handler_tag_artists_indexed(objid, item_identifier : ItemIdentifier, entrie
 def _handler_tag_playlists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_playlist(objid, entries)
 
+def _handler_tag_internet_radios(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _create_list_of_internet_radio(objid, entries)
+
 def _handler_element_playlist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     return _create_list_of_playlist_entries(objid, playlist_id, entries)
@@ -1068,7 +1107,8 @@ __tag_action_dict : dict = {
     TagType.GENRES.getTagName(): _handler_tag_genres,
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
     TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
-    TagType.PLAYLISTS.getTagName(): _handler_tag_playlists
+    TagType.PLAYLISTS.getTagName(): _handler_tag_playlists,
+    TagType.INTERNET_RADIOS.getTagName(): _handler_tag_internet_radios
 }
 
 __elem_action_dict : dict = {

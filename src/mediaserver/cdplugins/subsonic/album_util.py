@@ -33,6 +33,7 @@ class Starter(Enum):
     CD = 0
     DISC = 1
     DISCO = 2
+    DISK = 3
 
 def __is_int(value : str) -> bool:
     try:
