@@ -27,7 +27,10 @@ class ElementType(Enum):
     ARTIST_INITIAL = 8, "artist_initial"
     TRACK = 9, "track",
     PLAYLIST = 10, "playlist"
-    INTERNET_RADIO = 11, "internet_radio"
+    INTERNET_RADIO = 11, "internet_radio",
+    RANDOM_SONG = 12, "random_song",
+    RANDOM_SONG_THE_SONG = 13, "random_song_the_song",
+    NEXT_RANDOM_SONGS = 14, "next_random_songs"
 
     def __init__(self, 
             num : int, 

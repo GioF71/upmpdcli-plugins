@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.9"
+__subsonic_plugin_release : str = "0.1.10"
 
 import cmdtalkplugin
 import json
@@ -41,6 +41,7 @@ from subsonic_connector.playlist import Playlist
 from subsonic_connector.playlist_entry import PlaylistEntry
 from subsonic_connector.internet_radio_stations import InternetRadioStations
 from subsonic_connector.internet_radio_station import InternetRadioStation
+from subsonic_connector.random_songs import RandomSongs
 
 from config import UpmpdcliSubsonicConfig
 from config import subsonic_max_return_size
@@ -167,7 +168,7 @@ def __initial_caching_by_newest():
                 _cache_element_value(ElementType.GENRE, genre, album.getId())
             artist_id : str = album.getArtistId()
             if not _is_element_cached(ElementType.ARTIST, artist_id):
-                _cache_element_value(ElementType.ARTIST, artist_id, album.getId())
+                _cache_element_value(ElementType.ARTIST, artist_id, album.getId(), force_update = False)
         offset += len(album_list)
 
 def __initial_caching_by_artist_initials():
@@ -301,8 +302,8 @@ def _album_version_to_entry(
     last_path : str = get_last_path_element(album_version_path)
     title = "{} [{}]".format(title, last_path)
     artist = current_album.getArtist()
-    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId(), force_update = False)
+    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId(), force_update = False)
     msgproc.log(f"_album_version_to_entry searching initial for artist_id {current_album.getArtistId()}")
     artist_initial : str = (__artist_initial_by_id[current_album.getArtistId()] 
         if current_album.getArtistId() in __artist_initial_by_id 
@@ -347,8 +348,8 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
             codecs_str : str = ",".join(codecs)
             title = "{} [{}]".format(title, codecs_str)
     artist = current_album.getArtist()
-    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
+    _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId(), force_update = False)
+    _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId(), force_update = False)
     artist_initial : str = (__artist_initial_by_id[current_album.getArtistId()] 
         if current_album.getArtistId() in __artist_initial_by_id 
         else None)
@@ -391,7 +392,7 @@ def _get_artist_art(artist_id : str) -> str:
         identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST, artist_id)
         artist_art = artist_art_retriever(connector, identifier)
         # store if found
-        if artist_art: _cache_element_value(ElementType.ARTIST, artist_id, artist_art)
+        if artist_art: _cache_element_value(ElementType.ARTIST, artist_id, artist_art, force_update = False)
     return artist_art
 
 def _genre_artist_to_entry(
@@ -468,6 +469,7 @@ def _playlist_to_entry(
 def _station_to_entry(
         objid, 
         station : InternetRadioStation) -> direntry:
+    stream_url : str = station.getStreamUrl()
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.INTERNET_RADIO.getName(), 
         station.getId())
@@ -476,7 +478,6 @@ def _station_to_entry(
     entry['id'] = id
     entry['pid'] = station.getId()
     entry['upnp:class'] = 'object.item.audioItem.audioBroadcast'
-    stream_url : str = station.getStreamUrl()
     entry['uri'] = stream_url
     entry['tt'] = station.getName()
     entry['tp']= 'it'
@@ -644,8 +645,8 @@ def __load_albums_by_artist(objid, artist_id : str, entries : list) -> list:
         if not artist_tag_cached:
             _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
             artist_tag_cached = True
-        _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-        _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+        _cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId(), force_update = False)
+        _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId(), force_update = False)
         entries.append(_album_to_entry(objid, current_album))
     return entries
 
@@ -869,6 +870,77 @@ def _handler_tag_recently_played(objid, item_identifier : ItemIdentifier, entrie
 def _handler_tag_random(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return __handler_tag_type(objid, item_identifier, TagType.RANDOM, entries)
 
+def _handler_tag_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _get_random_songs(objid, item_identifier, entries)
+
+def _handler_element_next_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _get_random_songs(objid, item_identifier, entries)
+
+def _handler_element_random_song_the_song(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_random_song start")
+    song_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_element_random_song start song_id {song_id}")
+    song : Song = connector.getSong(song_id).getObj()
+    if song:
+        entries.append(_song_to_entry(objid, song))
+    return entries
+
+def _random_song_to_entry(objid, song : Song) -> direntry:
+    name : str = f"{song.getTitle()} - {song.getAlbum()}"
+    art_id = song.getAlbumId()
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.RANDOM_SONG.getName(), 
+        song.getId())
+    id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
+    entry = direntry(id, 
+        objid, 
+        name)
+    _set_album_art_from_album_id(art_id, entry)
+    return entry
+
+def _handler_element_random_song(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_random_song start")
+    song_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_element_random_song start song_id {song_id}")
+    song : Song = connector.getSong(song_id).getObj()
+    song_identifier : ItemIdentifier = ItemIdentifier(ElementType.RANDOM_SONG_THE_SONG.getName(), song_id)
+    song_entry_id : str = _create_objid_simple(objid, __create_id_from_identifier(song_identifier))
+    song_entry = direntry(song_entry_id, 
+        objid, 
+        "Song")
+    _set_album_art_from_album_id(song.getAlbumId(), song_entry)
+    entries.append(song_entry)
+    album : Album = connector.getAlbum(song.getAlbumId()).getObj()
+    entries.append(_album_to_entry(objid, album))
+    artist_id : str = song.getArtistId() if song.getArtistId() else album.getArtistId()
+    if not artist_id: msgproc.log(f"_handler_element_random_song artist_id not found for song_id {song.getId()} album_id {song.getAlbumId()} artist {song.getArtist()}")
+    if artist_id:
+        msgproc.log(f"_handler_element_random_song searching artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
+        artist_response : Response[Artist] = connector.getArtist(artist_id)
+        artist : Artist = artist_response.getObj() if artist_response.isOk() else None 
+        if not artist: msgproc.log(f"_handler_element_random_song could not find artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
+        if artist: entries.append(_artist_to_entry(objid, artist.getId(), artist.getName()))
+    return entries
+
+def _get_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    response : Response[RandomSongs] = connector.getRandomSongs(size = __items_per_page)
+    if not response.isOk(): raise Exception(f"Cannot get random songs")
+    song_list : list[Song] = response.getObj().getSongs()
+    song : Song
+    for song in song_list:
+        entries.append(_random_song_to_entry(
+            objid = objid, 
+            song = song))
+    # no offset, so we always add next
+    next_identifier : ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
+    next_id : str = _create_objid_simple(objid, __create_id_from_identifier(next_identifier))
+    next_entry : dict = direntry(
+        id = next_id, 
+        pid = objid, 
+        title = "Next")
+    entries.append(next_entry)
+    return entries
+
 def _handler_tag_genres(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return _create_list_of_genres(objid, entries)
 
@@ -1085,6 +1157,24 @@ def _handler_element_album(objid, item_identifier : ItemIdentifier, entries : li
         return entries
     return _present_album(objid, item_identifier, entries)
 
+def _handler_element_radio_station(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_radio_station start")
+    station_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_element_radio_station should serve station_id {station_id}")
+    response : Response[InternetRadioStations] = connector.getInternetRadioStations()
+    if not response.isOk(): raise Exception(f"Cannot get the internet radio stations")
+    select_station : InternetRadioStation
+    station : InternetRadioStation
+    for station in response.getObj().getStations():
+        if station.getId() == station_id:
+            select_station = station
+            break
+    identifier : ItemIdentifier = ItemIdentifier(ElementType.INTERNET_RADIO.getName(), station_id)
+    id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
+    station_entry : dict = _station_to_entry(objid, select_station)
+    entries.append(station_entry)
+    return entries
+
 def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     #msgproc.log(f"_handler_element_track start")
     song_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1108,7 +1198,8 @@ __tag_action_dict : dict = {
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
     TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
     TagType.PLAYLISTS.getTagName(): _handler_tag_playlists,
-    TagType.INTERNET_RADIOS.getTagName(): _handler_tag_internet_radios
+    TagType.INTERNET_RADIOS.getTagName(): _handler_tag_internet_radios,
+    TagType.RANDOM_SONGS.getTagName(): _handler_tag_random_songs
 }
 
 __elem_action_dict : dict = {
@@ -1120,7 +1211,11 @@ __elem_action_dict : dict = {
     ElementType.GENRE_ARTIST_LIST.getName(): _handler_element_genre_artists,
     ElementType.GENRE_ALBUM_LIST.getName(): _handler_element_genre_album_list,
     ElementType.PLAYLIST.getName(): _handler_element_playlist,
-    ElementType.TRACK.getName(): _handler_element_track
+    ElementType.TRACK.getName(): _handler_element_track,
+    ElementType.RANDOM_SONG.getName(): _handler_element_random_song,
+    ElementType.NEXT_RANDOM_SONGS.getName(): _handler_element_next_random_songs,
+    ElementType.INTERNET_RADIO.getName(): _handler_element_radio_station,
+    ElementType.RANDOM_SONG_THE_SONG.getName(): _handler_element_random_song_the_song
 }
 
 @dispatcher.record('browse')

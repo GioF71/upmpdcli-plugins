@@ -25,10 +25,8 @@ class ItemIdentifierKey(Enum):
     OFFSET = 5, 'o'
     TAG_TYPE = 6, 't',
     ALBUM_VERSION_PATH_BASE64 = 7, 'ap',
-    RADIO_NAME = 8, 'rn',
-    RADIO_STREAM_URL = 9, 'rsu',
-    RADIO_HOMEPAGE_URL = 10, 'rhu'
-    
+    RADIO_NAME = 8, 'rn'
+        
     def __init__(self, 
             num : int, 
             key_name : str):

@@ -27,7 +27,8 @@ class TagType(Enum):
     ARTISTS_ALL = 70, "a_all", "Artists", None
     ARTISTS_INDEXED = 80, "a_ndx", "Artists (By Initial)", None
     PLAYLISTS = 90, "pl", "Playlists", None
-    INTERNET_RADIOS = 100, "ir", "Internet Radios", None
+    RANDOM_SONGS = 100, "rs", "Random Songs", None,
+    INTERNET_RADIOS = 110, "ir", "Internet Radios", None
 
     def __init__(self, 
             num : int, 
