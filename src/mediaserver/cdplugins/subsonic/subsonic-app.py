@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.10"
+__subsonic_plugin_release : str = "0.1.11"
 
 import cmdtalkplugin
 import json
@@ -1111,6 +1111,7 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
 
 def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_element_genre_artist for artist_id {artist_id}")
     artist_response : Response[Artist] = connector.getArtist(artist_id)
     if not artist_response.isOk(): raise Exception(f"Cannot retrieve artist by id {artist_id}")
     artist : Artist = artist_response.getObj()
@@ -1121,15 +1122,18 @@ def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entri
         album_list_response : Response[AlbumList] = connector.getAlbumList(
             ltype = ListType.BY_GENRE,
             size = __subsonic_max_return_size,
-            genre = genre)
+            genre = genre,
+            offset = offset)
         if not album_list_response.isOk(): raise Exception(f"Failed to load albums for genre {genre} offset {offset}")
         album_list : list[Album] = album_list_response.getObj().getAlbums()
+        msgproc.log(f"_handler_element_genre_artist found {len(album_list)} albums for genre {genre}")
         album : Album
         for album in album_list:
             if artist.getName() in album.getArtist():
                 # add the album
                 album_entry : dict = _album_to_entry(objid, album)       
                 entries.append(album_entry)
+                msgproc.log(f"_handler_element_genre_artist adding album {album.getId()} artist {album.getArtist()} title {album.getTitle()} entries {len(entries)}")
         offset += len(album_list)
     return entries
 

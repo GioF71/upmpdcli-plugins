@@ -34,6 +34,7 @@ class Starter(Enum):
     DISC = 1
     DISCO = 2
     DISK = 3
+    D = 4
 
 def __is_int(value : str) -> bool:
     try:
