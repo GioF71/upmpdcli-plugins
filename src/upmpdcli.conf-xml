@@ -358,7 +358,6 @@
 
 # <var name="msrootalias" type="string">
 # <brief>Media Server root alias Object ID.</brief>
-
 # <descr>Use the specified Media Server container as root. The Control Point will directly show this
 # container when connecting, which will avoid having to skip over the top levels if you don't use
 # them. (E.g. the active plugin list if there is only one plugin). The value is an UPnP object
@@ -403,6 +402,13 @@
 # '$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
 # starts up.</descr></var>
 #msiconpath = /usr/share/upmpdcli/icon.png
+
+# <var name="webserverdocumentroot" type="fn">
+# <brief>Directory from which the internal HTTP server will directly serve files</brief>
+# <descr>This is disabled by default for compatibility with older versions which never served
+# files directly from the filesystem. Some Mediaserver plugins ask to enable it, e.g. for
+# serving icon files (normally from directories under /usr/share/upmpdcli/www).</descr></var>
+#webserverdocumentroot = 
 
 # <grouptitle>Highresaudio streaming service parameters</grouptitle>
 

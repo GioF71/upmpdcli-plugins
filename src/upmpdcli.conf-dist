@@ -150,6 +150,8 @@
 #plgproxymethod = redirect
 # Path to the Media Server icon.
 #msiconpath = /usr/share/upmpdcli/icon.png
+# Directory from which the internal HTTP server will directly serve files
+#webserverdocumentroot =
 
 # Highresaudio streaming service parameters
 

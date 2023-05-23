@@ -192,6 +192,15 @@ bool startMediaServer(bool enable)
         msroot ? nullptr : rootdevice, string("uuid:")+ uuidMS, fnameMS, enable);
     if (nullptr == mediaserver)
         return false;
+    auto lib = LibUPnP::getLibUPnP();
+
+    std::string documentroot;
+    if (getOptionValue("webserverdocumentroot", documentroot)) {
+        if (!documentroot.empty() && path_isabsolute(documentroot)) {
+            lib->setWebServerDocumentRoot(documentroot);
+        }
+    }
+    
     devs.push_back(mediaserver);
     LOGDEB("Media server event loop" << endl);
     // msonly && !enableMediaServer is possible if we're just using

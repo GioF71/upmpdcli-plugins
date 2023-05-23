@@ -282,8 +282,6 @@ dist_cdpluginssubsonic_DATA = \
                  src/mediaserver/cdplugins/subsonic/codec.py \
                  src/mediaserver/cdplugins/subsonic/tag_type.py \
                  src/mediaserver/cdplugins/subsonic/element_type.py \
-                 src/mediaserver/cdplugins/subsonic/album_identifier.py \
-                 src/mediaserver/cdplugins/subsonic/album_identifier_key.py \
                  src/mediaserver/cdplugins/subsonic/subsonic-app.py
 
 EXTRA_DIST = \

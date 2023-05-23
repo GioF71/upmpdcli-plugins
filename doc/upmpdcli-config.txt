@@ -352,6 +352,11 @@ image file *must* be a 64x64 32 bits-per-pixel png file. Default:
 '$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
 starts up.
 
+[[webserverdocumentroot]]
+webserverdocumentroot:: Directory from which the internal HTTP server will directly serve files This is disabled by default for compatibility with older versions which never served
+files directly from the filesystem. Some Mediaserver plugins ask to enable it, e.g. for
+serving icon files (normally from directories under /usr/share/upmpdcli/www).
+
 === Highresaudio streaming service parameters 
 
 [[hrauser]]
@@ -473,7 +478,7 @@ radio-browseruser:: Bogus user name variable. Decides if the service should be s
 subsonicuser:: SubSonic User name variable. Decides if the service should be started. Set it to the appropriate user name.
 
 [[subsonicpassword]]
-subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
+subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate user name.
 
 [[subsonicbaseurl]]
 subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
