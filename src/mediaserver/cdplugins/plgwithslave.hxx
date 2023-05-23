@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "cdplugin.hxx"
-#include "libupnpp/device/vdir.hxx"
 
 class CmdTalk;
 

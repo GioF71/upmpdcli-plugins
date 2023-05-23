@@ -19,7 +19,6 @@
 
 #include <string>
 #include "upmpdutils.hxx"
-#include "libupnpp/device/vdir.hxx"
 
 class CDPluginServices;
 
@@ -111,15 +110,12 @@ public:
     
     /// IP address and port used by the libupnp HTTP server.
     ///
-    /// This is the host address / network interface and port used by
-    /// libupnp, which only supports one. URLs intended to be served
-    /// by the libupnp miniserver (by adding a vdir) should should use
-    /// this address as this is the only one guaranteed to be
-    /// accessible from clients (in case this server has several
-    /// interfaces). These calls are unused at present because no
-    /// plugin uses the libupnp miniserver (tidal/qobuz/spotify/google
-    /// use the microhttpd started by plgwithslave and uprcl uses a
-    /// python server).
+    /// This is the host address / network interface and port used by libupnp. URLs intended to be
+    /// served by the libupnp miniserver (by adding a vdir) should use this address as this is the
+    /// only one guaranteed to be accessible from clients (in case this server has several
+    /// interfaces). These calls are unused at present because no plugin uses the libupnp miniserver
+    /// (tidal/qobuz/spotify/google use the microhttpd started by plgwithslave and uprcl uses the
+    /// Python Bottle framework).
     virtual std::string getupnpaddr(CDPlugin *) = 0;
     virtual int getupnpport(CDPlugin *) = 0;
 

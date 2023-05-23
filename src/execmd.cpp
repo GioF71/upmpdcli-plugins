@@ -80,7 +80,9 @@ public:
     bool             m_killRequest{false};
     int              m_timeoutMs{1000};
     int              m_killTimeoutMs{2000};
-    int              m_rlimit_as_mbytes{0};
+#ifdef HAVE_SETRLIMIT
+    rlim_t           m_rlimit_as_bytes{0};
+#endif
     string           m_stderrFile;
     // Pipe for data going to the command
     int              m_pipein[2]{-1,-1};
@@ -326,38 +328,28 @@ ExecCmd::~ExecCmd()
 
 // In child process. Set up pipes and exec command.
 // This must not return. _exit() on error.
-// *** This can be called after a vfork, so no modification of the
-//     process memory at all is allowed ***
-// The LOGXX calls should not be there, but they occur only after "impossible"
-// errors, which we would most definitely want to have a hint about.
+//** This can be called after a vfork, so no modification of the process memory at all is allowed **
 //
-// Note that any of the LOGXX calls could block on a mutex set in the
-// father process, so that only absolutely exceptional conditions,
-// should be logged, for debugging and post-mortem purposes
-// If one of the calls block, the problem manifests itself by 20mn
-// (filter timeout) of looping on "ExecCmd::doexec: selectloop
-// returned 1', because the father is waiting on the read descriptor
-inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv,
-                                       const char **envv,
+// Any of the LOGXX calls could block on a mutex set in the father process, so that only absolutely
+// exceptional conditions should be logged, for debugging and post-mortem purposes. If one of the
+// calls block, the problem manifests itself by 20mn (filter timeout) of looping on
+// "ExecCmd::doexec: selectloop returned 1", because the father is waiting on the read descriptor.
+inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv, const char **envv,
                                        bool has_input, bool has_output)
 {
     // Start our own process group
     if (setpgid(0, 0)) {
-        LOGINFO("ExecCmd::DOCHILD: setpgid(0, 0) failed: errno " << errno <<
-                "\n");
+        LOGINFO("ExecCmd::DOCHILD: setpgid(0, 0) failed: errno " << errno << "\n");
     }
 
-    // Restore SIGTERM to default. Really, signal handling should be
-    // specified when creating the execmd, there might be other
-    // signals to reset. Resetting SIGTERM helps Recoll get rid of its
-    // filter children for now though. To be fixed one day...
-    // Note that resetting to SIG_DFL is a portable use of
-    // signal(). No need for sigaction() here.
-
-    // There is supposedely a risk of problems if another thread was
-    // calling a signal-affecting function when vfork was called. This
-    // seems acceptable though as no self-respecting thread is going
-    // to mess with the global process signal disposition.
+    // Restore SIGTERM to default. Really, signal handling should be specified when creating the
+    // execmd, there might be other signals to reset. Resetting SIGTERM helps Recoll get rid of its
+    // filter children for now though. To be fixed one day...  Note that resetting to SIG_DFL is a
+    // portable use of signal(). No need for sigaction() here.
+    //
+    // There is supposedly a risk of problems if another thread was calling a signal-affecting
+    // function when vfork was called. This seems acceptable though as no self-respecting thread is
+    // going to mess with the global process signal disposition.
 
     if (signal(SIGTERM, SIG_DFL) == SIG_ERR) {
         //LOGERR("ExecCmd::DOCHILD: signal() failed, errno " << errno << "\n");
@@ -369,33 +361,24 @@ inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv,
 
 #ifdef HAVE_SETRLIMIT
 #if defined RLIMIT_AS || defined RLIMIT_VMEM || defined RLIMIT_DATA
-    if (m_rlimit_as_mbytes > 2000 && sizeof(rlim_t) < 8) {
-        // Impossible limit, don't use it
-        m_rlimit_as_mbytes = 0;
-    }
-    if (m_rlimit_as_mbytes > 0) {
+    if (m_rlimit_as_bytes > 0) {
         struct rlimit ram_limit = {
-            static_cast<rlim_t>(m_rlimit_as_mbytes * 1024 * 1024),
+            m_rlimit_as_bytes,
             RLIM_INFINITY
         };
-        int resource;
-
-        // RLIMIT_AS and RLIMIT_VMEM are usually synonyms when VMEM is
-        // defined. RLIMIT_AS is Posix. Both don't really do what we
-        // want, because they count e.g. shared lib mappings, which we
-        // don't really care about.
-        // RLIMIT_DATA only limits the data segment. Modern mallocs
-        // use mmap and will not be bound. (Otoh if we only have this,
-        // we're probably not modern).
+        // RLIMIT_AS and RLIMIT_VMEM are usually synonyms when VMEM is defined. RLIMIT_AS is
+        // POSIX. Both don't really do what we want, because they count e.g. shared lib mappings,
+        // which we don't really care about.
+        // RLIMIT_DATA only limits the data segment. Modern mallocs use mmap and will not be bound.
+        // (Otoh if we only have this, we're probably not modern).
         // So we're unsatisfied either way.
 #ifdef RLIMIT_AS
-        resource = RLIMIT_AS;
+        setrlimit(RLIMIT_AS, &ram_limit);
 #elif defined RLIMIT_VMEM
-        resource = RLIMIT_VMEM;
+        setrlimit(RLIMIT_VMEM, &ram_limit);
 #else
-        resource = RLIMIT_DATA;
+        setrlimit(RLIMIT_DATA, &ram_limit);
 #endif
-        setrlimit(resource, &ram_limit);
     }
 #endif
 #endif // have_setrlimit
@@ -411,12 +394,10 @@ inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv,
         close(m_pipeout[0]);
         if (m_pipeout[1] != 1) {
             if (dup2(m_pipeout[1], 1) < 0) {
-                LOGERR("ExecCmd::DOCHILD: dup2() failed. errno " <<
-                       errno << "\n");
+                LOGERR("ExecCmd::DOCHILD: dup2() failed. errno " << errno << "\n");
             }
             if (close(m_pipeout[1]) < 0) {
-                LOGERR("ExecCmd::DOCHILD: close() failed. errno " <<
-                       errno << "\n");
+                LOGERR("ExecCmd::DOCHILD: close() failed. errno " << errno << "\n");
             }
         }
     }
@@ -443,15 +424,20 @@ inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv,
     execve(cmd.c_str(), (char *const*)argv, (char *const*)envv);
     // Hu ho. This should never have happened as we checked the
     // existence of the executable before calling dochild... Until we
-    // did this check, this was the chief cause of LOG mutex deadlock
-    LOGERR("ExecCmd::DOCHILD: execve(" << cmd << ") failed. errno " <<
-           errno << "\n");
+    // did this check, this message was the chief cause of LOG mutex deadlocks.
+    LOGERR("ExecCmd::DOCHILD: execve(" << cmd << ") failed. errno " << errno << "\n");
     _exit(127);
 }
 
 void ExecCmd::setrlimit_as(int mbytes)
 {
-    m->m_rlimit_as_mbytes = mbytes;
+#ifdef HAVE_SETRLIMIT
+    if (mbytes > 2000 && sizeof(rlim_t) < 8) {
+        // Impossible limit, don't use it
+        m->m_rlimit_as_bytes = 0;
+    }
+    m->m_rlimit_as_bytes = static_cast<rlim_t>(mbytes) * 1024 * 1024;
+#endif
 }
 
 int ExecCmd::startExec(const string& cmd, const vector<string>& args,
