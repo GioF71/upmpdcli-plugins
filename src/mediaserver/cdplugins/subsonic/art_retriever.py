@@ -85,7 +85,7 @@ def __get_random_artist_cover_by_initial(connector : Connector, artists_initial 
     select_artist_list_item : ArtistListItem = secrets.choice(artist_list_item_list)
     if not select_artist_list_item: return None
     artist_id : str = select_artist_list_item.getId()
-    return _get_artist_cover(connector, artist_id)
+    return get_artist_cover(connector, artist_id)
 
 def _get_random_artist_cover(connector : Connector) -> str:
     response : Response[Artists] = connector.getArtists()
@@ -95,7 +95,7 @@ def _get_random_artist_cover(connector : Connector) -> str:
     if not select_initial: return None
     return __get_random_artist_cover_by_initial(connector, select_initial)
 
-def _get_artist_cover(connector : Connector, artist_id : str) -> str:
+def get_artist_cover(connector : Connector, artist_id : str) -> str:
     artist_cover : ArtistCover = connector.getCoverByArtistId(artist_id)
     if not artist_cover: return None
     return artist_cover.getCoverArt()
@@ -118,7 +118,7 @@ def _get_artist_initial(initial_list : list[ArtistsInitial], initial_name : str)
 
 def artist_art_retriever(connector : Connector, item_identifier : ItemIdentifier) -> str:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    return _get_artist_cover(connector, artist_id)
+    return get_artist_cover(connector, artist_id)
 
 def artist_initial_art_retriever(connector : Connector, item_identifier : ItemIdentifier) -> str:
     initial_name : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
