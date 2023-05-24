@@ -116,8 +116,8 @@ public:
     /// interfaces). These calls are unused at present because no plugin uses the libupnp miniserver
     /// (tidal/qobuz/spotify/google use the microhttpd started by plgwithslave and uprcl uses the
     /// Python Bottle framework).
-    virtual std::string getupnpaddr(CDPlugin *) = 0;
-    virtual int getupnpport(CDPlugin *) = 0;
+    virtual std::string getupnpaddr() = 0;
+    virtual int getupnpport() = 0;
 
     /// Port on which the microhttp server listens on. Static because
     /// needed to start a proxy in conjunction with ohcredentials.

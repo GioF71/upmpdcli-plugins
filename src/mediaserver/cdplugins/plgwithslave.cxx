@@ -20,7 +20,6 @@
 
 #include <string>
 #include <vector>
-#include <sstream>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -198,22 +197,38 @@ StreamProxy::UrlTransReturn translateurl(
 // not need to generate URLs
 bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
                                   const string& host, unsigned int port,
-                                  const string& pathpref)
+                                  const string& pathpref, string upnphost, int upnpport)
 {
     string pythonpath = string("PYTHONPATH=") +
         path_cat(g_datadir, "cdplugins") + ":" +
         path_cat(g_datadir, "cdplugins/pycommon") + ":" +
         path_cat(g_datadir, "cdplugins/" + appname);
     string configname = string("UPMPD_CONFIG=") + g_configfilename;
-    stringstream ss;
-    ss << host << ":" << port;
-    string hostport = string("UPMPD_HTTPHOSTPORT=") + ss.str();
+
+    // Send the microhttpd host:port and pathprefix strings through the environment. Used by
+    // plugins which need to redirect or proxy their URLs (e.g. Qobuz, or, previously, now
+    // obsolete Tidal, Spotify...) This allows the plugin to construct appropriate URLs. The
+    // pathprefix is used to determine which plugin an URL belongs to.
+    // The URLs are like: http://$UPMPD_HTTPHOSTPORT/$UPMPD_PATHPREFIX/...
+    
+    string hostport = string("UPMPD_HTTPHOSTPORT=") + host + ":" + ulltodecstr(port);
     string pp = string("UPMPD_PATHPREFIX=") + pathpref;
+
+    std::vector<std::string> env{pythonpath, configname, hostport, pp};
+
+    // Send the UPnP (libnpupnp) HTTP IP address and port. This allows using the internal
+    // lib(np)upnp HTTP server to serve local files (if enabled by setting webserverdocumentroot in
+    // the config accordingly).
+    std::string val;
+    if (getOptionValue("webserverdocumentroot", val) && !val.empty()) {
+        env.push_back(string("UPMPD_UPNPHOSTPORT=") + upnphost + ":" + lltodecstr(upnpport));
+        env.push_back(string("UPMPD_UPNPDOCROOT=") + path_cat(g_datadir, {"www", appname}));
+    }
+
     string exepath = path_cat(g_datadir, "cdplugins");
     exepath = path_cat(exepath, appname);
     exepath = path_cat(exepath, appname + "-app.py");
-
-    if (!cmd.startCmd(exepath, {/*args*/}, /* env */ {pythonpath, configname, hostport, pp})) {
+    if (!cmd.startCmd(exepath, {/*args*/}, env)) {
         LOGERR("PlgWithSlave::maybeStartCmd: startCmd failed\n");
         return false;
     }
@@ -251,7 +266,10 @@ bool PlgWithSlave::Internal::maybeStartCmd()
     if (!startPluginCmd(cmd, plg->m_name,
                         plg->m_services->microhttphost(),
                         plg->m_services->microhttpport(),
-                        plg->m_services->getpathprefix(plg))) {
+                        plg->m_services->getpathprefix(plg->m_name),
+                        plg->m_services->getupnpaddr(),
+                        plg->m_services->getupnpport()
+            )) {
         LOGDEB1("PlgWithSlave::maybeStartCmd: startPluginCmd failed\n");
         return false;
     }

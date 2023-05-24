@@ -534,13 +534,13 @@ CDPlugin *ContentDirectory::getpluginforpath(const string& path)
     return m->pluginForApp(app);
 }
 
-std::string ContentDirectory::getupnpaddr(CDPlugin *)
+std::string ContentDirectory::getupnpaddr()
 {
     return m->upnphost;
 }
 
 
-int ContentDirectory::getupnpport(CDPlugin *)
+int ContentDirectory::getupnpport()
 {
     return m->upnpport;
 }

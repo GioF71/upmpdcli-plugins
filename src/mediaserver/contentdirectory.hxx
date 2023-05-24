@@ -87,8 +87,8 @@ public:
     /// Retrieve the IP address and port for the libupnp server. URLs
     /// intended to be served this way (by adding a vdir) should use
     /// these as host/port. Not used at present.
-    virtual std::string getupnpaddr(CDPlugin *);
-    virtual int getupnpport(CDPlugin *);
+    virtual std::string getupnpaddr();
+    virtual int getupnpport();
     /// Host to use in proxy urls. This is normally the same as the
     /// UPnP host, but can be forced in the configuration. The
     /// microhttp server listens on all addresses.

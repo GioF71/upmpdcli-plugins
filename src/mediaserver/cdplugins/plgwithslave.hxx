@@ -59,7 +59,10 @@ public:
     // Used by ohcredentials to start a plugin instance
     static bool startPluginCmd(CmdTalk& cmd, const std::string& appname,
                                const std::string& host, unsigned int port,
-                               const std::string& pathprefix);
+                               const std::string& pathprefix,
+                               std::string upnphost = std::string(),
+                               int upnpport = 0
+        );
     static bool maybeStartProxy(CDPluginServices *cdsrv);
 
     class Internal;
