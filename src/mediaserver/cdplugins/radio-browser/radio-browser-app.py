@@ -150,9 +150,12 @@ def browse(a):
     entries = []
     bflg = a['flag'] if 'flag' in a else 'children'
     if bflg == 'meta':
-        # not for now. Only Kodi does this.
-        if path.find("$"):
-            entries = [_radiotoentry({"name": "name", "url_resolved": "http://google.com"}),]
+        # Only Kodi does this.
+        uuidpos = path.find("$")
+        if uuidpos >= 0:
+            uuid = path[uuidpos+1:]
+            radios = _g_rb.station_by_uuid(uuid)
+            entries = [_radiotoentry(objid, None, radios[0]),]
         else:
             entries = [direntry(id, objid, "forkodi"),]
         return _returnentries(entries)
