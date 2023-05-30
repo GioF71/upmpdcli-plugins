@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.12"
+__subsonic_plugin_release : str = "0.1.13"
 
 import cmdtalkplugin
 import json
@@ -661,10 +661,12 @@ def _load_albums_by_type(
         _cache_element_value(ElementType.GENRE, current_genre, current_album.getId(), force_update = False)
     return entries
 
-def __load_albums_by_artist(objid, artist_id : str, entries : list) -> list:
+def _load_albums_by_artist(artist_id : str) -> list[Album]:
     artist_response : Response[Artist] = connector.getArtist(artist_id)
-    if not artist_response.isOk(): return entries
-    album_list : list[Album] = artist_response.getObj().getAlbumList()
+    if not artist_response.isOk(): raise Exception(f"Cannot get albums for artist_id {artist_id}")
+    return artist_response.getObj().getAlbumList()    
+
+def _albums_by_artist_to_entries(objid, album_list : list[Album], entries : list) -> list:
     current_album : Album
     artist_tag_cached : bool = False
     for current_album in album_list:
@@ -1143,8 +1145,25 @@ def _handler_element_artist_initial(objid, item_identifier : ItemIdentifier, ent
 
 def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    entries = __load_albums_by_artist(objid, artist_id, entries)
-    msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} offset {offset}")
+    album_list : list[Album] = _load_albums_by_artist(artist_id)
+    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} found {len(album_list)} albums")
+    next_needed : bool = len(album_list) > (__items_per_page + offset)
+    num_albums_to_show : int = __items_per_page if next_needed or len(album_list) == __items_per_page else len(album_list) % __items_per_page
+    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} next_needed {next_needed} num_albums_to_show {num_albums_to_show}")
+    if num_albums_to_show > 0:
+        entries = _albums_by_artist_to_entries(objid, album_list[offset : offset + num_albums_to_show], entries)
+        msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
+        if next_needed:
+            next_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
+            next_identifier.set(ItemIdentifierKey.OFFSET, offset + __items_per_page)
+            next_id : str = _create_objid_simple(objid, __create_id_from_identifier(next_identifier))
+            next_entry : dict = direntry(
+                next_id, 
+                objid, 
+                title = "Next")
+            entries.append(next_entry)
     return entries
 
 def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1152,9 +1171,7 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
     artist_response : Response[Artist] = connector.getArtist(artist_id)
     if not artist_response.isOk(): raise Exception(f"Cannot retrieve artist by id {artist_id}")
     artist : Artist = artist_response.getObj()
-    #entries = __load_albums_by_artist(objid, artist_id, entries)
     #msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
-    # TODO create "Albums entry"
     artist_album_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
     artist_album_id : str = _create_objid_simple(objid, __create_id_from_identifier(artist_album_identifier))
     albums_entry : dict = direntry(
