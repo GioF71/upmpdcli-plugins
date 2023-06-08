@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.13"
+__subsonic_plugin_release : str = "0.1.14"
 
 import cmdtalkplugin
 import json
@@ -45,6 +45,7 @@ from subsonic_connector.random_songs import RandomSongs
 from subsonic_connector.top_songs import TopSongs
 from subsonic_connector.similar_artist import SimilarArtist
 from subsonic_connector.artist_info import ArtistInfo
+from subsonic_connector.similar_songs import SimilarSongs
 
 from config import UpmpdcliSubsonicConfig
 from config import subsonic_max_return_size
@@ -166,7 +167,6 @@ def __initial_caching_by_newest():
                 _cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), album.getId())
                 _cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), album.getId())
                 _cache_element_value(ElementType.TAG, TagType.ARTISTS_INDEXED.getTagName(), album.getId())
-                _cache_element_value(ElementType.TAG, TagType.RANDOM.getTagName(), album.getId())
                 first_processed = True
             # for every album
             genre : str = album.getGenre()
@@ -898,18 +898,48 @@ def _handler_tag_random(objid, item_identifier : ItemIdentifier, entries : list)
     return __handler_tag_type(objid, item_identifier, TagType.RANDOM, entries)
 
 def _handler_tag_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, True)
+    return _get_random_songs(objid, item_identifier, entries)
+
+def _handler_tag_random_songs_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, False)
     return _get_random_songs(objid, item_identifier, entries)
 
 def _handler_element_next_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return _get_random_songs(objid, item_identifier, entries)
 
-def _handler_element_random_song_the_song(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    msgproc.log(f"_handler_element_random_song start")
+def _handler_element_song_entry_song(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_song_entry_song start")
     song_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    msgproc.log(f"_handler_element_random_song start song_id {song_id}")
+    msgproc.log(f"_handler_element_song_entry_song start song_id {song_id}")
     song : Song = connector.getSong(song_id).getObj()
     if song:
         entries.append(_song_to_entry(objid, song))
+    return entries
+
+def _handler_radio(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_radio start")
+    iid : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_radio iid {iid}")
+    res : Response[SimilarSongs] = connector.getSimilarSongs(iid)
+    if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
+    song : Song
+    for song in res.getObj().getSongs():
+        entries.append(_song_to_song_entry(
+            objid = objid, 
+            song = song))
+    return entries
+
+def _handler_radio_song_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_radio_song_list start")
+    iid : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"_handler_radio_song_list iid {iid}")
+    res : Response[SimilarSongs] = connector.getSimilarSongs(iid)
+    if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
+    song : Song
+    for song in res.getObj().getSongs():
+        song_entry : dict[str, any] = _song_to_entry(objid, song)
+        entries.append(song_entry)
     return entries
 
 def _handler_element_artist_top_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -927,11 +957,11 @@ def _handler_element_artist_top_songs(objid, item_identifier : ItemIdentifier, e
         entries.append(song_entry)
     return entries
 
-def _random_song_to_entry(objid, song : Song) -> direntry:
+def _song_to_song_entry(objid, song : Song) -> direntry:
     name : str = f"{song.getTitle()} - {song.getAlbum()}"
     art_id = song.getAlbumId()
     identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.RANDOM_SONG.getName(), 
+        ElementType.SONG_ENTRY.getName(), 
         song.getId())
     id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
     entry = direntry(id, 
@@ -940,41 +970,50 @@ def _random_song_to_entry(objid, song : Song) -> direntry:
     _set_album_art_from_album_id(art_id, entry)
     return entry
 
-def _handler_element_random_song(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    msgproc.log(f"_handler_element_random_song start")
+def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    msgproc.log(f"_handler_element_song_entry start")
     song_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    msgproc.log(f"_handler_element_random_song start song_id {song_id}")
+    msgproc.log(f"_handler_element_song_entry start song_id {song_id}")
     song : Song = connector.getSong(song_id).getObj()
-    song_identifier : ItemIdentifier = ItemIdentifier(ElementType.RANDOM_SONG_THE_SONG.getName(), song_id)
+    song_identifier : ItemIdentifier = ItemIdentifier(ElementType.SONG_ENTRY_THE_SONG.getName(), song_id)
     song_entry_id : str = _create_objid_simple(objid, __create_id_from_identifier(song_identifier))
     song_entry = direntry(song_entry_id, 
         objid, 
         "Song")
     _set_album_art_from_album_id(song.getAlbumId(), song_entry)
     entries.append(song_entry)
+    msgproc.log(f"_handler_element_song_entry start song_id {song_id} go on with album")
     album : Album = connector.getAlbum(song.getAlbumId()).getObj()
     entries.append(_album_to_entry(objid, album))
     artist_id : str = song.getArtistId() if song.getArtistId() else album.getArtistId()
-    if not artist_id: msgproc.log(f"_handler_element_random_song artist_id not found for song_id {song.getId()} album_id {song.getAlbumId()} artist {song.getArtist()}")
+    if not artist_id: msgproc.log(f"_handler_element_song_entry artist_id not found for song_id {song.getId()} album_id {song.getAlbumId()} artist {song.getArtist()}")
     if artist_id:
-        msgproc.log(f"_handler_element_random_song searching artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
+        msgproc.log(f"_handler_element_song_entry searching artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
         artist_response : Response[Artist] = connector.getArtist(artist_id)
         artist : Artist = artist_response.getObj() if artist_response.isOk() else None 
-        if not artist: msgproc.log(f"_handler_element_random_song could not find artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
+        if not artist: msgproc.log(f"_handler_element_song_entry could not find artist for song_id {song.getId()} artist {song.getArtist()} artist_id {artist_id}")
         if artist: entries.append(_artist_to_entry(objid, artist.getId(), artist.getName()))
     return entries
 
 def _get_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    add_as_entry : bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
     response : Response[RandomSongs] = connector.getRandomSongs(size = __items_per_page)
     if not response.isOk(): raise Exception(f"Cannot get random songs")
     song_list : list[Song] = response.getObj().getSongs()
     song : Song
     for song in song_list:
-        entries.append(_random_song_to_entry(
-            objid = objid, 
-            song = song))
+        song_entry = (
+            _song_to_song_entry(
+                objid = objid, 
+                song = song) 
+            if add_as_entry 
+            else _song_to_entry(
+                objid = objid, 
+                song = song))
+        entries.append(song_entry)
     # no offset, so we always add next
     next_identifier : ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
+    next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, add_as_entry)
     next_id : str = _create_objid_simple(objid, __create_id_from_identifier(next_identifier))
     next_entry : dict = direntry(
         id = next_id, 
@@ -1185,6 +1224,10 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
     if top_songs_entry: entries.append(top_songs_entry)
     similar_artists_entry : dict[str, any] = _similar_artists_for_artist(objid, artist_id)
     if similar_artists_entry: entries.append(similar_artists_entry)
+    radio_entry_list : list[dict[str, any]] = _radio_entry(objid, iid = artist.getId())
+    radio_entry : dict[str, any]
+    for radio_entry in radio_entry_list if radio_entry_list else []:
+        entries.append(radio_entry)
     return entries
 
 def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1228,7 +1271,32 @@ def _handler_element_sparse_album(objid, item_identifier : ItemIdentifier, entri
     if top_songs_entry: entries.append(top_songs_entry)
     similar_artist_entry : dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
     if similar_artist_entry: entries.append(similar_artist_entry)
+    _radio_entry_list : list[dict[str, any]] = _radio_entry(objid, album.getId())
+    radio_entry : dict[str, any]
+    for radio_entry in _radio_entry_list if _radio_entry_list else []:
+        entries.append(radio_entry)
     return entries
+
+def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
+    res : Response[SimilarSongs] = connector.getSimilarSongs(iid = iid, count = 10)
+    if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
+    if len(res.getObj().getSongs()) > 0:
+        # ok to add entry
+        radio_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
+        radio_id : str = _create_objid_simple(objid, __create_id_from_identifier(radio_identifier))
+        radio_entry : dict = direntry(
+            radio_id, 
+            objid, 
+            title = "Radio")
+        radio_song_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.getName(), iid)
+        radio_song_list_id : str = _create_objid_simple(objid, __create_id_from_identifier(radio_song_list_identifier))
+        radio_song_list_entry : dict = direntry(
+            radio_song_list_id, 
+            objid, 
+            title = "Radio (Song List)")
+        _set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_entry)
+        _set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_song_list_entry)
+        return [radio_entry, radio_song_list_entry]
 
 def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
     res_artist_info : Response[ArtistInfo] = connector.getArtistInfo(artist_id)
@@ -1254,11 +1322,7 @@ def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
         artist_id, 
         objid, 
         title = f"Artist: {album.getArtist()}")
-    artist_art : str = _get_cached_element(ElementType.ARTIST, album.getArtistId())
-    if not artist_art:
-        artist_res : Response[Artist] = connector.getArtist(album.getArtistId())
-        if not artist_res.isOk(): raise Exception(f"Cannot load artist with artist_id {album.getArtistId()}")
-        artist_art = get_artist_cover(album.getArtistId())
+    artist_art : str = get_artist_cover(connector, album.getArtistId())
     if artist_art:
         _set_album_art_from_album_id(artist_art, artist_entry)
         _cache_element_value(ElementType.ARTIST, album.getArtistId(), artist_art, force_update = False)
@@ -1354,7 +1418,8 @@ __tag_action_dict : dict = {
     TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
     TagType.PLAYLISTS.getTagName(): _handler_tag_playlists,
     TagType.INTERNET_RADIOS.getTagName(): _handler_tag_internet_radios,
-    TagType.RANDOM_SONGS.getTagName(): _handler_tag_random_songs
+    TagType.RANDOM_SONGS.getTagName(): _handler_tag_random_songs,
+    TagType.RANDOM_SONGS_LIST.getTagName(): _handler_tag_random_songs_list
 }
 
 __elem_action_dict : dict = {
@@ -1368,13 +1433,15 @@ __elem_action_dict : dict = {
     ElementType.GENRE_ALBUM_LIST.getName(): _handler_element_genre_album_list,
     ElementType.PLAYLIST.getName(): _handler_element_playlist,
     ElementType.TRACK.getName(): _handler_element_track,
-    ElementType.RANDOM_SONG.getName(): _handler_element_random_song,
+    ElementType.SONG_ENTRY.getName(): _handler_element_song_entry,
+    ElementType.SONG_ENTRY_THE_SONG.getName(): _handler_element_song_entry_song,
     ElementType.NEXT_RANDOM_SONGS.getName(): _handler_element_next_random_songs,
     ElementType.INTERNET_RADIO.getName(): _handler_element_radio_station,
-    ElementType.RANDOM_SONG_THE_SONG.getName(): _handler_element_random_song_the_song,
     ElementType.ARTIST_TOP_SONGS.getName(): _handler_element_artist_top_songs,
     ElementType.ARTIST_SIMILAR.getName(): _handler_element_similar_artists,
-    ElementType.ARTIST_ALBUMS.getName(): _handler_element_artist_albums
+    ElementType.ARTIST_ALBUMS.getName(): _handler_element_artist_albums,
+    ElementType.RADIO.getName(): _handler_radio,
+    ElementType.RADIO_SONG_LIST.getName(): _handler_radio_song_list
 }
 
 @dispatcher.record('browse')
@@ -1455,7 +1522,7 @@ def search(a):
         msgproc.log(f"search: filters = {filters}")
         for current_album in album_list:
             _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-            entries.append(_album_to_entry(objid, current_album))
+            entries.append(_sparse_album_to_entry(objid, current_album))
     elif ElementType.TRACK.getName() == field:
         # search tracks by specified value
         search_result : SearchResult = connector.search(value, 
@@ -1463,9 +1530,10 @@ def search(a):
             songCount = __items_per_page,
             albumCount = 0)
         song_list : list[Song] = search_result.getSongs()
+        sorted_song_list : list[Song] = sort_song_list(song_list).getSongList()
         current_song : Song
-        for current_song in song_list:
-            entries.append(_song_to_entry(
+        for current_song in sorted_song_list:
+            entries.append(_song_to_song_entry(
                 objid = objid, 
                 song = current_song))
     elif ElementType.ARTIST.getName() == field:

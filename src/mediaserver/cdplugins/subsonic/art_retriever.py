@@ -137,6 +137,7 @@ tag_art_retriever : dict[str, any] = {
     TagType.MOST_PLAYED.getTagName(): most_played_albums_art_retriever,
     TagType.RANDOM.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS.getTagName(): random_albums_art_retriever,
+    TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,
     TagType.GENRES.getTagName(): genres_art_retriever,
     TagType.ARTISTS_ALL.getTagName(): random_artist_art_retriever,
     TagType.ARTISTS_INDEXED.getTagName(): random_artist_art_retriever,

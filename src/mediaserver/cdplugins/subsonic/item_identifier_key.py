@@ -25,7 +25,8 @@ class ItemIdentifierKey(Enum):
     OFFSET = 5, 'o'
     TAG_TYPE = 6, 't',
     ALBUM_VERSION_PATH_BASE64 = 7, 'ap',
-    RADIO_NAME = 8, 'rn'
+    RADIO_NAME = 8, 'rn',
+    SONG_AS_ENTRY = 9, 'sntr'
         
     def __init__(self, 
             num : int, 
@@ -36,3 +37,13 @@ class ItemIdentifierKey(Enum):
     def getName(self) -> str:
         return self.key_name
     
+# duplicate check
+name_checker_set : set[str] = set()
+id_checker_set : set[int] = set()
+for v in ItemIdentifierKey:
+    if v.getName() in name_checker_set:
+        raise Exception(f"Duplicated name [{v.getName()}]")
+    if v.value[0] in id_checker_set:
+        raise Exception(f"Duplicated id [{v.value[0]}]")
+    name_checker_set.add(v.getName())
+    id_checker_set.add(v.value[0])

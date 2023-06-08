@@ -16,25 +16,26 @@
 from enum import Enum
 
 class ElementType(Enum):
-    
-    TAG   = 0, "tag"
-    ALBUM = 1, "album"
-    GENRE = 3, "genre"
-    GENRE_ARTIST_LIST = 4, "genre_artists"
-    GENRE_ALBUM_LIST = 5, "genre_albums"
-    ARTIST = 6, "artist"
-    GENRE_ARTIST = 7, "genre_artist"
-    ARTIST_INITIAL = 8, "artist_initial"
-    TRACK = 9, "track",
-    PLAYLIST = 10, "playlist"
-    INTERNET_RADIO = 11, "internet_radio",
-    RANDOM_SONG = 12, "random_song",
-    RANDOM_SONG_THE_SONG = 13, "random_song_the_song",
-    NEXT_RANDOM_SONGS = 14, "next_random_songs",
-    SPARSE_ALBUM = 15, "sparse_album",
-    ARTIST_TOP_SONGS = 16, "artist_top_songs",
-    ARTIST_SIMILAR = 17, "artist_similar",
-    ARTIST_ALBUMS = 18, "artist_albums"
+    TAG = 0, "tag"
+    ALBUM = 1, "lbm"
+    GENRE = 3, "gnr"
+    GENRE_ARTIST_LIST = 4, "gnr_rtsts"
+    GENRE_ALBUM_LIST = 5, "gnr_lbus"
+    ARTIST = 6, "rtst"
+    GENRE_ARTIST = 7, "gnr_rtst"
+    ARTIST_INITIAL = 8, "rtst_ntl"
+    TRACK = 9, "trk",
+    PLAYLIST = 10, "pl"
+    INTERNET_RADIO = 11, "i_rd",
+    SONG_ENTRY = 12, "sng_ntry",
+    SONG_ENTRY_THE_SONG = 13, "sng_ntr_sng",
+    NEXT_RANDOM_SONGS = 14, "nxt_rndm_sngs",
+    SPARSE_ALBUM = 15, "sprs_lbm",
+    ARTIST_TOP_SONGS = 16, "rtst_top",
+    ARTIST_SIMILAR = 17, "rtst_smlr",
+    ARTIST_ALBUMS = 18, "rtst_lbms",
+    RADIO = 19, "rd",
+    RADIO_SONG_LIST = 20, "rd_sl"
 
     def __init__(self, 
             num : int, 
@@ -44,3 +45,14 @@ class ElementType(Enum):
 
     def getName(self):
         return self.element_name
+
+# duplicate check
+name_checker_set : set[str] = set()
+id_checker_set : set[int] = set()
+for v in ElementType:
+    if v.getName() in name_checker_set:
+        raise Exception(f"Duplicated name [{v.getName()}]")
+    if v.value[0] in id_checker_set:
+        raise Exception(f"Duplicated id [{v.value[0]}]")
+    name_checker_set.add(v.getName())
+    id_checker_set.add(v.value[0])

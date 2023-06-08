@@ -44,7 +44,6 @@ def __is_int(value : str) -> bool:
     except ValueError:
         return False
 
-
 def _ignorable(last_path : str) -> bool:
     # first case: start with a starter, then there is a number without a splitter
     for name, member in Starter.__members__.items():
@@ -53,7 +52,6 @@ def _ignorable(last_path : str) -> bool:
             if len(last_path) > len(name):
                 potential_discnumber : str = last_path[len(name)]
                 if __is_int(potential_discnumber): return True
-
     # second case: start with a starter, then there is a number after a splitter
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
@@ -61,7 +59,6 @@ def _ignorable(last_path : str) -> bool:
             if splitted is not None and len(splitted) == 2:
                 last : str = splitted[1]
                 if __is_int(last): return True
-
     return False
 
 def get_last_path_element(path : str) -> str:
@@ -98,7 +95,15 @@ class __Decorated_Song:
 
 def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
     cmp : int
-    cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
+    left_artist : str = left.getSong().getArtist() if left.getSong().getArtist() else ""
+    right_artist : str = right.getSong().getArtist() if right.getSong().getArtist() else ""
+    left_album : str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
+    right_album : str = right.getSong().getAlbum() if right.getSong().getAlbum() else ""
+    cmp = -1 if left_artist < right_artist else 0 if left_artist == right_artist else 1
+    if cmp == 0:
+        cmp = -1 if left_album < right_album else 0 if left_album == right_album else 1
+    if cmp == 0:
+        cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
     if cmp == 0:
         cmp = -1 if left.getDisc() < right.getDisc() else 0 if left.getDisc() == right.getDisc() else 1
     if cmp == 0: 

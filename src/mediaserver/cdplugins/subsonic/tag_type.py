@@ -18,16 +18,17 @@ from enum import Enum
 class TagType(Enum):
     
     NEWEST = 0, "n", "Newest Albums", "newest"
-    RECENTLY_PLAYED = 10, "rp", "Recently Played", "recent"
-    HIGHEST_RATED = 20, "hr", "Highest Rated", "highest"
-    FAVOURITES = 30, "fav", "Favourites", "starred"
-    MOST_PLAYED = 40, "mp", "Most Played", "frequent"
+    RECENTLY_PLAYED = 10, "rp", "Recently Played Albums", "recent"
+    HIGHEST_RATED = 20, "hr", "Highest Rated Albums", "highest"
+    FAVOURITES = 30, "fav", "Favourite Albums", "starred"
+    MOST_PLAYED = 40, "mp", "Most Played Albums", "frequent"
     RANDOM = 50, "r", "Random Albums", "random"
     GENRES = 60, "g", "Genres", None
     ARTISTS_ALL = 70, "a_all", "Artists", None
     ARTISTS_INDEXED = 80, "a_ndx", "Artists (By Initial)", None
     PLAYLISTS = 90, "pl", "Playlists", None
     RANDOM_SONGS = 100, "rs", "Random Songs", None,
+    RANDOM_SONGS_LIST = 101, "rsl", "Random Songs (List)", None
     INTERNET_RADIOS = 110, "ir", "Internet Radios", None
 
     def __init__(self, 
@@ -48,3 +49,14 @@ class TagType(Enum):
 
     def getQueryType(self) -> str:
         return self.query_type
+
+# duplicate check
+name_checker_set : set[str] = set()
+id_checker_set : set[int] = set()
+for v in TagType:
+    if v.getTagName() in name_checker_set:
+        raise Exception(f"Duplicated name [{v.getTagName()}]")
+    if v.value[0] in id_checker_set:
+        raise Exception(f"Duplicated id [{v.value[0]}]")
+    name_checker_set.add(v.getTagName())
+    id_checker_set.add(v.value[0])
