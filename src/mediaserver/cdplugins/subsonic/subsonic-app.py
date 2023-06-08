@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.14"
+__subsonic_plugin_release : str = "0.1.15"
 
 import cmdtalkplugin
 import json
@@ -52,6 +52,7 @@ from config import subsonic_max_return_size
 
 from tag_type import TagType
 from element_type import ElementType
+from search_type import SearchType
 
 from item_identifier_key import ItemIdentifierKey
 from item_identifier import ItemIdentifier
@@ -1510,7 +1511,7 @@ def search(a):
     
     msgproc.log(f"Search for [{value}] as {field}")
     
-    if ElementType.ALBUM.getName() == field:
+    if SearchType.ALBUM.getName() == field:
         # search albums by specified value
         search_result : SearchResult = connector.search(value, 
             artistCount = 0, 
@@ -1523,7 +1524,7 @@ def search(a):
         for current_album in album_list:
             _cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
             entries.append(_sparse_album_to_entry(objid, current_album))
-    elif ElementType.TRACK.getName() == field:
+    elif SearchType.TRACK.getName() == field:
         # search tracks by specified value
         search_result : SearchResult = connector.search(value, 
             artistCount = 0, 
@@ -1536,7 +1537,7 @@ def search(a):
             entries.append(_song_to_song_entry(
                 objid = objid, 
                 song = current_song))
-    elif ElementType.ARTIST.getName() == field:
+    elif SearchType.ARTIST.getName() == field:
         # search artists
         search_result : SearchResult = connector.search(value, 
             artistCount = __items_per_page, 
