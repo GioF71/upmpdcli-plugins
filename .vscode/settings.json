@@ -1,5 +1,5 @@
 {
-    "terminal.integrated.env.linux": {
-        "PYTHONPATH": "${workspaceFolder}/src/mediaserver/cdplugins/pycommon"
-    }
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src/mediaserver/cdplugins/pycommon"
+    ]
 }
