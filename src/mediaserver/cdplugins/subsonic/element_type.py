@@ -31,11 +31,12 @@ class ElementType(Enum):
     SONG_ENTRY_THE_SONG = 13, "sng_ntr_sng",
     NEXT_RANDOM_SONGS = 14, "nxt_rndm_sngs",
     SPARSE_ALBUM = 15, "sprs_lbm",
-    ARTIST_TOP_SONGS = 16, "rtst_top",
-    ARTIST_SIMILAR = 17, "rtst_smlr",
-    ARTIST_ALBUMS = 18, "rtst_lbms",
-    RADIO = 19, "rd",
-    RADIO_SONG_LIST = 20, "rd_sl"
+    ARTIST_TOP_SONGS = 16, "rtsttp",
+    ARTIST_TOP_SONGS_LIST = 17, "rtsttp_sl",
+    ARTIST_SIMILAR = 18, "rtst_smlr",
+    ARTIST_ALBUMS = 19, "rtst_lbms",
+    RADIO = 20, "rd",
+    RADIO_SONG_LIST = 21, "rd_sl"
 
     def __init__(self, 
             num : int, 

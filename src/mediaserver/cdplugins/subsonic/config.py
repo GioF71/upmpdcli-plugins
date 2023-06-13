@@ -18,6 +18,14 @@ import libsonic
 from subsonic_connector.configuration import ConfigurationInterface
 
 subsonic_max_return_size : int = 500 # hard limit
+items_per_page : int = min(subsonic_max_return_size, int(getOptionValue("subsonicitemsperpage", "36")))
+append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"))
+append_codecs_to_album : int = int(getOptionValue("subsonicappendcodecstoalbum", "1"))
+whitelist_codecs : list[str] = str(getOptionValue("subsonicwhitelistcodecs", "alac,wav,flac,dsf")).split(",")
+allow_blacklisted_codec_in_song : int = int(getOptionValue("subsonicallowblacklistedcodecinsong", "1"))
+disable_sparse_album : int = int(getOptionValue("subsonicdisablesparsealbumview", "0"))
+tag_enabled_prefix : str = "subsonictagenabled"
+autostart : int = int(getOptionValue("subsonicautostart", "0"))
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
     
@@ -27,4 +35,3 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
     def getPassword(self) -> str: return getOptionValue('subsonicpassword')
     def getApiVersion(self) -> str: return libsonic.API_VERSION
     def getAppName(self) -> str: return "upmpdcli"
-

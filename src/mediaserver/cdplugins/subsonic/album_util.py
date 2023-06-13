@@ -197,3 +197,10 @@ class AlbumTracks:
 
     def getMultiCodecAlbum(self) -> MultiCodecAlbum: 
         return self._multi_codec_album
+
+def get_display_artist(artist : str) -> str:
+    if not artist or len(artist) == 0: return ""
+    artist_list : list[str] = artist.split(";")
+    return ", ".join(artist_list)
+        
+    

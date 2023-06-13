@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.1.15"
+__subsonic_plugin_release : str = "0.1.16"
 
 import cmdtalkplugin
 import json
@@ -47,8 +47,7 @@ from subsonic_connector.similar_artist import SimilarArtist
 from subsonic_connector.artist_info import ArtistInfo
 from subsonic_connector.similar_songs import SimilarSongs
 
-from config import UpmpdcliSubsonicConfig
-from config import subsonic_max_return_size
+import config
 
 from tag_type import TagType
 from element_type import ElementType
@@ -66,6 +65,7 @@ from album_util import get_last_path_element
 from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
 from album_util import SortSongListResult
+from album_util import get_display_artist
 
 from art_retriever import tag_art_retriever
 from art_retriever import artist_art_retriever
@@ -76,7 +76,6 @@ from subsonic_util import get_random_art_by_genre
 
 import secrets
 import mimetypes
-import time
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = "0$subsonic$"
@@ -94,19 +93,6 @@ def _getTagTypeByName(tag_name : str) -> TagType:
             return member
     raise Exception(f"_getTagTypeByName with {tag_name} NOT found")
 
-__subsonic_max_return_size : int = subsonic_max_return_size
-
-__items_per_page : int = min(__subsonic_max_return_size, int(getOptionValue("subsonicitemsperpage", "36")))
-__append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"))
-__append_codecs_to_album : int = int(getOptionValue("subsonicappendcodecstoalbum", "1"))
-__whitelist_codecs : list[str] = str(getOptionValue("subsonicwhitelistcodecs", "alac,wav,flac,dsf")).split(",")
-__allow_blacklisted_codec_in_song : int = int(getOptionValue("subsonicallowblacklistedcodecinsong", "1"))
-
-__disable_sparse_album : int = int(getOptionValue("subsonicdisablesparsealbumview", "0"))
-
-__tag_enabled_prefix : str = "subsonictagenabled"
-__autostart : int = int(getOptionValue("subsonicautostart", "0"))
-
 __tag_enabled_default : dict[str, bool] = {
     TagType.RANDOM.getTagName(): True, # example
 }
@@ -119,7 +105,7 @@ __artist_initial_by_id : dict[str, str] = {}
 
 def _is_tag_enabled(tag_type : TagType) -> bool:
     enabled_default : bool = __tag_enabled_default[tag_type.getTagName()] if tag_type.getTagName() in __tag_enabled_default else True
-    enabled_int : int = int(getOptionValue(f"{__tag_enabled_prefix}{tag_type.getTagName()}", "1" if enabled_default else "0"))
+    enabled_int : int = int(getOptionValue(f"{config.tag_enabled_prefix}{tag_type.getTagName()}", "1" if enabled_default else "0"))
     return enabled_int == 1
 
 def _get_element_cache(element_type : ElementType) -> dict:
@@ -139,7 +125,7 @@ def _is_element_cached(element_type : ElementType, key : str) -> bool:
     cache : dict = _get_element_cache(element_type)
     return key in cache
 
-def _get_cached_element(element_type : ElementType, key : str) -> str | None:
+def _get_cached_element(element_type : ElementType, key : str) -> str:
     cache : dict = _get_element_cache(element_type)
     if key in cache:
         return cache[key]
@@ -149,7 +135,7 @@ def _get_cache_size(element_type : ElementType) -> int:
     cache : dict = _get_element_cache(element_type)
     return len(cache)
 
-connector : Connector = Connector(UpmpdcliSubsonicConfig())
+connector : Connector = Connector(config.UpmpdcliSubsonicConfig())
 
 def __initial_caching_by_newest():
     sz : int = None
@@ -157,8 +143,8 @@ def __initial_caching_by_newest():
     offset : int = 0
     total_albums : int = 0
     first_processed : bool = False
-    while not album_list or len(album_list) == __subsonic_max_return_size:
-        album_list = _get_albums(TagType.NEWEST.getQueryType(), size = __subsonic_max_return_size, offset = offset)
+    while not album_list or len(album_list) == config.subsonic_max_return_size:
+        album_list = _get_albums(TagType.NEWEST.getQueryType(), size = config.subsonic_max_return_size, offset = offset)
         total_albums += len(album_list)
         msgproc.log(f"loaded {total_albums} albums ...")
         album : Album
@@ -212,7 +198,7 @@ def __initial_caching_genre(genre : str):
     # pick an album for the genre
     album_list_res : Response[AlbumList] = connector.getAlbumList(
         ltype = ListType.BY_GENRE, 
-        size = __subsonic_max_return_size, 
+        size = config.subsonic_max_return_size, 
         genre = genre)
     if album_list_res.isOk() and album_list_res.getObj() and len(album_list_res.getObj().getAlbums()) > 0:
         album_list : AlbumList = album_list_res.getObj()
@@ -305,7 +291,7 @@ def _album_version_to_entry(
     id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
     #msgproc.log(f"_album_version_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
     title : str = f"Version #{version_number}"
-    if __append_year_to_album == 1 and current_album.getYear() is not None:
+    if config.append_year_to_album == 1 and current_album.getYear() is not None:
         title = "{} [{}]".format(title, current_album.getYear())
     codecs_str : str = ",".join(codec_set)
     title = "{} [{}]".format(title, codecs_str)
@@ -340,13 +326,12 @@ def _sparse_album_to_entry(objid, current_album : Album) -> direntry:
     _set_album_id(current_album.getId(), entry)
     return entry
 
-
 def _album_to_entry(objid, current_album : Album) -> direntry:
     #msgproc.log(f"_album_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
     title : str = current_album.getTitle()
-    if __append_year_to_album == 1 and current_album.getYear() is not None:
+    if config.append_year_to_album == 1 and current_album.getYear() is not None:
         title = "{} [{}]".format(title, current_album.getYear())
-    if __append_codecs_to_album == 1:
+    if config.append_codecs_to_album == 1:
         song_list : list[Song] = current_album.getSongs()
         # load album
         album_tracks : AlbumTracks = _get_album_tracks(current_album.getId())
@@ -358,7 +343,7 @@ def _album_to_entry(objid, current_album : Album) -> direntry:
         for song in song_list:
             if not song.getSuffix() in codecs:
                 codecs.append(song.getSuffix())
-                if not song.getSuffix() in __whitelist_codecs:
+                if not song.getSuffix() in config.whitelist_codecs:
                     blacklist_count += 1
                 else:
                     whitelist_count += 1
@@ -468,7 +453,7 @@ def _artist_initial_to_entry(
         identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_INITIAL, artist_initial)
         art_album_id = artist_initial_art_retriever(connector, identifier)
         # store if found
-        if art_album_id: _cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, artist_art)
+        if art_album_id: _cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, art_album_id)
     entry = direntry(id, 
         objid, 
         artist_initial)
@@ -523,7 +508,7 @@ def _song_data_to_entry(objid, entry_id : str, song : Song) -> dict:
     entry['tp']= 'it'
     entry['discnumber'] = song.getDiscNumber()
     _set_track_number(song.getTrack(), entry)
-    entry['upnp:artist'] = song.getArtist()
+    entry['upnp:artist'] = get_display_artist(song.getArtist())
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
@@ -547,14 +532,14 @@ def _song_to_entry(
     song_uri : str = connector.buildSongUrlBySong(song)
     entry['uri'] = song_uri
     title : str = song.getTitle()
-    if MultiCodecAlbum.YES == multi_codec_album and __allow_blacklisted_codec_in_song == 1 and (not song.getSuffix() in __whitelist_codecs):
+    if MultiCodecAlbum.YES == multi_codec_album and config.allow_blacklisted_codec_in_song == 1 and (not song.getSuffix() in config.whitelist_codecs):
         title = "{} [{}]".format(title, song.getSuffix())
     _set_album_title(title, entry)
     entry['tp']= 'it'
     entry['discnumber'] = song.getDiscNumber()
     track_num : str = str(track_num) if track_num is not None else song.getTrack()
     _set_track_number(track_num, entry)
-    entry['upnp:artist'] = song.getArtist()
+    entry['upnp:artist'] = get_display_artist(song.getArtist())
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
@@ -564,7 +549,7 @@ def _song_to_entry(
     entry['duration'] = str(song.getDuration())
     return entry
 
-def _get_albums(query_type : str, size : int = __items_per_page, offset : int = 0) -> list[Album]:
+def _get_albums(query_type : str, size : int = config.items_per_page, offset : int = 0) -> list[Album]:
     albumListResponse : Response[AlbumList]
     if TagType.NEWEST.getQueryType() == query_type:
         albumListResponse = connector.getNewestAlbumList(size = size, offset = offset)
@@ -644,7 +629,7 @@ def _load_albums_by_type(
         entries : list, 
         tagType : TagType,
         offset : int = 0,
-        size : int = __items_per_page) -> list:
+        size : int = config.items_per_page) -> list:
     albumList : list[Album] = _get_albums(tagType.getQueryType(), size = size, offset = str(offset))
     sz : int = len(albumList)
     current_album : Album
@@ -653,7 +638,7 @@ def _load_albums_by_type(
         if tagType and (not tag_cached) and (offset == 0):
             _cache_element_value(ElementType.TAG, tagType.getTagName(), current_album.getId())
             tag_cached = True
-        if __disable_sparse_album == 1:
+        if config.disable_sparse_album == 1:
             entries.append(_album_to_entry(objid, current_album))
         else:            
             entries.append(_sparse_album_to_entry(objid, current_album))
@@ -778,7 +763,7 @@ def _playlist_entry_to_entry(
     entry['tt'] = title
     entry['tp']= 'it'
     _set_track_number(playlist_entry.getTrack(), entry)
-    entry['upnp:artist'] = playlist_entry.getArtist()
+    entry['upnp:artist'] = get_display_artist(playlist_entry.getArtist())
     entry['upnp:album'] = playlist_entry.getAlbum()
     entry['res:mime'] = playlist_entry.getContentType()
     albumArtURI : str = connector.buildCoverArtUrl(playlist_entry.getId())
@@ -872,7 +857,7 @@ def __handler_tag_type(objid, item_identifier : ItemIdentifier, tag_type : TagTy
         tagType = tag_type, 
         offset = offset)
     # offset is: current offset + the entries length
-    if (len(entries) == __items_per_page):
+    if (len(entries) == config.items_per_page):
         next_page : dict = _create_tag_next_entry(
             objid = objid, 
             tag = tag_type, 
@@ -928,7 +913,8 @@ def _handler_radio(objid, item_identifier : ItemIdentifier, entries : list) -> l
     for song in res.getObj().getSongs():
         entries.append(_song_to_song_entry(
             objid = objid, 
-            song = song))
+            song = song,
+            song_as_entry = True))
     return entries
 
 def _handler_radio_song_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -943,10 +929,28 @@ def _handler_radio_song_list(objid, item_identifier : ItemIdentifier, entries : 
         entries.append(song_entry)
     return entries
 
-def _handler_element_artist_top_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    msgproc.log(f"_handler_element_artist_top_songs start")
+def _handler_element_artist_top_songs_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _handler_element_artist_top_songs_common(
+        objid = objid, 
+        item_identifier = item_identifier, 
+        list_mode = False,
+        entries = entries)
+
+def _handler_element_artist_top_songs_song_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return _handler_element_artist_top_songs_common(
+        objid = objid, 
+        item_identifier = item_identifier, 
+        list_mode = True,
+        entries = entries)
+
+def _handler_element_artist_top_songs_common(
+        objid, 
+        item_identifier : ItemIdentifier,
+        list_mode : bool, 
+        entries : list) -> list:
+    msgproc.log(f"_handler_element_artist_top_songs_common start")
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    msgproc.log(f"_handler_element_artist_top_songs artist_id {artist_id}")
+    msgproc.log(f"_handler_element_artist_top_songs_common artist_id {artist_id}")
     res : Response[Artist] = connector.getArtist(artist_id)
     if not res.isOk(): raise Exception(f"Cannot find artist by artist_id {artist_id}")
     artist : Artist = res.getObj()
@@ -954,15 +958,24 @@ def _handler_element_artist_top_songs(objid, item_identifier : ItemIdentifier, e
     if not top_song_res.isOk(): raise Exception(f"Cannot get top songs for artist {artist.getName()}")
     song : Song
     for song in top_song_res.getObj().getSongs():
-        song_entry : dict[str, any] = _song_to_entry(objid, song)
-        entries.append(song_entry)
+        if list_mode:
+            song_entry : dict[str, any] = _song_to_entry(objid, song)
+            entries.append(song_entry)
+        else:
+            entries.append(_song_to_song_entry(
+                objid = objid, 
+                song = song, 
+                song_as_entry = True))
     return entries
 
-def _song_to_song_entry(objid, song : Song) -> direntry:
-    name : str = f"{song.getTitle()} - {song.getAlbum()}"
+def _song_to_song_entry(objid, song : Song, song_as_entry : bool) -> direntry:
+    name : str = f"{song.getTitle()} [{song.getAlbum()}]"
     art_id = song.getAlbumId()
+    select_element : ElementType = (
+        ElementType.SONG_ENTRY if song_as_entry else 
+        ElementType.SONG_ENTRY_THE_SONG)
     identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.SONG_ENTRY.getName(), 
+        select_element.getName(), 
         song.getId())
     id : str = _create_objid_simple(objid, __create_id_from_identifier(identifier))
     entry = direntry(id, 
@@ -997,24 +1010,20 @@ def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries
     return entries
 
 def _get_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    add_as_entry : bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
-    response : Response[RandomSongs] = connector.getRandomSongs(size = __items_per_page)
+    song_as_entry : bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
+    response : Response[RandomSongs] = connector.getRandomSongs(size = config.items_per_page)
     if not response.isOk(): raise Exception(f"Cannot get random songs")
     song_list : list[Song] = response.getObj().getSongs()
     song : Song
     for song in song_list:
-        song_entry = (
-            _song_to_song_entry(
-                objid = objid, 
-                song = song) 
-            if add_as_entry 
-            else _song_to_entry(
-                objid = objid, 
-                song = song))
+        song_entry = _song_to_song_entry(
+            objid = objid, 
+            song = song,
+            song_as_entry = song_as_entry) 
         entries.append(song_entry)
     # no offset, so we always add next
     next_identifier : ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
-    next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, add_as_entry)
+    next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
     next_id : str = _create_objid_simple(objid, __create_id_from_identifier(next_identifier))
     next_entry : dict = direntry(
         id = next_id, 
@@ -1087,12 +1096,12 @@ def _load_all_artists_by_genre(genre : str) -> set[str]:
     artist_id_set : set[str] = set()
     album_list : list[Album] = None
     offset : int = 0
-    while not album_list or len(album_list) == __subsonic_max_return_size:
+    while not album_list or len(album_list) == config.subsonic_max_return_size:
         album_list_response : Response[AlbumList] = connector.getAlbumList(
             ltype = ListType.BY_GENRE, 
             genre = genre,
             offset = offset,
-            size = __subsonic_max_return_size)
+            size = config.subsonic_max_return_size)
         if not album_list_response.isOk(): return set()
         album_list : list[Album] = album_list_response.getObj().getAlbums()
         cached : bool = False
@@ -1140,7 +1149,7 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
         ltype = ListType.BY_GENRE, 
         genre = genre,
         offset = offset,
-        size = __items_per_page)
+        size = config.items_per_page)
     if not album_list_response.isOk(): return entries
     album_list : list[Album] = album_list_response.getObj().getAlbums()
     msgproc.log(f"got {len(album_list)} albums for genre {genre} from offset {offset}")
@@ -1153,12 +1162,12 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
         _cache_element_value(ElementType.GENRE_ALBUM_LIST, genre, current_album.getId())
         _cache_element_value(ElementType.GENRE_ALBUM_LIST, current_album.getGenre(), current_album.getId())
         entries.append(_album_to_entry(objid, current_album))
-    if len(album_list) == __items_per_page:
+    if len(album_list) == config.items_per_page:
         # create next button
         entries = _genre_add_albums_node(
             objid = objid,
             item_identifier = item_identifier,
-            offset = offset + __items_per_page,
+            offset = offset + config.items_per_page,
             entries = entries)
     return entries
 
@@ -1189,15 +1198,15 @@ def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entr
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} offset {offset}")
     album_list : list[Album] = _load_albums_by_artist(artist_id)
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} found {len(album_list)} albums")
-    next_needed : bool = len(album_list) > (__items_per_page + offset)
-    num_albums_to_show : int = __items_per_page if next_needed or len(album_list) == __items_per_page else len(album_list) % __items_per_page
+    next_needed : bool = len(album_list) > (config.items_per_page + offset)
+    num_albums_to_show : int = config.items_per_page if next_needed or len(album_list) == config.items_per_page else len(album_list) % config.items_per_page
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} next_needed {next_needed} num_albums_to_show {num_albums_to_show}")
     if num_albums_to_show > 0:
         entries = _albums_by_artist_to_entries(objid, album_list[offset : offset + num_albums_to_show], entries)
         msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
         if next_needed:
             next_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
-            next_identifier.set(ItemIdentifierKey.OFFSET, offset + __items_per_page)
+            next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
             next_id : str = _create_objid_simple(objid, __create_id_from_identifier(next_identifier))
             next_entry : dict = direntry(
                 next_id, 
@@ -1221,8 +1230,10 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
     album_art : str = get_artist_cover(connector, artist_id)
     if album_art: _set_album_art_from_album_id(album_art, albums_entry)
     entries.append(albums_entry)
-    top_songs_entry : dict[str, any] = _artist_to_top_songs_entry(objid, artist_id, artist.getName())
-    if top_songs_entry: entries.append(top_songs_entry)
+    top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, artist_id, artist.getName()) 
+    top_songs_entry : dict[str, any]
+    for top_songs_entry in top_songs_entry_list: 
+        entries.append(top_songs_entry)
     similar_artists_entry : dict[str, any] = _similar_artists_for_artist(objid, artist_id)
     if similar_artists_entry: entries.append(similar_artists_entry)
     radio_entry_list : list[dict[str, any]] = _radio_entry(objid, iid = artist.getId())
@@ -1239,10 +1250,10 @@ def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entri
     genre : str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
     album_list : list[Album] = None
     offset : int = 0
-    while not album_list or len(album_list) == __subsonic_max_return_size:
+    while not album_list or len(album_list) == config.subsonic_max_return_size:
         album_list_response : Response[AlbumList] = connector.getAlbumList(
             ltype = ListType.BY_GENRE,
-            size = __subsonic_max_return_size,
+            size = config.subsonic_max_return_size,
             genre = genre,
             offset = offset)
         if not album_list_response.isOk(): raise Exception(f"Failed to load albums for genre {genre} offset {offset}")
@@ -1268,8 +1279,10 @@ def _handler_element_sparse_album(objid, item_identifier : ItemIdentifier, entri
     entries.append(album_entry)
     artist_entry : dict[str, any] = _artist_entry_for_album(objid, album)
     entries.append(artist_entry)
-    top_songs_entry : dict[str, any] = _artist_to_top_songs_entry(objid, album.getArtistId(), album.getArtist())
-    if top_songs_entry: entries.append(top_songs_entry)
+    top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, album.getArtistId(), album.getArtist())
+    top_songs_entry: dict[str, any]
+    for top_songs_entry in top_songs_entry_list:
+        entries.append(top_songs_entry)
     similar_artist_entry : dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
     if similar_artist_entry: entries.append(similar_artist_entry)
     _radio_entry_list : list[dict[str, any]] = _radio_entry(objid, album.getId())
@@ -1294,7 +1307,7 @@ def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
         radio_song_list_entry : dict = direntry(
             radio_song_list_id, 
             objid, 
-            title = "Radio (Song List)")
+            title = "Radio (List)")
         _set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_entry)
         _set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_song_list_entry)
         return [radio_entry, radio_song_list_entry]
@@ -1329,7 +1342,8 @@ def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
         _cache_element_value(ElementType.ARTIST, album.getArtistId(), artist_art, force_update = False)
     return artist_entry
 
-def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> dict[str, any]:
+def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> list[dict[str, any]]:
+    result : list[dict[str, any]] = list()
     res_top_songs : Response[TopSongs] = connector.getTopSongs(artist)
     if not res_top_songs.isOk(): raise Exception(f"Cannot load top songs for artist {artist}")
     if len(res_top_songs.getObj().getSongs()) > 0:
@@ -1340,8 +1354,19 @@ def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> dict[str
             top_songs_id, 
             objid, 
             title = f"Top Songs by {artist}")
-        _set_album_art_from_album_id(res_top_songs.getObj().getSongs()[0].getAlbumId(), top_songs_entry)
-        return top_songs_entry
+        art_select_song : Song = secrets.choice(res_top_songs.getObj().getSongs())
+        _set_album_art_from_album_id(art_select_song.getAlbumId(), top_songs_entry)
+        result.append(top_songs_entry)
+        top_songs_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS_LIST.getName(), artist_id)
+        top_songs_list_id : str = _create_objid_simple(objid, __create_id_from_identifier(top_songs_list_identifier))
+        top_songs_list_entry : dict = direntry(
+            top_songs_list_id, 
+            objid, 
+            title = f"Top Songs (List) by {artist}")
+        art_select_song = secrets.choice(res_top_songs.getObj().getSongs())
+        _set_album_art_from_album_id(art_select_song.getAlbumId(), top_songs_list_entry)
+        result.append(top_songs_list_entry)
+    return result
 
 def _handler_element_similar_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1438,7 +1463,8 @@ __elem_action_dict : dict = {
     ElementType.SONG_ENTRY_THE_SONG.getName(): _handler_element_song_entry_song,
     ElementType.NEXT_RANDOM_SONGS.getName(): _handler_element_next_random_songs,
     ElementType.INTERNET_RADIO.getName(): _handler_element_radio_station,
-    ElementType.ARTIST_TOP_SONGS.getName(): _handler_element_artist_top_songs,
+    ElementType.ARTIST_TOP_SONGS.getName(): _handler_element_artist_top_songs_navigable,
+    ElementType.ARTIST_TOP_SONGS_LIST.getName(): _handler_element_artist_top_songs_song_list,
     ElementType.ARTIST_SIMILAR.getName(): _handler_element_similar_artists,
     ElementType.ARTIST_ALBUMS.getName(): _handler_element_artist_albums,
     ElementType.RADIO.getName(): _handler_radio,
@@ -1516,7 +1542,7 @@ def search(a):
         search_result : SearchResult = connector.search(value, 
             artistCount = 0, 
             songCount = 0,
-            albumCount = __items_per_page)
+            albumCount = config.items_per_page)
         album_list : list[Album] = search_result.getAlbums()
         current_album : Album
         filters : dict[str, str] = {}
@@ -1528,7 +1554,7 @@ def search(a):
         # search tracks by specified value
         search_result : SearchResult = connector.search(value, 
             artistCount = 0, 
-            songCount = __items_per_page,
+            songCount = config.items_per_page,
             albumCount = 0)
         song_list : list[Song] = search_result.getSongs()
         sorted_song_list : list[Song] = sort_song_list(song_list).getSongList()
@@ -1536,11 +1562,12 @@ def search(a):
         for current_song in sorted_song_list:
             entries.append(_song_to_song_entry(
                 objid = objid, 
-                song = current_song))
+                song = current_song, 
+                song_as_entry = True))
     elif SearchType.ARTIST.getName() == field:
         # search artists
         search_result : SearchResult = connector.search(value, 
-            artistCount = __items_per_page, 
+            artistCount = config.items_per_page, 
             songCount = 0,
             albumCount = 0)
         artist_list : list[Artist] = search_result.getArtists()
@@ -1554,7 +1581,7 @@ def search(a):
     #msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 
-if __autostart == 1:
+if config.autostart == 1:
     _initsubsonic()
 msgproc.log("Subsonic running")
 msgproc.mainloop()
