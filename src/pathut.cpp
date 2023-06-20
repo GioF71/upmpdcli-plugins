@@ -1174,7 +1174,7 @@ int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
     if (nullptr == stp) {
         return -1;
     }
-    *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0};
+    *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0,0};
     struct STATXSTRUCT mst;
     SYSPATH(path, syspath);
     int ret = follow ? STATXCALL(syspath, &mst) : LSTATXCALL(syspath, &mst);

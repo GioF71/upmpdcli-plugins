@@ -205,8 +205,8 @@ bool path_rmdir(const std::string& path);
 // Setting file times. Windows defines timeval in winsock2.h but it seems safer to use local def
 // Also on Windows, we use _wutime and ignore the tv_usec part.
 typedef struct path_timeval {
-    long tv_sec;
-    long tv_usec;
+    int64_t tv_sec;
+    int64_t tv_usec;
 } path_timeval;
 bool path_utimes(const std::string& path, struct path_timeval times[2]);
 
