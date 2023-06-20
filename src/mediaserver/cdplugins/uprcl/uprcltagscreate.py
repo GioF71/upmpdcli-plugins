@@ -34,18 +34,17 @@ import uprclinit
 # also currently the recoll field name (with a provision to differ if
 # needed, thanks to the currently empty _coltorclfield dict).
 #
-# The keys must stay same as what Minim uses as we filter them with
-# indexTags from minim config
+# The keys must stay same as what Minim uses as we filter them with indexTags from its
+# configuration.
 #
-# Note: artist is actually doc["albumartist"] if set, else doc["artist"] and
-# is processed separately
+# Note: artist is actually doc["albumartist"] if set, else doc["artist"].
 #
 # This is the base set, with some custom translations (e.g. Group->cgroup). If a minimserver
 # configuration is used, Some entries may be filtered out and some may be added.
 _alltagtotable = {
     'AlbumArtist' : 'albumartist',
     'All Artists' : 'allartists',
-    'Artist' : 'artist',
+    'Artist' : 'artist', # Special processing in recolltosql: "albumartist" if set else "artist"
     'Comment' : 'comment',
     'Composer' : 'composer',
     'Conductor' : 'conductor',
@@ -58,8 +57,8 @@ _alltagtotable = {
     'Performer' : 'performer',
     }
 
-# Translations used when fetching fields from the recoll
-# record. Most have the same name as the column.
+# Translations used when fetching fields from the recoll record. Most have the same name as the
+# column.
 _coltorclfield = {
     'allartists' : 'artist'
     }
@@ -146,8 +145,8 @@ def _createsqdb(conn):
         c.execute('''DROP TABLE tracks''')
     except:
         pass
-    tracksstmt = '''CREATE TABLE tracks (docidx INT, album_id INT, artist_id INT, 
-                    trackno INT, title TEXT, path TEXT)'''
+    tracksstmt = '''CREATE TABLE tracks 
+                     (docidx INT, album_id INT, trackno INT, title TEXT, path TEXT)'''
     c.execute(tracksstmt)
 
     # Create tables for tag values (e.g. all genre values, all composer values, etc.)
@@ -199,7 +198,8 @@ def _prepareTags(conn):
     indextagsp = uprclinit.g_minimconfig.getindextags()
     itemtags = uprclinit.g_minimconfig.getitemtags()
     if not indextagsp:
-        # Our default list of index tags (showing up as containers in the tree)
+        # Our default list of index tags (showing up as containers in the tree). The second field in
+        # each pair, if set, is the customized display (e.g. ("Composer", "Compositeur"))
         indextagsp = [('Artist',''), ('Date',''), ('Genre',''), ('Composer','')]
 
     # Compute the actual list of index tags:
@@ -222,7 +222,7 @@ def _prepareTags(conn):
         tb = _alltagtotable[nm]
         g_tagtotable[nm] = tb
         rclfld = _coltorclfield[tb] if tb in _coltorclfield else tb
-        uplog(f"recolltosql: using rclfield [{rclfld}] for sql [{tb}]")
+        uplog(f"prepareTags: using rclfield [{rclfld}] for sql [{tb}]")
         tabtorclfield.append((tb, rclfld))
 
     for nm in itemtags:
@@ -230,9 +230,10 @@ def _prepareTags(conn):
             _addCustomTable(conn, nm)
         tb = _alltagtotable[nm]
         rclfld = _coltorclfield[tb] if tb in _coltorclfield else tb
-        uplog(f"recolltosql: using rclfield [{rclfld}] for sql [{tb}]")
+        uplog(f"prepareTags: using rclfield [{rclfld}] for sql [{tb}]")
         tabtorclfield.append((tb, rclfld))
 
+    uplog(f"prepareTags: tabtorclfield: {tabtorclfield}")
     return tabtorclfield
 
 
@@ -588,7 +589,9 @@ def recolltosql(conn, rcldocs):
     totcnt = 0
     c = conn.cursor()
 
-    # Set this as global, no need to query for it every time it's needed
+    # A generic "Various Artists" tag value to be used for Albumartist if there are multiple artists
+    # and no explicit AlbumArtist value. Set this as global, no need to query for it every time it's
+    # needed.
     global variousartistsid
     variousartistsid = _auxtableinsert(conn, "artist", "Various Artists")    
 
@@ -622,12 +625,17 @@ def recolltosql(conn, rcldocs):
         placehold = ['?',    '?',       '?',      '?',          '?']
         for tb, rclfld in tabtorclfield:
             value = doc[rclfld]
-            # See comment in parsedate
+            # Special processing for some fields
             if rclfld == 'date':
+                # See comment in parsedate
                 if not value:
                     value = doc['dmtime']
                 if value:
                     value = parsedate(value)
+            elif rclfld == "artist":
+                value = doc["albumartist"]
+                if not value:
+                    value = doc["artist"]
             if not value:
                 continue
             # rclaudio.py concatenates multiple values, using " | " as separator.
