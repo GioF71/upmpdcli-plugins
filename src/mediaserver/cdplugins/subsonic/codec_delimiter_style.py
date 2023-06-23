@@ -13,16 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
+from enum import Enum
 
-def encode(name : str) -> str:
-    message_bytes : bytes = name.encode('utf-8')
-    base64_bytes : bytes = base64.b64encode(message_bytes)
-    id : str = base64_bytes.decode('utf-8')
-    return id
+class CodecDelimiterStyle(Enum):
+    
+    SQUARE = 0, "[", "]"
+    ROUND = 1, "(", ")"
 
-def decode(id : str) -> str:
-    base64_bytes : bytes = id.encode('utf-8')
-    message_bytes : bytes = base64.b64decode(base64_bytes)
-    name : str = message_bytes.decode('utf-8')
-    return name
+    def __init__(self, num : int, left : str, right : str):
+        self.__num : int = num
+        self.__left : str = left
+        self.__right : str = right
+
+    def get_left(self) -> str: return self.__left
+    def get_right(self) -> str: return self.__right

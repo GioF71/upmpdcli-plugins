@@ -13,16 +13,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
+import subsonic_util
+import cache_manager_provider
+import subsonic_init_provider
 
-def encode(name : str) -> str:
-    message_bytes : bytes = name.encode('utf-8')
-    base64_bytes : bytes = base64.b64encode(message_bytes)
-    id : str = base64_bytes.decode('utf-8')
-    return id
+from element_type import ElementType
 
-def decode(id : str) -> str:
-    base64_bytes : bytes = id.encode('utf-8')
-    message_bytes : bytes = base64.b64decode(base64_bytes)
-    name : str = message_bytes.decode('utf-8')
-    return name
+from typing import Callable
+
+def __select_album_id_for_genre_artist(artist_id : str) -> str:
+    artist_art : str = cache_manager_provider.get().get_cached_element(ElementType.GENRE_ARTIST, artist_id)
+    if not artist_art:
+        # fallback to art for artist in general
+        artist_art : str = subsonic_util.get_artist_art(artist_id, subsonic_init_provider.initializer_callback)
+    return artist_art
+
+selector_artist_id_to_album_id : Callable[[str], str] = __select_album_id_for_genre_artist

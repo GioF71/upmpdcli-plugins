@@ -718,25 +718,45 @@ link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidro
 code.
 
 NOTE: The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.1.16/[subsonic-connector version 0.1.16] and
+link:https://pypi.org/project/subsonic-connector/0.1.17/[subsonic-connector version 0.1.17] and
 link:https://pypi.org/project/py-sonic/[py-sonic].
 
-Only a limited set of features are currently available:
+List of currently available Features:
 
 - List Newest Albums
-- List Random Albums
 - List Recently Played Albums
-- List Genres: each Genre return Albums and the relevant Artists
+- List Highest Rated Albums
+- List Most Played Albums
+- List Random Albums
+- List Favourite Albums
 - List Artists (All)
 - List Artists (By Initial)
+- List Favourite Artists
+- List Random Songs (Navigable and List mode)
+- List Favourite Songs (Navigable and List mode)
+- List Genres: each Genre return Albums and the relevant Artists
 - List Playlists
+- List Internet Radios
+- Artist view: Similar Artists
+- Artist view: Top Songs (Navigable and List mode)
+- Artist view: Radio (Navigable and List mode)
+- Album view (when not coming from the Artist): Link to Artist
+- Album view (when not coming from the Artist): Top Songs by Artist (Navigable and List mode)
+- Album view (when not coming from the Artist): Similar Artists
+- Album view (when not coming from the Artist): Radio (Navigable and List mode)
+- Song view (when not coming from the Artist/Album): Link to Album
+- Song view (when not coming from the Artist/Album): Link to Artist
 - Search Albums
 - Search Tracks
 - Search Artists
 
-Clicking on a Genre will show a list of albums belonging to that genre.
+Notes on navigation by genre:
+- Clicking on a Genre will show two entries, named Artists and Albums
+- Clicking on Albums from a selected Genre, you will see a list of Albums from the selected genre
+- Clicking on Artists from a selected Genre, you will get a list of Artist which have albums for the selected Genre
+- Clicking on Albums from an Artist within a Genre, you will get a list of Albums from the selected artist in the select genre 
 
-Enable this function by uncommenting the bogus setting for the `subsonicuser` variable
+The subsonic plugin is enabled by uncommenting the bogus setting for the `subsonicuser` variable
 in the upmpdcli configuration file.
 So will also need to specify:
 

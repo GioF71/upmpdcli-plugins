@@ -13,16 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
+import subsonic_init
 
-def encode(name : str) -> str:
-    message_bytes : bytes = name.encode('utf-8')
-    base64_bytes : bytes = base64.b64encode(message_bytes)
-    id : str = base64_bytes.decode('utf-8')
-    return id
+from typing import Callable
 
-def decode(id : str) -> str:
-    base64_bytes : bytes = id.encode('utf-8')
-    message_bytes : bytes = base64.b64decode(base64_bytes)
-    name : str = message_bytes.decode('utf-8')
-    return name
+def __initializer_callback() -> None:
+    subsonic_init.initial_caching()
+
+initializer_callback : Callable[[], None] = __initializer_callback

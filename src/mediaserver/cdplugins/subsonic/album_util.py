@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from re import split
+import re
 from enum import Enum
 from functools import cmp_to_key
 import copy
@@ -22,11 +22,13 @@ import copy
 from subsonic_connector.song import Song
 from subsonic_connector.album import Album
 
+from codec_delimiter_style import CodecDelimiterStyle
+
 __split_characters : list[str] = [' ', '-', '_']
 
 def split_string(string, delimiters):
   pattern = r'|'.join(delimiters)
-  return split(pattern, string)
+  return re.split(pattern, string)
 
 class Starter(Enum):
     
@@ -56,7 +58,7 @@ def _ignorable(last_path : str) -> bool:
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
             splitted : list = split_string(last_path, __split_characters)
-            if splitted is not None and len(splitted) == 2:
+            if splitted is not None and len(splitted) >= 2:
                 last : str = splitted[1]
                 if __is_int(last): return True
     return False
@@ -203,4 +205,40 @@ def get_display_artist(artist : str) -> str:
     artist_list : list[str] = artist.split(";")
     return ", ".join(artist_list)
         
-    
+def strip_substring(initial_str, pattern):
+    result_str = initial_str
+    match = re.search(pattern, initial_str)
+    if match:
+        start = match.start()
+        end = match.end()
+        left = initial_str[0 : start] if start > 0 else ""
+        right = initial_str[match.end():] if end < (len(initial_str) - 1) else ""
+        result_str = left + right
+    return result_str
+
+def to_codec_pattern(codec : str, style : CodecDelimiterStyle):
+    return f" \\{style.get_left()}{codec}\\{style.get_right()}"
+
+def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
+    stripped_title : str = album_title
+    if len(codecs) == 1:
+        # get first and only codec
+        codecs_str : str = list(codecs)[0]
+        style : CodecDelimiterStyle
+        for style in CodecDelimiterStyle:
+            codec_pattern : str = to_codec_pattern(
+                codecs_str, 
+                CodecDelimiterStyle.ROUND)
+            if not album_title.startswith(codec_pattern):
+                stripped_title = strip_substring(album_title, codec_pattern)
+    return stripped_title
+
+# Tests
+a1d1 : str = "Disc 1 - Studio Album"
+a1d2 : str = "Disc 2 Live Album"
+
+if not _ignorable(a1d1):
+    raise Exception(f"Ignorable not working properly, [{a1d1}] should be ignorable")
+if not _ignorable(a1d2):
+    raise Exception(f"Ignorable not working properly, [{a1d2}] should be ignorable")
+

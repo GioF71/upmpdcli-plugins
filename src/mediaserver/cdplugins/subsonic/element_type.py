@@ -27,16 +27,17 @@ class ElementType(Enum):
     TRACK = 9, "trk",
     PLAYLIST = 10, "pl"
     INTERNET_RADIO = 11, "i_rd",
-    SONG_ENTRY = 12, "sng_ntry",
-    SONG_ENTRY_THE_SONG = 13, "sng_ntr_sng",
+    SONG_ENTRY_NAVIGABLE = 12, "sngntr_n",
+    SONG_ENTRY_THE_SONG = 13, "sngntr_s",
     NEXT_RANDOM_SONGS = 14, "nxt_rndm_sngs",
-    SPARSE_ALBUM = 15, "sprs_lbm",
+    NAVIGABLE_ALBUM = 15, "sprs_lbm",
     ARTIST_TOP_SONGS = 16, "rtsttp",
     ARTIST_TOP_SONGS_LIST = 17, "rtsttp_sl",
     ARTIST_SIMILAR = 18, "rtst_smlr",
     ARTIST_ALBUMS = 19, "rtst_lbms",
     RADIO = 20, "rd",
-    RADIO_SONG_LIST = 21, "rd_sl"
+    RADIO_SONG_LIST = 21, "rd_sl",
+    GENRE_ARTIST_ALBUMS = 22, "gnr_rtst_lbms"
 
     def __init__(self, 
             num : int, 

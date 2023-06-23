@@ -23,8 +23,8 @@ append_year_to_album : int = int(getOptionValue("subsonicappendyeartoalbum", "1"
 append_codecs_to_album : int = int(getOptionValue("subsonicappendcodecstoalbum", "1"))
 whitelist_codecs : list[str] = str(getOptionValue("subsonicwhitelistcodecs", "alac,wav,flac,dsf")).split(",")
 allow_blacklisted_codec_in_song : int = int(getOptionValue("subsonicallowblacklistedcodecinsong", "1"))
-disable_sparse_album : int = int(getOptionValue("subsonicdisablesparsealbumview", "0"))
-tag_enabled_prefix : str = "subsonictagenabled"
+disable_navigable_album : int = int(getOptionValue("subsonicdisablenavigablealbumview", "0"))
+tag_initial_page_enabled_prefix : str = "subsonictaginitialpageenabled"
 autostart : int = int(getOptionValue("subsonicautostart", "0"))
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):

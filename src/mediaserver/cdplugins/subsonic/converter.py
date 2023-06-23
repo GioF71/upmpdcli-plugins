@@ -13,16 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
+import connector_provider
+from subsonic_connector.artist_cover import ArtistCover
+from typing import Callable
 
-def encode(name : str) -> str:
-    message_bytes : bytes = name.encode('utf-8')
-    base64_bytes : bytes = base64.b64encode(message_bytes)
-    id : str = base64_bytes.decode('utf-8')
-    return id
+def __album_id_converter(album_id : str) -> str:
+    return connector_provider.get().buildCoverArtUrl(album_id) if album_id else None
 
-def decode(id : str) -> str:
-    base64_bytes : bytes = id.encode('utf-8')
-    message_bytes : bytes = base64.b64decode(base64_bytes)
-    name : str = message_bytes.decode('utf-8')
-    return name
+def __artist_id_converter(artist_id : str) -> str:
+    artist_cover : ArtistCover = connector_provider.get().getCoverByArtistId(artist_id)
+    if not artist_cover: return None
+    return artist_cover.getCoverArt()
+
+converter_album_id_to_url : Callable[[str], str] = __album_id_converter
+converter_artist_id_to_url : Callable[[str], str] = __artist_id_converter
+

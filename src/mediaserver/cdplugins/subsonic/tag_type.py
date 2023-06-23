@@ -17,19 +17,25 @@ from enum import Enum
 
 class TagType(Enum):
     
-    NEWEST = 0, "n", "Newest Albums", "newest"
-    RECENTLY_PLAYED = 10, "rp", "Recently Played Albums", "recent"
-    HIGHEST_RATED = 20, "hr", "Highest Rated Albums", "highest"
-    FAVOURITES = 30, "fav", "Favourite Albums", "starred"
-    MOST_PLAYED = 40, "mp", "Most Played Albums", "frequent"
-    RANDOM = 50, "r", "Random Albums", "random"
-    GENRES = 60, "g", "Genres", None
-    ARTISTS_ALL = 70, "a_all", "Artists", None
-    ARTISTS_INDEXED = 80, "a_ndx", "Artists (By Initial)", None
-    PLAYLISTS = 90, "pl", "Playlists", None
-    RANDOM_SONGS = 100, "rs", "Random Songs", None,
-    RANDOM_SONGS_LIST = 101, "rsl", "Random Songs (List)", None
-    INTERNET_RADIOS = 110, "ir", "Internet Radios", None
+    ALBUMS = 100, "glbms", "Albums", None
+    NEWEST = 110, "n", "Newest Albums", "newest"
+    RECENTLY_PLAYED = 120, "rp", "Recently Played Albums", "recent"
+    HIGHEST_RATED = 130, "hr", "Highest Rated Albums", "highest"
+    FAVOURITES = 140, "fav", "Favourite Albums", "starred"
+    MOST_PLAYED = 150, "mp", "Most Played Albums", "frequent"
+    RANDOM = 160, "r", "Random Albums", "random"
+    ARTISTS = 200, "grtsts", "Artists", None
+    ARTISTS_ALL = 210, "a_all", "Artists (All)", None
+    ARTISTS_INDEXED = 220, "a_ndx", "Artists (By Initial)", None
+    FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
+    SONGS = 300, "gsngs", "Songs", None,
+    RANDOM_SONGS = 310, "rs", "Random Songs", None,
+    RANDOM_SONGS_LIST = 320, "rsl", "Random Songs (List)", None
+    FAVOURITE_SONGS = 330, "fs", "Favourite Songs", None,
+    FAVOURITE_SONGS_LIST = 340, "fsl", "Favourite Songs (List)", None,
+    GENRES = 400, "g", "Genres", None
+    PLAYLISTS = 500, "pl", "Playlists", None
+    INTERNET_RADIOS = 600, "ir", "Internet Radios", None
 
     def __init__(self, 
             num : int, 
@@ -49,6 +55,13 @@ class TagType(Enum):
 
     def getQueryType(self) -> str:
         return self.query_type
+
+def get_tag_Type_by_name(tag_name : str) -> TagType:
+    #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    for _, member in TagType.__members__.items():
+        if tag_name == member.getTagName():
+            return member
+    raise Exception(f"get_tag_Type_by_name with {tag_name} NOT found")
 
 # duplicate check
 name_checker_set : set[str] = set()

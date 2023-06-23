@@ -13,16 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
+class ArtistInitialCache:
 
-def encode(name : str) -> str:
-    message_bytes : bytes = name.encode('utf-8')
-    base64_bytes : bytes = base64.b64encode(message_bytes)
-    id : str = base64_bytes.decode('utf-8')
-    return id
+    def __init__(self):
+        self.__cache : dict[str, str] = {}
 
-def decode(id : str) -> str:
-    base64_bytes : bytes = id.encode('utf-8')
-    message_bytes : bytes = base64.b64decode(base64_bytes)
-    name : str = message_bytes.decode('utf-8')
-    return name
+    def get(self, artist_id : str) -> str:
+        return self.__cache[artist_id] if artist_id in self.__cache else None
+    
+    def set(self, artist_id : str, artist_initial : str) -> None:
+        self.__cache[artist_id] = artist_initial
