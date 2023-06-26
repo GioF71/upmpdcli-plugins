@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <sstream>
 
 #include <string.h>
 #include <fcntl.h>
