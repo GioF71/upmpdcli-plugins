@@ -1,3 +1,13 @@
+upmpdcli (1.8.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Add configuration variable to enable the internal WEB server local
+    file serving function, mostly for use by Media Server plugins for serving
+    icons. Off by default.
+  * Subsonic/Navidrome plugin: misc. updates and improvements.
+  * Uprcl: fix using the 'albumartist' tag in priority when it is set.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 26 Jun 2023 14:00:00 +0100
+
 upmpdcli (1.7.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media Server: new Subsonic connector plugin by Fulco Giovanni: allows streaming music from a
