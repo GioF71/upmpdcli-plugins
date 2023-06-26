@@ -93,8 +93,6 @@ AC_LINK_IFELSE(
 dnl AC_CHECK_DECLS([exp10(double)], [], [],
 dnl [#include <math.h>])
 
-AC_FUNC_LIBUPNPP_LINNSONGCAST
-
 AC_SUBST(UPMPDCLI_LIBS)
 AC_SUBST(SCCTL_LIBS)
 

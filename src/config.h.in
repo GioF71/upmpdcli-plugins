@@ -9,12 +9,6 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
-/* Set to 1 if the setReceiversPlaying function is found in libupnpp */
-#undef HAVE_SETRECEIVERSPLAYING_IN_LINN
-
-/* Set to 1 if the setSourceIndex function is found in libupnpp */
-#undef HAVE_SETSOURCEINDEX_IN_LINN
-
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -38,9 +32,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Set to 1 if the stopReceiversWithStatus function is found in libupnpp */
-#undef HAVE_WITHSTATUS_IN_LINN
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
