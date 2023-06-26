@@ -275,29 +275,31 @@ dist_uprclbottleviews_DATA = \
     
 cdpluginssubsonicdir = $(pkgdatadir)/cdplugins/subsonic
 dist_cdpluginssubsonic_DATA = \
-                 src/mediaserver/cdplugins/subsonic/subsonic_init.py \
-                 src/mediaserver/cdplugins/subsonic/msgproc_provider.py \
-                 src/mediaserver/cdplugins/subsonic/subsonic_init_provider.py \
-                 src/mediaserver/cdplugins/subsonic/subsonic_util.py \
                  src/mediaserver/cdplugins/subsonic/album_util.py \
-                 src/mediaserver/cdplugins/subsonic/codec_delimiter_style.py \
-                 src/mediaserver/cdplugins/subsonic/art_retriever.py \
-                 src/mediaserver/cdplugins/subsonic/converter.py \
-                 src/mediaserver/cdplugins/subsonic/selector.py \
                  src/mediaserver/cdplugins/subsonic/artist_initial_cache.py \
                  src/mediaserver/cdplugins/subsonic/artist_initial_cache_provider.py \
-                 src/mediaserver/cdplugins/subsonic/config.py \
+                 src/mediaserver/cdplugins/subsonic/art_retriever.py \
                  src/mediaserver/cdplugins/subsonic/cache_manager_provider.py \
-                 src/mediaserver/cdplugins/subsonic/connector_provider.py \
                  src/mediaserver/cdplugins/subsonic/caching.py \
+                 src/mediaserver/cdplugins/subsonic/codec.py \
+                 src/mediaserver/cdplugins/subsonic/codec_delimiter_style.py \
+                 src/mediaserver/cdplugins/subsonic/config.py \
+                 src/mediaserver/cdplugins/subsonic/connector_provider.py \
+                 src/mediaserver/cdplugins/subsonic/converter.py \
+                 src/mediaserver/cdplugins/subsonic/element_type.py \
                  src/mediaserver/cdplugins/subsonic/entry_creator.py \
                  src/mediaserver/cdplugins/subsonic/identifier_util.py \
-                 src/mediaserver/cdplugins/subsonic/upnp_util.py \
-                 src/mediaserver/cdplugins/subsonic/codec.py \
-                 src/mediaserver/cdplugins/subsonic/tag_type.py \
-                 src/mediaserver/cdplugins/subsonic/element_type.py \
+                 src/mediaserver/cdplugins/subsonic/item_identifier_key.py \
+                 src/mediaserver/cdplugins/subsonic/item_identifier.py \
+                 src/mediaserver/cdplugins/subsonic/msgproc_provider.py \
                  src/mediaserver/cdplugins/subsonic/search_type.py \
-                 src/mediaserver/cdplugins/subsonic/subsonic-app.py
+                 src/mediaserver/cdplugins/subsonic/selector.py \
+                 src/mediaserver/cdplugins/subsonic/subsonic-app.py \
+                 src/mediaserver/cdplugins/subsonic/subsonic_init.py \
+                 src/mediaserver/cdplugins/subsonic/subsonic_init_provider.py \
+                 src/mediaserver/cdplugins/subsonic/subsonic_util.py \
+                 src/mediaserver/cdplugins/subsonic/tag_type.py \
+                 src/mediaserver/cdplugins/subsonic/upnp_util.py
 
 EXTRA_DIST = \
     autogen.sh \
