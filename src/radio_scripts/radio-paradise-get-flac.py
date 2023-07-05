@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # Checked to run with either Python 2 or 3
 #
 # Copyright (C) 2017-2018 J.F.Dockes

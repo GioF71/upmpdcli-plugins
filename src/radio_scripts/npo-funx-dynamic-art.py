@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 '''
 Dynamic art for Dutch Public Broadcasting Service (NPO) FunX internet radio stations:

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 # Almost completely copied from the Kodi BBC addon, which has an MIT license, retained for the modifications:
 # https://github.com/jonjomckay/kodi-addon-bbcsounds

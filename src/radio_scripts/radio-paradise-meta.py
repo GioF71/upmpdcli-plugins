@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 from __future__ import print_function
 
 # Metadata getter for Radio Paradiase stations
