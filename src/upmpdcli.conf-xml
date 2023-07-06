@@ -567,7 +567,7 @@ upradiostitle = Upmpdcli Radio List
 #subsonicuser = subsonic
 
 # <var name="subsonicpassword" type="string"><brief>SubSonic Password variable.</brief>
-# <descr>Required for SubSonic authentication. Set it to the appropriate user name.</descr></var>
+# <descr>Required for SubSonic authentication. Set it to the appropriate password.</descr></var>
 #subsonicpassword = subsonicpassword
 
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
