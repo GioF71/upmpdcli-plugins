@@ -224,7 +224,7 @@ def search(a):
     result = _g_rb.search(**filterargs)
     #uplog(f"SEARCH RESULT for [{sstr}]: {result}")
     entries = []
-    for radio in result:
+    for radio in result if result else []:
         entries.append(_radiotoentry(objid, None, radio))
     return _returnentries(entries)
 
