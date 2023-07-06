@@ -48,5 +48,5 @@ if urlInfo is not None:
                 urlInfo.getUrl())
     print("%s" % urlInfo.getUrl())
 else:
-    logger.error("Ended with null urlinfo")
+    logger.error(f"Ended with null urlinfo [{sys.argv[1]}]")
     print()
