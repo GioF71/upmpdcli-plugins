@@ -1,0 +1,146 @@
+commit d5d9ff64b02dcc4846b5638903870609fd337f88
+Author: Jean-Francois Dockes <jf@dockes.org>
+Date:   Wed Jul 5 16:46:24 2023 +0200
+
+    Change shebang line of python scripts to /usr/bin/env python3
+
+diff --git a/rdpl2stream/fetchStream.py b/rdpl2stream/fetchStream.py
+index d15dcb2..a077be6 100755
+--- a/rdpl2stream/fetchStream.py
++++ b/rdpl2stream/fetchStream.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # Main program for fetching a stream URL
+ 
+diff --git a/src/mediaserver/cdplugins/bbc/bbc-app.py b/src/mediaserver/cdplugins/bbc/bbc-app.py
+index 5e22d09..9f44c5b 100755
+--- a/src/mediaserver/cdplugins/bbc/bbc-app.py
++++ b/src/mediaserver/cdplugins/bbc/bbc-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # Almost completely copied from the Kodi BBC addon, which has an MIT license, retained for the modifications:
+ # https://github.com/jonjomckay/kodi-addon-bbcsounds
+diff --git a/src/mediaserver/cdplugins/deezer/deezer-app.py b/src/mediaserver/cdplugins/deezer/deezer-app.py
+index fbdb43d..74b862e 100755
+--- a/src/mediaserver/cdplugins/deezer/deezer-app.py
++++ b/src/mediaserver/cdplugins/deezer/deezer-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # A lot of code copied from the Kodi Tidal addon which is:
+ # Copyright (C) 2014 Thomas Amland
+diff --git a/src/mediaserver/cdplugins/hra/hra-app.py b/src/mediaserver/cdplugins/hra/hra-app.py
+index 0b2a643..cc7bdba 100755
+--- a/src/mediaserver/cdplugins/hra/hra-app.py
++++ b/src/mediaserver/cdplugins/hra/hra-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # A lot of code copied from the Kodi Tidal addon which is:
+ # Copyright (C) 2014 Thomas Amland
+diff --git a/src/mediaserver/cdplugins/qobuz/qobuz-app.py b/src/mediaserver/cdplugins/qobuz/qobuz-app.py
+index cfc5b93..2611142 100755
+--- a/src/mediaserver/cdplugins/qobuz/qobuz-app.py
++++ b/src/mediaserver/cdplugins/qobuz/qobuz-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # A lot of code copied from the Kodi Tidal addon which is:
+ # Copyright (C) 2014 Thomas Amland
+diff --git a/src/mediaserver/cdplugins/radio-browser/radio-browser-app.py b/src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
+index 21ed7db..0962d46 100755
+--- a/src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
++++ b/src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # Copyright (C) 2023 J.F.Dockes
+ #
+diff --git a/src/mediaserver/cdplugins/subsonic/subsonic-app.py b/src/mediaserver/cdplugins/subsonic/subsonic-app.py
+index 825de51..184fdd2 100755
+--- a/src/mediaserver/cdplugins/subsonic/subsonic-app.py
++++ b/src/mediaserver/cdplugins/subsonic/subsonic-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ # Copyright (C) 2023 Giovanni Fulco
+ #
+ # This program is free software: you can redistribute it and/or modify
+diff --git a/src/mediaserver/cdplugins/tidal/tidal-app.py b/src/mediaserver/cdplugins/tidal/tidal-app.py
+index a1f9db0..6ef7c6c 100755
+--- a/src/mediaserver/cdplugins/tidal/tidal-app.py
++++ b/src/mediaserver/cdplugins/tidal/tidal-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # A lot of code copied from the Kodi Tidal addon which is:
+ # Copyright (C) 2014 Thomas Amland
+diff --git a/src/mediaserver/cdplugins/upradios/upradios-app.py b/src/mediaserver/cdplugins/upradios/upradios-app.py
+index 2794f3e..a1f7560 100755
+--- a/src/mediaserver/cdplugins/upradios/upradios-app.py
++++ b/src/mediaserver/cdplugins/upradios/upradios-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # Copyright (C) 2021 J.F.Dockes
+ #
+diff --git a/src/mediaserver/cdplugins/uprcl/minimtagfixer.py b/src/mediaserver/cdplugins/uprcl/minimtagfixer.py
+index 0d26277..5f74b7c 100755
+--- a/src/mediaserver/cdplugins/uprcl/minimtagfixer.py
++++ b/src/mediaserver/cdplugins/uprcl/minimtagfixer.py
+@@ -1,5 +1,3 @@
+-#!/usr/bin/python3
+-#
+ # Copyright (C) 2017-2019 J.F.Dockes
+ #   This program is free software; you can redistribute it and/or modify
+ #   it under the terms of the GNU Lesser General Public License as published by
+diff --git a/src/mediaserver/cdplugins/uprcl/uprcl-app.py b/src/mediaserver/cdplugins/uprcl/uprcl-app.py
+index 2488769..3e117fa 100755
+--- a/src/mediaserver/cdplugins/uprcl/uprcl-app.py
++++ b/src/mediaserver/cdplugins/uprcl/uprcl-app.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ #
+ # Copyright (C) 2017 J.F.Dockes
+ #
+diff --git a/src/radio_scripts/radio-france-meta.py b/src/radio_scripts/radio-france-meta.py
+index 09a90e2..1bc4a1f 100644
+--- a/src/radio_scripts/radio-france-meta.py
++++ b/src/radio_scripts/radio-france-meta.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ from __future__ import print_function
+ 
+ '''
+diff --git a/src/radio_scripts/radio-paradise-get-flac.py b/src/radio_scripts/radio-paradise-get-flac.py
+index a8654d5..d13f751 100755
+--- a/src/radio_scripts/radio-paradise-get-flac.py
++++ b/src/radio_scripts/radio-paradise-get-flac.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ # Checked to run with either Python 2 or 3
+ #
+ # Copyright (C) 2017-2018 J.F.Dockes
+diff --git a/src/radio_scripts/radio-paradise-meta.py b/src/radio_scripts/radio-paradise-meta.py
+index 9b82f27..2cbf439 100755
+--- a/src/radio_scripts/radio-paradise-meta.py
++++ b/src/radio_scripts/radio-paradise-meta.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python3
++#!/usr/bin/env python3
+ from __future__ import print_function
+ 
+ # Metadata getter for Radio Paradiase stations
