@@ -154,11 +154,17 @@ dist_rdpl2stream_DATA = \
     
 radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
-                    src/radio_scripts/radio-france-meta.py \
-                    src/radio_scripts/radio-paradise-get-art.sh \
-                    src/radio_scripts/radio-paradise-get-flac.py \
-                    src/radio_scripts/radio-paradise-meta.py \
-                    src/radio_scripts/radiolist.conf
+                       src/radio_scripts/radio-paradise-get-flac.py \
+                       src/radio_scripts/radiolist.conf \
+                       src/radio_scripts/npr/src \
+                       src/radio_scripts/npr/src/main.rs \
+                       src/radio_scripts/npr/Cargo.toml \
+                       src/radio_scripts/npr/README \
+                       src/radio_scripts/npo-dynamic-art.py \
+                       src/radio_scripts/radio-paradise-get-art.sh \
+                       src/radio_scripts/radio-paradise-meta.py \
+                       src/radio_scripts/npo-funx-dynamic-art.py \
+                       src/radio_scripts/radio-france-meta.py
 
 webdir = $(pkgdatadir)
 nobase_dist_web_DATA = \
