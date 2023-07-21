@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.0"
+__subsonic_plugin_release : str = "0.2.1"
 
 import subsonic_init
 import subsonic_util

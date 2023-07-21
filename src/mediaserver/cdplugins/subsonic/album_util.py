@@ -97,13 +97,9 @@ class __Decorated_Song:
 
 def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
     cmp : int
-    left_artist : str = left.getSong().getArtist() if left.getSong().getArtist() else ""
-    right_artist : str = right.getSong().getArtist() if right.getSong().getArtist() else ""
     left_album : str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
     right_album : str = right.getSong().getAlbum() if right.getSong().getAlbum() else ""
-    cmp = -1 if left_artist < right_artist else 0 if left_artist == right_artist else 1
-    if cmp == 0:
-        cmp = -1 if left_album < right_album else 0 if left_album == right_album else 1
+    cmp = -1 if left_album < right_album else 0 if left_album == right_album else 1
     if cmp == 0:
         cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
     if cmp == 0:

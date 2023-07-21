@@ -36,13 +36,13 @@ import connector_provider
 
 import secrets
 
-def __get_cover_art_from_first_album(response : Response[AlbumList]) -> str:
+def __get_cover_art_from_album_list(response : Response[AlbumList], random : bool = False) -> str:
     if not response.isOk() or len(response.getObj().getAlbums()) == 0: return None
-    return response.getObj().getAlbums()[0].getCoverArt()
+    return secrets.choice(response.getObj().getAlbums()).getCoverArt() if random else response.getObj().getAlbums()[0].getCoverArt()
 
 def group_albums_art_retriever() -> str:
     # try favourite
-    art : str = favourite_albums_art_retriever()
+    art : str = favourite_albums_art_retriever(random_range = 500, random = True)
     # else random
     if not art: art = random_albums_art_retriever()
     return art
@@ -56,34 +56,34 @@ def group_artists_art_retriever() -> str:
 
 def group_songs_art_retriever() -> str:
     # try favourite
-    art : str = get_favourite_song_id(random = False)
+    art : str = get_favourite_song_id(random = True)
     # else random
     if not art: art = random_albums_art_retriever()
     return art
 
 def newest_albums_art_retriever() -> str:
     response : Response[AlbumList] = connector_provider.get().getNewestAlbumList(size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
 def random_albums_art_retriever() -> str:
     response : Response[AlbumList] = connector_provider.get().getRandomAlbumList(size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
 def recently_played_albums_art_retriever() -> str:
     response : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.RECENT, size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
 def highest_rated_albums_art_retriever() -> str:
     response : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.HIGHEST, size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
-def favourite_albums_art_retriever() -> str:
-    response : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.STARRED, size = 1)
-    return __get_cover_art_from_first_album(response)
+def favourite_albums_art_retriever(random_range : int = 1, random : bool = False) -> str:
+    response : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.STARRED, size = random_range)
+    return __get_cover_art_from_album_list(response = response, random = random)
 
 def most_played_albums_art_retriever() -> str:
     response : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.FREQUENT, size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
 def genres_art_retriever() -> str:
     response : Response[Genres] = connector_provider.get().getGenres()
@@ -98,7 +98,7 @@ def __genre_art_retriever(genre_name : str) -> str:
         ltype = ListType.BY_GENRE, 
         genre = genre_name, 
         size = 1)
-    return __get_cover_art_from_first_album(response)
+    return __get_cover_art_from_album_list(response = response)
 
 def __get_random_artist_cover_by_initial(artists_initial : ArtistsInitial) -> str:
     artist_list_item_list : list[ArtistListItem] = artists_initial.getArtistListItems()
