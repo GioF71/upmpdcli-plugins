@@ -138,6 +138,36 @@ queue, so it knows the whole sequence all the time (e.g. MPD, OpenHome, …), or
 indicates the next track to the renderer before the current track finishes (e.g. UPnP/AV
 SetNextTransportURI).
 
+[[BITPERFECT]]
+=== Bitperfect ?
+
+This is the quality of the audio transport pipeline which will exactly preserve the binary values
+stored in the source material down to the input of the Digital Analogic Converter. Having a
+bitperfect transport can be significant if you need to preserve some special data stored in the low
+encoding bits (e.g. MQA), or if you have very good ears.
+
+This is meaningful for material stored either as PCM data (e.g. uncompressed WAV or AIFF), or stored
+in a lossless compression format (e.g. FLAC). It does not make much sense if the audio is originally
+stored in a lossy compression format.
+
+Several operations can change the sample values. The most common one is software volume adjustment.
+Some, but not all, transcoding operations can also affect the values. Almost by definition these are
+the conversions from and to lossy compression methods. Conversions to/from a lossless format (FLAC)
+should not affect the values if correctly implemented.
+
+In the UPnP world, some conversions may occur on the Media Server and on the Renderer. The Control
+Point has no influence on the audio stream (actually it does not see it at all). Some Control
+Points implementations may also include internal Renderer or Media Server functions, in which case
+they can affect the audio data as any other implementation of these.
+
+You need to have a look at the documentation of the UPnP Media Renderer and Media Server for
+information on if and what transcoding may take place. (Transcoding can be negotiated differently
+between the renderer and each receiving client).
+
+The Mpd audio pipeline may be bitperfect or not depending on configuration. Upmpdcli itself never
+modifies the audio stream (actually the renderer part does not see it at all).
+
+Upplay, the companion Control Point, never accesses or modifies the audio data.
 
 [[UPMPDCLI-OVERVIEW]]
 == Upmpdcli overview
