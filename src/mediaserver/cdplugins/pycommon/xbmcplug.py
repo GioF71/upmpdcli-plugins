@@ -117,7 +117,7 @@ def trackentries(httphp, pathprefix, objid, tracks):
         The permanent URIs, are of the following form, based on the
         configured host:port and pathprefix arguments and track Id:
 
-            http://host:port/pathprefix/track?version=1&trackId=<trackid>
+            http://host:port/pathprefix/track/version/1/trackId/<trackid>
     
     """
     global default_mime, default_samplerate
@@ -137,7 +137,7 @@ def trackentries(httphp, pathprefix, objid, tracks):
         li['id'] = objid + '$' + "%s" % track.id
         li['tt'] = track.name
         li['uri'] = 'http://%s' % httphp + \
-                    posixpath.join(pathprefix, 'track?version=1&trackId=%s' % track.id)
+                    posixpath.join(pathprefix, 'track/version/1/trackId/%s' % track.id)
         li['tp'] = 'it'
         image = getattr(track, 'image', None)
         if image:
@@ -176,7 +176,7 @@ def trackid_from_urlpath(pathprefix, a):
     Extract track id from a permanent URL path part.
 
     This supposes that the input URL has the format produced by the
-    trackentries() method: <pathprefix>/track?version=1&trackId=<trackid>
+    trackentries() method: <pathprefix>/track/version/1/trackId/<trackid>
 
     Args:
         pathprefix (str): our configured path prefix (e.g. /qobuz/)
@@ -189,10 +189,13 @@ def trackid_from_urlpath(pathprefix, a):
         raise Exception("trackuri: no 'path' in args")
     path = a['path']
 
-    # pathprefix + 'track?version=1&trackId=trackid
-    exp = posixpath.join(pathprefix, '''track\?version=1&trackId=(.+)$''')
+    # pathprefix + 'track/version/1/trackId/trackid
+    exp = posixpath.join(pathprefix, '''track/version/1/trackId/(.+)$''')
     m = re.match(exp, path)
     if m is None:
-        raise Exception("trackuri: path [%s] does not match [%s]" % (path, exp))
+        exp_old = posixpath.join(pathprefix, '''track\?version=1&trackId=(.+)$''')        
+        m = re.match(exp_old, path)
+    if m is None:
+        raise Exception(f"trackuri: path [{path}] does not match [{exp}]")
     trackid = m.group(1)
     return trackid

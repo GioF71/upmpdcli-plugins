@@ -33,11 +33,14 @@ static const string protoescape{"http://upmpdprotoescape/"};
 
 // http://wiki.openhome.org/wiki/Av:Developer:Eriskay:StreamingServices
 // Tidal and qobuz tracks added by Kazoo / Lumin: 
-//   tidal://track?version=1&trackId=[tidal_track_id]
-//   qobuz://track?version=2&trackId=[qobuz_track_id]
-static const string tidqob_restr{
-    "(tidal|qobuz)://track\\?version=([[:digit:]]+)&trackId=([[:digit:]]+)"};
+//   tidal://track/version/1/trackId/[tidal_track_id]
+//   qobuz://track/version/2/trackId/[qobuz_track_id]
+static const string tidqob_restr {
+    "(tidal|qobuz)://track/version/([[:digit:]]+)/trackId/([[:digit:]]+)"};
 static std::regex tidqob_re(tidqob_restr);
+static const string tidqob_restr_old {
+    "(tidal|qobuz)://track\\?version=([[:digit:]]+)&trackId=([[:digit:]]+)"};
+static std::regex tidqob_re_old(tidqob_restr_old);
 
 bool morphSpecialUrl(string& url, bool& forcenocheck, const std::string& upnphost)
 {
@@ -70,11 +73,15 @@ bool morphSpecialUrl(string& url, bool& forcenocheck, const std::string& upnphos
     // something the plugin can use.
     std::smatch mr;
     bool found = std::regex_match(url, mr, tidqob_re);
+    if (!found) {
+        // Same with old form of urls in case we get one from a playlist
+        found = std::regex_match(url, mr, tidqob_re_old);
+    }
     if (found) {
         string pathprefix = CDPluginServices::getpathprefix(mr[1]);
         // The microhttpd code actually only cares about getting a trackId parameter. Make it look
         // what the plugins normally generate anyway:
-        string path = path_cat(pathprefix, "track?version=1&trackId=" + mr[3].str());
+        string path = path_cat(pathprefix, "track/version/1/trackId/" + mr[3].str());
         url = string("http://") + upnphost + ":" + sport + path;
         forcenocheck = true;
     }

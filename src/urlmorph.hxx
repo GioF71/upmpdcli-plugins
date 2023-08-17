@@ -25,10 +25,10 @@
 //   with them. We transform them so that they point to our media server
 //   gateway (which should be running of course for this to work).
 //   The URLs from kazoo look like:
-//     <service>://track?version=2&trackId=<trkid>
+//     <service>://track/version/1/trackId/<trkid>
 //   We translate them to something which points to our proxy server, and
 //   that MPD will accept/use:
-//     http://<upnphost>:<sport>/<servicename>/track?version=1&trackId=<trkid>
+//     http://<upnphost>:<sport>/<servicename>/track/version/1/trackId/<trkid>
 //   Where upnphost is the host used by libupnp, and sport the port on
 //   which the microhttpd listens.
 //   We retrieve upnphost from the upnp device during init, and sport by a

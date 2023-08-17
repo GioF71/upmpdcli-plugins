@@ -166,7 +166,7 @@ StreamProxy::UrlTransReturn translateurl(
     // The uprcl module has a real path and no trackid. Handle both cases
     const auto it = querymap.find("trackId");
     if (it != querymap.end() && !it->second.empty()) {
-        path += string("?version=1&trackId=") + it->second;
+        path += string("/version/1/trackId/") + it->second;
     }
 
     // Translate to Tidal/Qobuz etc real temporary URL
