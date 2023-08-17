@@ -83,7 +83,7 @@ public:
         return _parse();
     }
 
-    virtual std::string getReason() {
+    virtual std::string getLastErrorMessage() {
         return m_reason.str();
     }
         
@@ -96,10 +96,9 @@ protected:
      * @param tagname the tag name 
      * @param attrs a map of attribute name/value pairs
      */
-    virtual void startElement(
-        const std::string& /* nm */,
-        const std::map<std::string, std::string>& /* attrs */) {}
-    /** Expatmm compat. We don't support attributes with this at the moment */
+    virtual void startElement(const std::string& /* nm */,
+                              const std::map<std::string, std::string>& /* attrs */) {}
+    /** Expatmm compat. */
     virtual void StartElement(const XML_Char *, const XML_Char **) {}
 
     /**
@@ -159,8 +158,26 @@ private:
         lastelt.attributes = attrs;
 
         startElement(tagname, attrs);
-        StartElement(tagname.c_str(), nullptr);
 
+#ifdef PICOXML_EXPAT_STARTELEMENT_COMPAT
+        { // Call Expat-compatible StartElement
+            auto sz = 2*(attrs.size()+1);
+            if (m_vattrs.size() < sz) {
+                m_vattrs.resize(sz);
+            }
+            auto it = m_vattrs.begin();
+            for (const auto& attr : attrs) {
+                *it++ = attr.first.c_str();
+                *it++ = attr.second.c_str();
+            }
+            *it++ = nullptr;
+            *it++ = nullptr;
+            StartElement(tagname.c_str(), m_vattrs.data());
+        }
+#else
+            StartElement(tagname.c_str(), nullptr);
+#endif
+        
         m_tagstack.push_back(tagname);      // Compat
         if (empty) {
             _endelem(tagname);
@@ -195,7 +212,7 @@ private:
             }
             if (nomore()) {
                 if (!m_tagstack.empty()) {
-                    m_reason << "EOF hit inside open element";
+                    m_reason << "EOF hit inside open element at cpos " << m_pos;
                     return false;
                 }
                 return true;
@@ -254,6 +271,9 @@ private:
         }
         if (m_pos != spos) {
             std::string data{unQuote(m_in.substr(spos, m_pos - spos))};
+            if (m_unquoteError) {
+                return false;
+            }
             characterData(data);
             CharacterData(data.c_str(), data.size());
         }
@@ -379,6 +399,9 @@ private:
                 return false;
             }
             attrs[attrnm] = unQuote(tag.substr(spos, epos - spos));
+            if (m_unquoteError) {
+                return false;
+            }
             //std::cerr << "attr value [" << attrs[attrnm] << "]\n";
             if (epos == tag.size() - 1) {
                 break;
@@ -401,18 +424,18 @@ private:
         static const std::string e_lt{"lt"};
         static const std::string e_gt{"gt"};
 
+        m_unquoteError = false;
         std::string out;
         out.reserve(s.size());
         std::string::const_iterator it = s.begin();
+        auto epos = 0;
         while (it != s.end()) {
             if (*it != '&') {
                 out += *it++;
                 continue;
             }
-            if (it == s.end()) {
-                // Unexpected
-                break;
-            }
+            // Position: m_pos minus the string size (including 2 quotes) plus position inside s
+            epos = m_pos - (s.size() + 2) + it - s.begin();
             it++;
             std::string code;
             while (it != s.end() && *it != ';') {
@@ -420,6 +443,9 @@ private:
             }
             if (it == s.end()) {
                 // Unexpected
+                m_reason << "End of quoted string, inside entity name at cpos " << epos;
+                m_unquoteError = true;
+                out.clear();
                 break;
             }
             it++;
@@ -437,5 +463,8 @@ private:
         }
         return out;
     }
+
+    std::vector<const char *> m_vattrs;
+    bool m_unquoteError;
 };
 #endif /* _PICOXML_H_INCLUDED_ */

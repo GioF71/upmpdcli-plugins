@@ -151,7 +151,7 @@ static bool xmlToAsciiDoc(const string& xml)
     XMLToDoc parser(xml, otxt);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getReason() << endl;
+            cerr << "Parse failed: " << parser.getLastErrorMessage() << endl;
             return false;
         }
     } catch (const std::runtime_error& e) {
@@ -257,7 +257,7 @@ static bool xmlToDocbook(const string& xml)
     XMLToDoc parser(xml, otxt);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getReason() << endl;
+            cerr << "Parse failed: " << parser.getLastErrorMessage() << endl;
             return false;
         }
     } catch (const std::runtime_error& e) {
@@ -338,7 +338,7 @@ static bool xmlToMan(const string& xml)
     XMLToMan parser(xml, otxt);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getReason() << endl;
+            cerr << "Parse failed: " << parser.getLastErrorMessage() << endl;
             return false;
         }
     } catch (const std::runtime_error& e) {
@@ -387,7 +387,7 @@ static bool xmlToStripped(const string& xml)
     XMLToStripped parser(xml, otxt);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getReason() << endl;
+            cerr << "Parse failed: " << parser.getLastErrorMessage() << endl;
             return false;
         }
     } catch (const std::runtime_error& e) {

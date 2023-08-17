@@ -1119,7 +1119,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
     XMLToConfGUI parser(xml, lnkf, parent);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getReason() << endl;
+            cerr << "Parse failed: " << parser.getLastErrorMessage() << "\n";
             return 0;
         }
     } catch (const std::runtime_error& e) {
