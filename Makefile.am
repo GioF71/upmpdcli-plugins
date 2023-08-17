@@ -156,7 +156,6 @@ radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
                        src/radio_scripts/radio-paradise-get-flac.py \
                        src/radio_scripts/radiolist.conf \
-                       src/radio_scripts/npr/src \
                        src/radio_scripts/npr/src/main.rs \
                        src/radio_scripts/npr/Cargo.toml \
                        src/radio_scripts/npr/README \
