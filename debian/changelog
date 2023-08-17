@@ -1,3 +1,10 @@
+upmpdcli (1.8.2pre-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media Server: experiment with using URLs without characters needing quoting in XML to work
+    around misc device bugs.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 17 Aug 2023 19:00:00 +0200
+
 upmpdcli (1.8.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Add configuration variable to enable the internal WEB server local
