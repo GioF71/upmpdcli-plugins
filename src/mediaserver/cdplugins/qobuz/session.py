@@ -1,7 +1,6 @@
 # defined to emulate the session object from the tidal module, which is
 # defined in the tidalapi part (we want to keep the qobuz api/ dir as
 # much alone as possible.
-from __future__ import print_function
 
 import sys
 import json
@@ -16,10 +15,11 @@ from qobuz.api import raw
 general_slice = 100
 
 class Session(object):
-    def __init__(self):
+    def __init__(self, format_id):
         self.api = None
         self.user = None
-
+        self.format_id = format_id
+        
     def login(self, username, password, appid, cfvalue):
         # self.api will already exist if get_appid() was called first, which means that the
         # appid/secret were obtained through the spoofer, not the config. This happens when we are
@@ -42,17 +42,15 @@ class Session(object):
     def get_appid_and_token(self):
         return (self.api.appid, self.api.user_auth_token)
     
+    def get_media_url(self, trackid):
+        info = self.get_media_info(trackid)
+        return info['url'] if info and 'url' in info else ''
 
-    def get_media_url(self, trackid, format_id=5):
-        # Format id: 5 for MP3 320, 6 for FLAC Lossless, 7 for FLAC
-        # Hi-Res 24 bit =< 96kHz, 27 for FLAC Hi-Res 24 bit >96 kHz &
-        # =< 192 kHz
-        url = self.api.track_getFileUrl(intent="stream",
-                                        track_id = trackid,
-                                        format_id = format_id)
-        uplog("get_media_url got: %s" % url)
-        return url['url'] if url and 'url' in url else None
-
+    def get_media_info(self, trackid):
+        info = self.api.track_getFileUrl(intent="stream", track_id = trackid,
+                                         format_id = self.format_id)
+        uplog(f"get_media_info got: {info}")
+        return info
 
     def loopget(self, max, getter, getterka, parser):
         slice = 20
@@ -80,19 +78,19 @@ class Session(object):
     def get_album_tracks(self, albid):
         data = self.api.album_get(album_id = albid)
         album = _parse_album(data)
-        return [_parse_track(t, album) for t in data['tracks']['items']]
+        return [_parse_track(self, t, albumarg=album) for t in data['tracks']['items']]
 
 
     def get_track(self, trackid):
         data = self.api.track_get(track_id=trackid)
         if data:
-            return _parse_track(data)
+            return _parse_track(self, data)
 
     def get_playlist_tracks(self, plid):
         return self.loopget(
             1000, self.api.playlist_get,
             {'playlist_id' : plid, 'extra' : 'tracks'},
-            lambda jsdata : [_parse_track(t) for t in jsdata['tracks']['items']]
+            lambda jsdata : [_parse_track(self, t) for t in jsdata['tracks']['items']]
             )
 
     def get_artist_albums(self, artid):
@@ -198,7 +196,7 @@ class Session(object):
                              data['playlists']['items']]
                 elif tp == 'tracks':
                     ncnt = len(data['tracks']['items'])
-                    ndata = [_parse_track(i) for i in data['tracks']['items']]
+                    ndata = [_parse_track(self, i) for i in data['tracks']['items']]
             except Exception as err:
                 uplog("_search1: exception while parsing result: %s" % err)
                 break
@@ -264,12 +262,6 @@ def _parse_album(json_obj, artist=None, artists=None):
     }
     if 'image' in json_obj and 'large' in json_obj['image']:
         kwargs['image'] = json_obj['image']['large']
-    if 'maximum_bit_depth' in json_obj:
-        kwargs['maxbitdepth'] = str(json_obj['maximum_bit_depth'])
-    if 'maximum_sampling_rate' in json_obj:
-        kwargs['maxsamprate'] = str(json_obj['maximum_sampling_rate'])
-    if 'maximum_channel_count' in json_obj:
-        kwargs['maxchannels'] = str(json_obj['maximum_channel_count'])
 
     # Note: we get no descriptions in the short albums from, e.g. search results, only when we
     # access /albums/get
@@ -305,7 +297,7 @@ def _parse_playlist(data, artist=None, artists=None):
     return Playlist(**kwargs)
 
 
-def _parse_track(json_obj, albumarg = None):
+def _parse_track(sess, json_obj, albumarg = None):
     artist = Artist()
     if 'performer' in json_obj:
         artist = _parse_artist(json_obj['performer'])
@@ -337,6 +329,14 @@ def _parse_track(json_obj, albumarg = None):
     }
     if album:
         kwargs['album'] = album
+    # This will need to be controlled by a configuration parameter because it's expensive and most
+    # renderers don't care about this information (they get it from the stream)
+    if sess and True:
+        trackinfo = sess.get_media_info(json_obj['id'])
+        if 'mime_type' in trackinfo:
+            kwargs['mime'] = trackinfo['mime_type']
+            kwargs['samplefreq'] = trackinfo['sampling_rate'] * 1000
+            kwargs['bitdepth'] = trackinfo['bit_depth']
 
     return Track(**kwargs)
 
@@ -365,14 +365,14 @@ class Favorites(object):
         return self.session.loopget(
             0, self.session.api.playlist_getUserPlaylists,
             {'user_id' : self.session.user.id},
-         lambda r : [_parse_playlist(item) for item in r['playlists']['items']]
+        lambda r : [_parse_playlist(item) for item in r['playlists']['items']]
             )
 
     def tracks(self):
         result = self.session.loopget(
             0, self.session.api.favorite_getUserFavorites,
             {'user_id' : self.session.user.id, 'type' : 'tracks'},
-            lambda r : [_parse_track(item) for item in r['tracks']['items']]
+            lambda r : [_parse_track(self.session, item) for item in r['tracks']['items']]
             )
         return [trk for trk in result if trk.available]
 

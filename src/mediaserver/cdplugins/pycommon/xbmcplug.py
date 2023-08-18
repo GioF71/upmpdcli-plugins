@@ -29,7 +29,8 @@ from upmplgutils import *
 
 default_mime = "audio/mpeg"
 default_samplerate = "44100"
-
+default_bits = "16"
+default_channels = "2"
 
 # Bogus class instanciated as global object for helping with reusing kodi addon code
 class XbmcPlugin:
@@ -59,15 +60,6 @@ class XbmcPlugin:
     def view(self, data_items, urls, end=True):
         for item, url in zip(data_items, urls):
             title = item.name
-            maxsamprate = '44.1'
-            maxbitdepth = '16'
-            try:
-                maxsamprate = item.maxsamprate
-                maxbitdepth = item.maxbitdepth
-            except:
-                pass
-            if maxsamprate != '44.1' or maxbitdepth != '16':
-                title += ' (' + maxbitdepth + '/' +  maxsamprate + ')'
             try:
                 image = item.image if item.image else None
             except:
@@ -120,8 +112,6 @@ def trackentries(httphp, pathprefix, objid, tracks):
             http://host:port/pathprefix/track/version/1/trackId/<trackid>
     
     """
-    global default_mime, default_samplerate
-    
     entries = []
     for track in tracks:
         if not track.available:
@@ -159,10 +149,13 @@ def trackentries(httphp, pathprefix, objid, tracks):
         li['upnp:artist'] = track.artist.name
         li['dc:title'] = track.name
         li['discnumber'] = str(track.disc_num)
-        li['duration'] = str(track.duration)
         li['upnp:class'] = track.upnpclass
-        li['res:mime'] = default_mime
-        li['res:samplefreq'] = default_samplerate
+
+        li['duration'] = str(track.duration)
+        li['res:mime'] = track.mime if track.mime else default_mime
+        li['res:samplefreq'] = track.samplefreq if track.samplefreq else default_samplerate
+        li['res:bitsPerSample'] = track.bitdepth if track.bitdepth else default_bits
+        li['res:channels'] = track.channels if track.channels else default_channels
            
         entries.append(li)
     return entries

@@ -45,9 +45,6 @@ class Album(Model):
     duration = -1
     release_date = None
     available = True
-    maxsamprate = "44.1"
-    maxbitdepth = "16"
-    maxchannels = "2"
 
 class Artist(Model):
     upnpclass = "object.container.person.musicArtist"
@@ -78,10 +75,11 @@ class Track(Model):
     artists = []
     album = None
     available = True
-    maxsamprate = "44.1"
-    maxbitdepth = "16"
-    maxchannels = "2"
     description = None
+    mime = None
+    samplefreq = None
+    bitdepth = None
+    channels = None
 
 
 class Category(Model):

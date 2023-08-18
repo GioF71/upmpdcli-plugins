@@ -41,11 +41,12 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
-session = Session()
+session = Session(5)
 
 _g_loginok = False
 
 def maybelogin(a={}):
+    global session
     global formatid
     global httphp
     global pathprefix
@@ -80,6 +81,8 @@ def maybelogin(a={}):
     else:
         formatid = 6
     
+    session = Session(formatid)
+    # Set default values in xbmcplug. Normally not used.
     if formatid == 5:
         setMimeAndSamplerate("audio/mpeg", "44100")
     else:
@@ -113,18 +116,12 @@ def login(a):
     
 @dispatcher.record('trackuri')
 def trackuri(a):
-    global formatid, pathprefix
-
+    msgproc.log(f"trackuri: [{a}]")
     maybelogin()
 
-    msgproc.log("trackuri: [%s]" % a)
     trackid = trackid_from_urlpath(pathprefix, a)
+    media_url = session.get_media_url(trackid)
 
-    media_url = session.get_media_url(trackid, formatid)
-    if not media_url:
-        media_url = ""
-        
-    #msgproc.log("%s" % media_url)
     if formatid == 5:
         mime = "audio/mpeg"
         kbs = "320"
