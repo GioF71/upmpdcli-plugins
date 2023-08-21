@@ -85,11 +85,14 @@ class XbmcPlugin:
 
 # For now, we pretend that all tracks have the same format (for the resource record). For some
 # services this may not be true, we'll see if it can stay this way.
-def setMimeAndSamplerate(m, s):
-    global default_mime, default_samplerate
+def setMimeAndSamplerate(m, s, bits=None, channels=None):
+    global default_mime, default_samplerate, default_bits, default_channels
     default_mime = m
     default_samplerate = s
-    
+    if bits:
+        default_bits = str(bits)
+    if channels:
+        default_channels = str(channels)
 
 # Translate an upmplgmodels Tracks array into output expected by plgwithslave. The URLs are
 # constructed for future redirection/proxying by our HTTP server.

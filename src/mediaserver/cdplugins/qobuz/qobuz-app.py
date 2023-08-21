@@ -41,6 +41,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
+# Initial formatid (mp3). Will be reset on login
 session = Session(5)
 
 _g_loginok = False
@@ -67,7 +68,15 @@ def maybelogin(a={}):
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
 
+    # Format id: 5 for MP3 320, 6 for FLAC Lossless, 7 for FLAC
+    # Hi-Res 24 bit =< 96kHz, 27 for FLAC Hi-Res 24 bit >96 kHz &
+    # =< 192 kHz
     formatid = getOptionValue('qobuzformatid')
+    # Decide if we fetch the actual track audio details when listing containers. This is expensive
+    # and normally not needed.
+    needaudiodetails = getOptionValue('qobuzaudiodetails')
+    showalbumrateandbits = getOptionValue('qobuzalbrateandbits')
+    
     appid = getOptionValue('qobuzappid')
     cfvalue = getOptionValue('qobuzcfvalue')
     if 'user' in a:
@@ -80,13 +89,21 @@ def maybelogin(a={}):
         formatid = int(formatid)
     else:
         formatid = 6
-    
-    session = Session(formatid)
-    # Set default values in xbmcplug. Normally not used.
+    # Set default values in xbmcplug, for track listings when we don't have the audio details at
+    # this stage.
     if formatid == 5:
         setMimeAndSamplerate("audio/mpeg", "44100")
-    else:
+    if formatid == 6:
         setMimeAndSamplerate("application/flac", "44100")
+    elif formatid == 7:
+        setMimeAndSamplerate("application/flac", "96000", bits="24")
+    elif formatid == 27:
+        setMimeAndSamplerate("application/flac", "192000", bits="24")
+    else:
+        setMimeAndSamplerate("audio/mpeg", "44100")
+        
+    session = Session(formatid, fetch_resource_info=needaudiodetails,
+                      show_album_maxaudio=showalbumrateandbits)
 
     if not username or not password:
         raise Exception("maybelogin: qobuzuser and/or qobuzpass not set.")
@@ -338,4 +355,5 @@ def search(a):
     return {"entries" : encoded}
 
 msgproc.log("Qobuz running")
+maybelogin()
 msgproc.mainloop()

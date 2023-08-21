@@ -4,8 +4,7 @@
 
 import sys
 import json
-from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
-     Category, Genre
+from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, Category, Genre
 from upmplgutils import *
 from qobuz.api import raw
 
@@ -14,11 +13,17 @@ from qobuz.api import raw
 # 100 works everywhere (some requests could use a bigger value).
 general_slice = 100
 
+# Show rate/bits with album titles? Simpler as a global
+show_album_rate_and_bits = False
+
 class Session(object):
-    def __init__(self, format_id):
+    def __init__(self, format_id, fetch_resource_info=False, show_album_maxaudio=False):
         self.api = None
         self.user = None
         self.format_id = format_id
+        self.fetch_resource_info = fetch_resource_info
+        global show_album_rate_and_bits
+        show_album_rate_and_bits = show_album_maxaudio
         
     def login(self, username, password, appid, cfvalue):
         # self.api will already exist if get_appid() was called first, which means that the
@@ -251,9 +256,14 @@ def _parse_album(json_obj, artist=None, artists=None):
     available = json_obj['streamable'] if 'streamable' in json_obj else False
     #if not available:
     #    uplog("Album not streamable: %s " % json_obj['title'])
+    name = json_obj['title']
+    if show_album_rate_and_bits and \
+       'maximum_sampling_rate' in json_obj and 'maximum_bit_depth' in json_obj:
+        name += " (" + str(int(json_obj['maximum_sampling_rate'])) \
+            + '/' + str(json_obj['maximum_bit_depth']) + ')'
     kwargs = {
         'id': json_obj['id'],
-        'name': json_obj['title'],
+        'name': name,
         'num_tracks': json_obj.get('tracks_count'),
         'duration': json_obj.get('duration'),
         'artist': artist,
@@ -273,7 +283,6 @@ def _parse_album(json_obj, artist=None, artists=None):
         try:
             # Keep this as a string else we fail to json-reserialize it later
             kwargs['release_date'] = json_obj['releaseDate']
-            #kwargs['release_date']= datetime.datetime(*map(int, json_obj['releaseDate'].split('-')))
         except ValueError:
             pass
 
@@ -329,14 +338,17 @@ def _parse_track(sess, json_obj, albumarg = None):
     }
     if album:
         kwargs['album'] = album
-    # This will need to be controlled by a configuration parameter because it's expensive and most
-    # renderers don't care about this information (they get it from the stream)
-    if sess and True:
+
+    # Fetching the audio details is expensive (not held in the directory records, needs one call per
+    # track), and few (if any?) renderers actually care about this information (they get it from the
+    # stream when starting playing)
+    if sess and sess.fetch_resource_info:
         trackinfo = sess.get_media_info(json_obj['id'])
         if 'mime_type' in trackinfo:
             kwargs['mime'] = trackinfo['mime_type']
             kwargs['samplefreq'] = trackinfo['sampling_rate'] * 1000
             kwargs['bitdepth'] = trackinfo['bit_depth']
+            kwargs['channels'] = 2 # Not supplied by get_media_info
 
     return Track(**kwargs)
 
