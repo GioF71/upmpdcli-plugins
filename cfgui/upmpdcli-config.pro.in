@@ -2,12 +2,11 @@ TEMPLATE	= app
 LANGUAGE	= C++
 
 VPATH = @srcdir@
-QMAKE_CXXFLAGS += -std=c++14 -I../ -DENABLE_XMLCONF
-	       
+QMAKE_CXXFLAGS += -I../ -DENABLE_XMLCONF
 
 DEFINES += MDU_INCLUDE_LOG=\'<libupnpp/log.h>\'
 
-CONFIG	+= qt warn_on thread release debug
+CONFIG	+= c++14 qt warn_on thread release debug
 QT += widgets
 
 LIBS += @UPMPDCLI_LIBS@
