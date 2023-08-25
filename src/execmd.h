@@ -217,13 +217,13 @@ public:
     bool requestChildExit();
 
     enum ExFlags {EXF_NONE,
-                  // Only does anything on windows. Used when starting
-                  // a viewer. The default is to hide the window,
-                  // because it avoids windows appearing and
-                  // disappearing when executing stuff for previewing
-                  EXF_SHOWWINDOW = 1,
+                  // Windows only: used when starting a viewer. The default is to hide the window,
+                  // because it avoids windows appearing and disappearing when executing stuff for
+                  // previewing.
+                  EXF_SHOWWINDOW = 0x1,
                   // Windows only: show maximized
-                  EXF_MAXIMIZED = 2,
+                  EXF_MAXIMIZED = 0x2,
+                  EXF_NOSETPG = 0x4,
                  };
     ExecCmd(int flags = 0);
     ~ExecCmd();

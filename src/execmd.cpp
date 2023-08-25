@@ -74,6 +74,7 @@ public:
 
     static bool      o_useVfork;
 
+    int              m_flags{0};
     vector<string>   m_env;
     ExecCmdAdvise   *m_advise{0};
     ExecCmdProvide  *m_provide{0};
@@ -109,12 +110,11 @@ public:
 };
 bool ExecCmd::Internal::o_useVfork{false};
 
-ExecCmd::ExecCmd(int)
+ExecCmd::ExecCmd(int flags)
 {
     m = new Internal();
-    if (m) {
-        m->reset();
-    }
+    m->reset();
+    m->m_flags = flags;
 }
 void ExecCmd::setAdvise(ExecCmdAdvise *adv)
 {
@@ -338,7 +338,7 @@ inline void ExecCmd::Internal::dochild(const string& cmd, const char **argv, con
                                        bool has_input, bool has_output)
 {
     // Start our own process group
-    if (setpgid(0, 0)) {
+    if (!(m_flags & EXF_NOSETPG) && setpgid(0, 0)) {
         LOGINFO("ExecCmd::DOCHILD: setpgid(0, 0) failed: errno " << errno << "\n");
     }
 
@@ -972,7 +972,7 @@ int ExecCmd::wait()
     int status = -1;
     if (!m->m_killRequest && m->m_pid > 0) {
         if (waitpid(m->m_pid, &status, 0) < 0) {
-            LOGERR("ExecCmd::waitpid: returned -1 errno " << errno << "\n");
+            LOGSYSERR("ExecCmd::wait", "waitpid", "");
             status = -1;
         }
         LOGDEB("ExecCmd::wait: got status 0x" << std::hex << status << std::dec << ": " <<
@@ -1028,6 +1028,9 @@ bool ExecCmd::backtick(const vector<string> cmd, string& out)
 std::string ExecCmd::waitStatusAsString(int wstatus)
 {
     std::ostringstream oss;
+    if (wstatus == -1) {
+        return "Waitpid error";
+    }
     if (WIFEXITED(wstatus)) {
         oss << "Exit status: " << WEXITSTATUS(wstatus);
     } else {
