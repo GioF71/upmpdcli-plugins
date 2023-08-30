@@ -183,8 +183,6 @@
 
 #endif /* !_WIN32 */
 
-using namespace std;
-
 #ifndef PATHUT_SSIZE_T
 #define PATHUT_SSIZE_T ssize_t
 #endif
@@ -211,8 +209,7 @@ bool wchartoutf8(const wchar_t *in, std::string& out, size_t wlen)
         wlen = wcslen(in);
     }
     int flags = WC_ERR_INVALID_CHARS;
-    int bytes = ::WideCharToMultiByte(
-        CP_UTF8, flags, in, wlen, nullptr, 0, nullptr, nullptr);
+    int bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, nullptr, 0, nullptr, nullptr);
     if (bytes <= 0) {
         LOGERR("wchartoutf8: conversion error1\n");
         fwprintf(stderr, L"wchartoutf8: conversion error1 for [%s]\n", in);
@@ -285,35 +282,35 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 }
 
 /// Convert \ separators to /
-void path_slashize(string& s)
+void path_slashize(std::string& s)
 {
-    for (string::size_type i = 0; i < s.size(); i++) {
+    for (std::string::size_type i = 0; i < s.size(); i++) {
         if (s[i] == '\\') {
             s[i] = '/';
         }
     }
 }
-void path_backslashize(string& s)
+void path_backslashize(std::string& s)
 {
-    for (string::size_type i = 0; i < s.size(); i++) {
+    for (std::string::size_type i = 0; i < s.size(); i++) {
         if (s[i] == '/') {
             s[i] = '\\';
         }
     }
 }
-static bool path_strlookslikedrive(const string& s)
+static bool path_strlookslikedrive(const std::string& s)
 {
     return s.size() == 2 && isalpha(s[0]) && s[1] == ':';
 }
 
-static bool path_hasdrive(const string& s)
+static bool path_hasdrive(const std::string& s)
 {
     if (s.size() >= 2 && isalpha(s[0]) && s[1] == ':') {
         return true;
     }
     return false;
 }
-static bool path_isdriveabs(const string& s)
+static bool path_isdriveabs(const std::string& s)
 {
     if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && s[2] == '/') {
         return true;
@@ -468,7 +465,7 @@ std::string path_shortpath(const std::string& path)
                path.size() << " MAX_PATH " << MAX_PATH << "\n");
         return path;
     }
-    string shortpath;
+    std::string shortpath;
     wchartoutf8(wspath, shortpath);
     return shortpath;
 }
@@ -493,7 +490,7 @@ bool path_isunc(const std::string& s, std::string& uncvolume)
 
 #endif /* _WIN32 */
 
-bool fsocc(const string& path, int *pc, long long *avmbs)
+bool fsocc(const std::string& path, int *pc, long long *avmbs)
 {
     static const int FSOCC_MB = 1024 * 1024;
 #ifdef _WIN32
@@ -542,10 +539,10 @@ bool fsocc(const string& path, int *pc, long long *avmbs)
 }
 
 
-const string& path_PATHsep()
+const std::string& path_PATHsep()
 {
-    static const string w(";");
-    static const string u(":");
+    static const std::string w(";");
+    static const std::string u(":");
 #ifdef _WIN32
     return w;
 #else
@@ -553,7 +550,7 @@ const string& path_PATHsep()
 #endif
 }
 
-void path_catslash(string& s)
+void path_catslash(std::string& s)
 {
 #ifdef _WIN32
     path_slashize(s);
@@ -563,9 +560,9 @@ void path_catslash(string& s)
     }
 }
 
-string path_cat(const string& s1, const string& s2)
+std::string path_cat(const std::string& s1, const std::string& s2)
 {
-    string res = s1.empty() ? "./" : s1;
+    std::string res = s1.empty() ? "./" : s1;
     if (!s2.empty()) {
         path_catslash(res);
         res +=  s2;
@@ -575,7 +572,7 @@ string path_cat(const string& s1, const string& s2)
 
 std::string path_cat(const std::string& s1, std::initializer_list<std::string> pathelts)
 {
-    string res = s1.empty() ? "./" : s1;
+    std::string res = s1.empty() ? "./" : s1;
     for (const auto& p : pathelts) {
         if (!p.empty()) {
             res = path_cat(res, p);
@@ -584,9 +581,9 @@ std::string path_cat(const std::string& s1, std::initializer_list<std::string> p
     return res;
 }
 
-string path_getfather(const string& s)
+std::string path_getfather(const std::string& s)
 {
-    string father = s;
+    std::string father = s;
 #ifdef _WIN32
     path_slashize(father);
 #endif
@@ -605,8 +602,8 @@ string path_getfather(const string& s)
         father.erase(father.length() - 1);
     }
 
-    string::size_type slp = father.rfind('/');
-    if (slp == string::npos) {
+    std::string::size_type slp = father.rfind('/');
+    if (slp == std::string::npos) {
         return "./";
     }
 
@@ -615,9 +612,9 @@ string path_getfather(const string& s)
     return father;
 }
 
-string path_getsimple(const string& s)
+std::string path_getsimple(const std::string& s)
 {
-    string simple = s;
+    std::string simple = s;
 #ifdef _WIN32
     path_slashize(simple);
 #endif
@@ -626,8 +623,8 @@ string path_getsimple(const string& s)
         return simple;
     }
 
-    string::size_type slp = simple.rfind('/');
-    if (slp == string::npos) {
+    std::string::size_type slp = simple.rfind('/');
+    if (slp == std::string::npos) {
         return simple;
     }
 
@@ -637,42 +634,42 @@ string path_getsimple(const string& s)
 
 // Unlike path_getsimple(), we ignore right-side '/' chars, like the basename command does.
 #ifdef _WIN32
-string path_basename(const string& _s, const string& suff)
+std::string path_basename(const std::string& _s, const std::string& suff)
 {
     std::string s{_s};
     path_slashize(s);
 #else
-string path_basename(const string& s, const string& suff)
+std::string path_basename(const std::string& s, const std::string& suff)
 {
 #endif
     if (path_isroot(s))
         return s;
-    string simple(s);
+    std::string simple(s);
     rtrimstring(simple, "/");
     simple = path_getsimple(simple);
-    string::size_type pos = string::npos;
+    std::string::size_type pos = std::string::npos;
     if (suff.length() && simple.length() > suff.length()) {
         pos = simple.rfind(suff);
-        if (pos != string::npos && pos + suff.length() == simple.length()) {
+        if (pos != std::string::npos && pos + suff.length() == simple.length()) {
             return simple.substr(0, pos);
         }
     }
     return simple;
 }
 
-string path_suffix(const string& s)
+std::string path_suffix(const std::string& s)
 {
-    string::size_type dotp = s.rfind('.');
-    if (dotp == string::npos) {
-        return string();
+    std::string::size_type dotp = s.rfind('.');
+    if (dotp == std::string::npos) {
+        return std::string();
     }
     return s.substr(dotp + 1);
 }
 
-string path_home()
+std::string path_home()
 {
 #ifdef _WIN32
-    string dir;
+    std::string dir;
     // Using wgetenv does not work well, depending on the
     // environment I get wrong values for the accented chars (works
     // with recollindex started from msys command window, does not
@@ -687,7 +684,7 @@ string path_home()
         cp = _wgetenv(L"HOMEDRIVE");
         wchartoutf8(cp, dir);
         if (cp != 0) {
-            string dir1;
+            std::string dir1;
             const wchar_t *cp1 = _wgetenv(L"HOMEPATH");
             wchartoutf8(cp1, dir1);
             if (cp1 != 0) {
@@ -711,16 +708,16 @@ string path_home()
         }
         cp = entry->pw_dir;
     }
-    string homedir{cp};
+    std::string homedir{cp};
     path_catslash(homedir);
     return homedir;
 #endif
 }
 
-string path_cachedir()
+std::string path_cachedir()
 {
 #ifdef _WIN32
-    string dir;
+    std::string dir;
     wchar_t *cp;
     SHGetKnownFolderPath(FOLDERID_InternetCache, 0, nullptr, &cp);
     if (cp != 0) {
@@ -730,7 +727,7 @@ string path_cachedir()
         cp = _wgetenv(L"HOMEDRIVE");
         wchartoutf8(cp, dir);
         if (cp != 0) {
-            string dir1;
+            std::string dir1;
             const wchar_t *cp1 = _wgetenv(L"HOMEPATH");
             wchartoutf8(cp1, dir1);
             if (cp1 != 0) {
@@ -745,13 +742,13 @@ string path_cachedir()
     path_catslash(dir);
     return dir;
 #else
-    static string xdgcache;
+    static std::string xdgcache;
     if (xdgcache.empty()) {
         const char *cp = getenv("XDG_CACHE_HOME");
         if (nullptr == cp) {
             xdgcache = path_cat(path_home(), ".cache");
         } else {
-            xdgcache = string(cp);
+            xdgcache = std::string(cp);
         }
         path_catslash(xdgcache);
     }
@@ -759,12 +756,12 @@ string path_cachedir()
 #endif
 }
 
-string path_tildexpand(const string& s)
+std::string path_tildexpand(const std::string& s)
 {
     if (s.empty() || s[0] != '~') {
         return s;
     }
-    string o = s;
+    std::string o = s;
 #ifdef _WIN32
     path_slashize(o);
 #endif
@@ -774,8 +771,8 @@ string path_tildexpand(const string& s)
     } else if (s[1] == '/') {
         o.replace(0, 2, path_home());
     } else {
-        string::size_type pos = s.find('/');
-        string::size_type l = (pos == string::npos) ? s.length() - 1 : pos - 1;
+        std::string::size_type pos = s.find('/');
+        std::string::size_type l = (pos == std::string::npos) ? s.length() - 1 : pos - 1;
 #ifdef _WIN32
         // Dont know what this means. Just replace with HOME
         o.replace(0, l + 1, path_home());
@@ -789,7 +786,7 @@ string path_tildexpand(const string& s)
     return o;
 }
 
-bool path_isroot(const string& path)
+bool path_isroot(const std::string& path)
 {
     if (path.size() == 1 && path[0] == '/') {
         return true;
@@ -803,19 +800,19 @@ bool path_isroot(const string& path)
     return false;
 }
 
-bool path_isdesc(const string& _top, const string& _sub)
+bool path_isdesc(const std::string& _top, const std::string& _sub)
 {
     if (_top.empty() || _sub.empty())
         return false;
-    string top = path_canon(_top);
-    string sub = path_canon(_sub);
+    std::string top = path_canon(_top);
+    std::string sub = path_canon(_sub);
     path_catslash(top);
     path_catslash(sub);
     for (;;) {
         if (sub == top) {
             return true;
         }
-        string::size_type l = sub.size();
+        std::string::size_type l = sub.size();
         sub = path_getfather(sub);
         if (sub.size() == l || sub.size() < top.size()) {
             // At root or sub shorter than top: done
@@ -828,7 +825,7 @@ bool path_isdesc(const string& _top, const string& _sub)
     }
 }
 
-bool path_isabsolute(const string& path)
+bool path_isabsolute(const std::string& path)
 {
     if (!path.empty() && (path[0] == '/'
 #ifdef _WIN32
@@ -840,12 +837,12 @@ bool path_isabsolute(const string& path)
     return false;
 }
 
-string path_absolute(const string& is)
+std::string path_absolute(const std::string& is)
 {
     if (is.length() == 0) {
         return is;
     }
-    string s = is;
+    std::string s = is;
 #ifdef _WIN32
     path_slashize(s);
 #endif
@@ -858,9 +855,9 @@ string path_absolute(const string& is)
     return s;
 }
 
-string path_canon(const string& is, const string* cwd)
+std::string path_canon(const std::string& is, const std::string* cwd)
 {
-    string s = is;
+    std::string s = is;
 #ifdef _WIN32
     path_slashize(s);
     std::string uncvolume;
@@ -883,9 +880,9 @@ string path_canon(const string& is, const string* cwd)
             s = path_cat(path_cwd(), s);
         }
     }
-    vector<string> elems;
+    std::vector<std::string> elems;
     stringToTokens(s, elems, "/");
-    vector<string> cleaned;
+    std::vector<std::string> cleaned;
     for (const auto& elem : elems) {
         if (elem == "..") {
             if (!cleaned.empty()) {
@@ -896,7 +893,7 @@ string path_canon(const string& is, const string* cwd)
             cleaned.push_back(elem);
         }
     }
-    string ret;
+    std::string ret;
     if (!cleaned.empty()) {
         for (const auto& elem : cleaned) {
             ret += "/";
@@ -924,10 +921,10 @@ string path_canon(const string& is, const string* cwd)
     return ret;
 }
 
-bool path_makepath(const string& ipath, int mode)
+bool path_makepath(const std::string& ipath, int mode)
 {
-    string path = path_canon(ipath);
-    vector<string> elems;
+    std::string path = path_canon(ipath);
+    std::vector<std::string> elems;
     stringToTokens(path, elems, "/");
     path = "/";
     for (const auto& elem : elems) {
@@ -967,7 +964,7 @@ std::string path_cwd()
     if (nullptr == wd) {
         return std::string();
     }
-    string sdname;
+    std::string sdname;
     wchartoutf8(wd, sdname);
     free(wd);
     path_slashize(sdname);
@@ -975,7 +972,7 @@ std::string path_cwd()
 #else
     char wd[MAXPATHLEN+1];
     if (nullptr == getcwd(wd, MAXPATHLEN+1)) {
-        return string();
+        return std::string();
     }
     return wd;
 #endif
@@ -1039,7 +1036,7 @@ bool path_streamopen(const std::string& path, int mode, std::fstream& outstream)
     return true;
 }
 
-bool path_isdir(const string& path, bool follow)
+bool path_isdir(const std::string& path, bool follow)
 {
     struct STATBUF st;
     SYSPATH(path, syspath);
@@ -1053,7 +1050,7 @@ bool path_isdir(const string& path, bool follow)
     return false;
 }
 
-bool path_isfile(const string& path, bool follow)
+bool path_isfile(const std::string& path, bool follow)
 {
     struct STATBUF st;
     SYSPATH(path, syspath);
@@ -1067,7 +1064,7 @@ bool path_isfile(const string& path, bool follow)
     return false;
 }
 
-long long path_filesize(const string& path)
+long long path_filesize(const std::string& path)
 {
     struct STATBUF st;
     SYSPATH(path, syspath);
@@ -1204,12 +1201,12 @@ int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
     return 0;
 }
 
-bool path_exists(const string& path)
+bool path_exists(const std::string& path)
 {
     SYSPATH(path, syspath);
     return ACCESS(syspath, 0) == 0;
 }
-bool path_readable(const string& path)
+bool path_readable(const std::string& path)
 {
     SYSPATH(path, syspath);
     return ACCESS(syspath, R_OK) == 0;
@@ -1282,7 +1279,7 @@ const struct PathDirContents::Entry* PathDirContents::readdir()
         return nullptr;
     }
 #ifdef _WIN32
-    string sdname;
+    std::string sdname;
     if (!wchartoutf8(ent->d_name, sdname)) {
         LOGERR("wchartoutf8 failed for " << ent->d_name << endl);
         return nullptr;
@@ -1296,9 +1293,9 @@ const struct PathDirContents::Entry* PathDirContents::readdir()
 }
 
 
-bool listdir(const string& dir, string& reason, set<string>& entries)
+bool listdir(const std::string& dir, std::string& reason, std::set<std::string>& entries)
 {
-    ostringstream msg;
+    std::ostringstream msg;
     PathDirContents dc(dir);
     
     if (!path_isdir(dir)) {

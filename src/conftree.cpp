@@ -44,8 +44,6 @@
 #include "log.h"
 #endif
 
-using namespace std;
-
 #undef DEBUG_CONFTREE
 #ifdef DEBUG_CONFTREE
 #define CONFDEB LOGERR
@@ -70,7 +68,7 @@ public:
 long long ConfNull::getInt(const std::string& name, long long dflt,
                            const std::string& sk)
 {
-    string val;
+    std::string val;
     if (!get(name, val, sk)) {
         return dflt;
     }
@@ -85,7 +83,7 @@ long long ConfNull::getInt(const std::string& name, long long dflt,
 double ConfNull::getFloat(const std::string& name, double dflt,
                           const std::string& sk)
 {
-    string val;
+    std::string val;
     if (!get(name, val, sk)) {
         return dflt;
     }
@@ -100,7 +98,7 @@ double ConfNull::getFloat(const std::string& name, double dflt,
 bool ConfNull::getBool(const std::string& name, bool dflt,
                        const std::string& sk)
 {
-    string val;
+    std::string val;
     if (!get(name, val, sk)) {
         return dflt;
     }
@@ -109,12 +107,12 @@ bool ConfNull::getBool(const std::string& name, bool dflt,
 
 static const SimpleRegexp varcomment_rx("[ \t]*#[ \t]*([a-zA-Z0-9]+)[ \t]*=", 0, 1);
 
-void ConfSimple::parseinput(istream& input)
+void ConfSimple::parseinput(std::istream& input)
 {
-    string submapkey;
-    string cline;
+    std::string submapkey;
+    std::string cline;
     bool appending = false;
-    string line;
+    std::string line;
     bool eof = false;
 
     for (;;) {
@@ -135,8 +133,8 @@ void ConfSimple::parseinput(istream& input)
         }
 
         {
-            string::size_type pos = cline.find_last_not_of("\n\r");
-            if (pos == string::npos) {
+            std::string::size_type pos = cline.find_last_not_of("\n\r");
+            if (pos == std::string::npos) {
                 cline.clear();
             } else if (pos != cline.length() - 1) {
                 cline.erase(pos + 1);
@@ -188,17 +186,17 @@ void ConfSimple::parseinput(istream& input)
         }
 
         // Look for first equal sign
-        string::size_type eqpos = line.find("=");
-        if (eqpos == string::npos) {
+        std::string::size_type eqpos = line.find("=");
+        if (eqpos == std::string::npos) {
             m_order.push_back(ConfLine(ConfLine::CFL_COMMENT, line));
             continue;
         }
 
         // Compute name and value, trim white space
-        string nm, val;
+        std::string nm, val;
         nm = line.substr(0, eqpos);
         trimstring(nm);
-        val = line.substr(eqpos + 1, string::npos);
+        val = line.substr(eqpos + 1, std::string::npos);
         if (trimvalues) {
             trimstring(val);
         }
@@ -233,14 +231,14 @@ ConfSimple::ConfSimple(int readonly, bool tildexp, bool trimv)
 {
 }
 
-void ConfSimple::reparse(const string& d)
+void ConfSimple::reparse(const std::string& d)
 {
     clear();
-    stringstream input(d, ios::in);
+    std::stringstream input(d, std::ios::in);
     parseinput(input);
 }
 
-ConfSimple::ConfSimple(const string& d, int readonly, bool tildexp, bool trimv)
+ConfSimple::ConfSimple(const std::string& d, int readonly, bool tildexp, bool trimv)
     : ConfSimple(varsToFlags(readonly, tildexp, trimv) | CFSF_FROMSTRING, d)
 {
 }
@@ -265,12 +263,12 @@ ConfSimple::ConfSimple(int flags, const std::string& dataorfn)
            " file name: " << ((flags & CFSF_FROMSTRING)?" data input " : dataorfn.c_str()) << "\n");
     if (flags & CFSF_FROMSTRING) {
         if (!dataorfn.empty()) {
-            stringstream input(dataorfn, ios::in);
+            std::stringstream input(dataorfn, std::ios::in);
             parseinput(input);
         }
     } else {
         m_filename = dataorfn;
-        fstream input;
+        std::fstream input;
         openfile((flags & CFSF_RO), input);
         if (status == STATUS_ERROR)
             return;
@@ -291,11 +289,11 @@ ConfSimple::StatusCode ConfSimple::getStatus() const
     }
 }
 
-void ConfSimple::openfile(int readonly, fstream& input)
+void ConfSimple::openfile(int readonly, std::fstream& input)
 {
-    int mode = readonly ? ios::in : ios::in | ios::out;
+    int mode = readonly ? std::ios::in : std::ios::in | std::ios::out;
     if (!readonly && !path_exists(m_filename)) {
-        mode |= ios::trunc;
+        mode |= std::ios::trunc;
     }
     path_streamopen(m_filename, mode, input);
     if (!input.is_open()) {
@@ -308,16 +306,16 @@ void ConfSimple::openfile(int readonly, fstream& input)
         input.clear();
         status = STATUS_RO;
         // open readonly
-        path_streamopen(m_filename, ios::in, input);
+        path_streamopen(m_filename, std::ios::in, input);
     }
 
     if (!input.is_open()) {
         // Don't log ENOENT, this is common with some recoll config files
-        string reason;
+        std::string reason;
         catstrerror(&reason, nullptr, errno);
         if (errno != 2) {
             LOGERR("ConfSimple::ConfSimple: fstream(" << m_filename << ", " <<
-                   ios::in << ") " << reason << "\n");
+                   std::ios::in << ") " << reason << "\n");
         }
         status = STATUS_ERROR;
         return;
@@ -353,7 +351,7 @@ bool ConfSimple::i_changed(bool upd)
     return false;
 }
 
-int ConfSimple::get(const string& nm, string& value, const string& sk) const
+int ConfSimple::get(const std::string& nm, std::string& value, const std::string& sk) const
 {
     if (!ok()) {
         return 0;
@@ -388,10 +386,10 @@ int ConfSimple::get(const string& nm, string& value, const string& sk) const
 // Note that the choice of break point does not affect the validity of
 // the file data (when read back by conftree), only its ease of
 // editing with a normal editor.
-static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
-                                         const string& value)
+static ConfSimple::WalkerCode varprinter(void *f, const std::string& nm,
+                                         const std::string& value)
 {
-    ostream& output = *((ostream *)f);
+    std::ostream& output = *((std::ostream *)f);
     if (nm.empty()) {
         output << "\n[" << value << "]\n";
     } else {
@@ -399,9 +397,9 @@ static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
         if (nm.length() + value.length() < 75) {
             output << value;
         } else {
-            string::size_type ll = 0;
-            for (string::size_type pos = 0; pos < value.length(); pos++) {
-                string::value_type c = value[pos];
+            std::string::size_type ll = 0;
+            for (std::string::size_type pos = 0; pos < value.length(); pos++) {
+                std::string::value_type c = value[pos];
                 output << c;
                 ll++;
                 // Break at whitespace if line too long and "a lot" of
@@ -419,7 +417,7 @@ static ConfSimple::WalkerCode varprinter(void *f, const string& nm,
 }
 
 // Set variable and rewrite data
-int ConfSimple::set(const std::string& nm, const std::string& value, const string& sk)
+int ConfSimple::set(const std::string& nm, const std::string& value, const std::string& sk)
 {
     if (status  != STATUS_RW) {
         return 0;
@@ -431,7 +429,7 @@ int ConfSimple::set(const std::string& nm, const std::string& value, const strin
     return write();
 }
 
-int ConfSimple::set(const string& nm, long long val, const string& sk)
+int ConfSimple::set(const std::string& nm, long long val, const std::string& sk)
 {
     return this->set(nm, lltodecstr(val), sk);
 }
@@ -440,12 +438,12 @@ int ConfSimple::set(const string& nm, long long val, const string& sk)
 // set, we're doing initial parsing, else we are changing a parsed
 // tree (changes the way we update the order data)
 int ConfSimple::i_set(const std::string& nm, const std::string& value,
-                      const string& sk, bool init)
+                      const std::string& sk, bool init)
 {
     CONFDEB("ConfSimple::i_set: nm[" << nm << "] val[" << value <<
             "] key[" << sk << "], init " << init << "\n");
     // Values must not have embedded newlines
-    if (value.find_first_of("\n\r") != string::npos) {
+    if (value.find_first_of("\n\r") != std::string::npos) {
         CONFDEB("ConfSimple::i_set: LF in value\n");
         return 0;
     }
@@ -474,7 +472,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         // Insert or update variable in existing map.
         auto it = ss->second.find(nm);
         if (it == ss->second.end()) {
-            ss->second.insert(pair<string, string>(nm, value));
+            ss->second.insert(std::pair<std::string, std::string>(nm, value));
         } else {
             it->second = value;
             existing = true;
@@ -501,7 +499,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
     // at begin() for a null subkey, or just behind the subkey
     // entry. End is either the next subkey entry, or the end of
     // list. We insert the new entry just before end.
-    vector<ConfLine>::iterator start, fin;
+    std::vector<ConfLine>::iterator start, fin;
     if (sk.empty()) {
         start = m_order.begin();
         CONFDEB("ConfSimple::i_set: null sk, start at top of order\n");
@@ -522,7 +520,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         if (!sk.empty()) {
             start++;
         }
-        for (vector<ConfLine>::iterator it = start; it != m_order.end(); it++) {
+        for (std::vector<ConfLine>::iterator it = start; it != m_order.end(); it++) {
             if (it->m_kind == ConfLine::CFL_SK) {
                 fin = it;
                 break;
@@ -538,7 +536,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
         // Look for a varcomment line, insert the value right after if
         // it's there.
         bool inserted(false);
-        vector<ConfLine>::iterator it;
+        std::vector<ConfLine>::iterator it;
         for (it = start; it != fin; it++) {
             if (it->m_kind == ConfLine::CFL_VARCOMMENT && it->m_aux == nm) {
                 it++;
@@ -555,7 +553,7 @@ int ConfSimple::i_set(const std::string& nm, const std::string& value,
     return 1;
 }
 
-int ConfSimple::erase(const string& nm, const string& sk)
+int ConfSimple::erase(const std::string& nm, const std::string& sk)
 {
     if (status  != STATUS_RW) {
         return 0;
@@ -573,9 +571,9 @@ int ConfSimple::erase(const string& nm, const string& sk)
     return write();
 }
 
-int ConfSimple::eraseKey(const string& sk)
+int ConfSimple::eraseKey(const std::string& sk)
 {
-    vector<string> nms = getNames(sk);
+    std::vector<std::string> nms = getNames(sk);
     for (const auto& nm : nms) {
         erase(nm, sk);
     }
@@ -591,7 +589,7 @@ int ConfSimple::clear()
 
 // Walk the tree, calling user function at each node
 ConfSimple::WalkerCode
-ConfSimple::sortwalk(WalkerCode(*walker)(void *, const string&, const string&),
+ConfSimple::sortwalk(WalkerCode(*walker)(void *, const std::string&, const std::string&),
                      void *clidata) const
 {
     if (!ok()) {
@@ -601,7 +599,7 @@ ConfSimple::sortwalk(WalkerCode(*walker)(void *, const string&, const string&),
     for (const auto& submap : m_submaps) {
         // Possibly emit submap name:
         if (!submap.first.empty() &&
-            walker(clidata, string(), submap.first.c_str()) == WALK_STOP) {
+            walker(clidata, std::string(), submap.first.c_str()) == WALK_STOP) {
             return WALK_STOP;
         }
 
@@ -626,8 +624,8 @@ bool ConfSimple::write()
         return true;
     }
     if (!m_filename.empty()) {
-        fstream output;
-        path_streamopen(m_filename, ios::out | ios::trunc, output);
+        std::fstream output;
+        path_streamopen(m_filename, std::ios::out | std::ios::trunc, output);
         if (!output.is_open()) {
             return 0;
         }
@@ -636,7 +634,7 @@ bool ConfSimple::write()
         // No backing store, no writing. Maybe one day we'll need it with
         // some kind of output string. This can't be the original string which
         // is currently readonly.
-        //ostringstream output(m_ostring, ios::out | ios::trunc);
+        //ostringstream output(m_ostring, ios::out | std::ios::trunc);
         return 1;
     }
 }
@@ -644,17 +642,17 @@ bool ConfSimple::write()
 // Write out the tree in configuration file format:
 // This does not check holdWrites, this is done by write(void), which
 // lets ie: showall work even when holdWrites is set
-bool ConfSimple::write(ostream& out) const
+bool ConfSimple::write(std::ostream& out) const
 {
     if (!ok()) {
         return false;
     }
-    string sk;
+    std::string sk;
     for (const auto& confline : m_order) {
         switch (confline.m_kind) {
         case ConfLine::CFL_COMMENT:
         case ConfLine::CFL_VARCOMMENT:
-            out << confline.m_data << endl;
+            out << confline.m_data << "\n";
             if (!out.good()) {
                 return false;
             }
@@ -665,21 +663,21 @@ bool ConfSimple::write(ostream& out) const
             // Check that the submap still exists, and only output it if it
             // does
             if (m_submaps.find(sk) != m_submaps.end()) {
-                out << "[" << confline.m_data << "]" << endl;
+                out << "[" << confline.m_data << "]" << "\n";
                 if (!out.good()) {
                     return false;
                 }
             }
             break;
         case ConfLine::CFL_VAR:
-            string nm = confline.m_data;
+            std::string nm = confline.m_data;
             CONFDEB("ConfSimple::write: VAR [" << nm << "], sk [" <<sk<< "]\n");
             // As erase() doesnt update m_order we can find unexisting
             // variables, and must not output anything for them. Have
             // to use a ConfSimple::get() to check here, because
             // ConfTree's could retrieve from an ancestor even if the
             // local var is gone.
-            string value;
+            std::string value;
             if (ConfSimple::get(nm, value, sk)) {
                 varprinter(&out, nm, value);
                 if (!out.good()) {
@@ -702,9 +700,9 @@ void ConfSimple::showall() const
     write(std::cout);
 }
 
-vector<string> ConfSimple::getNames(const string& sk, const char *pattern) const
+std::vector<std::string> ConfSimple::getNames(const std::string& sk, const char *pattern) const
 {
-    vector<string> mylist;
+    std::vector<std::string> mylist;
     if (!ok()) {
         return mylist;
     }
@@ -729,9 +727,9 @@ vector<string> ConfSimple::getNames(const string& sk, const char *pattern) const
     return mylist;
 }
 
-vector<string> ConfSimple::getSubKeys() const
+std::vector<std::string> ConfSimple::getSubKeys() const
 {
-    vector<string> mylist;
+    std::vector<std::string> mylist;
     if (!ok()) {
         return mylist;
     }
@@ -742,11 +740,11 @@ vector<string> ConfSimple::getSubKeys() const
     return mylist;
 }
 
-bool ConfSimple::hasNameAnywhere(const string& nm) const
+bool ConfSimple::hasNameAnywhere(const std::string& nm) const
 {
-    vector<string>keys = getSubKeys();
+    std::vector<std::string>keys = getSubKeys();
     for (const auto& key : keys) {
-        string val;
+        std::string val;
         if (get(nm, val, key)) {
             return true;
         }
@@ -754,9 +752,9 @@ bool ConfSimple::hasNameAnywhere(const string& nm) const
     return false;
 }
 
-bool ConfSimple::commentsAsXML(ostream& out)
+bool ConfSimple::commentsAsXML(std::ostream& out)
 {
-    const vector<ConfLine>& lines = getlines();
+    const std::vector<ConfLine>& lines = getlines();
 
     out << "<confcomments>\n";
     
@@ -765,8 +763,8 @@ bool ConfSimple::commentsAsXML(ostream& out)
         case ConfLine::CFL_COMMENT:
         case ConfLine::CFL_VARCOMMENT:
         {
-            string::size_type pos = line.m_data.find_first_not_of("# ");
-            if (pos != string::npos) {
+            std::string::size_type pos = line.m_data.find_first_not_of("# ");
+            if (pos != std::string::npos) {
                 out << line.m_data.substr(pos) << "\n";
             } else {
                 out << "\n";
@@ -774,11 +772,10 @@ bool ConfSimple::commentsAsXML(ostream& out)
             break;
         }
         case ConfLine::CFL_SK:
-            out << "<subkey>" << line.m_data << "</subkey>" << endl;
+            out << "<subkey>" << line.m_data << "</subkey>" << "\n";
             break;
         case ConfLine::CFL_VAR:
-            out << "<varsetting>" << line.m_data << " = " <<
-                line.m_value << "</varsetting>" << endl;
+            out << "<varsetting>" << line.m_data << " = " << line.m_value << "</varsetting>" << "\n";
             break;
         default:
             break;
@@ -794,7 +791,7 @@ bool ConfSimple::commentsAsXML(ostream& out)
 // ConfTree Methods: conftree interpret keys like a hierarchical file tree
 // //////////////////////////////////////////////////////////////////////////
 
-int ConfTree::get(const std::string& name, string& value, const string& sk)
+int ConfTree::get(const std::string& name, std::string& value, const std::string& sk)
     const
 {
     if (sk.empty() || !path_isabsolute(sk)) {
@@ -804,7 +801,7 @@ int ConfTree::get(const std::string& name, string& value, const string& sk)
     }
 
     // Get writable copy of subkey path
-    string msk = sk;
+    std::string msk = sk;
 
     // Handle the case where the config file path has an ending / and not
     // the input sk
@@ -817,9 +814,9 @@ int ConfTree::get(const std::string& name, string& value, const string& sk)
         if (ConfSimple::get(name, value, msk)) {
             return 1;
         }
-        string::size_type pos = msk.rfind("/");
-        if (pos != string::npos) {
-            msk.replace(pos, string::npos, string());
+        std::string::size_type pos = msk.rfind("/");
+        if (pos != std::string::npos) {
+            msk.replace(pos, std::string::npos, std::string());
         } else {
 #ifdef _WIN32
             if (msk.size() == 2 && isalpha(msk[0]) && msk[1] == ':') {

@@ -53,8 +53,6 @@
 #include "picoxml.h"
 #endif
 
-using namespace std;
-
 namespace confgui {
 
 // Main layout spacing
@@ -249,7 +247,7 @@ bool ConfTabsW::enableLink(ConfParamW* boolw, ConfParamW* otherw, bool revert)
 {
     ConfParamBoolW *bw = dynamic_cast<ConfParamBoolW*>(boolw);
     if (bw == 0) {
-        cerr << "ConfTabsW::enableLink: not a boolw\n";
+        std::cerr << "ConfTabsW::enableLink: not a boolw\n";
         return false;
     }
     otherw->setEnabled(revert ? !bw->m_cb->isChecked() : bw->m_cb->isChecked());
@@ -349,12 +347,12 @@ void ConfParamW::setValue(const QString& value)
 {
     if (m_fsencoding) {
 #ifdef _WIN32
-        m_cflink->set(string((const char *)value.toUtf8()));
+        m_cflink->set(std::string((const char *)value.toUtf8()));
 #else
-        m_cflink->set(string((const char *)value.toLocal8Bit()));
+        m_cflink->set(std::string((const char *)value.toLocal8Bit()));
 #endif
     } else {
-        m_cflink->set(string((const char *)value.toUtf8()));
+        m_cflink->set(std::string((const char *)value.toUtf8()));
     }
 }
 
@@ -362,14 +360,14 @@ void ConfParamW::setValue(int value)
 {
     char buf[30];
     sprintf(buf, "%d", value);
-    m_cflink->set(string(buf));
+    m_cflink->set(std::string(buf));
 }
 
 void ConfParamW::setValue(bool value)
 {
     char buf[30];
     sprintf(buf, "%d", value);
-    m_cflink->set(string(buf));
+    m_cflink->set(std::string(buf));
 }
 
 extern void setSzPol(QWidget *w, QSizePolicy::Policy hpol,
@@ -434,7 +432,7 @@ void ConfParamIntW::storeValue()
 
 void ConfParamIntW::loadValue()
 {
-    string s;
+    std::string s;
     if (m_cflink->get(s)) {
         m_sb->setValue(m_origvalue = atoi(s.c_str()));
     } else {
@@ -474,7 +472,7 @@ void ConfParamStrW::storeValue()
 
 void ConfParamStrW::loadValue()
 {
-    string s;
+    std::string s;
     if (!m_cflink->get(s)) {
         s = m_strdefault;
     }
@@ -530,7 +528,7 @@ void ConfParamCStrW::storeValue()
 
 void ConfParamCStrW::loadValue()
 {
-    string s;
+    std::string s;
     if (!m_cflink->get(s)) {
         s = m_strdefault;
     }
@@ -590,7 +588,7 @@ void ConfParamBoolW::storeValue()
 
 void ConfParamBoolW::loadValue()
 {
-    string s;
+    std::string s;
     if (!m_cflink->get(s)) {
         m_origvalue = m_dflt;
     } else {
@@ -643,7 +641,7 @@ void ConfParamFNW::storeValue()
 
 void ConfParamFNW::loadValue()
 {
-    string s;
+    std::string s;
     if (!m_cflink->get(s)) {
         s = m_strdefault;
     }
@@ -754,9 +752,9 @@ void ConfParamSLW::setEditable(bool onoff)
     }
 }
 
-string ConfParamSLW::listToString()
+std::string ConfParamSLW::listToString()
 {
-    vector<string> ls;
+    std::vector<std::string> ls;
     for (int i = 0; i < m_lb->count(); i++) {
         // General parameters are encoded as utf-8.
         // Linux file names as local8bit There is no hope for 8bit
@@ -774,14 +772,14 @@ string ConfParamSLW::listToString()
             ls.push_back((const char *)(text.toUtf8()));
         }
     }
-    string s;
+    std::string s;
     stringsToString(ls, s);
     return s;
 }
 
 void ConfParamSLW::storeValue()
 {
-    string s = listToString();
+    std::string s = listToString();
     if (s.compare(m_origvalue)) {
         m_cflink->set(s);
     }
@@ -793,7 +791,7 @@ void ConfParamSLW::loadValue()
     if (!m_cflink->get(m_origvalue)) {
         m_origvalue = m_strdefault;
     }
-    vector<string> ls;
+    std::vector<std::string> ls;
     stringToStrings(m_origvalue, ls);
     QStringList qls;
     for (const auto& str : ls) {
@@ -834,13 +832,13 @@ void ConfParamSLW::performInsert(const QString& s)
     m_lb->sortItems();
     existing = m_lb->findItems(s, Qt::MatchFixedString | Qt::MatchCaseSensitive);
     if (existing.empty()) {
-        cerr << "Item not found after insertion!" << endl;
+        std::cerr << "Item not found after insertion!" << "\n";
         return;
     }
     m_lb->setCurrentItem(existing[0], QItemSelectionModel::ClearAndSelect);
     
     if (m_immediate) {
-        string nv = listToString();
+        std::string nv = listToString();
         m_cflink->set(nv);
     }
 }
@@ -857,20 +855,20 @@ void ConfParamSLW::deleteSelected()
     // Instead, we now build a list of indices, and delete it starting
     // from the top so as not to invalidate lower indices
 
-    vector<int> idxes;
+    std::vector<int> idxes;
     for (int i = 0; i < m_lb->count(); i++) {
         if (m_lb->item(i)->isSelected()) {
             idxes.push_back(i);
         }
     }
-    for (vector<int>::reverse_iterator it = idxes.rbegin();
+    for (std::vector<int>::reverse_iterator it = idxes.rbegin();
          it != idxes.rend(); it++) {
         QListWidgetItem *item = m_lb->takeItem(*it);
         emit entryDeleted(item->text());
         delete item;
     }
     if (m_immediate) {
-        string nv = listToString();
+        std::string nv = listToString();
         m_cflink->set(nv);
     }
     if (m_lb->count()) {
@@ -888,7 +886,7 @@ void ConfParamSLW::editSelected()
             if (ok && !s.isEmpty()) {
                 m_lb->item(i)->setText(s);
                 if (m_immediate) {
-                    string nv = listToString();
+                    std::string nv = listToString();
                     m_cflink->set(nv);
                 }
             }
@@ -925,10 +923,10 @@ static QString u8s2qs(const std::string us)
     return QString::fromUtf8(us.c_str());
 }
 
-static const string& mapfind(const string& nm, const map<string, string>& mp)
+static const std::string& mapfind(const std::string& nm, const std::map<std::string, std::string>& mp)
 {
-    static string strnull;
-    map<string, string>::const_iterator it;
+    static std::string strnull;
+    std::map<std::string, std::string>::const_iterator it;
     it = mp.find(nm);
     if (it == mp.end()) {
         return strnull;
@@ -936,32 +934,32 @@ static const string& mapfind(const string& nm, const map<string, string>& mp)
     return it->second;
 }
 
-static string looksLikeAssign(const string& data)
+static std::string looksLikeAssign(const std::string& data)
 {
     //LOGDEB("looksLikeAssign. data: [" << data << "]");
-    vector<string> toks;
+    std::vector<std::string> toks;
     stringToTokens(data, toks, "\n\r\t ");
     if (toks.size() >= 2 && !toks[1].compare("=")) {
         return toks[0];
     }
-    return string();
+    return std::string();
 }
 
-ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
+ConfTabsW *xmlToConfGUI(const std::string& xml, std::string& toptext,
                         ConfLinkFact* lnkf, QWidget *parent)
 {
     //LOGDEB("xmlToConfGUI: [" << xml << "]");
 
     class XMLToConfGUI : public PicoXMLParser {
     public:
-        XMLToConfGUI(const string& x, ConfLinkFact *lnkf, QWidget *parent)
+        XMLToConfGUI(const std::string& x, ConfLinkFact *lnkf, QWidget *parent)
             : PicoXMLParser(x), m_lnkfact(lnkf), m_parent(parent),
               m_idx(0), m_hadTitle(false), m_hadGroup(false) {
         }
         virtual ~XMLToConfGUI() {}
 
-        virtual void startElement(const string& tagname,
-                                  const map<string, string>& attrs) {
+        virtual void startElement(const std::string& tagname,
+                                  const std::map<std::string, std::string>& attrs) {
             if (!tagname.compare("var")) {
                 m_curvar = mapfind("name", attrs);
                 m_curvartp = mapfind("type", attrs);
@@ -981,7 +979,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
             }
         }
 
-        virtual void endElement(const string& tagname) {
+        virtual void endElement(const std::string& tagname) {
             if (!tagname.compare("var")) {
                 if (!m_hadTitle) {
                     m_w = new ConfTabsW(m_parent, "Teh title", m_lnkfact);
@@ -1023,7 +1021,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
                     break;
                 }
                 case ConfTabsW::CFPT_INT: {
-                    vector<string> vals;
+                    std::vector<std::string> vals;
                     stringToTokens(m_curvarvals, vals);
                     int min = 0, max = 0, def = 0;
                     if (vals.size() >= 3) {
@@ -1040,7 +1038,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
                 }
                 case  ConfTabsW::CFPT_CSTR:
                 case ConfTabsW::CFPT_CSTRL: {
-                    vector<string> cstrl;
+                    std::vector<std::string> cstrl;
                     stringToTokens(neutchars(m_curvarvals, "\n\r"), cstrl);
                     QStringList qstrl;
                     for (unsigned int i = 0; i < cstrl.size(); i++) {
@@ -1066,9 +1064,9 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
                 }
                 // Get rid of "parameters" in the title, it's not interesting
                 // and this makes our tab headers smaller.
-                string ps{"parameters"};
-                string::size_type pos = m_other.find(ps);
-                if (pos != string::npos) {
+                std::string ps{"parameters"};
+                std::string::size_type pos = m_other.find(ps);
+                if (pos != std::string::npos) {
                     m_other = m_other.replace(pos, ps.size(), "");
                 }
                 m_idx = m_w->addPanel(u8s2qs(m_other));
@@ -1080,7 +1078,7 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
             }
         }
 
-        virtual void characterData(const string& data) {
+        virtual void characterData(const std::string& data) {
             if (!tagStack().back().compare("brief")) {
                 m_brief += data;
             } else if (!tagStack().back().compare("descr")) {
@@ -1091,9 +1089,9 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
                 m_other += neutchars(data, "\n\r");
                 m_other += " ";
             } else if (!tagStack().back().compare("confcomments")) {
-                string nvarname = looksLikeAssign(data);
+                std::string nvarname = looksLikeAssign(data);
                 if (!nvarname.empty() && nvarname.compare(m_curvar)) {
-                    cerr << "Var assigned [" << nvarname << "] mismatch "
+                    std::cerr << "Var assigned [" << nvarname << "] mismatch "
                         "with current variable [" << m_curvar << "]\n";
                 }
                 m_toptext += data;
@@ -1105,13 +1103,13 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
         ConfLinkFact *m_lnkfact;
         QWidget *m_parent;
         int m_idx;
-        string m_curvar;
-        string m_curvartp;
-        string m_curvarvals;
-        string m_brief;
-        string m_descr;
-        string m_other;
-        string m_toptext;
+        std::string m_curvar;
+        std::string m_curvartp;
+        std::string m_curvarvals;
+        std::string m_brief;
+        std::string m_descr;
+        std::string m_other;
+        std::string m_toptext;
         bool m_hadTitle;
         bool m_hadGroup;
     };
@@ -1119,11 +1117,11 @@ ConfTabsW *xmlToConfGUI(const string& xml, string& toptext,
     XMLToConfGUI parser(xml, lnkf, parent);
     try {
         if (!parser.parse()) {
-            cerr << "Parse failed: " << parser.getLastErrorMessage() << "\n";
+            std::cerr << "Parse failed: " << parser.getLastErrorMessage() << "\n";
             return 0;
         }
     } catch (const std::runtime_error& e) {
-        cerr << e.what() << endl;
+        std::cerr << e.what() << "\n";
         return 0;
     }
     toptext = parser.m_toptext;
