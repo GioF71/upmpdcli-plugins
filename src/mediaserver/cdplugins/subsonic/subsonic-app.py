@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.1"
+__subsonic_plugin_release : str = "0.2.2"
 
 import subsonic_init
 import subsonic_util
@@ -86,6 +86,7 @@ import artist_initial_cache_provider
 
 import secrets
 import mimetypes
+import time
 
 from msgproc_provider import msgproc
 from msgproc_provider import dispatcher
@@ -937,27 +938,47 @@ def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entri
     return entries
 
 def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    start_time :float = time.time()
     album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    get_album_start_time : float = time.time()
     response : Response[Album] = connector_provider.get().getAlbum(album_id)
     if not response.isOk(): raise Exception(f"Cannot load album with album_id {album_id}")
     album : Album = response.getObj()
     album_entry : dict[str, any] = entry_creator.album_to_entry(objid, album)
     # set title a little differently here ...
     title : str = f"Album: {album.getTitle()}"
+    album_year : int = album.getYear()
+    if album_year: title = f"{title} [{album_year}]"
     upnp_util.set_album_title(title, album_entry)
+    get_album_elapsed_time : float = time.time() - get_album_start_time
     entries.append(album_entry)
+    get_artist_start_time : float = time.time()
     artist_entry : dict[str, any] = _artist_entry_for_album(objid, album)
+    get_artist_elapsed_time : float = time.time() - get_artist_start_time
     entries.append(artist_entry)
+    get_top_songs_start_time : float = time.time()
     top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, album.getArtistId(), album.getArtist())
     top_songs_entry: dict[str, any]
+    get_top_songs_elapsed_time : float = time.time() - get_top_songs_start_time
     for top_songs_entry in top_songs_entry_list:
         entries.append(top_songs_entry)
+    get_similar_artists_start_time : float = time.time()
     similar_artist_entry : dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
+    get_similar_artists_elapsed_time : float = time.time() - get_similar_artists_start_time
     if similar_artist_entry: entries.append(similar_artist_entry)
+    get_radio_entry_list_start_time : float = time.time()
     _radio_entry_list : list[dict[str, any]] = _radio_entry(objid, album.getId())
+    get_radio_entry_list_elapsed_time : float = time.time() - get_radio_entry_list_start_time
     radio_entry : dict[str, any]
     for radio_entry in _radio_entry_list if _radio_entry_list else []:
         entries.append(radio_entry)
+    elapsed_time : float = time.time() - start_time
+    msgproc.log(f"_handler_element_navigable_album for album_id {album_id} took [{elapsed_time:.3f}] seconds")
+    msgproc.log(f"  album:           [{get_album_elapsed_time:.3f}]")
+    msgproc.log(f"  artist:          [{get_artist_elapsed_time:.3f}])")
+    msgproc.log(f"  top songs:       [{get_top_songs_elapsed_time:.3f}])")
+    msgproc.log(f"  similar artists: [{get_similar_artists_elapsed_time:.3f}])")
+    msgproc.log(f"  radio:           [{get_radio_entry_list_elapsed_time:.3f}])")
     return entries
 
 def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
@@ -1329,7 +1350,6 @@ def search(a):
                 objid = objid, 
                 artist_id = current_artist.getId(),
                 entry_name = current_artist.getName()))
-    #msgproc.log(f"browse: returning --{entries}--")
     return _returnentries(entries)
 
 subsonic_init.subsonic_init()

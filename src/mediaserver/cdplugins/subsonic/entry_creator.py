@@ -75,6 +75,9 @@ def album_to_navigable_entry(
     id : str = identifier_util.create_objid(
         objid = objid, 
         id = identifier_util.create_id_from_identifier(identifier))
+    album_year : int = current_album.getYear()
+    if album_year:
+        title = f"{title} [{album_year}]"
     entry : dict = direntry(
         id = id, 
         pid = objid, 
