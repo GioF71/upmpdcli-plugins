@@ -35,20 +35,20 @@
 #include <unordered_set>
 #include <functional>
 
-#ifdef _WIN32
+// Older compilers don't support stdc++ regex, but Windows does not have the Linux one. Have a
+// simple class to solve the simple cases.
+#if defined(_WIN32)
+#define USE_STD_REGEX
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 #define localtime_r(a,b) localtime_s(b,a)
-#endif /* _WIN32 */
-
-
-// Older compilers don't support stdc++ regex, but Windows does not
-// have the Linux one. Have a simple class to solve the simple cases.
-#if defined(_WIN32)
-#define USE_STD_REGEX
-#include <regex>
 #else
 #define USE_LINUX_REGEX
+#endif
+
+#ifdef USE_STD_REGEX
+#include <regex>
+#else
 #include <regex.h>
 #endif
 
@@ -1199,10 +1199,10 @@ class SimpleRegexp::Internal {
 public:
     Internal(const std::string& exp, int flags, int nm)
         : expr(exp,
-               basic_regex<char>::flag_type(
-                   regex_constants::extended |
-                   ((flags&SRE_ICASE) ? int(regex_constants::icase) : 0) |
-                   ((flags&SRE_NOSUB) ? int(regex_constants::nosubs) : 0)
+               std::basic_regex<char>::flag_type(
+                   std::regex_constants::extended |
+                   ((flags&SRE_ICASE) ? int(std::regex_constants::icase) : 0) |
+                   ((flags&SRE_NOSUB) ? int(std::regex_constants::nosubs) : 0)
                    )), ok(true), nmatch(nm) {
     }
     std::regex expr;

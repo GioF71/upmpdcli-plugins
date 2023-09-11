@@ -58,6 +58,8 @@ extern bool path_isroot(const std::string& p);
 /// Test if sub is a subdirectory of top. This is a textual test,
 /// links not allowed. Uses path_canon to clean up paths.
 extern bool path_isdesc(const std::string& top, const std::string& sub);
+/// Check if path looks like a (slashized) Windows UNC path, and extract the //server/volume
+extern bool path_isunc(const std::string& p, std::string& volume);
 
 /// Clean up path by removing duplicated / and resolving ../ + make it absolute.
 /// Except for possibly obtaining the current directory, the processing
