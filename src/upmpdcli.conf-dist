@@ -162,6 +162,14 @@
 # Hra language setting (en/de).
 #hralang = en
 
+# Tidal streaming service parameters
+#tidaluser = tidal
+#tidaltokentype = Bearer
+#tidalaccesstoken = your_access_token
+#tidalrefreshtoken = your_refresh_token
+#tidalexpirytime = your_token_expiry_time
+#tidalaudioquality = LOSSLESS
+
 # Qobuz streaming service parameters
 
 # Qobuz user name.

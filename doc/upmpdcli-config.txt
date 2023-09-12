@@ -370,6 +370,24 @@ hralang:: Hra language setting
 (en/de). Some Highresaudio messages will be set in the
 appropriate language.
 
+=== Tidal streaming service parameters 
+
+[[tidaluser]]
+tidaluser:: Bogus user name. Set to any value, e.g. tidal
+
+[[tidalaccesstoken]]
+tidalaccesstoken:: Tidal access token.
+
+[[tidalrefreshtoken]]
+tidalrefreshtoken:: Tidal refresh token.
+
+[[tidalexpirytime]]
+tidalrefreshtoken:: Tidal expiry time of the access token.
+
+[[tidalaudioquality]]
+tidalaudioquality:: Tidal stream quality, possible values are LOW, HIGH, LOSSLESS (default), HI_RES, and HI_RES_LOSSLESS (your subscription
+will determine the maximum quality).
+
 === Qobuz streaming service parameters 
 
 [[qobuzuser]]

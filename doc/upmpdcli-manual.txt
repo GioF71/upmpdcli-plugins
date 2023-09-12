@@ -876,15 +876,14 @@ configuration file (/etc/mpd.conf) reduces the pre-fetch period and seems to fix
 
 You will need to install the upmpdcli-tidal module.
 
-The Tidal module code is is based on the link:https://github.com/tamland/kodi-tidal[Kodi Tidal
-add-on] and the link:https://github.com/tamland/python-tidal[Tidal API], by Thomas Amland (also
-using other useful modules by Thomas). I was able to reuse most of the Kodi code. The Tidal api
-module was recently updated and the login code comes from
-link:https://github.com/arnesongit/kodi-tidal[this Git repository]. The software is not officially
+The Tidal module code is is based on the link:https://github.com/tamland/python-tidal[Tidal API] currently at version 0.7.3, by Thomas Amland (also
+using other useful modules by Thomas). The software is not officially
 supported by Tidal, and may just stop to work one day...
 
-It only works with a valid Tidal subscription and valid Tidal API token, which you must set in the
-`tidalapitoken` configuration variable.
+It only works with a valid Tidal subscription and valid Tidal access and authentification token types and token data, which you must set in the
+`tidaltokentype`, `tidalaccesstoken`, `tidalrefreshtoken` and `tidalexpirytime` configuration variables.
+In order to obtain those information, you can run the python script located at `/usr/share/upmpdcli/cdplugins/tidal/get_credentials.py`.
+This script will create a link. After you click that link and authenticate to Tidal on your browser, you will get the entries to set to the `upmpdcli.conf` file. 
 
 The configuration parameters are described in the <<tidaluser,configuration section>>
 

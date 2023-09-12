@@ -193,7 +193,16 @@ dist_cdpluginspycom_DATA = \
                     src/mediaserver/cdplugins/pycommon/upradioconf.py
 cdpluginstidaldir = $(pkgdatadir)/cdplugins/tidal
 dist_cdpluginstidal_DATA = \
-                  src/mediaserver/cdplugins/tidal/tidal-app.py 
+                    src/mediaserver/cdplugins/tidal/tidal-app.py \ 
+                    src/mediaserver/cdplugins/tidal/codec.py \
+                    src/mediaserver/cdplugins/tidal/element_type.py \
+                    src/mediaserver/cdplugins/tidal/identifier_util.py \
+                    src/mediaserver/cdplugins/tidal/item_identifier_key.py \
+                    src/mediaserver/cdplugins/tidal/item_identifier.py \
+                    src/mediaserver/cdplugins/tidal/option_key.py \
+                    src/mediaserver/cdplugins/tidal/search_type.py \
+                    src/mediaserver/cdplugins/tidal/tag_type.py \
+                    src/mediaserver/cdplugins/tidal/upnp_util.py \
 cdpluginstidallibdir = $(pkgdatadir)/cdplugins/tidal/tidalapi
 dist_cdpluginstidallib_DATA = \
                   src/mediaserver/cdplugins/tidal/tidalapi/__init__.py \
