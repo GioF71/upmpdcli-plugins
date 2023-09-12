@@ -331,7 +331,7 @@ def track_to_entry(
     entry['res:mime'] = get_mime_type(track)
     skip_art : bool = get_option(
         options = options,
-        option_key = OptionKey.SKIP_TRACK_ARTIST)
+        option_key = OptionKey.SKIP_ART)
     if not skip_art:
         art_uri : str = get_option(
             options = options,

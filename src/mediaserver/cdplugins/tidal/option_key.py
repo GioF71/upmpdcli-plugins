@@ -24,6 +24,7 @@ class OptionKey(Enum):
     ENTRY_AS_CONTAINER = 6, "entry-as-container", False
     ADD_EXPLICIT = 7, "add-explicit", True
     ADD_ALBUM_YEAR = 8, "add-album-year", True
+    SKIP_ART = 9, "skip-art", False
 
     def __init__(self, 
             num : int, 
