@@ -22,6 +22,7 @@ class TagType(Enum):
     ALL_PLAYLISTS = 102, "allplsts", "Playlists", None
     FAVORITE_ALBUMS = 103, "favlbms", "My Albums", None,
     FAVORITE_ARTISTS = 104, "favrtsts", "My Artists", None,
+    PLAYBACK_STATISTICS = 105, "plbkstts", "Playback Statistics", None
 
     def __init__(self, 
             num : int, 

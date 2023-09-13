@@ -195,11 +195,14 @@ cdpluginstidaldir = $(pkgdatadir)/cdplugins/tidal
 dist_cdpluginstidal_DATA = \
                     src/mediaserver/cdplugins/tidal/tidal-app.py \ 
                     src/mediaserver/cdplugins/tidal/codec.py \
+                    src/mediaserver/cdplugins/tidal/constants.py \
                     src/mediaserver/cdplugins/tidal/element_type.py \
                     src/mediaserver/cdplugins/tidal/identifier_util.py \
                     src/mediaserver/cdplugins/tidal/item_identifier_key.py \
                     src/mediaserver/cdplugins/tidal/item_identifier.py \
                     src/mediaserver/cdplugins/tidal/option_key.py \
+                    src/mediaserver/cdplugins/tidal/persistence.py \
+                    src/mediaserver/cdplugins/tidal/played_track.py \
                     src/mediaserver/cdplugins/tidal/search_type.py \
                     src/mediaserver/cdplugins/tidal/tag_type.py \
                     src/mediaserver/cdplugins/tidal/upnp_util.py \

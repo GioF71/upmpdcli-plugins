@@ -38,7 +38,11 @@ class ElementType(Enum):
     NAVIGABLE_TRACK = 19, "trkn"
     ARTIST_RADIO = 20, "rtstrd"
     ARTIST_TOP_TRACKS_LIST = 21, "rtstttrkslst"
-    ARTIST_RADIO_LIST = 22, "rtstrdlst"
+    ARTIST_RADIO_LIST = 22, "rtstrdlst",
+    RECENTLY_PLAYED_TRACKS = 23, "rcntlptrks",
+    RECENTLY_PLAYED_TRACKS_LIST = 24, "rcntlptrkslst",
+    MOST_PLAYED_TRACKS = 25, "mptrks",
+    MOST_PLAYED_TRACKS_LIST = 26, "mptrkslst",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

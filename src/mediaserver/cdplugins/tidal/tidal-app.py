@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.2"
+__tidal_plugin_release : str = "0.0.3"
 
 import json
 import copy
@@ -32,6 +32,8 @@ import xbmcplug
 import codec
 import identifier_util
 import upnp_util
+import constants
+import persistence
 
 from tag_type import TagType
 from tag_type import get_tag_Type_by_name
@@ -56,7 +58,10 @@ from tidalapi.page import PageLink as TidalPageLink
 from tidalapi.page import FeaturedItems as TidalFeaturedItems
 from tidalapi.genre import Genre as TidalGenre
 
-plugin_name : str = "tidal"
+from played_track import PlayedTrack
+
+plugin_name : str = constants.plugin_name
+
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = f"0${plugin_name}$"
 upmplgutils.setidprefix(plugin_name)
@@ -164,8 +169,9 @@ def build_streaming_url(track_id : str) -> str:
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    trackid = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
-    url = build_streaming_url(trackid) or ""
+    track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
+    url = build_streaming_url(track_id) or ""
+    if url: persistence.track_playback(track_id = track_id)
     return {'media_url' : url}
 
 def _returnentries(entries):
@@ -618,6 +624,28 @@ def handler_tag_my_playlists(objid, item_identifier : ItemIdentifier, entries : 
         entries.append(playlist_to_playlist_container(
             objid = objid, 
             playlist = current))
+    return entries
+
+def handler_tag_playback_statistics(
+        objid, 
+        item_identifier : ItemIdentifier, 
+        entries : list) -> list:
+    tuple_array = [
+        (ElementType.RECENTLY_PLAYED_TRACKS, "Recently played tracks"),
+        (ElementType.RECENTLY_PLAYED_TRACKS_LIST, "Recently played tracks (List)"),
+        (ElementType.MOST_PLAYED_TRACKS, "Most played tracks"),
+        (ElementType.MOST_PLAYED_TRACKS_LIST, "Most played tracks (List)")]
+    for current_tuple in tuple_array:
+        identifier : ItemIdentifier = ItemIdentifier(
+            current_tuple[0].getName(), 
+            current_tuple[1])
+        id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(identifier))
+        entry = upmplgutils.direntry(id, 
+            objid, 
+            current_tuple[1])
+        entries.append(entry)
     return entries
 
 def handler_tag_categories(
@@ -1226,12 +1254,56 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
     entries.append(track_entry)
     return entries
 
+def handler_element_recently_played_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return played_track_list_to_entries(objid, persistence.get_last_played_tracks(), entries)
+
+def handler_element_most_played_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return played_track_list_to_entries(objid, persistence.get_most_played_tracks(), entries)
+
+def played_track_list_to_entries(objid, played_tracks : list[PlayedTrack], entries : list) -> list:
+    current : PlayedTrack
+    options : dict[str, any] = dict()
+    set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
+    for current in played_tracks if played_tracks else list():
+        track : TidalTrack = get_session().track(current.track_id)
+        track_entry : dict = track_to_navigable_track(
+            objid = objid, 
+            track = track,
+            options = options)
+        entries.append(track_entry)
+    return entries
+
+def handler_element_recently_played_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return played_track_list_to_list_entries(objid, persistence.get_last_played_tracks(), entries)
+
+def handler_element_most_played_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return played_track_list_to_list_entries(objid, persistence.get_most_played_tracks(), entries)
+
+def played_track_list_to_list_entries(objid, played_tracks : list[PlayedTrack], entries : list) -> list:
+    current : PlayedTrack
+    track_number : int = 1
+    for current in played_tracks if played_tracks else list():
+        track : TidalTrack = get_session().track(current.track_id)
+        options : dict[str, any] = dict()
+        set_option(
+            options = options, 
+            option_key = OptionKey.FORCED_TRACK_NUMBER, 
+            option_value = track_number)
+        track_entry : dict = track_to_entry(
+            objid = objid, 
+            track = track,
+            options = options)
+        track_number += 1
+        entries.append(track_entry)
+    return entries
+
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favorite_albums,
-    TagType.FAVORITE_ARTISTS.getTagName(): handler_tag_favorite_artists
+    TagType.FAVORITE_ARTISTS.getTagName(): handler_tag_favorite_artists,
+    TagType.PLAYBACK_STATISTICS.getTagName(): handler_tag_playback_statistics
 }
     
 __elem_action_dict : dict = {
@@ -1258,7 +1330,11 @@ __elem_action_dict : dict = {
     ElementType.NAVIGABLE_TRACK.getName(): handler_element_navigable_track,
     ElementType.TRACK_CONTAINER.getName(): handler_element_track_container,
     ElementType.TRACK.getName(): _handler_element_track,
-    ElementType.SIMILAR_ARTISTS.getName(): handler_element_similar_artists
+    ElementType.SIMILAR_ARTISTS.getName(): handler_element_similar_artists,
+    ElementType.RECENTLY_PLAYED_TRACKS.getName(): handler_element_recently_played_tracks,
+    ElementType.RECENTLY_PLAYED_TRACKS_LIST.getName(): handler_element_recently_played_tracks_list,
+    ElementType.MOST_PLAYED_TRACKS.getName(): handler_element_most_played_tracks,
+    ElementType.MOST_PLAYED_TRACKS_LIST.getName(): handler_element_most_played_tracks_list
 }
 
 def tag_list_to_entries(objid, tag_list : list[TagType]) -> list[dict[str, any]]:
@@ -1403,6 +1479,7 @@ def _inittidal():
 
     cache_dir : str = upmplgutils.getcachedir("tidal")
     msgproc.log(f"Cache dir for [{plugin_name}] is [{cache_dir}]")
+    msgproc.log(f"DB version for [{plugin_name}] is [{persistence.get_db_version()}]")
 
     _g_init = create_session()
     return True
