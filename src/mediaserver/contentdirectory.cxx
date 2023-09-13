@@ -466,13 +466,19 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     // Go fetch
     vector<UpSong> entries;
     size_t totalmatches = 0;
-    if (!in_ContainerID.compare("0")) {
-        // Root directory: can't search in there: we don't know what
-        // plugin to pass the search to. Substitute last browsed. Yes
-        // it does break in multiuser mode, and yes it's preposterous.
-        LOGERR("ContentDirectory::actSearch: Can't search in root. "
-               "Substituting plugin root for last browsed container\n");
+    if (in_ContainerID == "0") {
+        // Root directory: can't search in there: we don't know what plugin to pass the search to
+        // (and we don't want to search all). Substitute last browsed. Yes it does break in
+        // multiuser mode, and yes it's preposterous.
         in_ContainerID = pluginRootFromObjid(last_objid);
+        if (in_ContainerID == "0") {
+            LOGERR("ContentDirectory::actSearch: CP requested search in root and could not find "
+                   "plugin from last browsed container\n");
+            // Fallthrough, appForId is going to fail just below.
+        } else {
+            LOGINF("ContentDirectory::actSearch: CP requested search in global root: substituting "
+                   "plugin root [" << in_ContainerID << "] from last browsed container\n");
+        }
     }
 
     // Pass off request to appropriate app, defined by 1st elt in id
