@@ -25,7 +25,8 @@ class OptionKey(Enum):
     ADD_EXPLICIT = 7, "add-explicit", True
     ADD_ALBUM_YEAR = 8, "add-album-year", True
     SKIP_ART = 9, "skip-art", False
-
+    ADD_ARTIST_TO_ALBUM_ENTRY = 10, "add-artist-to-album-entry", False
+    
     def __init__(self, 
             num : int, 
             element_name : str,

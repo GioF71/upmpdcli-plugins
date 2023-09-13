@@ -34,6 +34,11 @@ class ElementType(Enum):
     MIX_NAVIGABLE = 15, "mixn",
     MIX_NAVIGABLE_ITEM = 16, "mixi"
     ALBUM_CONTAINER = 17, "lbmc"
+    ARTIST_TOP_TRACKS = 18, "rtstttrks"
+    NAVIGABLE_TRACK = 19, "trkn"
+    ARTIST_RADIO = 20, "rtstrd"
+    ARTIST_TOP_TRACKS_LIST = 21, "rtstttrkslst"
+    ARTIST_RADIO_LIST = 22, "rtstrdlst"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
