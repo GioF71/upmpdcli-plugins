@@ -193,7 +193,7 @@ dist_cdpluginspycom_DATA = \
                     src/mediaserver/cdplugins/pycommon/upradioconf.py
 cdpluginstidaldir = $(pkgdatadir)/cdplugins/tidal
 dist_cdpluginstidal_DATA = \
-                    src/mediaserver/cdplugins/tidal/tidal-app.py \ 
+                    src/mediaserver/cdplugins/tidal/tidal-app.py \
                     src/mediaserver/cdplugins/tidal/codec.py \
                     src/mediaserver/cdplugins/tidal/constants.py \
                     src/mediaserver/cdplugins/tidal/element_type.py \
@@ -205,11 +205,7 @@ dist_cdpluginstidal_DATA = \
                     src/mediaserver/cdplugins/tidal/played_track.py \
                     src/mediaserver/cdplugins/tidal/search_type.py \
                     src/mediaserver/cdplugins/tidal/tag_type.py \
-                    src/mediaserver/cdplugins/tidal/upnp_util.py \
-cdpluginstidallibdir = $(pkgdatadir)/cdplugins/tidal/tidalapi
-dist_cdpluginstidallib_DATA = \
-                  src/mediaserver/cdplugins/tidal/tidalapi/__init__.py \
-                  src/mediaserver/cdplugins/tidal/tidalapi/models.py
+                    src/mediaserver/cdplugins/tidal/upnp_util.py
 
 cdpluginsqobuzdir = $(pkgdatadir)/cdplugins/qobuz
 dist_cdpluginsqobuz_DATA = \
