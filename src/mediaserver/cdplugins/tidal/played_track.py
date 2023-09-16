@@ -22,7 +22,6 @@ class PlayedTrack:
 
     @property
     def track_id(self) -> str:
-        """I'm the 'track_id' property."""
         return self._track_id
 
     @track_id.setter
@@ -30,8 +29,23 @@ class PlayedTrack:
         self._track_id : str = value
 
     @property
+    def album_id(self) -> str:
+        return self._album_id
+
+    @album_id.setter
+    def album_id(self, value : str):
+        self._album_id : str = value
+
+    @property
+    def album_track_count(self) -> int:
+        return self._album_track_count
+
+    @album_track_count.setter
+    def album_track_count(self, value : str):
+        self._album_track_count : int = value
+
+    @property
     def play_count(self) -> int:
-        """I'm the 'play_count' property."""
         return self._play_count
 
     @play_count.setter
@@ -40,7 +54,6 @@ class PlayedTrack:
 
     @property
     def last_played(self) -> datetime.datetime:
-        """I'm the 'last_played' property."""
         return self._last_played
 
     @last_played.setter

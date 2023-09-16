@@ -34,15 +34,18 @@ class ElementType(Enum):
     MIX_NAVIGABLE = 15, "mixn",
     MIX_NAVIGABLE_ITEM = 16, "mixi"
     ALBUM_CONTAINER = 17, "lbmc"
-    ARTIST_TOP_TRACKS = 18, "rtstttrks"
+    ARTIST_TOP_TRACKS_NAVIGABLE = 18, "rtstttrks"
     NAVIGABLE_TRACK = 19, "trkn"
-    ARTIST_RADIO = 20, "rtstrd"
+    ARTIST_RADIO_NAVIGABLE = 20, "rtstrd"
     ARTIST_TOP_TRACKS_LIST = 21, "rtstttrkslst"
     ARTIST_RADIO_LIST = 22, "rtstrdlst",
-    RECENTLY_PLAYED_TRACKS = 23, "rcntlptrks",
+    RECENTLY_PLAYED_TRACKS_NAVIGABLE = 23, "rcntlptrks",
     RECENTLY_PLAYED_TRACKS_LIST = 24, "rcntlptrkslst",
-    MOST_PLAYED_TRACKS = 25, "mptrks",
+    MOST_PLAYED_TRACKS_NAVIGABLE = 25, "mptrks",
     MOST_PLAYED_TRACKS_LIST = 26, "mptrkslst",
+    FAVORITE_TRACKS_NAVIGABLE = 27, "fvrttrksn",
+    FAVORITE_TRACKS_LIST = 28, "fvrttrksl",
+    PAGE = 29, "pg",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

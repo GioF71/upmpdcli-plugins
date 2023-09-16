@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.3"
+__tidal_plugin_release : str = "0.0.4"
 
 import json
 import copy
 import os
 
-from datetime import datetime
+import datetime
 from typing import Callable
 
 import cmdtalkplugin
@@ -42,6 +42,8 @@ from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
 from option_key import OptionKey
 from search_type import SearchType
+from tile_type import TileType
+from tile_type import get_tile_type_by_name
 
 from tidalapi import Quality as TidalQuality
 from tidalapi.session import Session as TidalSession
@@ -59,6 +61,7 @@ from tidalapi.page import FeaturedItems as TidalFeaturedItems
 from tidalapi.genre import Genre as TidalGenre
 
 from played_track import PlayedTrack
+from tile_image import TileImage
 
 plugin_name : str = constants.plugin_name
 
@@ -84,6 +87,21 @@ log_intermediate_url : bool = upmplgutils.getOptionValue(f"{plugin_name}log_inte
 log_unavailable_images_sizes : bool = upmplgutils.getOptionValue(f"{plugin_name}log_unavailable_images_sizes", "0") == "1"
 log_unavailable_image : bool = upmplgutils.getOptionValue(f"{plugin_name}log_unavailable_image", "0") == "1"
 
+def has_type_attr(obj : any) -> str:
+    if hasattr(obj, "type"):
+        return True
+    return False
+
+def has_image_method(obj : any) -> str:
+    if hasattr(obj, "image") and callable(obj.image):
+        return True
+    return False
+
+def get_image_if_available(obj : any) -> str:
+    if hasattr(obj, "image"):
+        return obj.image
+    return None
+
 def get_name_or_title(obj : any) -> str:
     if hasattr(obj, "name"):
         return obj.name
@@ -95,7 +113,10 @@ def get_image_dimension_list(obj : any) -> list[int]:
     key = type(obj).__name__
     return default_image_sz_by_type[key] if key in default_image_sz_by_type else list()
 
-def get_image_url(obj : any) -> int:
+def safe_get_image_url(obj : any) -> str:
+    if has_image_method(obj): return get_image_url(obj)
+
+def get_image_url(obj : any) -> str:
     dimension_list : list[int] = get_image_dimension_list(obj)
     if not dimension_list or len(dimension_list) == 0:
         msgproc.log(f"Type [{type(obj).__name__}] does not have an image sizes list!")
@@ -138,7 +159,7 @@ def create_session():
         refresh_token : str = upmplgutils.getOptionValue(f"{plugin_name}refreshtoken")
         expiry_time_timestamp_str : str = upmplgutils.getOptionValue(f"{plugin_name}expirytime")
         expiry_time_timestamp : float = float(expiry_time_timestamp_str)
-        expiry_time = datetime.fromtimestamp(expiry_time_timestamp)
+        expiry_time = datetime.datetime.fromtimestamp(expiry_time_timestamp)
         audio_quality : TidalQuality = get_audio_quality(upmplgutils.getOptionValue(f"{plugin_name}audioquality"))
         res : bool = new_session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
         new_session.audio_quality = audio_quality
@@ -171,7 +192,17 @@ def trackuri(a):
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
     url = build_streaming_url(track_id) or ""
-    if url: persistence.track_playback(track_id = track_id)
+    if url:
+        track : TidalTrack = get_session().track(track_id)
+        if track:
+            album_id : str = track.album.id
+            album : TidalAlbum = get_session().album(album_id)
+            if album:
+                album_track_count : int = album.num_tracks
+                persistence.track_playback(
+                    track_id = track_id, 
+                    album_id = album_id, 
+                    album_track_count = album_track_count)
     return {'media_url' : url}
 
 def _returnentries(entries):
@@ -182,6 +213,81 @@ def _objidtopath(objid):
     if objid.find(_g_myprefix) != 0:
         raise Exception(f"subsonic: bad objid {objid}: bad prefix")
     return objid[len(_g_myprefix):].lstrip("/")
+
+def is_tile_imaged_expired(tile_image : TileImage) -> bool:
+    update_time : datetime.datetime = tile_image.update_time
+    if not update_time: return True
+    if update_time < (datetime.datetime.now() - datetime.timedelta(seconds = constants.tile_image_expiration_time_sec)):
+        return True
+    return False
+
+def get_category_image_url(category : TidalItemList) -> str:
+    category_tile_image : TileImage = persistence.load_tile_image(TileType.CATEGORY, category.title)
+    tile_image_valid : bool = category_tile_image and not is_tile_imaged_expired(category_tile_image)
+    category_image_url : str = category_tile_image.tile_image if tile_image_valid else None
+    msgproc.log(f"Category [{category.title}] type: [{type(category)}] cached: [{'yes' if category_image_url else 'no'}]")
+    if not category_image_url:
+        # load category image
+        if isinstance(category, TidalFeaturedItems):
+            featured : TidalFeaturedItems = category
+            first_featured = featured.items[0] if featured.items and len(featured.items) > 0 else None
+            if not first_featured: msgproc.log(f"Category [{category.title}] Featured: first_featured not found")
+            has_type_attribute : bool = first_featured and has_type_attr(first_featured)
+            if first_featured and not has_type_attribute: msgproc.log(f"Category [{category.title}] Featured: first_featured no type attribute, type [{type(first_featured)}]")
+            if first_featured and has_type_attribute:
+                msgproc.log(f"Category [{category.title}] (TidalFeaturedItems) first item type [{first_featured.type if first_featured else None}]")
+                if first_featured.type == constants.featured_type_name_playlist:
+                    playlist : TidalPlaylist = get_session().playlist(first_featured.artifact_id)
+                    image_url = safe_get_image_url(playlist) if playlist else None
+                    if not image_url: msgproc.log(f"Category [{category.title}] (TidalFeaturedItems): cannot get image for playlist")
+                else:
+                    msgproc.log(f"Category [{category.title}] (TidalFeaturedItems): not processed item {first_featured.type}")
+        else: # other than FeaturedItems ...
+            first_item = category.items[0] if category.items and len(category.items) > 0 else None
+            first_item_type : type = type(first_item) if first_item else None
+            msgproc.log(f"Starting load process for category [{category.title}], type of first_item [{first_item_type.__name__ if first_item_type else None}]")
+            image_url : str = None
+            if first_item:
+                if isinstance(first_item, TidalTrack):
+                    msgproc.log(f"  processing as Track ...")
+                    track : TidalTrack = first_item
+                    album : TidalAlbum = get_session().album(track.album.id)
+                    image_url = get_image_url(album) if album else None
+                    msgproc.log(f"Chosen image for category [{category.title}] using type [{type(first_item)}] image_url [{image_url}]")
+                elif isinstance(first_item, TidalMix):
+                    msgproc.log(f"  processing as Mix ...")
+                    mix : TidalMix = first_item
+                    image_url = get_image_url(mix) if mix else None
+                    msgproc.log(f"Chosen image for category [{category.title}] using type [{type(first_item)}] image_url [{image_url}]")
+                elif isinstance(first_item, TidalPlaylist):
+                    msgproc.log(f"  processing as Playlist ...")
+                    playlist : TidalPlaylist = first_item
+                    image_url = get_image_url(playlist) if playlist else None
+                    msgproc.log(f"Chosen image for category [{category.title}] using type [{type(first_item)}] image_url [{image_url}]")
+                elif isinstance(first_item, TidalAlbum):
+                    msgproc.log(f"  processing as Album ...")
+                    album : TidalAlbum = first_item
+                    image_url = get_image_url(album) if album else None
+                    msgproc.log(f"Chosen image for category [{category.title}] using type [{type(first_item)}] image_url [{image_url}]")
+                elif isinstance(first_item, TidalPageLink):
+                    msgproc.log(f"  processing as <PageLink> ...")
+                    page_link : TidalPageLink = first_item
+                    first_item = get_first_item_in_page_link(page_link)
+                    msgproc.log(f"    followed <PageLink>, got: {type(first_item) if first_item else None} ...")
+                    if isinstance(first_item, TidalPageItem) or isinstance(first_item, TidalFeaturedItems):
+                        msgproc.log(f"Category [{category.title}] type [{type(first_item)}] after following a PageLink, has not been managed")
+                    else:
+                        image_url = safe_get_image_url(first_item) if first_item else None
+                else:
+                    msgproc.log(f"Category [{category.title}] type [{type(first_item)}] has not been managed")
+            else:
+                image_url = safe_get_image_url(first_item) if first_item else None
+        if image_url:
+            persistence.save_tile_image(TileType.CATEGORY, category.title, image_url)
+            category_image_url = image_url
+        else:
+            msgproc.log(f"Could not get an image for category [{category.title}]")
+    return category_image_url
 
 def category_to_entry(
         objid, 
@@ -195,6 +301,12 @@ def category_to_entry(
     entry = upmplgutils.direntry(id, 
         objid, 
         category.title)
+    # category image
+    category_image_url : str = get_category_image_url(category)
+    if category_image_url:
+        upnp_util.set_album_art_from_uri(category_image_url, entry)
+    else:
+        msgproc.log(f"Category [{category.title}] type: [{type(category)}] tile image not set.")
     return entry
 
 def get_option(options : dict[str, any], option_key : OptionKey) -> any:
@@ -244,60 +356,39 @@ def track_to_navigable_mix_item(
         objid, 
         track: TidalTrack,
         options : dict[str, any] = {}) -> dict:
-    identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.MIX_NAVIGABLE_ITEM.getName(), 
-        track.id)
-    id : str = identifier_util.create_objid(
-        objid = objid, 
-        id = identifier_util.create_id_from_identifier(identifier))
-    overridden_track_name : str = get_option(
-        options = options,
-        option_key = OptionKey.OVERRIDDEN_TRACK_NAME)
-    if overridden_track_name:
-        title = overridden_track_name
-    else:
-        title = get_track_name_for_track_container(
-            track = track, 
-            options = options)
-    track_entry = upmplgutils.direntry(id,
-        objid,
-        title)
-    upnp_util.set_album_art_from_uri(get_image_url(track.album), track_entry)
-    return track_entry
+    return track_to_navigable_track_by_element_type(
+        objid = objid,
+        track = track,
+        element_type = ElementType.MIX_NAVIGABLE_ITEM,
+        options = options)
 
-# Possibly the same #1 occ #2
 def track_to_navigable_playlist_item(
         objid, 
         track: TidalTrack,
         options : dict[str, any] = {}) -> dict:
-    identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.PLAYLIST_NAVIGABLE_ITEM.getName(), 
-        track.id)
-    id : str = identifier_util.create_objid(
-        objid = objid, 
-        id = identifier_util.create_id_from_identifier(identifier))
-    overridden_track_name : str = get_option(
-        options = options,
-        option_key = OptionKey.OVERRIDDEN_TRACK_NAME)
-    if overridden_track_name:
-        title = overridden_track_name
-    else:
-        title = get_track_name_for_track_container(
-            track = track, 
-            options = options)
-    track_entry = upmplgutils.direntry(id,
-        objid,
-        title)
-    upnp_util.set_album_art_from_uri(get_image_url(track.album), track_entry)
-    return track_entry
+    return track_to_navigable_track_by_element_type(
+        objid = objid,
+        track = track,
+        element_type = ElementType.PLAYLIST_NAVIGABLE_ITEM,
+        options = options)
 
-# Possibly the same #1 occ #2
 def track_to_navigable_track(
         objid, 
         track: TidalTrack,
         options : dict[str, any] = {}) -> dict:
+    return track_to_navigable_track_by_element_type(
+        objid = objid,
+        track = track,
+        element_type = ElementType.NAVIGABLE_TRACK,
+        options = options)
+
+def track_to_navigable_track_by_element_type(
+        objid, 
+        track: TidalTrack,
+        element_type : ElementType,
+        options : dict[str, any] = {}) -> dict:
     identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.NAVIGABLE_TRACK.getName(), 
+        element_type.getName(), 
         track.id)
     id : str = identifier_util.create_objid(
         objid = objid, 
@@ -478,6 +569,21 @@ def pagelink_to_entry(
         title = page_link.title)
     return entry
 
+def page_to_entry(
+        objid,
+        api_path : str,
+        page_title : str) -> upmplgutils.direntry:
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.PAGE.getName(), 
+        api_path)
+    id : str = identifier_util.create_objid(
+        objid = objid, 
+        id = identifier_util.create_id_from_identifier(identifier))
+    entry = upmplgutils.direntry(id, 
+        objid, 
+        title = page_title)
+    return entry
+
 def playlist_to_playlist_container(
         objid,
         playlist : TidalPlaylist) -> upmplgutils.direntry:
@@ -600,6 +706,23 @@ def handler_tag_favorite_artists(objid, item_identifier : ItemIdentifier, entrie
             next_offset = offset + max_items)
     return entries
 
+def handler_tag_favorite_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    tuple_array = [
+        (ElementType.FAVORITE_TRACKS_NAVIGABLE, "My Tracks (Navigable)"), 
+        (ElementType.FAVORITE_TRACKS_LIST, "My Tracks (list)")]
+    for current_tuple in tuple_array:
+        identifier : ItemIdentifier = ItemIdentifier(
+            current_tuple[0].getName(), 
+            current_tuple[1])
+        id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(identifier))
+        entry = upmplgutils.direntry(id, 
+            objid, 
+            current_tuple[1])
+        entries.append(entry)
+    return entries
+
 def handler_tag_all_playlists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     max_items : int = 50
@@ -631,9 +754,9 @@ def handler_tag_playback_statistics(
         item_identifier : ItemIdentifier, 
         entries : list) -> list:
     tuple_array = [
-        (ElementType.RECENTLY_PLAYED_TRACKS, "Recently played tracks"),
+        (ElementType.RECENTLY_PLAYED_TRACKS_NAVIGABLE, "Recently played tracks"),
         (ElementType.RECENTLY_PLAYED_TRACKS_LIST, "Recently played tracks (List)"),
-        (ElementType.MOST_PLAYED_TRACKS, "Most played tracks"),
+        (ElementType.MOST_PLAYED_TRACKS_NAVIGABLE, "Most played tracks"),
         (ElementType.MOST_PLAYED_TRACKS_LIST, "Most played tracks (List)")]
     for current_tuple in tuple_array:
         identifier : ItemIdentifier = ItemIdentifier(
@@ -655,11 +778,13 @@ def handler_tag_categories(
     current : TidalItemList
     category_index : int = 0
     for current in get_categories():
-        msgproc.log(f"Found category[{category_index}] [{current.title}] typeof(title) is [{type(current.title)}]")
+        msgproc.log(f"Found category[{category_index}]: [{current.title}] type is [{type(current)}]")
         title : str = current.title
         if title and len(title) > 0:
             entry = category_to_entry(objid, current)
             entries.append(entry)
+        else:
+            msgproc.log(f"  category at index [{category_index}] has no title, skipped.")
         category_index += 1
     return entries
 
@@ -722,6 +847,36 @@ def navigate(category_name : str, page_list : list[str] = list()):
                 break            
     return result
 
+def follow_page_link(page_link : TidalPageLink) -> any:
+    next = page_link
+    while next:
+        msgproc.log(f"follow_page_link: type of next is [{type(next)}]")
+        if isinstance(next, TidalPageLink):
+            next = next.get()
+            msgproc.log(f"  next found: [{'yes' if next else 'no'}] type: [{type(next) if next else None}]")
+        else:
+            break
+    return next
+
+def get_first_item_in_page_link(page_link : TidalPageLink) -> any:
+    item = None
+    current_link : TidalPageLink = page_link
+    while not item:
+        next_thing = follow_page_link(current_link)
+        if isinstance(next_thing, TidalPage):
+            # see if there is a link, if so, follow
+            msgproc.log(f"get_first_item_in_page_link: found a Page")
+            first_page_item = next(iter(next_thing))
+            msgproc.log(f"get_first_item_in_page_link: first_item found: [{'yes' if first_page_item else 'no'}], type: [{type(first_page_item) if first_page_item else None}]")
+            if not first_page_item: raise Exception("get_first_item_in_page_link failed")
+            if isinstance(first_page_item, TidalPageLink):
+                current_link = first_page_item
+            else:
+                item = first_page_item
+        else:
+            item = next_thing
+    return item
+
 def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     thing_name : str = item_identifier.get(ItemIdentifierKey.THING_NAME)
     thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -741,30 +896,51 @@ def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : 
     if page: page_to_entries(objid, page, entries)
     return entries
 
+def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    page : TidalPage = session.page.get(thing_value)
+    for page_item in page:
+        if isinstance(page_item, TidalPlaylist):
+            entries.append(playlist_to_playlist_container(
+                objid = objid, 
+                playlist = page_item))
+        elif isinstance(page_item, TidalAlbum):
+            entries.append(album_to_album_container(
+                objid = objid,
+                album = page_item))
+        else:
+            msgproc.log(f"handler_element_page: page_item of type [{type(page_item)}] not handled")
+    return entries
+
 def page_to_entries(objid, page : TidalPage, entries : list) -> list:
     # extracting items from page
     for current_page_item in page:
-        entry : dict = convert_pageitem_to_entry(objid, page_item = current_page_item)
-        if entry: entries.append(entry)
+        entries = convert_page_item_to_entries(
+            objid = objid, 
+            page_item = current_page_item, 
+            entries = entries)
     return entries
 
-def convert_pageitem_to_entry(objid, page_item : TidalPageItem) -> dict:
-    msgproc.log(f"convert_pageitem_to_entry processing a {type(page_item)}")
+def convert_page_item_to_entries(objid, page_item : TidalPageItem, entries : list) -> list:
     if isinstance(page_item, TidalPlaylist):
-        return playlist_to_playlist_container(
+        entries.append(playlist_to_playlist_container(
             objid = objid, 
-            playlist = page_item)
+            playlist = page_item))
     elif isinstance(page_item, TidalAlbum):
-        return album_to_album_container(
+        entries.append(album_to_album_container(
             objid = objid, 
-            album = page_item)
+            album = page_item))
     elif isinstance(page_item, TidalArtist):
-        return artist_to_entry(objid, artist = page_item)
-    elif isinstance(page_item, TidalFeaturedItems):
-        msgproc.log(f"Item of type (FeaturedItems) {type(page_item)} not handled")
-        return None
-    msgproc.log(f"Item of type {type(page_item)} not handled")
-    return None
+        entries.append(artist_to_entry(objid, artist = page_item))
+    elif isinstance(page_item, TidalPageLink):
+        page_link : TidalPageLink = page_item
+        entries.append(page_to_entry(
+            objid = objid,
+            api_path = page_link.api_path,
+            page_title = page_link.title))
+    else:
+        msgproc.log(f"convert_page_item_to_entries item of type {type(page_item) if page_item else None} not handled")
+    return entries
 
 def handler_element_mix_container(
         objid, 
@@ -1085,10 +1261,7 @@ def handler_element_similar_artists(objid, item_identifier : ItemIdentifier, ent
         entries.append(artist_to_entry(objid = objid, artist = current))
     return entries
 
-def handler_element_artist_top_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    artist : TidalArtist = get_session().artist(artist_id)
-    items : list[TidalTrack] = get_top_tracks(artist)
+def add_tracks_to_entries(objid, items : list[TidalTrack], entries : list) -> list:
     current : TidalTrack
     for current in items if items else list():
         options : dict[str, any] = dict()
@@ -1098,6 +1271,31 @@ def handler_element_artist_top_tracks(objid, item_identifier : ItemIdentifier, e
             track = current,
             options = options))
     return entries
+
+def add_track_as_list_to_entries(objid, items : list[TidalTrack], entries : list) -> list:
+    current : TidalTrack
+    for current in items if items else list():
+        options : dict[str, any] = dict()
+        set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
+        entries.append(track_to_entry(
+            objid = objid, 
+            track = current,
+            options = options))
+    return entries
+
+def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    items : list[TidalTrack] = get_session().user.favorites.tracks()
+    return add_tracks_to_entries(objid, items, entries)
+
+def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    items : list[TidalTrack] = get_session().user.favorites.tracks()
+    return add_track_as_list_to_entries(objid, items, entries)    
+
+def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    artist : TidalArtist = get_session().artist(artist_id)
+    items : list[TidalTrack] = get_top_tracks(artist)
+    return add_tracks_to_entries(objid, items, entries)
 
 def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1117,29 +1315,13 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     artist : TidalArtist = get_session().artist(artist_id)
     items : list[TidalTrack] = get_radio(artist)
-    current : TidalTrack
-    for current in items if items else list():
-        options : dict[str, any] = dict()
-        set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
-        entries.append(track_to_entry(
-            objid = objid, 
-            track = current,
-            options = options))
-    return entries
+    return add_track_as_list_to_entries(objid, items, entries)
 
-def handler_element_artist_radio(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def handler_element_artist_radio_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     artist : TidalArtist = get_session().artist(artist_id)
     items : list[TidalTrack] = get_radio(artist)
-    current : TidalTrack
-    for current in items if items else list():
-        options : dict[str, any] = dict()
-        set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
-        entries.append(track_to_navigable_track(
-            objid = objid, 
-            track = current,
-            options = options))
-    return entries
+    return add_tracks_to_entries(objid, items, entries)
 
 def handler_element_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1150,9 +1332,9 @@ def handler_element_artist(objid, item_identifier : ItemIdentifier, entries : li
         (ElementType.ARTIST_ALBUM_EP_SINGLES, "EP and Singles"),
         (ElementType.ARTIST_ALBUM_OTHERS, "Other Albums"),
         (ElementType.SIMILAR_ARTISTS, "Similar Artists"),
-        (ElementType.ARTIST_TOP_TRACKS, "Top Tracks"),
+        (ElementType.ARTIST_TOP_TRACKS_NAVIGABLE, "Top Tracks"),
         (ElementType.ARTIST_TOP_TRACKS_LIST, "Top Tracks (List)"),
-        (ElementType.ARTIST_RADIO, "Radio"),
+        (ElementType.ARTIST_RADIO_NAVIGABLE, "Radio"),
         (ElementType.ARTIST_RADIO_LIST, "Radio (List)")]
     for album_tuple in album_tuple_array:
         identifier : ItemIdentifier = ItemIdentifier(
@@ -1177,34 +1359,50 @@ def handler_element_track_container(objid, item_identifier : ItemIdentifier, ent
     entries.append(track_entry)
     return entries
 
+def get_category_items(category_name : str) -> list[any]:
+    category : TidalItemList = get_category(category_name)
+    item_list : list[any] = list()
+    if category:
+        for item in category.items:
+            item_list.append(item)
+    return item_list
+
 def handler_element_category(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     select_category : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     category : TidalItemList = get_category(select_category)
-    if category:
+    if not category: 
+        msgproc.log(f"handler_element_category category not set")
+        return entries
+    obj = get_category(select_category)
+    if not obj: 
+        msgproc.log(f"handler_element_category cannot load category [{select_category}]")
+        return entries
+    if isinstance(obj, TidalFeaturedItems):
+        msgproc.log(f"handler_element_category category [{select_category}] as TidalFeaturedItems")
+        featured_items : TidalFeaturedItems = obj
+        for fi_item in featured_items.items:
+            msgproc.log(f"handler_element_category Processing category {select_category} as {type(obj)} Item type {fi_item.type}")
+            if fi_item.type == constants.featured_type_name_playlist:
+                playlist : TidalPlaylist = get_session().playlist(fi_item.artifact_id)
+                entries.append(playlist_to_playlist_container(
+                    objid = objid, 
+                    playlist = playlist))
+            else:
+                msgproc.log(f"handler_element_category not processed Item type {fi_item.type}")
+    else:
+        index : int = 0
         for item in category.items:
+            msgproc.log(f"handler_element_category categories[{select_category}].item[{index}] type is [{type(item)}]")
             if isinstance(item, TidalPageItem):
-                msgproc.log(f"PageItem (Category {category.title}) Item type {type(item)} [{item}]")
-                obj = get_category(select_category)
-                if obj and isinstance(obj, TidalFeaturedItems):
-                    msgproc.log(f"Processing category {select_category} as {type(obj)}")
-                    featured_items : TidalFeaturedItems = obj
-                    for fi_item in featured_items.items:
-                        msgproc.log(f"Processing category {select_category} as {type(obj)} Item type {fi_item.type}")
-                        if fi_item.type == "PLAYLIST":
-                            playlist : TidalPlaylist = get_session().playlist(fi_item.artifact_id)
-                            entries.append(playlist_to_playlist_container(
-                                objid = objid, 
-                                playlist = playlist))
-                        else:
-                            msgproc.log(f"Not processed Item type {fi_item.type}")
+                msgproc.log(f"handler_element_category PageItem (Category {category.title}) Item type {type(item)} [{item}] not handled")
             elif isinstance(item, TidalPageLink):
-                msgproc.log(f"PageLink (Category {category.title}) Item type {type(item)} [{item}]")
+                msgproc.log(f"handler_element_category PageLink (Category {category.title}) Item type {type(item)} [{item}]")
                 entries.append(pagelink_to_entry(objid, category = category, page_link = item))
             elif isinstance(item, TidalMix):
-                msgproc.log(f"Mix - Item type {type(item)} [{item}]")
+                msgproc.log(f"handler_element_category Mix - Item type {type(item)} [{item}]")
                 entries.append(mix_to_mix_container(objid, mix = item))
             elif isinstance(item, TidalTrack):
-                msgproc.log(f"Track - Item type {type(item)} [{item}]")
+                msgproc.log(f"handler_element_category Track - Item type {type(item)} [{item}]")
                 options : dict[str, any] = dict()
                 set_option(options, OptionKey.SKIP_TRACK_NUMBER, True)
                 entries.append(track_to_track_container(
@@ -1212,17 +1410,18 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                     track = item,
                     options = options))
             elif isinstance(item, TidalPlaylist):
-                msgproc.log(f"Playlist - Item type {type(item)} [{item}]")
+                msgproc.log(f"handler_element_category Playlist - Item type {type(item)} [{item}]")
                 entries.append(playlist_to_playlist_container(
                     objid = objid, 
                     playlist = item))
             elif isinstance(item, TidalAlbum):
                 album : TidalAlbum = item
-                msgproc.log(f"Album [{album.name}] [{item}]")
+                msgproc.log(f"handler_element_category Album [{album.name}] [{item}]")
                 options : dict[str, any] = dict()
                 entries.append(album_to_album_container(objid, album = album))
             else:
-                msgproc.log(f"UNHANDLED - Item type {type(item)} [{item}]")
+                msgproc.log(f"handler_element_category UNHANDLED - Item type {type(item)} [{item}]")
+        index += 1
     return entries
 
 # this allows kodi to work with the plugin
@@ -1244,9 +1443,8 @@ def track_data_to_entry(objid, entry_id : str, track : TidalTrack) -> dict:
     entry['duration'] = str(track.duration)
     return entry
 
-def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def handler_element_track_simple(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     track_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    msgproc.log(f"_handler_element_track should serve track_id {track_id}")
     track : TidalTrack = get_session().track(track_id)
     identifier : ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), track_id)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
@@ -1254,10 +1452,10 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
     entries.append(track_entry)
     return entries
 
-def handler_element_recently_played_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def handler_element_recently_played_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return played_track_list_to_entries(objid, persistence.get_last_played_tracks(), entries)
 
-def handler_element_most_played_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def handler_element_most_played_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return played_track_list_to_entries(objid, persistence.get_most_played_tracks(), entries)
 
 def played_track_list_to_entries(objid, played_tracks : list[PlayedTrack], entries : list) -> list:
@@ -1297,12 +1495,22 @@ def played_track_list_to_list_entries(objid, played_tracks : list[PlayedTrack], 
         entries.append(track_entry)
     return entries
 
+def image_retriever_categories(tag_type : TagType) -> str:
+    categories = get_categories()
+    first_category = categories[0] if categories and len(categories) > 0 else None
+    return get_category_image_url(first_category) if first_category else None
+
+__tag_image_retriever : dict = {
+    TagType.CATEGORIES.getTagName(): image_retriever_categories
+}
+    
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favorite_albums,
     TagType.FAVORITE_ARTISTS.getTagName(): handler_tag_favorite_artists,
+    TagType.FAVORITE_TRACKS.getTagName(): handler_tag_favorite_tracks,
     TagType.PLAYBACK_STATISTICS.getTagName(): handler_tag_playback_statistics
 }
     
@@ -1319,21 +1527,24 @@ __elem_action_dict : dict = {
     ElementType.MIX_NAVIGABLE.getName(): handler_element_mix_navigable,
     ElementType.MIX_NAVIGABLE_ITEM.getName(): handler_element_mix_navigable_item,
     ElementType.PAGELINK.getName(): handler_element_pagelink,
+    ElementType.PAGE.getName(): handler_element_page,
     ElementType.ARTIST.getName(): handler_element_artist,
     ElementType.ARTIST_ALBUM_ALBUMS.getName(): handler_element_artist_album_albums,
     ElementType.ARTIST_ALBUM_EP_SINGLES.getName(): handler_element_artist_album_ep_singles,
     ElementType.ARTIST_ALBUM_OTHERS.getName(): handler_element_artist_album_others,
-    ElementType.ARTIST_TOP_TRACKS.getName(): handler_element_artist_top_tracks,
+    ElementType.ARTIST_TOP_TRACKS_NAVIGABLE.getName(): handler_element_artist_top_tracks_navigable,
     ElementType.ARTIST_TOP_TRACKS_LIST.getName(): handler_element_artist_top_tracks_list,
-    ElementType.ARTIST_RADIO.getName(): handler_element_artist_radio,
+    ElementType.ARTIST_RADIO_NAVIGABLE.getName(): handler_element_artist_radio_navigable,
     ElementType.ARTIST_RADIO_LIST.getName(): handler_element_artist_radio_list,
     ElementType.NAVIGABLE_TRACK.getName(): handler_element_navigable_track,
     ElementType.TRACK_CONTAINER.getName(): handler_element_track_container,
-    ElementType.TRACK.getName(): _handler_element_track,
+    ElementType.TRACK.getName(): handler_element_track_simple,
     ElementType.SIMILAR_ARTISTS.getName(): handler_element_similar_artists,
-    ElementType.RECENTLY_PLAYED_TRACKS.getName(): handler_element_recently_played_tracks,
+    ElementType.FAVORITE_TRACKS_NAVIGABLE.getName(): handler_element_favorite_tracks_navigable,
+    ElementType.FAVORITE_TRACKS_LIST.getName(): handler_element_favorite_tracks_list,
+    ElementType.RECENTLY_PLAYED_TRACKS_NAVIGABLE.getName(): handler_element_recently_played_tracks_navigable,
     ElementType.RECENTLY_PLAYED_TRACKS_LIST.getName(): handler_element_recently_played_tracks_list,
-    ElementType.MOST_PLAYED_TRACKS.getName(): handler_element_most_played_tracks,
+    ElementType.MOST_PLAYED_TRACKS_NAVIGABLE.getName(): handler_element_most_played_tracks_navigable,
     ElementType.MOST_PLAYED_TRACKS_LIST.getName(): handler_element_most_played_tracks_list
 }
 
@@ -1357,9 +1568,13 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
         title = get_tag_Type_by_name(tag.getTagName()).getTagTitle())
     return entry
 
-def _show_tags(objid, entries : list) -> list:
+def show_tags(objid, entries : list) -> list:
     for tag in TagType:
-        entries.append(tag_to_entry(objid, tag))
+        curr_tag_img_retriever = __tag_image_retriever[tag.getTagName()] if tag.getTagName() in __tag_image_retriever else None
+        curr_tag_img : str = curr_tag_img_retriever(tag) if curr_tag_img_retriever else None
+        tag_entry : dict[str, any] = tag_to_entry(objid, tag)
+        if curr_tag_img and len(curr_tag_img) > 0: upnp_util.set_album_art_from_uri(curr_tag_img, tag_entry)
+        entries.append(tag_entry)
     return entries
 
 @dispatcher.record('browse')
@@ -1374,13 +1589,13 @@ def browse(a):
     curr_path : str
     for curr_path in path_list:
         if not _g_myprefix == curr_path:
-            msgproc.log(f"browse: path: [{curr_path}] decodes to {codec.decode(curr_path)}")
+            msgproc.log(f"browse: current_path [{curr_path}] decodes to [{codec.decode(curr_path)}]")
     last_path_item : str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
     msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
     entries = []
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags
-        entries = _show_tags(objid, entries)
+        entries = show_tags(objid, entries)
     else:
         # decode
         decoded_path : str = codec.decode(last_path_item)
@@ -1390,22 +1605,16 @@ def browse(a):
         thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
         msgproc.log(f"browse: item_identifier name: --{thing_name}-- value: --{thing_value}--")
         if ElementType.TAG.getName() == thing_name:
-            msgproc.log(f"browse: should serve tag: --{thing_value}--")
             tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
+            msgproc.log(f"browse: should serve tag [{thing_value}], handler found: [{'yes' if tag_handler else 'no'}]")
             if tag_handler:
-                msgproc.log(f"browse: found tag handler for: --{thing_value}--")
                 entries = tag_handler(objid, item_identifier, entries)
                 return _returnentries(entries)
-            else:
-                msgproc.log(f"browse: tag handler for: --{thing_value}-- not found")
         else: # it's an element
-            msgproc.log(f"browse: should serve element: --{thing_name}-- [{thing_value}]")
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
+            msgproc.log(f"browse: should serve element [{thing_name}], handler found: [{'yes' if elem_handler else 'no'}]")
             if elem_handler:
-                msgproc.log(f"browse: found elem handler for: --{thing_name}--")
                 entries = elem_handler(objid, item_identifier, entries)
-            else:
-                msgproc.log(f"browse: element handler for: --{thing_name}-- not found")
     return _returnentries(entries)
 
 def tidal_search(
@@ -1482,6 +1691,7 @@ def _inittidal():
     msgproc.log(f"DB version for [{plugin_name}] is [{persistence.get_db_version()}]")
 
     _g_init = create_session()
+
     return True
 
 msgproc.mainloop()

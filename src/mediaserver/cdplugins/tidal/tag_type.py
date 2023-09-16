@@ -20,9 +20,10 @@ class TagType(Enum):
     CATEGORIES = 100, "ctgrs", "Categories", None
     MY_PLAYLISTS = 101, "myplsts", "My Playlists", None
     ALL_PLAYLISTS = 102, "allplsts", "Playlists", None
-    FAVORITE_ALBUMS = 103, "favlbms", "My Albums", None,
-    FAVORITE_ARTISTS = 104, "favrtsts", "My Artists", None,
-    PLAYBACK_STATISTICS = 105, "plbkstts", "Playback Statistics", None
+    FAVORITE_ALBUMS = 103, "fvlbms", "My Albums", None,
+    FAVORITE_ARTISTS = 104, "fvrtsts", "My Artists", None,
+    FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks", None,
+    PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics", None
 
     def __init__(self, 
             num : int, 

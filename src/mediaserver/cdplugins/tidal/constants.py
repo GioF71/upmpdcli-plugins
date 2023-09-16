@@ -14,3 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 plugin_name : str = "tidal"
+
+featured_type_name_playlist : str = "PLAYLIST"
+tile_image_expiration_time_sec : int = 1200

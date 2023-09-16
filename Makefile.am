@@ -205,6 +205,8 @@ dist_cdpluginstidal_DATA = \
                     src/mediaserver/cdplugins/tidal/played_track.py \
                     src/mediaserver/cdplugins/tidal/search_type.py \
                     src/mediaserver/cdplugins/tidal/tag_type.py \
+                    src/mediaserver/cdplugins/tidal/tile_image.py \
+                    src/mediaserver/cdplugins/tidal/tile_type.py \
                     src/mediaserver/cdplugins/tidal/upnp_util.py
 
 cdpluginsqobuzdir = $(pkgdatadir)/cdplugins/qobuz
