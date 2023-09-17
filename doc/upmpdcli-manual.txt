@@ -821,10 +821,6 @@ Qobuz currently work fine (1.6.2).
 
 The Deezer plugin works for low quality (but still usable) streams (128 kb/s mp3).
 
-NOTE: I am not sure about Tidal support: in any case it will only work if you can find a working
-application token, and even then, maybe not as their access control API is evolving. I have no
-access to an API key, so I can't even test.
-
 You will need a valid subscription for any service that you want to use.
 
 Streaming is not limited to the local Upmpdcli Renderer, and the Media Server will happily send
@@ -857,8 +853,13 @@ responsibility.
 ==== Using Tidal through the Upmpdcli Media Server
 
 NOTE::
-Accessing Tidal needs an API key, and I don't have one. The module may still work for you if you
-have key, but I am unable to test it.
+Accessing Tidal requires you to obtain a set of valid Tidal credentials.
+Those can be obtained by running a python script, which is installed 
+at location ('/usr/share/upmpdcli/cdplugins/tidal/get_credentials.py'). 
+Run using the command /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py, 
+follow the on-screen instruction, login with Tidal and authenticate the application, 
+then update the upmpdcli configuration file ('/etc/upmpdcli.conf') accordingly. 
+You will need a valid subscription to Tidal.
 
 [NOTE]
 =====
