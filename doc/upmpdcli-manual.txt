@@ -188,8 +188,8 @@ Additionally:
   completely independant: *upmpdcli* can run as Renderer only, or Media Server only, or both, and
   the Media Server can be accessed by any Control Point and serve streams to any Renderer, not only
   to its co-hosted one. The Upmpdcli Media Server implements gateways to external streaming services
-  (Highresaudio, Qobuz, Deezer...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*] module,
-  which provides a Media Server for local audio files. *uprcl* is based on the
+  (Highresaudio, Qobuz, Tidal, Deezer...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*]
+  module, which provides a Media Server for local audio files. *uprcl* is based on the
   link:https://www.recoll.org[Recoll] medata extraction and search functions.
 
 - Upmpdcli implements control functions for the Linn Songcast protocol, allowing the local machine

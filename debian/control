@@ -120,7 +120,7 @@ Description: upmpdcli Spotify plugin
 Package: upmpdcli-uprcl
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3 (>= 3.5), python3-requests, python3-recoll,
+Depends: upmpdcli, python3 (>= 3.5), recollcmd, python3-requests, python3-recoll,
   python3-waitress, python3-mutagen, ${misc:Depends}
 Description: upmpdcli local Media Server plugin
  upmpdcli-uprcl enables a Recoll-based local media server.
