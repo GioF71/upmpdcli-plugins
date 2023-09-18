@@ -1306,7 +1306,7 @@ programming interface which may be also usable by programs other than their own 
 
 Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
 some of the service APIs have made it impossible to access them from an open-source
-application (Tidal, Spotify), and only a few remain, sometimes with restrictions (Deezer).
+application (e.g. Spotify), and only a few remain, sometimes with restrictions (Deezer).
 
 The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
 to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific

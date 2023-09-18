@@ -45,11 +45,6 @@ if test X$enableQT = Xyes ; then
   AC_SUBST(QMAKE)
 fi
 
-AC_ARG_ENABLE(spotify, AS_HELP_STRING([--enable-spotify],
-              [Enable the spotify streaming module (does not work any more).]),
-              enableSpotify=$enableval, enableSpotify="no")
-AM_CONDITIONAL(ENABLESPOTIFY, [test X$enableSpotify = Xyes])
-
 
 PKG_CHECK_MODULES([upnpp], [libupnpp], [], [AC_MSG_ERROR([libupnpp not found])])
 PKG_CHECK_MODULES([libmpdclient], [libmpdclient], [],
@@ -75,10 +70,6 @@ fi
 SCCTL_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs "
 UPMPDCLI_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs"
 
-
-if test X$enableSpotify = Xyes; then
-   UPMPDCLI_LIBS="$UPMPDCLI_LIBS -ldl "
-fi
 
 echo "UPMPDCLI_LIBS=$UPMPDCLI_LIBS"
 

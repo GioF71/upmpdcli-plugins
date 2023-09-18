@@ -112,12 +112,6 @@ upmpdcli_SOURCES = \
 
 upmpdcli_LDADD = $(UPMPDCLI_LIBS)
 
-if ENABLESPOTIFY
-upmpdcli_SOURCES += src/mediaserver/cdplugins/spotify/spotiproxy.cpp \
-     src/mediaserver/cdplugins/spotify/spotiproxy.h 
-AM_CXXFLAGS += -DENABLE_SPOTIFY
-endif
-
 scctl_SOURCES = \
     scctl_src/scctl.cpp \
     src/netcon.cpp \
@@ -241,19 +235,6 @@ cdpluginsradiobrowserdir = $(pkgdatadir)/cdplugins/radio-browser
 dist_cdpluginsradiobrowser_DATA = \
                   src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
 
-cdpluginsspotifydir = $(pkgdatadir)/cdplugins/spotify
-dist_cdpluginsspotify_DATA = \
-                  src/mediaserver/cdplugins/spotify/spotify-app.py \
-                  src/mediaserver/cdplugins/spotify/session.py \
-                  src/mediaserver/cdplugins/spotify/upmspotid.py
-
-
-cdpluginsspotifylibdir = $(pkgdatadir)/cdplugins/spotify/spotipy
-dist_cdpluginsspotifylib_DATA = \
-                  src/mediaserver/cdplugins/spotify/spotipy/__init__.py \
-                  src/mediaserver/cdplugins/spotify/spotipy/client.py \
-                  src/mediaserver/cdplugins/spotify/spotipy/oauth2.py \
-                  src/mediaserver/cdplugins/spotify/spotipy/util.py
 
 cdpluginsradiosdir = $(pkgdatadir)/cdplugins/upradios
 dist_cdpluginsradios_DATA = \
@@ -327,8 +308,6 @@ EXTRA_DIST = \
     cfgui/picoxml.h \
     cfgui/upmpdcli-config.pro \
     autogen.sh \
-    src/mediaserver/cdplugins/spotify/spotiproxy.cpp \
-    src/mediaserver/cdplugins/spotify/spotiproxy.h \
     src/upmpdcli.conf-xml \
     systemd/upmpdcli.service
 
@@ -342,7 +321,6 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsspotifydir); chmod a+x spotify-app.py) 
 	(cd $(DESTDIR)/$(cdpluginssubsonicdir); chmod a+x subsonic-app.py) 
 	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 

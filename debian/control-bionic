@@ -79,15 +79,6 @@ Description: upmpdcli highresaudio plugin
  upmpdcli-hra allows upmpdcli to proxy access to the highresaudio
  https://www.highresaudio.com/en music streaming service.
 
-Package: upmpdcli-spotify
-Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Spotify plugin
- upmpdcli-spotify allows upmpdcli to proxy access to the Spotify
- streaming service. Note: no dependance on libspotify to let you install
- this without a libspotify package (bare lib ok).
-
 Package: upmpdcli-uprcl
 Architecture: all
 Section: contrib/sound
