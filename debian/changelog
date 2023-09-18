@@ -1,4 +1,4 @@
-upmpdcli (1.8.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.8.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Completely new Tidal plugin by Giovanni Fulco. Tidal access is working again !
   * Media Server: change the internal URL format to avoid characters needing quoting in XML: work

@@ -848,22 +848,31 @@ NOTE: I have no reason to believe that upmpdcli is technically mis-using the str
 any way, but it is definitely not approved by any of them, and you are using it under your own
 responsibility.
 
-////
+[[UPMPDCLI-MS-STR-TIDAL]]
+=== Tidal
 
-==== Using Tidal through the Upmpdcli Media Server
+You will need to install the upmpdcli-tidal module.
 
-NOTE::
-Accessing Tidal requires you to obtain a set of valid Tidal credentials.
-Those can be obtained by running a python script, which is installed 
-at location ('/usr/share/upmpdcli/cdplugins/tidal/get_credentials.py'). 
-Run using the command /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py, 
-follow the on-screen instruction, login with Tidal and authenticate the application, 
-then update the upmpdcli configuration file ('/etc/upmpdcli.conf') accordingly. 
-You will need a valid subscription to Tidal.
+The Tidal module code is is based on the link:https://github.com/tamland/python-tidal[Tidal API]
+currently at version 0.7.3, by Thomas Amland (also using other useful modules by Thomas). The
+software is not officially supported by Tidal, and may just stop to work one day...
+
+It only works with a valid Tidal subscription.
+
+Accessing Tidal requires you to obtain a set of valid Tidal credentials.  Those can be obtained by
+running a python script, which is installed at location
+(`/usr/share/upmpdcli/cdplugins/tidal/get_credentials.py`). This script will create a browser
+link. After you click that link and authenticate to Tidal on your browser, you will get the
+configuration parameters.  Run the script and follow the on-screen instruction, login with Tidal and
+authenticate the application, then update the upmpdcli configuration file (`/etc/upmpdcli.conf`),
+setting the token data in the `tidaltokentype`, `tidalaccesstoken`, `tidalrefreshtoken` and
+`tidalexpirytime` configuration variables.
+
+The configuration parameters are described in the <<tidaluser,configuration section>>
+
 
 [NOTE]
-=====
-
+====
 There seems to sometimes be problems when streaming Tidal lossless/FLAC streams, with
 the default MPD configuration. A preliminary and rather superficial enquiry seems to indicate that
 this is caused by too much buffering by MPD. Adding the following parameters to the MPD
@@ -872,26 +881,9 @@ configuration file (/etc/mpd.conf) reduces the pre-fetch period and seems to fix
 
     audio_buffer_size "2048"
     buffer_before_play "20%"
-
-=====
-
-You will need to install the upmpdcli-tidal module.
-
-The Tidal module code is is based on the link:https://github.com/tamland/python-tidal[Tidal API] currently at version 0.7.3, by Thomas Amland (also
-using other useful modules by Thomas). The software is not officially
-supported by Tidal, and may just stop to work one day...
-
-It only works with a valid Tidal subscription and valid Tidal access and authentification token types and token data, which you must set in the
-`tidaltokentype`, `tidalaccesstoken`, `tidalrefreshtoken` and `tidalexpirytime` configuration variables.
-In order to obtain those information, you can run the python script located at `/usr/share/upmpdcli/cdplugins/tidal/get_credentials.py`.
-This script will create a link. After you click that link and authenticate to Tidal on your browser, you will get the entries to set to the `upmpdcli.conf` file. 
-
-The configuration parameters are described in the <<tidaluser,configuration section>>
-
-////
+====
 
 
-'''
 [[UPMPDCLI-MS-STR-QOBUZ]]
 === Qobuz
 
