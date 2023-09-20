@@ -1,28 +1,9 @@
-# Copyright (C) 2023 Giovanni Fulco
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import datetime
-
-class PlayedTrack:
+class PlayedTrackRequest:
 
     def __init__(self):
         self._track_id : str = None
         self._album_id : str = None
         self._album_track_count : int = None
-        self._play_count : int = None
-        self._last_played : datetime.datetime = None
         self._track_name : str = None
         self._track_duration : int = None
         self._track_num : int = None
@@ -59,22 +40,7 @@ class PlayedTrack:
     @album_track_count.setter
     def album_track_count(self, value : str):
         self._album_track_count : int = value
-
-    @property
-    def play_count(self) -> int:
-        return self._play_count
-
-    @play_count.setter
-    def play_count(self, value : int):
-        self._play_count : int = value
-
-    @property
-    def last_played(self) -> datetime.datetime:
-        return self._last_played
-
-    @last_played.setter
-    def last_played(self, value : datetime.datetime):
-        self._last_played : datetime.datetime = value
+    
     @property
     def track_name(self) -> str:
         return self._track_name
@@ -145,7 +111,7 @@ class PlayedTrack:
 
     @image_url.setter
     def image_url(self, value : str):
-        self._image_url = value
+        self._image_url : str = value
 
     @property
     def explicit(self) -> int:

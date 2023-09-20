@@ -24,13 +24,45 @@ from typing import Callable
 from enum import Enum
 
 from played_track import PlayedTrack
+from played_album import PlayedAlbum
+
 from tile_type import TileType
 from tile_image import TileImage
+
+from played_track_request import PlayedTrackRequest
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
+
+__table_name_played_track_v1 : str = "played_track_v1"
+
+__most_played_albums_query : str = """
+    SELECT 
+        album_id, 
+        (SUM(CAST (play_count AS FLOAT) * (CAST (track_duration AS FLOAT) / CAST (album_duration AS FLOAT)))) 
+            AS album_played_counter
+    FROM 
+        played_track_v1 
+    WHERE 
+        album_duration is not NULL 
+    GROUP BY 
+        album_id 
+    ORDER BY 
+        album_played_counter DESC, last_played DESC
+    """
+
+__last_played_albums_query : str = """
+    SELECT 
+        DISTINCT album_id
+    FROM 
+        played_track_v1 
+    GROUP BY 
+        album_id
+    ORDER BY 
+        last_played Desc
+"""
 
 class PlayedTracksSorting(Enum):
 
@@ -56,7 +88,7 @@ class PlayedTracksSorting(Enum):
     def get_field_order(self) -> str:
         return self.field_order
 
-def __get_db_filename() -> str: return "tidal.db"
+def __get_db_filename() -> str: return f"{constants.plugin_name}.db"
 
 def __get_db_full_path() -> str:
     return os.path.join(upmplgutils.getcachedir(constants.plugin_name), __get_db_filename())
@@ -232,6 +264,24 @@ def __alter_tile_image_v1_add_update_time():
     cursor_obj.close()
     msgproc.log(f"Altered table tile_image_v1 with new column update_time.")
 
+def __alter_table_with_column(table_name : str, column_name : str, column_type : str):
+    msgproc.log(f"Updating table {table_name} with new column {column_name} type {column_type} ...")
+    cursor_obj = __connection.cursor()
+    # Creating table
+    alter : str = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+    cursor_obj.execute(alter)
+    cursor_obj.close()
+    msgproc.log(f"Altered table {table_name} with new column {column_name} type {column_type}.")
+
+def __alter_table_drop_column(table_name : str, column_name : str):
+    msgproc.log(f"Updating table {table_name} dropping column {column_name} ...")
+    cursor_obj = __connection.cursor()
+    # Creating table
+    alter : str = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
+    cursor_obj.execute(alter)
+    cursor_obj.close()
+    msgproc.log(f"Altered table {table_name} dropping column {column_name}.")
+
 def migration_0():
     msgproc.log(f"Creating db version 1 ...")
     __prepare_table_played_track_v1()
@@ -263,37 +313,170 @@ def migration_4():
     __store_db_version("5")
     msgproc.log(f"Updated db to version 5.")
 
-def _insert_playback(
-        track_id : str, 
-        album_id : str,
-        album_track_count : int, 
+def migration_5():
+    msgproc.log(f"Creating db version 6 ...")
+    table_name : str = __table_name_played_track_v1
+    __alter_table_with_column(table_name, "track_name", "VARCHAR(4096)")
+    __alter_table_with_column(table_name, "track_duration", "INTEGER")
+    __alter_table_with_column(table_name, "track_num", "INTEGER")
+    __alter_table_with_column(table_name, "volume_num", "INTEGER")
+    __alter_table_with_column(table_name, "is_multidisc_album", "INTEGER")
+    __alter_table_with_column(table_name, "album_num_volumes", "INTEGER")
+    __alter_table_with_column(table_name, "album_name", "VARCHAR(4096)")
+    __alter_table_with_column(table_name, "album_artist_name", "VARCHAR(4096)")
+    __alter_table_with_column(table_name, "audio_quality", "VARCHAR(32)")
+    __alter_table_with_column(table_name, "image_url", "VARCHAR(4096)")
+    __store_db_version("6")
+    msgproc.log(f"Updated db to version 6.")
+
+def migration_template(new_version : str, migration_function : Callable):
+    msgproc.log(f"Creating db version {new_version} ...")
+    migration_function()
+    __store_db_version(new_version)
+    msgproc.log(f"Updated db to version {new_version}.")
+
+def do_migration_6():
+    table_name : str = __table_name_played_track_v1
+    __alter_table_with_column(table_name, "explicit", "INTEGER")
+
+def migration_6():
+    migration_template("7", do_migration_6)
+
+def do_migration_7():
+    table_name : str = __table_name_played_track_v1
+    __alter_table_with_column(table_name, "artist_name", "VARCHAR(4096)")
+
+def migration_7():
+    migration_template("8", do_migration_7)
+
+def do_migration_8():
+    table_name : str = __table_name_played_track_v1
+    __alter_table_drop_column(table_name, "is_multidisc_album")
+
+def migration_8():
+    migration_template("9", do_migration_8)
+
+def do_migration_9():
+    table_name : str = __table_name_played_track_v1
+    __alter_table_with_column(table_name, "album_duration", "INTEGER")
+
+def migration_9():
+    migration_template("10", do_migration_9)
+
+
+def insert_playback(
+        played_track_request : PlayedTrackRequest,
         play_count : str, 
         last_played : datetime.datetime):
-    tuple = (track_id, album_id, album_track_count, play_count, last_played)
+    tuple = (
+        played_track_request.track_id, 
+        played_track_request.album_id, 
+        played_track_request.album_track_count, 
+        played_track_request.track_name, 
+        played_track_request.track_duration, 
+        played_track_request.track_num, 
+        played_track_request.volume_num, 
+        played_track_request.album_num_volumes, 
+        played_track_request.album_name, 
+        played_track_request.audio_quality, 
+        played_track_request.album_artist_name, 
+        played_track_request.image_url, 
+        played_track_request.explicit,
+        played_track_request.artist_name,
+        played_track_request.album_duration,
+        play_count, 
+        last_played)
     cursor = __connection.cursor()
-    cursor.execute("INSERT INTO played_track_v1(track_id, album_id, album_track_count, play_count, last_played) VALUES(?, ?, ?, ?, ?)", tuple)
+    cursor.execute("INSERT INTO played_track_v1(track_id, \
+                    album_id, \
+                    album_track_count, \
+                    track_name, \
+                    track_duration, \
+                    track_num, \
+                    volume_num, \
+                    album_num_volumes, \
+                    album_name, \
+                    audio_quality, \
+                    album_artist_name, \
+                    image_url, \
+                    explicit, \
+                    artist_name, \
+                    album_duration, \
+                    play_count, \
+                    last_played) \
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                tuple)
     cursor.close()
     __connection.commit()
 
-def _update_playback(
-        track_id : str,
-        album_id : str,
-        album_track_count : int, 
+def update_playback(
+        played_track_request : PlayedTrackRequest,
         play_count : str, 
         last_played : datetime.datetime):
-    tuple = (album_id, album_track_count, play_count, last_played, track_id)
+    tuple = (
+        played_track_request.album_id, 
+        played_track_request.album_track_count, 
+        played_track_request.track_name, 
+        played_track_request.track_duration, 
+        played_track_request.track_num, 
+        played_track_request.volume_num, 
+        played_track_request.album_num_volumes, 
+        played_track_request.album_name, 
+        played_track_request.audio_quality, 
+        played_track_request.album_artist_name, 
+        played_track_request.image_url, 
+        played_track_request.explicit,
+        played_track_request.artist_name,
+        played_track_request.album_duration,
+        play_count, 
+        last_played, 
+        played_track_request.track_id)
     cursor = __connection.cursor()
-    cursor.execute("UPDATE played_track_v1 set album_id = ?, album_track_count = ?, play_count = ?, last_played = ? WHERE track_id = ?", tuple)
+    cursor.execute("UPDATE played_track_v1 set album_id = ?, \
+                   album_track_count = ?, \
+                   track_name = ?, \
+                   track_duration = ?, \
+                   track_num = ?, \
+                   volume_num = ?, \
+                   album_num_volumes = ?, \
+                   album_name = ?, \
+                   audio_quality = ?, \
+                   album_artist_name = ?, \
+                   image_url = ?, \
+                   explicit = ?, \
+                   artist_name = ?, \
+                   album_duration = ?, \
+                   play_count = ?, \
+                   last_played = ? \
+                   WHERE track_id = ?", tuple)
     cursor.close()
     __connection.commit()
 
 def get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int = 50) -> list[PlayedTrack]:
     tuple = (max_tracks if max_tracks and max_tracks <= 100 else 50, )
     cursor = __connection.cursor()
-    cursor.execute(
-        f"SELECT track_id, play_count, last_played, album_id, album_track_count \
+    query : str = f"SELECT \
+            track_id, \
+            play_count, \
+            last_played, \
+            album_id, \
+            album_track_count, \
+            track_name, \
+            track_duration, \
+            track_num, \
+            volume_num, \
+            album_num_volumes, \
+            album_name, \
+            audio_quality, \
+            album_artist_name, \
+            image_url, \
+            artist_name, \
+            explicit, \
+            album_duration \
           FROM played_track_v1 \
-          ORDER BY {sorting.get_field_name()} {sorting.get_field_order()} LIMIT ?", 
+          ORDER BY {sorting.get_field_name()} {sorting.get_field_order()} LIMIT ?"
+    cursor.execute(
+        query, 
         tuple)
     rows = cursor.fetchall()
     cursor.close()
@@ -306,6 +489,18 @@ def get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int = 50) -> l
         played.last_played = row[2]
         played.album_id = row[3]
         played.album_track_count = row[4]
+        played.track_name = row[5]
+        played.track_duration = row[6]
+        played.track_num = row[7]
+        played.volume_num = row[8]
+        played.album_num_volumes = row[9]
+        played.album_name = row[10]
+        played.audio_quality = row[11]
+        played.album_artist_name = row[12]
+        played.image_url = row[13]
+        played.artist_name = row[14]
+        played.explicit = row[15]
+        played.album_duration = row[16]
         played_list.append(played)
     return played_list
 
@@ -318,7 +513,25 @@ def get_most_played_tracks(max_tracks : int = 50) -> list[PlayedTrack]:
 def get_played_track_entry(track_id : str) -> PlayedTrack:
     tuple = (track_id,)
     cursor = __connection.cursor()
-    cursor.execute("SELECT play_count, last_played FROM played_track_v1 WHERE track_id = ?", tuple)
+    cursor.execute("SELECT \
+                   play_count, \
+                   last_played, \
+                   album_id, \
+                   album_track_count, \
+                   track_name, \
+                   track_duration, \
+                   track_num, \
+                   volume_num, \
+                   album_num_volumes, \
+                   album_name, \
+                   audio_quality, \
+                   album_artist_name, \
+                   image_url, \
+                   artist_name, \
+                   explicit, \
+                   album_duration \
+                FROM played_track_v1 \
+                WHERE track_id = ?", tuple)
     rows = cursor.fetchall()
     cursor.close()
     if not rows: return None
@@ -326,31 +539,67 @@ def get_played_track_entry(track_id : str) -> PlayedTrack:
     result.track_id = track_id
     result.play_count = rows[0][0]
     result.last_played = rows[0][1]
+    result.album_id = rows[0][2]
+    result.album_track_count = rows[0][3]
+    result.track_name = rows[0][4]
+    result.track_duration = rows[0][5]
+    result.track_num = rows[0][6]
+    result.volume_num = rows[0][7]
+    result.album_num_volumes = rows[0][8]
+    result.album_name = rows[0][9]
+    result.audio_quality = rows[0][10]
+    result.album_artist_name = rows[0][11]
+    result.image_url = rows[0][12]
+    result.explicit = rows[0][13]
+    result.artist_name = rows[0][14]
+    result.album_duration = rows[0][15]
     return result
 
-def track_playback(track_id : str, album_id : str, album_track_count : int):
+def get_most_played_albums(max_albums : int = 50) -> list[PlayedAlbum]:
+    cursor = __connection.cursor()
+    cursor.execute(f"{__most_played_albums_query} LIMIT {max_albums}")
+    rows = cursor.fetchall()
+    cursor.close()
+    result : list[PlayedAlbum] = list()
+    if not rows: return result
+    for row in rows:
+        played : PlayedAlbum = PlayedAlbum()
+        played.album_id = row[0]
+        played.album_played_counter = row[1]
+        result.append(played)
+    return result
+
+def get_last_played_albums(max_albums : int = 50) -> list[str]:
+    cursor = __connection.cursor()
+    cursor.execute(f"{__last_played_albums_query} LIMIT {max_albums}")
+    rows = cursor.fetchall()
+    cursor.close()
+    result : list[str] = list()
+    if not rows: return result
+    for row in rows:
+        album_id : str = row[0]
+        result.append(album_id)
+    return result
+
+def track_playback(played_track_request : PlayedTrackRequest):
     now : datetime.datetime = datetime.datetime.now()
-    existing_entry : PlayedTrack = get_played_track_entry(track_id)
+    existing_entry : PlayedTrack = get_played_track_entry(played_track_request.track_id)
     if existing_entry:
         # update!
         play_count : int = existing_entry.play_count
-        msgproc.log(f"Updating playback entry for track_id {track_id} to play_count [{play_count + 1}] ...")
-        _update_playback(
-            track_id = track_id, 
-            album_id = album_id,
-            album_track_count = album_track_count,
+        msgproc.log(f"Updating playback entry for track_id {played_track_request.track_id} to play_count [{play_count + 1}] ...")
+        update_playback(
+            played_track_request = played_track_request,
             play_count = play_count + 1, 
             last_played = now)
     else:
         # insert
-        msgproc.log(f"Inserting new playback entry for track_id {track_id} ...")
-        _insert_playback(
-            track_id = track_id, 
-            album_id = album_id,
-            album_track_count = album_track_count, 
+        msgproc.log(f"Inserting new playback entry for track_id {played_track_request.track_id} ...")
+        insert_playback(
+            played_track_request = played_track_request,
             play_count = 1, 
             last_played = now)
-    msgproc.log(f"Track playback for {track_id} completed.")
+    msgproc.log(f"Track playback for {played_track_request.track_id} completed.")
 
 __connection : sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
@@ -366,17 +615,14 @@ class Migration:
     
     @property
     def migration_name(self) -> str:
-        """I'm the 'migration_name' property."""
         return self._migration_name
 
     @property
     def apply_on(self) -> int:
-        """I'm the 'apply_on' property."""
         return self._apply_on
 
     @property
     def migration_function(self) -> Callable[[], any]:
-        """I'm the 'migration_function' property."""
         return self._migration_function
 
 migrations : list[Migration] = [
@@ -384,7 +630,12 @@ migrations : list[Migration] = [
     Migration(migration_name = "tile_image_v1", apply_on = "1", migration_function = migration_1),
     Migration(migration_name = "add_album_info_to_played_tracks_v1", apply_on = "2", migration_function = migration_2),
     Migration(migration_name = "add_album_id_index_to_played_tracks_v1", apply_on = "3", migration_function = migration_3),
-    Migration(migration_name = "add_update_time_to_tile_image_v1", apply_on = "4", migration_function = migration_4)
+    Migration(migration_name = "add_update_time_to_tile_image_v1", apply_on = "4", migration_function = migration_4),
+    Migration(migration_name = "add_columns_to_played_track_v1", apply_on = "5", migration_function = migration_5),
+    Migration(migration_name = "add_explicit_to_played_track_v1", apply_on = "6", migration_function = migration_6),
+    Migration(migration_name = "add_artist_name_to_played_track_v1", apply_on = "7", migration_function = migration_7),
+    Migration(migration_name = "drop_is_multidisc_album_from_played_track_v1", apply_on = "8", migration_function = migration_8),
+    Migration(migration_name = "add_album_duration_to_played_track_v1", apply_on = "9", migration_function = migration_9),
 ]
 
 current_migration : Migration
