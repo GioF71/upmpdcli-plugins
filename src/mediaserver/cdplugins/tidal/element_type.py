@@ -46,6 +46,8 @@ class ElementType(Enum):
     FAVORITE_TRACKS_NAVIGABLE = 27, "fvrttrksn",
     FAVORITE_TRACKS_LIST = 28, "fvrttrksl",
     PAGE = 29, "pg",
+    RECENTLY_PLAYED_ALBUMS = 30, "rcntpllbms",
+    MOST_PLAYED_ALBUMS = 31, "mplbms",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

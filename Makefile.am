@@ -202,11 +202,17 @@ dist_cdpluginstidal_DATA = \
                     src/mediaserver/cdplugins/tidal/item_identifier.py \
                     src/mediaserver/cdplugins/tidal/option_key.py \
                     src/mediaserver/cdplugins/tidal/persistence.py \
+                    src/mediaserver/cdplugins/tidal/played_album.py \
                     src/mediaserver/cdplugins/tidal/played_track.py \
+                    src/mediaserver/cdplugins/tidal/played_track_adapter.py \
+                    src/mediaserver/cdplugins/tidal/played_track_request.py \
                     src/mediaserver/cdplugins/tidal/search_type.py \
                     src/mediaserver/cdplugins/tidal/tag_type.py \
+                    src/mediaserver/cdplugins/tidal/tidal_track_adapter.py \
+                    src/mediaserver/cdplugins/tidal/tidal_util.py \
                     src/mediaserver/cdplugins/tidal/tile_image.py \
                     src/mediaserver/cdplugins/tidal/tile_type.py \
+                    src/mediaserver/cdplugins/tidal/track_adapter.py \
                     src/mediaserver/cdplugins/tidal/upnp_util.py
 
 cdpluginsqobuzdir = $(pkgdatadir)/cdplugins/qobuz
