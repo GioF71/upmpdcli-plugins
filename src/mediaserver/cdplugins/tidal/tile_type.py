@@ -19,6 +19,7 @@ class TileType(Enum):
     
     TAG = 1, "tag",
     CATEGORY = 2, "category"
+    PAGE_LINK = 3, "pagelink"
 
     def __init__(self, 
             type_type_num : int, 

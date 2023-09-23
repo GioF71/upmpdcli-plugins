@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.5"
+__tidal_plugin_release : str = "0.0.6"
 
 import json
 import copy
@@ -270,12 +270,18 @@ def get_category_image_url(category : TidalItemList) -> str:
                 elif isinstance(first_item, TidalPageLink):
                     msgproc.log(f"  processing as <PageLink> ...")
                     page_link : TidalPageLink = first_item
-                    first_item = get_first_item_in_page_link(page_link)
-                    msgproc.log(f"    followed <PageLink>, got: {type(first_item) if first_item else None} ...")
-                    if isinstance(first_item, TidalPageItem) or isinstance(first_item, TidalFeaturedItems):
-                        msgproc.log(f"Category [{category.title}] type [{type(first_item)}] after following a PageLink, has not been managed")
-                    else:
-                        image_url = safe_get_image_url(first_item) if first_item else None
+                    page_link_items : list[any] = get_items_in_page_link(page_link)
+                    for current in page_link_items if page_link_items else list():
+                        if (isinstance(current, TidalPlaylist) or
+                            isinstance(current, TidalAlbum) or
+                            isinstance(current, TidalArtist)):
+                            # get an image from that
+                            image_url = tidal_util.get_image_url(current)
+                            #persistence.save_tile_image(TileType.PAGE_LINK, page_link.api_path, page_link_image_url)
+                            # we only need the first
+                            break
+                        else:
+                            msgproc.log(f"get_category_image_url got a [{type(current).__name__ if current else None}] in a [{TidalPageLink.__name__}]")
                 else:
                     msgproc.log(f"Category [{category.title}] type [{type(first_item)}] has not been managed")
             else:
@@ -731,9 +737,12 @@ def handler_tag_all_playlists(objid, item_identifier : ItemIdentifier, entries :
     playlists : list[TidalPlaylist] = get_session().user.playlist_and_favorite_playlists(offset = offset)
     current : TidalPlaylist
     for current in playlists:
-        entries.append(playlist_to_playlist_container(
-            objid = objid, 
-            playlist = current))
+        try:
+            entries.append(playlist_to_playlist_container(
+                objid = objid, 
+                playlist = current))
+        except Exception as ex:
+            msgproc.log(f"Cannot create playlist entry for playlist_id [{current.id}] Exception [{ex}]")
     if len(playlists) >= max_items:
         create_next_button(
             objid = objid, 
@@ -875,24 +884,23 @@ def follow_page_link(page_link : TidalPageLink) -> any:
             break
     return next
 
-def get_first_item_in_page_link(page_link : TidalPageLink) -> any:
-    item = None
-    current_link : TidalPageLink = page_link
-    while not item:
-        next_thing = follow_page_link(current_link)
-        if isinstance(next_thing, TidalPage):
-            # see if there is a link, if so, follow
-            msgproc.log(f"get_first_item_in_page_link: found a Page")
-            first_page_item = next(iter(next_thing))
-            msgproc.log(f"get_first_item_in_page_link: first_item found: [{'yes' if first_page_item else 'no'}], type: [{type(first_page_item) if first_page_item else None}]")
-            if not first_page_item: raise Exception("get_first_item_in_page_link failed")
-            if isinstance(first_page_item, TidalPageLink):
-                current_link = first_page_item
+def get_items_in_page_link(page_link : TidalPageLink) -> list[any]:
+    items : list[any] = list()
+    linked = follow_page_link(page_link)
+    #msgproc.log(f"get_items_in_page_link linked_object is [{type(linked).__name__ if linked else None}]")
+    if not linked: return items
+    if isinstance(linked, TidalPage):
+        #msgproc.log(f"get_items_in_page_link: found a Page")
+        for current in linked:
+            #msgproc.log(f"get_items_in_page_link: iterating Page, got a [{type(current).__name__ if current else None}]")
+            if isinstance(current, TidalPageLink):
+                new_page_link : TidalPageLink = current
+                items.extend(get_items_in_page_link(new_page_link))
             else:
-                item = first_page_item
-        else:
-            item = next_thing
-    return item
+                items.append(current)
+    else:
+        msgproc.log(f"get_items_in_page_link[{page_link.api_path}]: found a [{type(linked).__name__}], not handled")
+    return items
 
 def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     thing_name : str = item_identifier.get(ItemIdentifierKey.THING_NAME)
@@ -1144,12 +1152,16 @@ def handler_element_playlist_navigable(
     for track in tracks:
         options : dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
-        track_entry = track_to_navigable_playlist_item(
-            objid, 
-            track = track, 
-            options = options)
+        track_entry : dict = None
+        try:
+            track_entry = track_to_navigable_playlist_item(
+                objid, 
+                track = track, 
+                options = options)
+        except Exception as ex:
+            msgproc.log(f"Cannot create track entry for track_id [{track.id}] num [{track_number}] [{track.name}] [{track.album.id}] [{track.album.name}] Exception [{ex}]")
         track_number += 1
-        entries.append(track_entry)
+        if track_entry: entries.append(track_entry)
     if (len(remaining_tracks) > max_items_per_page):
         next_entry : dict[str, any] = create_next_button(
             objid = objid,
@@ -1180,12 +1192,17 @@ def playlist_to_entries(
     for track in tracks:
         options : dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
-        track_entry = track_to_entry(
-            objid, 
-            track_adapter = TidalTrackAdapter(track, album_retriever), 
-            options = options)
+        track_entry : dict = None
+        try:
+            track_entry = track_to_entry(
+                objid, 
+                track_adapter = TidalTrackAdapter(track, album_retriever), 
+                options = options)
+        except Exception as ex:
+            msgproc.log(f"Cannot create track entry for track_id [{track.id}] num [{track_number}] [{track.name}] [{track.album.id}] [{track.album.name}] Exception [{ex}]")
+        # let use know some tracks are missing
         track_number += 1
-        entries.append(track_entry)
+        if track_entry: entries.append(track_entry)
     return entries
 
 def handler_element_album(
@@ -1400,17 +1417,37 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
     else:
         index : int = 0
         for item in category.items:
-            msgproc.log(f"handler_element_category categories[{select_category}].item[{index}] type is [{type(item)}]")
-            if isinstance(item, TidalPageItem):
-                msgproc.log(f"handler_element_category PageItem (Category {category.title}) Item type {type(item)} [{item}] not handled")
-            elif isinstance(item, TidalPageLink):
-                msgproc.log(f"handler_element_category PageLink (Category {category.title}) Item type {type(item)} [{item}]")
-                entries.append(pagelink_to_entry(objid, category = category, page_link = item))
+            item_type : str = type(item).__name__
+            item_name : str = tidal_util.get_name_or_title(item)
+            msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] [{item_name}]")
+            #msgproc.log(f"handler_element_category categories[{select_category}].item[{index}] type is [{item_type}]")
+            if isinstance(item, TidalPageLink):
+                page_link : TidalPageLink = item
+                msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] [{item_name}] [{page_link.api_path}]")
+                page_link_entry : dict = pagelink_to_entry(objid, category = category, page_link = item)
+                entries.append(page_link_entry)
+                # TODO maybe extract method for getting image for a PageLink
+                tile_image : TileImage = load_tile_image_unexpired(TileType.PAGE_LINK, page_link.api_path)
+                page_link_image_url : str = tile_image.tile_image if tile_image else None
+                if not page_link_image_url:
+                    items_in_page : list = get_items_in_page_link(page_link)
+                    for current in items_in_page if items_in_page else list():
+                        if (isinstance(current, TidalPlaylist) or
+                            isinstance(current, TidalAlbum) or
+                            isinstance(current, TidalArtist)):
+                            # get an image from that
+                            page_link_image_url = tidal_util.get_image_url(current)
+                            persistence.save_tile_image(TileType.PAGE_LINK, page_link.api_path, page_link_image_url)
+                            # we only need the first
+                            break
+                        else:
+                            msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] [{item_name}] [{page_link.api_path}] num_items [{len(items_in_page)}] current [{type(current).__name__ if current else None}]")
+                upnp_util.set_album_art_from_uri(page_link_image_url, page_link_entry)
             elif isinstance(item, TidalMix):
-                msgproc.log(f"handler_element_category Mix - Item type {type(item)} [{item}]")
+                #msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 entries.append(mix_to_mix_container(objid, mix = item))
             elif isinstance(item, TidalTrack):
-                msgproc.log(f"handler_element_category Track - Item type {type(item)} [{item}]")
+                #msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 options : dict[str, any] = dict()
                 set_option(options, OptionKey.SKIP_TRACK_NUMBER, True)
                 entries.append(track_to_track_container(
@@ -1418,18 +1455,18 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                     track = item,
                     options = options))
             elif isinstance(item, TidalPlaylist):
-                msgproc.log(f"handler_element_category Playlist - Item type {type(item)} [{item}]")
+                #msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 entries.append(playlist_to_playlist_container(
                     objid = objid,
                     playlist = item))
             elif isinstance(item, TidalAlbum):
                 album : TidalAlbum = item
-                msgproc.log(f"handler_element_category Album [{album.name}] [{item}]")
+                #msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 options : dict[str, any] = dict()
                 entries.append(album_to_album_container(objid, album = album))
             else:
-                msgproc.log(f"handler_element_category UNHANDLED - Item type {type(item)} [{item}]")
-        index += 1
+                msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] [{item_name}] was not handled!")
+            index += 1
     return entries
 
 # this allows kodi to work with the plugin

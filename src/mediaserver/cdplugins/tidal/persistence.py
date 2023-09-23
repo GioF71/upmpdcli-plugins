@@ -46,7 +46,8 @@ __most_played_albums_query : str = """
     FROM 
         played_track_v1 
     WHERE 
-        album_duration is not NULL 
+        album_duration IS NOT NULL AND
+        track_duration IS NOT NULL
     GROUP BY 
         album_id 
     ORDER BY 

@@ -62,6 +62,8 @@ def get_image_url(obj : any) -> str:
         except ValueError:
             if log_unavailable_images_sizes:
                 msgproc.log(f"Cannot find image for type [{type(obj).__name__}] id [{obj.id}] Name [{get_name_or_title(obj)}] with size [{current}]")
+        except AttributeError as ae_exc:
+            msgproc.log(f"Cannot find image for type [{type(obj).__name__}] id [{obj.id}] Name [{get_name_or_title(obj)}] Exception [{ae_exc}]")
     if log_unavailable_image:
         msgproc.log(f"Cannot find image for type [{type(obj).__name__}] id [{obj.id}] Name [{get_name_or_title(obj)}] (any size)")
     return None
