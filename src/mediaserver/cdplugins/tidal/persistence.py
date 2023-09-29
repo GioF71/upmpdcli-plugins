@@ -54,17 +54,6 @@ __most_played_albums_query : str = """
         album_played_counter DESC, last_played DESC
     """
 
-__last_played_albums_query : str = """
-    SELECT 
-        DISTINCT album_id
-    FROM 
-        played_track_v1 
-    GROUP BY 
-        album_id
-    ORDER BY 
-        last_played Desc
-"""
-
 class PlayedTracksSorting(Enum):
 
     LAST_PLAYED_FIRST = 0, "lp-first", "last_played", "DESC"
@@ -364,6 +353,18 @@ def do_migration_9():
 def migration_9():
     migration_template("10", do_migration_9)
 
+def do_migration_10():
+    msgproc.log(f"Adding index on tile_type, tile_id on table tile_image_v1 ...")
+    cursor_obj = __connection.cursor()
+    create_index : str = """
+        CREATE INDEX tile_image_v1_idx_tile_type_and_id 
+        ON tile_image_v1(tile_type, tile_id)"""
+    cursor_obj.execute(create_index)
+    cursor_obj.close()
+    msgproc.log(f"Added index on tile_type, tile_id on table tile_image_v1")
+
+def migration_10():
+    migration_template("11", do_migration_10)
 
 def insert_playback(
         played_track_request : PlayedTrackRequest,
@@ -453,8 +454,8 @@ def update_playback(
     cursor.close()
     __connection.commit()
 
-def get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int = 50) -> list[PlayedTrack]:
-    tuple = (max_tracks if max_tracks and max_tracks <= 100 else 50, )
+def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[PlayedTrack]:
+    tuple = (max_tracks, )
     cursor = __connection.cursor()
     query : str = f"SELECT \
             track_id, \
@@ -506,10 +507,10 @@ def get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int = 50) -> l
     return played_list
 
 def get_last_played_tracks(max_tracks : int = 50) -> list[PlayedTrack]:
-    return get_played_tracks(sorting = PlayedTracksSorting.LAST_PLAYED_FIRST, max_tracks = max_tracks)
+    return _get_played_tracks(sorting = PlayedTracksSorting.LAST_PLAYED_FIRST, max_tracks = max_tracks)
  
 def get_most_played_tracks(max_tracks : int = 50) -> list[PlayedTrack]:
-    return get_played_tracks(sorting = PlayedTracksSorting.MOST_PLAYED_FIRST, max_tracks = max_tracks)
+    return _get_played_tracks(sorting = PlayedTracksSorting.MOST_PLAYED_FIRST, max_tracks = max_tracks)
  
 def get_played_track_entry(track_id : str) -> PlayedTrack:
     tuple = (track_id,)
@@ -570,18 +571,6 @@ def get_most_played_albums(max_albums : int = 50) -> list[PlayedAlbum]:
         result.append(played)
     return result
 
-def get_last_played_albums(max_albums : int = 50) -> list[str]:
-    cursor = __connection.cursor()
-    cursor.execute(f"{__last_played_albums_query} LIMIT {max_albums}")
-    rows = cursor.fetchall()
-    cursor.close()
-    result : list[str] = list()
-    if not rows: return result
-    for row in rows:
-        album_id : str = row[0]
-        result.append(album_id)
-    return result
-
 def track_playback(played_track_request : PlayedTrackRequest):
     now : datetime.datetime = datetime.datetime.now()
     existing_entry : PlayedTrack = get_played_track_entry(played_track_request.track_id)
@@ -637,6 +626,7 @@ migrations : list[Migration] = [
     Migration(migration_name = "add_artist_name_to_played_track_v1", apply_on = "7", migration_function = migration_7),
     Migration(migration_name = "drop_is_multidisc_album_from_played_track_v1", apply_on = "8", migration_function = migration_8),
     Migration(migration_name = "add_album_duration_to_played_track_v1", apply_on = "9", migration_function = migration_9),
+    Migration(migration_name = "add_indexes_to_tile_image_v1", apply_on = "10", migration_function = migration_10),
 ]
 
 current_migration : Migration

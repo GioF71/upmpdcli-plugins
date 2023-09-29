@@ -29,7 +29,8 @@ class ItemIdentifierKey(Enum):
     SONG_AS_ENTRY = 9, 'sntr'
     CATEGORY_TITLE = 10, 'catt'
     PAGE_LIST = 11, 'pglst'
-        
+    PAGE_LINK_API_PATH = 12, "pglnkppth"
+            
     def __init__(self, 
             num : int, 
             key_name : str):

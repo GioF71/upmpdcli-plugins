@@ -19,6 +19,7 @@ import tidalapi
 from enum import Enum
 
 class SearchType(Enum):
+    
     ALBUM = 0, "album", "albums", tidalapi.album.Album
     ARTIST = 1, "artist", "artists", tidalapi.artist.Artist
     TRACK = 2, "track", "tracks", tidalapi.media.Track

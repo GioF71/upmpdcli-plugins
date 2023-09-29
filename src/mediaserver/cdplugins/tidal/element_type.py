@@ -48,6 +48,10 @@ class ElementType(Enum):
     PAGE = 29, "pg",
     RECENTLY_PLAYED_ALBUMS = 30, "rcntpllbms",
     MOST_PLAYED_ALBUMS = 31, "mplbms",
+    FAV_ARTIST_ADD = 32, "fvrtstadd",
+    FAV_ARTIST_DEL = 33, "fvrtstdel",
+    FAV_ALBUM_ADD = 34, "fvrtlbmadd",
+    FAV_ALBUM_DEL = 35, "fvrtlbmdel",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

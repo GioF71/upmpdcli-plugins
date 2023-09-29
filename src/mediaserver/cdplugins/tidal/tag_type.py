@@ -17,32 +17,27 @@ from enum import Enum
 
 class TagType(Enum):
     
-    CATEGORIES = 100, "ctgrs", "Categories", None
-    MY_PLAYLISTS = 101, "myplsts", "My Playlists", None
-    ALL_PLAYLISTS = 102, "allplsts", "Playlists", None
-    FAVORITE_ALBUMS = 103, "fvlbms", "My Albums", None,
-    FAVORITE_ARTISTS = 104, "fvrtsts", "My Artists", None,
-    FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks", None,
-    PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics", None
+    CATEGORIES = 100, "ctgrs", "Categories"
+    MY_PLAYLISTS = 101, "myplsts", "My Playlists"
+    ALL_PLAYLISTS = 102, "allplsts", "Playlists"
+    FAVORITE_ARTISTS = 103, "fvrtsts", "My Artists",
+    FAVORITE_ALBUMS = 104, "fvlbms", "My Albums",
+    FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks",
+    PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics"
 
     def __init__(self, 
             num : int, 
             tag_name : str, 
-            tag_title : str, 
-            query_type : str):
+            tag_title : str):
         self.num : int = num
         self.tag_name : str = tag_name
         self.tag_title : str = tag_title
-        self.query_type : str = query_type
 
     def getTagName(self) -> str:
         return self.tag_name
 
     def getTagTitle(self) -> str:
         return self.tag_title
-
-    def getQueryType(self) -> str:
-        return self.query_type
 
 def get_tag_Type_by_name(tag_name : str) -> TagType:
     #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
