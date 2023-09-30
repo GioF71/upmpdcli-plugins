@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import converter
+import upmplgmodels
 
 def set_track_number(track_number : str, target : dict):
     target['upnp:originalTrackNumber'] = track_number
@@ -34,7 +35,13 @@ def set_artist(artist : str, target : dict):
     target['upnp:artist'] = artist
 
 def set_class_music_track(target : dict):
-    target['upnp:class'] = 'object.item.audioItem.musicTrack'
+    target['upnp:class'] = upmplgmodels.Track.upnpclass
+
+def set_class_album(target : dict):
+    target['upnp:class'] = upmplgmodels.Album.upnpclass
+
+def set_class_artist(target : dict):
+    target['upnp:class'] = upmplgmodels.Artist.upnpclass
 
 def set_album_art_from_album_id(
         album_id : str, 

@@ -288,6 +288,7 @@ dist_cdpluginssubsonic_DATA = \
                  src/mediaserver/cdplugins/subsonic/codec_delimiter_style.py \
                  src/mediaserver/cdplugins/subsonic/config.py \
                  src/mediaserver/cdplugins/subsonic/connector_provider.py \
+                 src/mediaserver/cdplugins/subsonic/constants.py \
                  src/mediaserver/cdplugins/subsonic/converter.py \
                  src/mediaserver/cdplugins/subsonic/element_type.py \
                  src/mediaserver/cdplugins/subsonic/entry_creator.py \

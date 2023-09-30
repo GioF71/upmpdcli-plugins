@@ -40,11 +40,14 @@ import art_retriever
 import artist_initial_cache_provider
 import codec
 import selector
+import constants
 
 from typing import Callable
 from upmplgutils import direntry
 
 from msgproc_provider import msgproc
+
+import os
 
 def genre_artist_to_entry(
         objid, 
@@ -124,6 +127,7 @@ def artist_to_entry(
     upnp_util.set_album_art_from_album_id(
         art_album_id, 
         entry)
+    upnp_util.set_class_artist(entry)
     return entry
 
 def artist_initial_to_entry(
@@ -148,6 +152,12 @@ def artist_initial_to_entry(
         entry)
     return entry
 
+def build_intermediate_url(track_id : str) -> str:
+    http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
+    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
+    if config.log_intermediate_url: msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
+    return url
+
 def song_to_entry(
         objid, 
         song: Song, 
@@ -160,7 +170,7 @@ def song_to_entry(
     entry['id'] = id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
-    song_uri : str = connector_provider.get().buildSongUrlBySong(song)
+    song_uri : str = build_intermediate_url(track_id = song.getId())
     entry['uri'] = song_uri
     title : str = song.getTitle()
     if MultiCodecAlbum.YES == multi_codec_album and config.allow_blacklisted_codec_in_song == 1 and (not song.getSuffix() in config.whitelist_codecs):
@@ -243,6 +253,7 @@ def album_to_entry(objid, current_album : Album) -> direntry:
         current_album.getId(), 
         entry)
     upnp_util.set_album_id(current_album.getId(), entry)
+    upnp_util.set_class_album(entry)
     return entry
 
 def album_version_to_entry(

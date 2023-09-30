@@ -14,17 +14,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.2"
+__subsonic_plugin_release : str = "0.2.3"
 
 import subsonic_init
 import subsonic_util
 
 import json
-from html import escape as htmlescape, unescape as htmlunescape
-from upmplgutils import *
-from upmplgutils import setidprefix, direntry, getOptionValue
+import html
+import upmplgutils
+import os
+import xbmcplug
 
-from subsonic_connector.connector import Connector
 from subsonic_connector.response import Response
 from subsonic_connector.album_list import AlbumList
 from subsonic_connector.album import Album
@@ -66,6 +66,7 @@ import identifier_util
 import upnp_util
 import entry_creator
 import subsonic_init_provider
+import constants
 
 from album_util import sort_song_list
 from album_util import get_album_base_path
@@ -91,9 +92,13 @@ import time
 from msgproc_provider import msgproc
 from msgproc_provider import dispatcher
 
+plugin_name : str = constants.plugin_name
+
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
-_g_myprefix = "0$subsonic$"
-setidprefix("subsonic")
+_g_myprefix = f"0${plugin_name}$"
+upmplgutils.setidprefix(plugin_name)
+
+log_intermediate_url : bool = upmplgutils.getOptionValue(f"{plugin_name}log_intermediate_url", "1") == "1"
 
 __tag_initial_page_enabled_default : dict[str, bool] = {
     TagType.NEWEST.getTagName(): False,
@@ -113,7 +118,7 @@ __tag_initial_page_enabled_default : dict[str, bool] = {
 
 def tag_enabled_in_initial_page(tag_type : TagType) -> bool:
     enabled_default : bool = __tag_initial_page_enabled_default[tag_type.getTagName()] if tag_type.getTagName() in __tag_initial_page_enabled_default else True
-    enabled_int : int = int(getOptionValue(f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}", "1" if enabled_default else "0"))
+    enabled_int : int = int(upmplgutils.getOptionValue(f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}", "1" if enabled_default else "0"))
     return enabled_int == 1
 
 # Possible once initialisation. Always called by browse() or search(), should remember if it has
@@ -128,10 +133,18 @@ def _initsubsonic():
     _g_init = True
     return True
 
+def build_streaming_url(track_id : str) -> str:
+    streaming_url : str = connector_provider.get().buildSongUrl(song_id = track_id)
+    msgproc.log(f"build_streaming_url for track_id: [{track_id}] -> [{streaming_url}]")
+    return streaming_url
+
 @dispatcher.record('trackuri')
 def trackuri(a):
-    # We generate URIs which directly point to the stream, so this method should never be called.
-    raise Exception("trackuri: should not be called for subsonic!")
+    upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
+    msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
+    track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
+    url = build_streaming_url(track_id) or ""
+    return {'media_url' : url}
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""
@@ -139,7 +152,7 @@ def _returnentries(entries):
 
 def _station_to_entry(
         objid, 
-        station : InternetRadioStation) -> direntry:
+        station : InternetRadioStation) -> upmplgutils.direntry:
     stream_url : str = station.getStreamUrl()
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.INTERNET_RADIO.getName(), 
@@ -164,7 +177,7 @@ def _song_data_to_entry(objid, entry_id : str, song : Song) -> dict:
     entry['id'] = entry_id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
-    entry['uri'] = connector_provider.get().buildSongUrlBySong(song)
+    entry['uri'] = entry_creator.build_intermediate_url(track_id = song.getId())
     title : str = song.getTitle()
     upnp_util.set_album_title(title, entry)
     entry['tp']= 'it'
@@ -357,7 +370,7 @@ def _playlist_entry_to_entry(
     entry['id'] = id
     entry['pid'] = playlist_entry.getId()
     upnp_util.set_class_music_track(entry)
-    song_uri : str = connector_provider.get().buildSongUrl(playlist_entry.getId())
+    song_uri : str = entry_creator.build_intermediate_url(trackid = playlist_entry.getId())
     entry['uri'] = song_uri
     title : str = playlist_entry.getTitle()
     entry['tt'] = title
@@ -428,7 +441,7 @@ def _create_tag_next_entry(
     identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tag.getTagName())
     identifier.set(ItemIdentifierKey.OFFSET, offset)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    tag_entry : dict = direntry(
+    tag_entry : dict = upmplgutils.direntry(
         id = id, 
         pid = objid, 
         title = "Next")
@@ -561,7 +574,7 @@ def _handler_element_artist_top_songs_common(
                 song_as_entry = True))
     return entries
 
-def _song_to_song_entry(objid, song : Song, song_as_entry : bool) -> direntry:
+def _song_to_song_entry(objid, song : Song, song_as_entry : bool) -> upmplgutils.direntry:
     name : str = song.getTitle()
     song_artist : str = song.getArtist()
     if song_artist: name = f"{name} [{song_artist}]"
@@ -577,7 +590,7 @@ def _song_to_song_entry(objid, song : Song, song_as_entry : bool) -> direntry:
         select_element.getName(), 
         song.getId())
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    entry = direntry(id, 
+    entry = upmplgutils.direntry(id, 
         objid, 
         name)
     upnp_util.set_album_art_from_album_id(
@@ -592,7 +605,7 @@ def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries
     song : Song = connector_provider.get().getSong(song_id).getObj()
     song_identifier : ItemIdentifier = ItemIdentifier(ElementType.SONG_ENTRY_THE_SONG.getName(), song_id)
     song_entry_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(song_identifier))
-    song_entry = direntry(song_entry_id, 
+    song_entry = upmplgutils.direntry(song_entry_id, 
         objid, 
         "Song")
     upnp_util.set_album_art_from_album_id(
@@ -634,7 +647,7 @@ def _get_favourite_songs(objid, item_identifier : ItemIdentifier, entries : list
         next_identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), TagType.FAVOURITE_SONGS_LIST.getTagName())
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
         next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-        next_entry : dict = direntry(
+        next_entry : dict = upmplgutils.direntry(
             next_id, 
             objid, 
             title = "Next")
@@ -657,7 +670,7 @@ def _get_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -
     next_identifier : ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
     next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
     next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-    next_entry : dict = direntry(
+    next_entry : dict = upmplgutils.direntry(
         id = next_id, 
         pid = objid, 
         title = "Next")
@@ -676,7 +689,7 @@ def _genre_add_artists_node(objid, item_identifier : ItemIdentifier, entries : l
     identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     name : str = "Artists" # TODO parametrize maybe?
-    artists_entry = direntry(id, 
+    artists_entry = upmplgutils.direntry(id, 
         objid, 
         name)
     art_id : str = get_random_art_by_genre(genre)
@@ -701,7 +714,7 @@ def _genre_add_albums_node(
     identifier.set(ItemIdentifierKey.OFFSET, offset)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     name : str = "Albums" if offset == 0 else "Next" # TODO parametrize maybe?
-    artists_entry = direntry(id, 
+    artists_entry = upmplgutils.direntry(id, 
         objid, 
         name)
     if offset == 0:
@@ -768,7 +781,7 @@ def _handler_element_genre_artist_albums(objid, item_identifier : ItemIdentifier
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
         next_identifier.set(ItemIdentifierKey.GENRE_NAME, genre_name)
         next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-        next_entry : dict = direntry(
+        next_entry : dict = upmplgutils.direntry(
             next_id, 
             objid, 
             title = "Next")
@@ -828,7 +841,7 @@ def _handler_tag_artists_favourite(objid, item_identifier : ItemIdentifier, entr
         next_identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), TagType.FAVOURITE_ARTISTS.getTagName())
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
         next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-        next_entry : dict = direntry(
+        next_entry : dict = upmplgutils.direntry(
             next_id, 
             objid, 
             title = "Next")
@@ -869,7 +882,7 @@ def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entr
             next_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
             next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
             next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-            next_entry : dict = direntry(
+            next_entry : dict = upmplgutils.direntry(
                 next_id, 
                 objid, 
                 title = "Next")
@@ -884,7 +897,7 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
     #msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
     artist_album_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
     artist_album_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_album_identifier))
-    albums_entry : dict = direntry(
+    albums_entry : dict = upmplgutils.direntry(
         artist_album_id, 
         objid, 
         title = "Albums")
@@ -925,7 +938,7 @@ def _handler_element_genre_artist(objid, item_identifier : ItemIdentifier, entri
     album_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
     album_list_identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     album_list_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(album_list_identifier))
-    album_list_entry : dict = direntry(
+    album_list_entry : dict = upmplgutils.direntry(
         album_list_id, 
         objid, 
         title = f"Albums for genre: [{genre}]")
@@ -988,13 +1001,13 @@ def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
         # ok to add entry
         radio_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
         radio_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_identifier))
-        radio_entry : dict = direntry(
+        radio_entry : dict = upmplgutils.direntry(
             radio_id, 
             objid, 
             title = "Radio")
         radio_song_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.getName(), iid)
         radio_song_list_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_song_list_identifier))
-        radio_song_list_entry : dict = direntry(
+        radio_song_list_entry : dict = upmplgutils.direntry(
             radio_song_list_id, 
             objid, 
             title = "Radio (List)")
@@ -1009,7 +1022,7 @@ def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
         # ok to add similar artists entry
         similar_artist_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_SIMILAR.getName(), artist_id)
         similar_artist_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(similar_artist_identifier))
-        similar_artists_entry : dict = direntry(
+        similar_artists_entry : dict = upmplgutils.direntry(
             similar_artist_id, 
             objid, 
             title = "Similar Artists")
@@ -1024,7 +1037,7 @@ def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
 def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
     artist_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST.getName(), album.getArtistId())
     artist_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_identifier))
-    artist_entry : dict = direntry(
+    artist_entry : dict = upmplgutils.direntry(
         artist_id, 
         objid, 
         title = f"Artist: {album.getArtist()}")
@@ -1044,7 +1057,7 @@ def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> list[dic
         # ok to create top songs entry, else None
         top_songs_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS.getName(), artist_id)
         top_songs_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(top_songs_identifier))
-        top_songs_entry : dict = direntry(
+        top_songs_entry : dict = upmplgutils.direntry(
             top_songs_id, 
             objid, 
             title = f"Top Songs by {artist}")
@@ -1055,7 +1068,7 @@ def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> list[dic
         result.append(top_songs_entry)
         top_songs_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS_LIST.getName(), artist_id)
         top_songs_list_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(top_songs_list_identifier))
-        top_songs_list_entry : dict = direntry(
+        top_songs_list_entry : dict = upmplgutils.direntry(
             top_songs_list_id, 
             objid, 
             title = f"Top Songs (List) by {artist}")
@@ -1223,7 +1236,7 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
     tagname : str = tag.getTagName()
     identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    entry : dict = direntry(
+    entry : dict = upmplgutils.direntry(
         id = id, 
         pid = objid, 
         title = get_tag_Type_by_name(tag.getTagName()).getTagTitle())
@@ -1248,7 +1261,7 @@ def browse(a):
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
-    path = htmlunescape(_objidtopath(objid))
+    path = html.unescape(_objidtopath(objid))
     msgproc.log(f"browse: path: --{path}--")
     path_list : list[str] = objid.split("/")
     curr_path : str
@@ -1304,52 +1317,108 @@ def search(a):
     # ../radio-browser/radiotoentry for an example
     value : str = a["value"]
     field : str = a["field"]
+    objkind : str = a["objkind"] if "objkind" in a else None
+    origsearch : str = a["origsearch"] if "origsearch" in a else None
     
-    msgproc.log(f"Search for [{value}] as {field}")
+    msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
+    resultset_length : int = 0
     
-    if SearchType.ALBUM.getName() == field:
-        # search albums by specified value
-        search_result : SearchResult = connector_provider.get().search(value, 
-            artistCount = 0, 
-            songCount = 0,
-            albumCount = config.items_per_page)
-        album_list : list[Album] = search_result.getAlbums()
-        current_album : Album
-        filters : dict[str, str] = {}
-        msgproc.log(f"search: filters = {filters}")
-        for current_album in album_list:
-            cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-            entries.append(entry_creator.album_to_navigable_entry(
-                objid, 
-                current_album))
-    elif SearchType.TRACK.getName() == field:
-        # search tracks by specified value
-        search_result : SearchResult = connector_provider.get().search(value, 
-            artistCount = 0, 
-            songCount = config.items_per_page,
-            albumCount = 0)
-        song_list : list[Song] = search_result.getSongs()
-        sorted_song_list : list[Song] = sort_song_list(song_list).getSongList()
-        current_song : Song
-        for current_song in sorted_song_list:
-            entries.append(_song_to_song_entry(
-                objid = objid, 
-                song = current_song, 
-                song_as_entry = True))
-    elif SearchType.ARTIST.getName() == field:
-        # search artists
-        search_result : SearchResult = connector_provider.get().search(value, 
-            artistCount = config.items_per_page, 
-            songCount = 0,
-            albumCount = 0)
-        artist_list : list[Artist] = search_result.getArtists()
-        current_artist : Artist
-        for current_artist in artist_list:
-            msgproc.log(f"found artist {current_artist.getName()}")
-            entries.append(entry_creator.artist_to_entry(
-                objid = objid, 
-                artist_id = current_artist.getId(),
-                entry_name = current_artist.getName()))
+    if not objkind or len(objkind) == 0:
+        if SearchType.ALBUM.getName() == field:
+            # search albums by specified value
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = 0, 
+                songCount = 0,
+                albumCount = config.items_per_page)
+            album_list : list[Album] = search_result.getAlbums()
+            current_album : Album
+            filters : dict[str, str] = {}
+            msgproc.log(f"search: filters = {filters}")
+            for current_album in album_list:
+                cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                entries.append(entry_creator.album_to_entry(
+                    objid, 
+                    current_album))
+                resultset_length += 1
+        elif SearchType.TRACK.getName() == field:
+            # search tracks by specified value
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = 0, 
+                songCount = config.items_per_page,
+                albumCount = 0)
+            song_list : list[Song] = search_result.getSongs()
+            sorted_song_list : list[Song] = sort_song_list(song_list).getSongList()
+            current_song : Song
+            for current_song in sorted_song_list:
+                entries.append(entry_creator.song_to_entry(
+                    objid = objid, 
+                    song = current_song))
+                resultset_length += 1
+        elif SearchType.ARTIST.getName() == field:
+            # search artists
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = config.items_per_page, 
+                songCount = 0,
+                albumCount = 0)
+            artist_list : list[Artist] = search_result.getArtists()
+            current_artist : Artist
+            for current_artist in artist_list:
+                msgproc.log(f"found artist {current_artist.getName()}")
+                entries.append(entry_creator.artist_to_entry(
+                    objid = objid, 
+                    artist_id = current_artist.getId(),
+                    entry_name = current_artist.getName()))
+                resultset_length += 1
+    else:
+        # objkind is set
+        if SearchType.ALBUM.getName() == objkind:
+            # search albums by specified value
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = 0, 
+                songCount = 0,
+                albumCount = config.items_per_page)
+            album_list : list[Album] = search_result.getAlbums()
+            current_album : Album
+            filters : dict[str, str] = {}
+            msgproc.log(f"search: filters = {filters}")
+            for current_album in album_list:
+                cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                entries.append(entry_creator.album_to_entry(
+                    objid, 
+                    current_album))
+                resultset_length += 1
+        elif SearchType.TRACK.getName() == objkind:
+            # search tracks by specified value
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = 0, 
+                songCount = config.items_per_page,
+                albumCount = 0)
+            song_list : list[Song] = search_result.getSongs()
+            sorted_song_list : list[Song] = sort_song_list(song_list).getSongList()
+            current_song : Song
+            for current_song in sorted_song_list:
+                entries.append(entry_creator.song_to_entry(
+                    objid = objid, 
+                    song = current_song))
+                resultset_length += 1
+        elif SearchType.ARTIST.getName() == objkind:
+            # search artists
+            search_result : SearchResult = connector_provider.get().search(value, 
+                artistCount = config.items_per_page, 
+                songCount = 0,
+                albumCount = 0)
+            artist_list : list[Artist] = search_result.getArtists()
+            current_artist : Artist
+            for current_artist in artist_list:
+                msgproc.log(f"found artist {current_artist.getName()}")
+                entries.append(entry_creator.artist_to_entry(
+                    objid = objid, 
+                    artist_id = current_artist.getId(),
+                    entry_name = current_artist.getName()))
+                resultset_length += 1
+
+
+    msgproc.log(f"Search for [{value}] as [{field}] with objkind [{objkind}] returned [{resultset_length}] entries")
     return _returnentries(entries)
 
 subsonic_init.subsonic_init()
