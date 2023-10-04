@@ -241,6 +241,19 @@ cdpluginsradiobrowserdir = $(pkgdatadir)/cdplugins/radio-browser
 dist_cdpluginsradiobrowser_DATA = \
                   src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
 
+cdpluginsradioparadosedir = $(pkgdatadir)/cdplugins/radio-paradise
+dist_cdpluginsradioparadise_DATA = \
+                  src/mediaserver/cdplugins/radio-paradise/codec.py \
+                  src/mediaserver/cdplugins/radio-paradise/constants.py \
+                  src/mediaserver/cdplugins/radio-paradise/element_type.py \
+                  src/mediaserver/cdplugins/radio-paradise/identifier_util.py \
+                  src/mediaserver/cdplugins/radio-paradise/item_identifier_key.py \
+                  src/mediaserver/cdplugins/radio-paradise/item_identifier.py \
+                  src/mediaserver/cdplugins/radio-paradise/radio_station_entry.py \
+                  src/mediaserver/cdplugins/radio-paradise/radio-paradise-app.py \
+                  src/mediaserver/cdplugins/radio-paradise/radio_stations.py \
+                  src/mediaserver/cdplugins/radio-paradise/tag_type.py \
+                  src/mediaserver/cdplugins/radio-paradise/upnp_util.py
 
 cdpluginsradiosdir = $(pkgdatadir)/cdplugins/upradios
 dist_cdpluginsradios_DATA = \

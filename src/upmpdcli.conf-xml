@@ -560,6 +560,12 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #radio-browseruser = bugsbunny
 
+# <grouptitle>Radio Paradise (https://www.radioparadise.com/) plugin parameters</grouptitle>
+
+# <var name="radio-paradiseuser" type="string"><brief>Bogus user name variable.</brief>
+# <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
+#radio-paradiseuser = bugsbunny
+
 # <grouptitle>SubSonic plugin parameters</grouptitle>
 
 # <var name="subsonicuser" type="string"><brief>SubSonic User name variable.</brief>

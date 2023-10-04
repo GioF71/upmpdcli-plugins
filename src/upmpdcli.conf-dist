@@ -186,6 +186,9 @@
 # Deezer password.
 #deezerpass = agoodpassword
 
+# Radio Paradise
+#radio-paradiseuser = radioparadise
+
 # Local Media Server parameters
 
 # Bogus user name variable.
@@ -222,6 +225,11 @@ upradiostitle = Upmpdcli Radio List
 
 # Bogus user name variable.
 #radio-browseruser = bugsbunny
+
+# Radio Paradise (https://www.radioparadise.com/) plugin parameters
+
+# Bogus user name variable.
+#radio-paradiseuser = bugsbunny
 
 # SubSonic plugin parameters
 

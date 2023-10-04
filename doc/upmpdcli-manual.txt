@@ -953,6 +953,21 @@ There are currently no additional configuration parameters. Any would go in the
 
 
 '''
+[[UPMPDCLI-MS-RADIO-PARADISE]]
+=== radioparadise.com
+
+The plugin allows access to the link:https://www.radioparadise.com/[Radio Paradise] Web radios
+catalog.
+
+Then enable the function by installing the upmpdcli radio-paradise module (which may be a separate
+package), and uncommenting the bogus setting for the `radio-paradiseuser` variable in the upmpdcli
+configuration file.
+
+There are currently no additional configuration parameters. Any would go in the
+<<radio-paradiseuser,configuration section>>.  
+
+
+'''
 [[UPMPDCLI-MS-BBC]]
 === BBC Sounds
 

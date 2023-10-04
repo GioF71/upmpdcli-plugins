@@ -490,6 +490,11 @@ up this process, this is the maximum thread count.
 [[radio-browseruser]]
 radio-browseruser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+=== Radio Paradise (http://www.radioparadise.com/) plugin parameters 
+
+[[radio-paradiseuser]]
+radio-paradiseuser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
+
 === SubSonic plugin parameters 
 
 [[subsonicuser]]
