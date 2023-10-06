@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.3"
+__subsonic_plugin_release : str = "0.2.4"
 
 import subsonic_init
 import subsonic_util
@@ -144,7 +144,18 @@ def trackuri(a):
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
     url = build_streaming_url(track_id) or ""
-    return {'media_url' : url}
+    res : Response[Song] = connector_provider.get().getSong(song_id = track_id)
+    song : Song = res.getObj() if res else None
+    if not song: return {'media_url' : ""}
+    media_url : str = connector_provider.get().buildSongUrlBySong(song)
+    mime_type : str = song.getContentType()
+    kbs : str = str(song.getBitRate())
+    msgproc.log(f"media_url [{media_url}] mimetype [{mime_type}] kbs [{kbs}]")
+    return {
+        'media_url' : media_url,
+        'mimetype' : mime_type,
+        'kbs' : kbs
+    }
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""

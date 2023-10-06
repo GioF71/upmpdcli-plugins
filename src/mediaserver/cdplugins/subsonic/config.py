@@ -33,7 +33,7 @@ append_codecs_to_album : int = int(get_plugin_option_value("appendcodecstoalbum"
 whitelist_codecs : list[str] = str(get_plugin_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
 allow_blacklisted_codec_in_song : int = int(get_plugin_option_value("allowblacklistedcodecinsong", "1"))
 disable_navigable_album : int = int(get_plugin_option_value("disablenavigablealbumview", "0"))
-#tag_initial_page_enabled_prefix : str = plugin_config_variable_name("taginitialpageenabled")
+tag_initial_page_enabled_prefix : str = plugin_config_variable_name("taginitialpageenabled")
 autostart : int = int(get_plugin_option_value("autostart", "0"))
 log_intermediate_url : bool = get_plugin_option_value("log_intermediate_url", "0") == "1"
 
