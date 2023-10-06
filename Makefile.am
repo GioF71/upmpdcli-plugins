@@ -241,7 +241,7 @@ cdpluginsradiobrowserdir = $(pkgdatadir)/cdplugins/radio-browser
 dist_cdpluginsradiobrowser_DATA = \
                   src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
 
-cdpluginsradioparadosedir = $(pkgdatadir)/cdplugins/radio-paradise
+cdpluginsradioparadisedir = $(pkgdatadir)/cdplugins/radio-paradise
 dist_cdpluginsradioparadise_DATA = \
                   src/mediaserver/cdplugins/radio-paradise/codec.py \
                   src/mediaserver/cdplugins/radio-paradise/constants.py \
