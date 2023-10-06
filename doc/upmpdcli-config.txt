@@ -495,6 +495,11 @@ radio-browseruser:: Bogus user name variable. Decides if the service should be s
 [[radio-paradiseuser]]
 radio-paradiseuser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+=== Mother Earth Radio (http://www.motherearthradio.de/) plugin parameters 
+
+[[mother-earth-radiouser]]
+mother-earth-radiouser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
+
 === SubSonic plugin parameters 
 
 [[subsonicuser]]
