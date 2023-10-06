@@ -255,6 +255,20 @@ dist_cdpluginsradioparadise_DATA = \
                   src/mediaserver/cdplugins/radio-paradise/tag_type.py \
                   src/mediaserver/cdplugins/radio-paradise/upnp_util.py
 
+cdpluginsmotherearthradiodir = $(pkgdatadir)/cdplugins/mother-earth-radio
+dist_cdpluginsmotherearthradio_DATA = \
+                  src/mediaserver/cdplugins/mother-earth-radio/codec.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/constants.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/element_type.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/identifier_util.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/item_identifier_key.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/item_identifier.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/radio_station_entry.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/mother-earth-radio-app.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/radio_stations.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/tag_type.py \
+                  src/mediaserver/cdplugins/mother-earth-radio/upnp_util.py
+
 cdpluginsradiosdir = $(pkgdatadir)/cdplugins/upradios
 dist_cdpluginsradios_DATA = \
                  src/mediaserver/cdplugins/upradios/upradios-app.py

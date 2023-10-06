@@ -968,6 +968,21 @@ There are currently no additional configuration parameters. Any would go in the
 
 
 '''
+[[UPMPDCLI-MS-MOTHER-EARTH-RADIO]]
+=== motherearthradio.de
+
+The plugin allows access to the link:https://www.motherearthradio.de/[Mother Earth Radio] Web radios
+catalog.
+
+Then enable the function by installing the upmpdcli mother-earth-radio module (which may be a separate
+package), and uncommenting the bogus setting for the `mother-earth-radiouser` variable in the upmpdcli
+configuration file.
+
+There are currently no additional configuration parameters. Any would go in the
+<<mother-earth-radiouser,configuration section>>.  
+
+
+'''
 [[UPMPDCLI-MS-BBC]]
 === BBC Sounds
 
