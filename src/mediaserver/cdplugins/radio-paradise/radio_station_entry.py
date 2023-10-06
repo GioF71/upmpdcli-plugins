@@ -15,12 +15,13 @@
 
 class RadioStationEntry:
 
-    def __init__(self, id : int, codec : str, url : str, title : str, mimetype : str):
+    def __init__(self, id : int, codec : str, url : str, title : str, mimetype : str, bitrate : int = None):
         self._id : int = id
         self._title : str = title
         self._url : str = url
         self._codec : str = codec
         self._mimetype : str = mimetype
+        self._bitrate : int = bitrate
 
     @property
     def id(self) -> int:
@@ -41,3 +42,7 @@ class RadioStationEntry:
     @property
     def mimetype(self) -> str:
         return self._mimetype
+
+    @property
+    def bitrate(self) -> int:
+        return self._bitrate

@@ -39,12 +39,9 @@ from radio_station_entry import RadioStationEntry
 
 import constants
 
-plugin_name : str = constants.plugin_name
-plugin_version : str = "0.0.1"
-
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
-_g_myprefix = f"0${plugin_name}$"
-upmplgutils.setidprefix(plugin_name)
+_g_myprefix = f"0${constants.plugin_name}$"
+upmplgutils.setidprefix(constants.plugin_name)
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -60,14 +57,14 @@ def _initradioparadise():
         return True
 
     # Do whatever is needed here
-    msgproc.log(f"Radio Paradise Plugin Release {plugin_version}")
+    msgproc.log(f"Radio Paradise Plugin Release {constants.plugin_version}")
 
     _g_init = True
     return True
 
 def build_intermediate_url(rp_id : int) -> str:
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
-    url = f"http://{http_host_port}/{plugin_name}/track/version/1/trackId/{str(rp_id)}"
+    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{str(rp_id)}"
     msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
     return url
 
@@ -107,9 +104,10 @@ def radio_entry_data_to_entry(objid, entry_id : str, radio_station_entry : Radio
     entry['uri'] = build_intermediate_url(radio_station_entry.id)
     upnp_util.set_class('object.item.audioItem.audioBroadcast', entry)
     title : str = f"{radio_station_entry.title} [{radio_station_entry.codec}]"
+    if radio_station_entry.bitrate: title = f"{title} [{radio_station_entry.bitrate}]"
     upnp_util.set_album_title(title, entry)
-    upnp_util.set_artist("Internet Radio", entry)
-    entry['upnp:album'] = radio_station_entry.codec
+    upnp_util.set_artist(radio_station_entry.title, entry)
+    entry['upnp:album'] = constants.plugin_name_ext
     entry['res:mime'] = radio_station_entry.mimetype
     return entry
 

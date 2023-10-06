@@ -14,3 +14,5 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 plugin_name : str = "radio-paradise"
+plugin_name_ext : str = "Radio Paradise"
+plugin_version : str = "0.0.2"
