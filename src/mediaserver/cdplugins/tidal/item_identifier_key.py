@@ -30,6 +30,7 @@ class ItemIdentifierKey(Enum):
     CATEGORY_TITLE = 10, 'catt'
     PAGE_LIST = 11, 'pglst'
     PAGE_LINK_API_PATH = 12, "pglnkppth"
+    CATEGORY_KEY = 13, "catk"
             
     def __init__(self, 
             num : int, 

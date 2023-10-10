@@ -368,7 +368,6 @@ def migration_10():
 
 def insert_playback(
         played_track_request : PlayedTrackRequest,
-        play_count : str, 
         last_played : datetime.datetime):
     tuple = (
         played_track_request.track_id, 
@@ -386,7 +385,6 @@ def insert_playback(
         played_track_request.explicit,
         played_track_request.artist_name,
         played_track_request.album_duration,
-        play_count, 
         last_played)
     cursor = __connection.cursor()
     cursor.execute("INSERT INTO played_track_v1(track_id, \
@@ -406,14 +404,13 @@ def insert_playback(
                     album_duration, \
                     play_count, \
                     last_played) \
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)", 
                 tuple)
     cursor.close()
     __connection.commit()
 
 def update_playback(
         played_track_request : PlayedTrackRequest,
-        play_count : str, 
         last_played : datetime.datetime):
     tuple = (
         played_track_request.album_id, 
@@ -430,7 +427,7 @@ def update_playback(
         played_track_request.explicit,
         played_track_request.artist_name,
         played_track_request.album_duration,
-        play_count, 
+        played_track_request.track_id,
         last_played, 
         played_track_request.track_id)
     cursor = __connection.cursor()
@@ -448,7 +445,7 @@ def update_playback(
                    explicit = ?, \
                    artist_name = ?, \
                    album_duration = ?, \
-                   play_count = ?, \
+                   play_count = (SELECT play_count + 1 AS play_count FROM played_track_v1 WHERE track_id = ?), \
                    last_played = ? \
                    WHERE track_id = ?", tuple)
     cursor.close()
@@ -573,23 +570,18 @@ def get_most_played_albums(max_albums : int = 50) -> list[PlayedAlbum]:
 
 def track_playback(played_track_request : PlayedTrackRequest):
     now : datetime.datetime = datetime.datetime.now()
-    existing_entry : PlayedTrack = get_played_track_entry(played_track_request.track_id)
-    if existing_entry:
-        # update!
-        play_count : int = existing_entry.play_count
-        msgproc.log(f"Updating playback entry for track_id {played_track_request.track_id} to play_count [{play_count + 1}] ...")
-        update_playback(
-            played_track_request = played_track_request,
-            play_count = play_count + 1, 
-            last_played = now)
-    else:
-        # insert
-        msgproc.log(f"Inserting new playback entry for track_id {played_track_request.track_id} ...")
+    # we try inserting first
+    track_action : str = "insert"
+    try:
         insert_playback(
             played_track_request = played_track_request,
-            play_count = 1, 
             last_played = now)
-    msgproc.log(f"Track playback for {played_track_request.track_id} completed.")
+    except sqlite3.IntegrityError as integrity_error:
+        track_action : str = "update"
+        update_playback(
+            played_track_request = played_track_request,
+            last_played = now)
+    msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
 
 __connection : sqlite3.Connection = __get_connection()
 __prepare_table_db_version()

@@ -17,3 +17,10 @@ plugin_name : str = "tidal"
 
 featured_type_name_playlist : str = "PLAYLIST"
 tile_image_expiration_time_sec : int = 1200
+
+credentials_file_name : str = "credentials.json"
+
+key_token_type : str = "token_type"
+key_access_token : str = "access_token"
+key_refresh_token : str = "refresh_token"
+key_expiry_time_timestamp_str : str = "expiry_time_timestamp_str"

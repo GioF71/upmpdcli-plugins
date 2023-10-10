@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.7"
+__tidal_plugin_release : str = "0.0.8"
 
 import json
 import copy
@@ -126,23 +126,92 @@ def mp3_only() -> bool:
     q : TidalQuality = get_config_audio_quality()
     return tidal_util.is_mp3(q)
 
+def __get_credentials_file_name() -> str:
+    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.credentials_file_name)
+
+def get_credentials_from_config() -> dict[str, str]:
+    # static first
+    token_type : str = upmplgutils.getOptionValue(f"{plugin_name}tokentype")
+    access_token : str = upmplgutils.getOptionValue(f"{plugin_name}accesstoken")
+    refresh_token : str = upmplgutils.getOptionValue(f"{plugin_name}refreshtoken")
+    expiry_time_timestamp_str : str = upmplgutils.getOptionValue(f"{plugin_name}expirytime")
+    if token_type and access_token and refresh_token and expiry_time_timestamp_str:
+        msgproc.log(f"Credentials provided statically")
+        res_dict : dict[str, any] = dict()
+        res_dict[constants.key_token_type] = token_type
+        res_dict[constants.key_access_token] = access_token
+        res_dict[constants.key_refresh_token] = refresh_token
+        res_dict[constants.key_expiry_time_timestamp_str] = expiry_time_timestamp_str
+        return res_dict
+    else:
+        msgproc.log(f"Credentials not provided statically, looking for credentials file ...")
+        # try json file
+        cred_file_name : str = __get_credentials_file_name()
+        if not os.path.exists(cred_file_name): return dict()
+        msgproc.log(f"Credentials file found!")
+        #read contents
+        try:
+            with open(cred_file_name, 'r') as cred_file:
+                return json.load(cred_file)
+        except Exception as ex:
+            msgproc.log(f"Error loading configuration: [{ex}]")  
+    return dict()
+
+def get_cred_value(from_dict : dict[str, str], key_name : str) -> str:
+    return from_dict[key_name] if from_dict and key_name in from_dict else None
+
 def create_session():
     global session
     res : bool = False
+    token_type : str = None
+    access_token : str = None
+    refresh_token : str = None
+    expiry_time_timestamp_str : str = None
     if not session:
+        res : bool = None
         new_session : TidalSession = TidalSession()
-        token_type = upmplgutils.getOptionValue(f"{plugin_name}tokentype")
-        access_token : str = upmplgutils.getOptionValue(f"{plugin_name}accesstoken")
-        refresh_token : str = upmplgutils.getOptionValue(f"{plugin_name}refreshtoken")
-        expiry_time_timestamp_str : str = upmplgutils.getOptionValue(f"{plugin_name}expirytime")
-        expiry_time_timestamp : float = float(expiry_time_timestamp_str)
-        expiry_time = datetime.datetime.fromtimestamp(expiry_time_timestamp)
-        audio_quality : TidalQuality = get_audio_quality(upmplgutils.getOptionValue(f"{plugin_name}audioquality"))
-        res : bool = new_session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
-        new_session.audio_quality = audio_quality
-        msgproc.log(f"Tidal session created: [{res}]")
-        session = new_session
-    else: res = True
+        # read from config
+        credentials_dict : dict[str, str] = get_credentials_from_config()
+        token_type = get_cred_value(credentials_dict, constants.key_token_type)
+        access_token = get_cred_value(credentials_dict, constants.key_access_token)
+        refresh_token = get_cred_value(credentials_dict, constants.key_refresh_token)
+        expiry_time_timestamp_str = get_cred_value(credentials_dict, constants.key_expiry_time_timestamp_str)
+        expiry_time_timestamp : float = float(expiry_time_timestamp_str) if expiry_time_timestamp_str else None
+        expiry_time : datetime.datetime = (datetime.datetime.fromtimestamp(expiry_time_timestamp) 
+                                           if expiry_time_timestamp 
+                                           else None)
+        # do we have a static configuration?
+        if token_type and access_token and refresh_token and expiry_time:
+            res = new_session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
+        else: # provide link for authorization
+            # show challenge url
+            new_session.login_oauth_simple(function = msgproc.log)
+            token_type = new_session.token_type
+            access_token = new_session.access_token
+            refresh_token = new_session.refresh_token
+            expiry_time = new_session.expiry_time
+            storable_expiry_time = datetime.datetime.timestamp(expiry_time)
+            # try create session
+            res = new_session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
+            if res:
+                # success, store credentials
+                new_credentials : dict[str, str] = {
+                    "token_type" : token_type,
+                    "access_token" : access_token,
+                    "refresh_token" : refresh_token,
+                    "expiry_time_timestamp_str" : storable_expiry_time
+                }
+                with open(__get_credentials_file_name(), 'w') as wcf:
+                    json.dump(new_credentials, wcf, indent = 4)
+            else:
+                msgproc.log(f"Tidal session NOT created")
+        msgproc.log(f"Tidal session created: [{'yes' if res else 'no'}]")
+        if res: 
+            audio_quality : TidalQuality = get_audio_quality(upmplgutils.getOptionValue(f"{plugin_name}audioquality"))
+            new_session.audio_quality = audio_quality
+            session = new_session
+    else: 
+        res = True
     return res
 
 def get_session() -> TidalSession:
@@ -168,8 +237,10 @@ def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
-    url = build_streaming_url(track_id) or ""
-    if url:
+    media_url = build_streaming_url(track_id) or ""
+    res : dict[str, any] = {} 
+    res['media_url'] = media_url
+    if media_url:
         track : TidalTrack = get_session().track(track_id)
         if track:
             played_track_request : PlayedTrackRequest = PlayedTrackRequest()
@@ -191,7 +262,12 @@ def trackuri(a):
                 played_track_request.album_artist_name = album.artist.name
                 played_track_request.image_url = tidal_util.get_image_url(album)
                 persistence.track_playback(played_track_request)
-    return {'media_url' : url}
+            res["mimetype"] = "audio/mpeg" if tidal_util.is_mp3(track.audio_quality) else "audio/flac"
+            if tidal_util.is_mp3(track.audio_quality):
+                res["kbs"] = "320" if TidalQuality.low_320k == track.audio_quality else "96"
+            elif TidalQuality.high_lossless == track.audio_quality:
+                res["kbs"] = "1411"
+    return res
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""
@@ -199,7 +275,7 @@ def _returnentries(entries):
 
 def _objidtopath(objid):
     if objid.find(_g_myprefix) != 0:
-        raise Exception(f"subsonic: bad objid {objid}: bad prefix")
+        raise Exception(f"tidal: bad objid {objid}: bad prefix")
     return objid[len(_g_myprefix):].lstrip("/")
 
 def load_tile_image_unexpired(
@@ -301,15 +377,17 @@ def get_category_image_url(category : TidalItemList) -> str:
 def category_to_entry(
         objid, 
         category : TidalItemList) -> upmplgutils.direntry:
+    title : str = category.title if category.title else "Other"
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.CATEGORY.getName(), 
-        category.title)
+        title)
+    identifier.set(ItemIdentifierKey.CATEGORY_KEY, category.title)
     id : str = identifier_util.create_objid(
         objid = objid, 
         id = identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, 
         objid, 
-        category.title)
+        title)
     # category image
     category_image_url : str = get_category_image_url(category)
     if category_image_url:
@@ -681,8 +759,14 @@ def get_categories() -> list[TidalItemList]:
 
 def get_category(category_name : str):
     categories : list[TidalItemList] = get_categories()
+    match_list : list = list()
+    first = None
     for current in categories:
-        if current.title == category_name: return current
+        if current.title == category_name: 
+            if not first: first = current
+            match_list.append(current)
+    if len(match_list) > 1: msgproc.log(f"get_category: multiple matches for [{category_name}], returning first")
+    return first
     
 def handler_tag_favorite_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
@@ -814,11 +898,8 @@ def handler_tag_categories(
     for current in get_categories():
         msgproc.log(f"handler_tag_categories processing category[{category_index}]: [{current.title}] type [{type(current).__name__ if current else None}]")
         title : str = current.title
-        if title and len(title) > 0:
-            entry = category_to_entry(objid, current)
-            entries.append(entry)
-        else:
-            msgproc.log(f"handler_tag_categories *Warning* category at index [{category_index}] type [{type(current).__name__ if current else None}] has no title, skipped.")
+        entry = category_to_entry(objid, current)
+        entries.append(entry)
         category_index += 1
     return entries
 
@@ -919,21 +1000,15 @@ def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : 
     thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     api_path : str = item_identifier.get(ItemIdentifierKey.PAGE_LINK_API_PATH)
     category_title : str = item_identifier.get(ItemIdentifierKey.CATEGORY_TITLE)
-    #page_list : list[str] = item_identifier.get(ItemIdentifierKey.PAGE_LIST, list())
-    #msgproc.log(f"handler_element_pagelink name [{thing_name}] value [{thing_value}] category_title [{category_title}] api_path [{api_path}] page_list [{page_list}]")
     msgproc.log(f"handler_element_pagelink name [{thing_name}] value [{thing_value}] category_title [{category_title}] api_path [{api_path}]")
-    #full_page_list : list[str] = copy.deepcopy(page_list)
-    #full_page_list.append(thing_value)
-    #selected_pagelink = navigate(category_title, full_page_list)
-    #if not selected_pagelink: return entries
-    #msgproc.log(f"handler_element_pagelink found pagelink [{selected_pagelink.title}] type {type(selected_pagelink).__name__}")
-    ## get items from pagelink
-    #page : TidalPage = selected_pagelink.get()
-    page : TidalPage = get_session().page.get(api_path)
-    if not page: 
-        msgproc.log(f"handler_element_pagelink page not found")
-        return entries
-    if page: page_to_entries(objid, page, entries)
+    try:
+        page : TidalPage = get_session().page.get(api_path)
+        if not page: 
+            msgproc.log(f"handler_element_pagelink page not found")
+            return entries
+        if page: page_to_entries(objid, page, entries)
+    except Exception as ex:
+        msgproc.log(f"handler_element_pagelink could not retrieve page at api_path [{api_path}] [{ex}]")
     return entries
 
 def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1595,7 +1670,7 @@ def get_category_items(category_name : str) -> list[any]:
     return item_list
 
 def handler_element_category(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    select_category : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    select_category : str = item_identifier.get(ItemIdentifierKey.CATEGORY_KEY)
     category : TidalItemList = get_category(select_category)
     if not category: 
         msgproc.log(f"handler_element_category category not set")
