@@ -873,7 +873,7 @@ The configuration parameters are described in the <<tidaluser,configuration sect
 Alternatively, you can skip all the authentication parameters (`tidaltokentype`, `tidalaccesstoken`, `tidalrefreshtoken` and
 `tidalexpirytime`): in this case, on the console output, the plugin will present a URL that can be clicked in order to 
 obtain a set of credentials, which will be saved as a json file in the plugin cache directory.
-Please not that this process will block the server (or, at least, the plugin) until the URL is clicked.
+Please note that this process will block the server (or, at least, the plugin) until the URL is clicked.
 
 [NOTE]
 ====
