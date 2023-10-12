@@ -453,7 +453,7 @@
 # <descr>The refresh token used for authentication.</descr></var>
 #tidalrefreshtoken = your_refresh_token
 # <var name="tidalexpirytime" type="string"><brief>Token expiry time.</brief>
-# <descr>The expiry time of the token used for authentication.</descr></var>
+# <descr>The expiry time, as an epoch-based floating point number, of the token used for authentication.</descr></var>
 #tidalexpirytime = 1697143990.40669
 # <var name="tidalaudioquality" type="cstr" values="LOW HIGH LOSSLESS HI_RES HI_RES_LOSSLESS">
 # <brief>Tidal maximum stream quality.</brief>
