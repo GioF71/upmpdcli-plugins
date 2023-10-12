@@ -375,6 +375,9 @@ appropriate language.
 [[tidaluser]]
 tidaluser:: Bogus user name. Set to any value, e.g. tidal
 
+[[tidaltokentype]]
+tidaltokentype:: Tidal token type, generally must be set to Bearer.
+
 [[tidalaccesstoken]]
 tidalaccesstoken:: Tidal access token.
 
