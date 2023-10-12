@@ -438,6 +438,29 @@
 # allows streaming each of the formats).</descr></var>
 #qobuzformatid = 6
 
+# <grouptitle>Tidal streaming service parameters</grouptitle>
+
+# <var name="tidaluser" type="string"><brief>Bogus user name variable.</brief>
+# <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
+#tidaluser = tidal
+# <var name="tidaltokentype" type="string"><brief>Authentication token type.</brief>
+# <descr>The type of token used for authentication, typically Bearer.</descr></var>
+#tidaltokentype = Bearer
+# <var name="tidalaccesstoken" type="string"><brief>Access Token.</brief>
+# <descr>The access token used for authentication.</descr></var>
+#tidalrefreshtoken = your_refresh_token
+# <var name="tidalrefreshtoken" type="string"><brief>Refresh Token.</brief>
+# <descr>The refresh token used for authentication.</descr></var>
+#tidalrefreshtoken = your_refresh_token
+# <var name="tidalexpirytime" type="string"><brief>Token expiry time.</brief>
+# <descr>The expiry time of the token used for authentication.</descr></var>
+#tidalexpirytime = 1697143990.40669
+# <var name="tidalaudioquality" type="cstr" values="LOW HIGH LOSSLESS HI_RES HI_RES_LOSSLESS">
+# <brief>Tidal maximum stream quality.</brief>
+# <descr>LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA, HI_RES_LOSSLESS for 
+# hi-res FLAC files (if your subscription allows streaming each of the formats).</descr></var>
+#tidalaudioquality = LOSSLESS
+
 # <grouptitle>Deezer streaming service parameters</grouptitle>
 
 # <var name="deezeruser" type="string"><brief>Deezer user name.</brief>
