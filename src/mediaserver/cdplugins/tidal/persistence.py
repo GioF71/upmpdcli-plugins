@@ -503,10 +503,10 @@ def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[
         played_list.append(played)
     return played_list
 
-def get_last_played_tracks(max_tracks : int = 50) -> list[PlayedTrack]:
+def get_last_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
     return _get_played_tracks(sorting = PlayedTracksSorting.LAST_PLAYED_FIRST, max_tracks = max_tracks)
  
-def get_most_played_tracks(max_tracks : int = 50) -> list[PlayedTrack]:
+def get_most_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
     return _get_played_tracks(sorting = PlayedTracksSorting.MOST_PLAYED_FIRST, max_tracks = max_tracks)
  
 def get_played_track_entry(track_id : str) -> PlayedTrack:
@@ -554,7 +554,39 @@ def get_played_track_entry(track_id : str) -> PlayedTrack:
     result.album_duration = rows[0][15]
     return result
 
-def get_most_played_albums(max_albums : int = 50) -> list[PlayedAlbum]:
+def track_has_been_played(track_id : str) -> bool:
+    return get_played_track_entry(track_id) is not None
+
+def album_has_been_played(album_id : str) -> bool:
+    tuple = (album_id,)
+    cursor = __connection.cursor()
+    cursor.execute("SELECT album_id, COUNT(album_id) \
+                FROM played_track_v1 \
+                WHERE album_id = ? \
+                GROUP BY album_id", tuple)
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows and len(rows) == 1 and int(rows[0][1]) > 0
+
+def delete_album_from_played_tracks(album_id : str):
+    tuple = (album_id,)
+    cursor = __connection.cursor()
+    cursor.execute(
+        "DELETE FROM played_track_v1 WHERE album_id = ?", 
+        tuple)
+    cursor.close()
+    __connection.commit()
+
+def delete_track_from_played_tracks(track_id : str):
+    tuple = (track_id,)
+    cursor = __connection.cursor()
+    cursor.execute(
+        "DELETE FROM played_track_v1 WHERE track_id = ?", 
+        tuple)
+    cursor.close()
+    __connection.commit()
+
+def get_most_played_albums(max_albums : int = 100) -> list[PlayedAlbum]:
     cursor = __connection.cursor()
     cursor.execute(f"{__most_played_albums_query} LIMIT {max_albums}")
     rows = cursor.fetchall()

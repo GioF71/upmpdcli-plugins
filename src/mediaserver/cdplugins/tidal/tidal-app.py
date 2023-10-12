@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.8"
+__tidal_plugin_release : str = "0.0.9"
 
 import json
 import copy
@@ -24,6 +24,7 @@ import os
 import datetime
 import secrets
 from typing import Callable
+from typing import Optional
 
 import cmdtalkplugin
 import upmplgutils
@@ -1144,6 +1145,20 @@ def handler_element_album_container(
         objid, 
         fav_action_text)
     entries.append(entry)
+    has_been_played : bool = persistence.album_has_been_played(album_id)
+    msgproc.log(f"Album with id [{album_id}] name [{album_name}] has been played: [{'yes' if has_been_played else 'no'}]")
+    if has_been_played:
+        # add entry for removing from stats
+        rm_stats : ItemIdentifier = ItemIdentifier(
+            ElementType.REMOVE_ALBUM_FROM_STATS.getName(), 
+            album_id)
+        rm_stats_id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(rm_stats))
+        rm_entry = upmplgutils.direntry(rm_stats_id, 
+            objid, 
+            "Remove album from Statistics")
+        entries.append(rm_entry)
     return entries
 
 def handler_element_playlist_container(
@@ -1237,6 +1252,8 @@ def handler_element_mix_playlist_toptrack_navigable_item(
         entries.append(album_to_album_container(
             objid = objid, 
             album = album))
+    # add remove from stats if needed
+    entries = add_remove_track_from_stats_if_needed(objid, track, entries)
     return entries
 
 def handler_element_mix_navigable(
@@ -1401,9 +1418,14 @@ def get_similar_artists(artist : TidalArtist) -> list[TidalArtist]:
         msgproc.log(f"Cannot get similar artists for artist id [{artist.id}] name [{artist.name}] Exception [{ex}]")
     return list()
 
-def get_top_tracks(artist : TidalArtist) -> list[TidalTrack]:
+def get_top_tracks(
+        artist : TidalArtist, 
+        limit: Optional[int] = None, 
+        offset: int = 0) -> list[TidalTrack]:
     try:
-        return artist.get_top_tracks()
+        return artist.get_top_tracks(
+            limit = limit, 
+            offset = offset)
     except Exception as ex:
         msgproc.log(f"Cannot get top tracks for artist id [{artist.id}] name [{artist.name}] Exception [{ex}]")
     return list()
@@ -1467,10 +1489,23 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
     return add_track_as_list_to_entries(objid, items, entries)    
 
 def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items : int = 50
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     artist : TidalArtist = get_session().artist(artist_id)
-    items : list[TidalTrack] = get_top_tracks(artist)
-    return add_tracks_to_entries(objid, items, entries)
+    items : list[TidalTrack] = get_top_tracks(
+        artist = artist,
+        limit = max_items,
+        offset = offset)
+    entries = add_tracks_to_entries(objid, items, entries)
+    if len(items) == max_items:
+        next_button = create_next_button(
+            objid = objid, 
+            element_type = ElementType.ARTIST_TOP_TRACKS_NAVIGABLE, 
+            element_id = artist_id,
+            next_offset = offset + max_items)
+        entries.append(next_button)
+    return entries
 
 def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
@@ -1650,6 +1685,23 @@ def handler_element_artist(objid, item_identifier : ItemIdentifier, entries : li
         objid, 
         fav_action_text)
     entries.append(entry)
+    return entries
+
+def add_remove_track_from_stats_if_needed(objid, track : TidalTrack, entries : list) -> list:
+    has_been_played : bool = persistence.track_has_been_played(track.id)
+    msgproc.log(f"Track with id [{track.id}] name [{track.name}] has been played: [{'yes' if has_been_played else 'no'}]")
+    if has_been_played:
+        # add entry for removing from stats
+        rm_stats : ItemIdentifier = ItemIdentifier(
+            ElementType.REMOVE_TRACK_FROM_STATS.getName(), 
+            track.id)
+        rm_stats_id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(rm_stats))
+        rm_entry = upmplgutils.direntry(rm_stats_id, 
+            objid, 
+            "Remove track from Statistics")
+        entries.append(rm_entry)
     return entries
 
 def handler_element_track_container(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1833,6 +1885,26 @@ def get_unique_album_id_list(track_list : list[PlayedTrack]) -> list[str]:
 def get_last_played_album_id_list(max_tracks : int) -> list[str]:
     track_list : list[PlayedTrack] = persistence.get_last_played_tracks(max_tracks = max_tracks)
     return get_unique_album_id_list(track_list)
+
+def handler_element_remove_track_from_stats(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    track_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    if not track_id: return entries
+    msgproc.log(f"Removing {track_id} from playback statistics ...")
+    persistence.delete_track_from_played_tracks(track_id)
+    msgproc.log(f"Removed {track_id} from playback statistics.")
+    track : TidalTrack = get_session().track(track_id)
+    entries.append(track_to_navigable_track(objid, track_adapter = instance_tidal_track_adapter(track = track)))
+    return entries
+
+def handler_element_remove_album_from_stats(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    if not album_id: return entries
+    msgproc.log(f"Removing {album_id} from playback statistics ...")
+    persistence.delete_album_from_played_tracks(album_id)
+    msgproc.log(f"Removed {album_id} from playback statistics.")
+    album : TidalAlbum = get_session().album(album_id)
+    entries.append(album_to_album_container(objid = objid, album = album))
+    return entries
 
 def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
@@ -2034,7 +2106,9 @@ __elem_action_dict : dict = {
     ElementType.MOST_PLAYED_TRACKS_NAVIGABLE.getName(): handler_element_most_played_tracks_navigable,
     ElementType.MOST_PLAYED_TRACKS_LIST.getName(): handler_element_most_played_tracks_list,
     ElementType.RECENTLY_PLAYED_ALBUMS.getName(): handler_element_recently_played_albums,
-    ElementType.MOST_PLAYED_ALBUMS.getName(): handler_element_most_played_albums
+    ElementType.MOST_PLAYED_ALBUMS.getName(): handler_element_most_played_albums,
+    ElementType.REMOVE_ALBUM_FROM_STATS.getName(): handler_element_remove_album_from_stats,
+    ElementType.REMOVE_TRACK_FROM_STATS.getName(): handler_element_remove_track_from_stats,
 }
 
 def tag_list_to_entries(objid, tag_list : list[TagType]) -> list[dict[str, any]]:
@@ -2114,6 +2188,8 @@ def tidal_search(
         offset : int = 0) -> list:
     search_result : dict = get_session().search(
         query = value,
+        limit = limit,
+        offset = offset,
         models = [search_type.get_model()])
     item_list : list = search_result[search_type.get_dict_entry()]
     return item_list

@@ -52,6 +52,8 @@ class ElementType(Enum):
     FAV_ARTIST_DEL = 33, "fvrtstdel",
     FAV_ALBUM_ADD = 34, "fvrtlbmadd",
     FAV_ALBUM_DEL = 35, "fvrtlbmdel",
+    REMOVE_ALBUM_FROM_STATS = 36, "rmvlbmstts",
+    REMOVE_TRACK_FROM_STATS = 37, "rmvtrkstts",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
