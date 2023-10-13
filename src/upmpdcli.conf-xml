@@ -448,7 +448,7 @@
 #tidaltokentype = Bearer
 # <var name="tidalaccesstoken" type="string"><brief>Access Token.</brief>
 # <descr>The access token used for authentication.</descr></var>
-#tidalrefreshtoken = your_refresh_token
+#tidalaccesstoken = your_access_token
 # <var name="tidalrefreshtoken" type="string"><brief>Refresh Token.</brief>
 # <descr>The refresh token used for authentication.</descr></var>
 #tidalrefreshtoken = your_refresh_token

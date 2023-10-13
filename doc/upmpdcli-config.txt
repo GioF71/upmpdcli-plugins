@@ -1,3 +1,4 @@
+// GENERATED FILE, EDITS WILL BE LOST
 == Upmpdcli configuration 
 
 === Upmpdcli general parameters 
@@ -370,27 +371,6 @@ hralang:: Hra language setting
 (en/de). Some Highresaudio messages will be set in the
 appropriate language.
 
-=== Tidal streaming service parameters 
-
-[[tidaluser]]
-tidaluser:: Bogus user name. Set to any value, e.g. tidal
-
-[[tidaltokentype]]
-tidaltokentype:: Tidal token type, generally must be set to Bearer.
-
-[[tidalaccesstoken]]
-tidalaccesstoken:: Tidal access token.
-
-[[tidalrefreshtoken]]
-tidalrefreshtoken:: Tidal refresh token.
-
-[[tidalexpirytime]]
-tidalrefreshtoken:: Tidal expiry time of the access token.
-
-[[tidalaudioquality]]
-tidalaudioquality:: Tidal stream quality, possible values are LOW, HIGH, LOSSLESS (default), HI_RES, and HI_RES_LOSSLESS (your subscription
-will determine the maximum quality).
-
 === Qobuz streaming service parameters 
 
 [[qobuzuser]]
@@ -402,6 +382,27 @@ qobuzpass:: Qobuz password. The password for your Qobuz account.
 [[qobuzformatid]]
 qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 allows streaming each of the formats).
+
+=== Tidal streaming service parameters 
+
+[[tidaluser]]
+tidaluser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
+
+[[tidaltokentype]]
+tidaltokentype:: Authentication token type. The type of token used for authentication, typically Bearer.
+
+[[tidalaccesstoken]]
+tidalaccesstoken:: Access Token. The access token used for authentication.
+
+[[tidalrefreshtoken]]
+tidalrefreshtoken:: Refresh Token. The refresh token used for authentication.
+
+[[tidalexpirytime]]
+tidalexpirytime:: Token expiry time. The expiry time, as an epoch-based floating point number, of the token used for authentication.
+
+[[tidalaudioquality]]
+tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA, HI_RES_LOSSLESS for
+hi-res FLAC files (if your subscription allows streaming each of the formats).
 
 === Deezer streaming service parameters 
 
@@ -493,12 +494,12 @@ up this process, this is the maximum thread count.
 [[radio-browseruser]]
 radio-browseruser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
-=== Radio Paradise (http://www.radioparadise.com/) plugin parameters 
+=== Radio Paradise (https://www.radioparadise.com/) plugin parameters 
 
 [[radio-paradiseuser]]
 radio-paradiseuser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
-=== Mother Earth Radio (http://www.motherearthradio.de/) plugin parameters 
+=== Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters 
 
 [[mother-earth-radiouser]]
 mother-earth-radiouser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.

@@ -162,14 +162,6 @@
 # Hra language setting (en/de).
 #hralang = en
 
-# Tidal streaming service parameters
-#tidaluser = tidal
-#tidaltokentype = Bearer
-#tidalaccesstoken = your_access_token
-#tidalrefreshtoken = your_refresh_token
-#tidalexpirytime = your_token_expiry_time
-#tidalaudioquality = LOSSLESS
-
 # Qobuz streaming service parameters
 
 # Qobuz user name.
@@ -179,18 +171,27 @@
 # Qobuz stream quality.
 #qobuzformatid = 6
 
+# Tidal streaming service parameters
+
+# Bogus user name variable.
+#tidaluser = tidal
+# Authentication token type.
+#tidaltokentype = Bearer
+# Access Token.
+#tidalaccesstoken = your_access_token
+# Refresh Token.
+#tidalrefreshtoken = your_refresh_token
+# Token expiry time.
+#tidalexpirytime = 1697143990.40669
+# Tidal maximum stream quality.
+#tidalaudioquality = LOSSLESS
+
 # Deezer streaming service parameters
 
 # Deezer user name.
 #deezeruser = me@some.place
 # Deezer password.
 #deezerpass = agoodpassword
-
-# Radio Paradise
-#radio-paradiseuser = radioparadise
-
-# Mother Earth Radio
-#mother-earth-radiouser = motherearth
 
 # Local Media Server parameters
 
