@@ -41,7 +41,9 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
-# Initial formatid (mp3). Will be reset on login
+# Initial formatid (mp3). Will be reset on login. This is because we may need a session when
+# get_appid is called (when the plugin is used with the credentials service). It seems that a local
+# session inside getappid would suffice, TBD check).
 session = Session(5)
 
 _g_loginok = False
@@ -71,11 +73,11 @@ def maybelogin(a={}):
     # Format id: 5 for MP3 320, 6 for FLAC Lossless, 7 for FLAC
     # Hi-Res 24 bit =< 96kHz, 27 for FLAC Hi-Res 24 bit >96 kHz &
     # =< 192 kHz
-    formatid = getOptionValue('qobuzformatid')
+    formatid = getOptionValue('qobuzformatid', 6)
     # Decide if we fetch the actual track audio details when listing containers. This is expensive
     # and normally not needed.
-    needaudiodetails = getOptionValue('qobuzaudiodetails')
-    showalbumrateandbits = getOptionValue('qobuzalbrateandbits')
+    needaudiodetails = getOptionValue('qobuzaudiodetails', False)
+    showalbumrateandbits = getOptionValue('qobuzalbrateandbits', False)
     
     appid = getOptionValue('qobuzappid')
     cfvalue = getOptionValue('qobuzcfvalue')
@@ -85,10 +87,6 @@ def maybelogin(a={}):
     else:
         username, password = getserviceuserpass("qobuz")
       
-    if formatid:
-        formatid = int(formatid)
-    else:
-        formatid = 6
     # Set default values in xbmcplug, for track listings when we don't have the audio details at
     # this stage.
     if formatid == 5:

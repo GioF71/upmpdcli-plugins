@@ -74,15 +74,27 @@ def getOptionValue(nm, dflt = None):
         else:
             _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     value = _g_upconfig.get(nm)
-    if value is not None:
-        return value
-    envar = "UPMPD_" + nm.upper()
-    try:
-        return os.environ[envar]
-    except:
-        return dflt
-    
+    if value is None:
+        envar = "UPMPD_" + nm.upper()
+        try:
+            value = os.environ[envar]
+        except:
+            value = dflt
+
+    if dflt is not None and type(dflt) != type(""):
+        # Try to convert the value to the type of the provided default
+        try:
+            # Bool("0") is true, so special-case the bool type
+            if type(dflt) == type(True):
+                value = conftree.valToBool(value)
+            else:
+                t = type(dflt)
+                value = t(value)
+        except Exception as ex:
+            uplog(f"Config: type conversion failed for {nm}")
+
     return value
+
 
 def getConfigObject():
     if _g_upconfig is None:
