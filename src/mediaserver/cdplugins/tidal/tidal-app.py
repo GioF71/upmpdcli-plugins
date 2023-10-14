@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.9"
+__tidal_plugin_release : str = "0.0.10"
 
 import json
 import copy
@@ -41,6 +41,7 @@ import tidal_util
 from tag_type import TagType
 from tag_type import get_tag_Type_by_name
 from element_type import ElementType
+from element_type import get_element_type_by_name
 from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
 from option_key import OptionKey
@@ -1294,8 +1295,9 @@ def handler_element_playlist_navigable(
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     playlist : TidalPlaylist = get_session().playlist(playlist_id)
     tracks : list[TidalTrack] = playlist.tracks()
-    max_items_per_page : int = 100
+    max_items_per_page : int = 25
     remaining_tracks = tracks[offset:]
+    msgproc.log(f"handler_element_playlist_navigable count from offset [{offset}] is: [{len(remaining_tracks)}]")
     tracks = remaining_tracks[0:max_items_per_page]
     track_number : int = offset + 1
     for track in tracks:
@@ -1380,35 +1382,45 @@ def handler_element_album(
 def handler_element_artist_album_catch_all(
         objid, 
         item_identifier : ItemIdentifier, 
-        album_extractor : Callable[[], list[TidalAlbum]], 
+        album_extractor : Callable[[Optional[int], int], list[TidalAlbum]], 
         entries : list) -> list:
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items : int = 25
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     artist : TidalArtist = get_session().artist(artist_id)
     if not artist: msgproc.log(f"Artist with id {artist_id} not found")
     current : TidalAlbum
-    for current in album_extractor(artist):
+    album_list : list[TidalAlbum] = album_extractor(artist, max_items, offset)
+    for current in album_list:
         entries.append(album_to_album_container(objid, current))
+    if album_list and len(album_list) == max_items:
+        # add next button
+        entries.append(create_next_button(
+            objid = objid, 
+            element_type = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME)),
+            element_id = item_identifier.get(ItemIdentifierKey.THING_VALUE),
+            next_offset = offset + max_items))
     return entries
 
 def handler_element_artist_album_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return handler_element_artist_album_catch_all(
         objid,
         item_identifier = item_identifier,
-        album_extractor = lambda x : x.get_albums(),
+        album_extractor = lambda x, limit, offset : x.get_albums(limit, offset),
         entries = entries)
 
 def handler_element_artist_album_ep_singles(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return handler_element_artist_album_catch_all(
         objid,
         item_identifier = item_identifier,
-        album_extractor = lambda x : x.get_albums_ep_singles(),
+        album_extractor = lambda x, limit, offset : x.get_albums_ep_singles(limit, offset),
         entries = entries)
 
 def handler_element_artist_album_others(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     return handler_element_artist_album_catch_all(
         objid,
         item_identifier = item_identifier,
-        album_extractor = lambda x : x.get_albums_other(),
+        album_extractor = lambda x, limit, offset : x.get_albums_other(limit, offset),
         entries = entries)
 
 def get_similar_artists(artist : TidalArtist) -> list[TidalArtist]:

@@ -66,6 +66,13 @@ class ElementType(Enum):
     def getName(self):
         return self.element_name
 
+def get_element_type_by_name(element_name : str) -> ElementType:
+    #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    for _, member in ElementType.__members__.items():
+        if element_name == member.getName():
+            return member
+    raise Exception(f"get_element_type_by_name with {element_name} NOT found")
+
 # duplicate check
 name_checker_set : set[str] = set()
 id_checker_set : set[int] = set()

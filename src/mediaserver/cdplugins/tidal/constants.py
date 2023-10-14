@@ -16,7 +16,7 @@
 plugin_name : str = "tidal"
 
 featured_type_name_playlist : str = "PLAYLIST"
-tile_image_expiration_time_sec : int = 1200
+tile_image_expiration_time_sec : int = 86400
 
 credentials_file_name : str = "credentials.json"
 
