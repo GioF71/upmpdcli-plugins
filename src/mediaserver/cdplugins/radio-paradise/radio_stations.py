@@ -21,6 +21,11 @@ codec_aac: str = "aac"
 mimetype_flac: str = "audio/flac"
 mimetype_aac: str = "audio/aac"
 
+title_main_mix : str = "Radio Paradise Main Mix"
+title_mellow_mix : str = "Radio Paradise Mellow Mix"
+title_rock_mix : str = "Radio Paradise Rock Mix"
+title_global_mix : str = "Radio Paradise Global Mix"
+
 radio_station_list: list[RadioStationEntry] = list()
 
 def __add(codec : str, url : str, title : str, mimetype : str, bitrate : int = None):
@@ -36,80 +41,80 @@ def __add(codec : str, url : str, title : str, mimetype : str, bitrate : int = N
 
 __add(
     url="http://stream.radioparadise.com/flacm",
-    title="RP Main Mix",
+    title=title_main_mix,
     codec=codec_flac,
     mimetype=mimetype_flac)
 
 __add(
     url="http://stream.radioparadise.com/aac-320",
-    title="RP Main Mix",
+    title=title_main_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=320)
 
 __add(
     url="http://stream.radioparadise.com/aac-128",
-    title="RP Main Mix",
+    title=title_main_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=128)
 
 __add(
     url="http://stream.radioparadise.com/mellow-flacm",
-    title="RP Mellow Mix",
+    title=title_mellow_mix,
     codec=codec_flac,
     mimetype=mimetype_flac)
 
 __add(
     url="http://stream.radioparadise.com/mellow-320",
-    title="RP Mellow Mix",
+    title=title_mellow_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=320)
 
 __add(
     url="http://stream.radioparadise.com/mellow-128",
-    title="RP Mellow Mix",
+    title=title_mellow_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=128)
 
 __add(
     url="http://stream.radioparadise.com/rock-flacm",
-    title="RP Rock Mix",
+    title=title_rock_mix,
     codec=codec_flac,
     mimetype=mimetype_flac)
 
 __add(
     url="http://stream.radioparadise.com/rock-320",
-    title="RP Rock Mix",
+    title=title_rock_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=320)
 
 __add(
     url="http://stream.radioparadise.com/rock-128",
-    title="RP Rock Mix",
+    title=title_rock_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=128)
 
 __add(
     url="http://stream.radioparadise.com/global-flacm",
-    title="RP Global Mix",
+    title=title_global_mix,
     codec=codec_flac,
     mimetype=mimetype_flac)
 
 __add(
     url="http://stream.radioparadise.com/global-320",
-    title="RP Global Mix",
+    title=title_global_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=320)
 
 __add(
     url="http://stream.radioparadise.com/global-128",
-    title="RP Global Mix",
+    title=title_global_mix,
     codec=codec_aac,
     mimetype=mimetype_aac,
     bitrate=128)

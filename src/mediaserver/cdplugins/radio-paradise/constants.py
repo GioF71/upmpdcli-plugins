@@ -15,4 +15,4 @@
 
 plugin_name : str = "radio-paradise"
 plugin_name_ext : str = "Radio Paradise"
-plugin_version : str = "0.0.2"
+plugin_version : str = "0.0.3"
