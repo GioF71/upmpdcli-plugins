@@ -1,5 +1,3 @@
-from track_adapter import TrackAdapter
-from tidalapi import Quality as TidalQuality
 # Copyright (C) 2023 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,6 +13,8 @@ from tidalapi import Quality as TidalQuality
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from track_adapter import TrackAdapter
+from tidalapi import Quality as TidalQuality
 from tidalapi.media import Track as TidalTrack
 from tidalapi.album import Album as TidalAlbum
 

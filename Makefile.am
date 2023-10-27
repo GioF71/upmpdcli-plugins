@@ -187,6 +187,8 @@ dist_cdpluginspycom_DATA = \
                     src/mediaserver/cdplugins/pycommon/upradioconf.py
 cdpluginstidaldir = $(pkgdatadir)/cdplugins/tidal
 dist_cdpluginstidal_DATA = \
+                    src/mediaserver/cdplugins/tidal/album_sort_criteria.py \
+                    src/mediaserver/cdplugins/tidal/artist_sort_criteria.py \
                     src/mediaserver/cdplugins/tidal/codec.py \
                     src/mediaserver/cdplugins/tidal/constants.py \
                     src/mediaserver/cdplugins/tidal/element_type.py \

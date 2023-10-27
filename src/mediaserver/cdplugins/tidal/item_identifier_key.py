@@ -31,6 +31,7 @@ class ItemIdentifierKey(Enum):
     PAGE_LIST = 11, 'pglst'
     PAGE_LINK_API_PATH = 12, "pglnkppth"
     CATEGORY_KEY = 13, "catk"
+    MAX_ITEMS = 14, "mxtms"
             
     def __init__(self, 
             num : int, 

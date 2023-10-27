@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.10"
+__tidal_plugin_release : str = "0.0.11"
 
 import json
 import copy
@@ -72,6 +72,11 @@ from played_track import PlayedTrack
 from played_album import PlayedAlbum
 from played_track_request import PlayedTrackRequest
 from tile_image import TileImage
+
+from album_sort_criteria import AlbumSortCriteria
+from artist_sort_criteria import ArtistSortCriteria
+
+from functools import cmp_to_key
 
 plugin_name : str = constants.plugin_name
 
@@ -137,13 +142,13 @@ def get_credentials_from_config() -> dict[str, str]:
     access_token : str = upmplgutils.getOptionValue(f"{plugin_name}accesstoken")
     refresh_token : str = upmplgutils.getOptionValue(f"{plugin_name}refreshtoken")
     expiry_time_timestamp_str : str = upmplgutils.getOptionValue(f"{plugin_name}expirytime")
-    if token_type and access_token and refresh_token and expiry_time_timestamp_str:
+    if token_type and access_token:
         msgproc.log(f"Credentials provided statically")
         res_dict : dict[str, any] = dict()
         res_dict[constants.key_token_type] = token_type
         res_dict[constants.key_access_token] = access_token
-        res_dict[constants.key_refresh_token] = refresh_token
-        res_dict[constants.key_expiry_time_timestamp_str] = expiry_time_timestamp_str
+        if refresh_token: res_dict[constants.key_refresh_token] = refresh_token
+        if expiry_time_timestamp_str: res_dict[constants.key_expiry_time_timestamp_str] = expiry_time_timestamp_str
         return res_dict
     else:
         msgproc.log(f"Credentials not provided statically, looking for credentials file ...")
@@ -183,7 +188,7 @@ def create_session():
                                            if expiry_time_timestamp 
                                            else None)
         # do we have a static configuration?
-        if token_type and access_token and refresh_token and expiry_time:
+        if token_type and access_token:
             res = new_session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
         else: # provide link for authorization
             # show challenge url
@@ -209,7 +214,8 @@ def create_session():
                 msgproc.log(f"Tidal session NOT created")
         msgproc.log(f"Tidal session created: [{'yes' if res else 'no'}]")
         if res: 
-            audio_quality : TidalQuality = get_audio_quality(upmplgutils.getOptionValue(f"{plugin_name}audioquality"))
+            audio_quality : TidalQuality = get_config_audio_quality()
+            msgproc.log(f"Setting quality: [{audio_quality}]")
             new_session.audio_quality = audio_quality
             session = new_session
     else: 
@@ -231,7 +237,7 @@ def build_intermediate_url(track_id : str) -> str:
 
 def build_streaming_url(track_id : str) -> str:
     streaming_url : str = get_session().track(track_id).get_url()
-    msgproc.log(f"build_streaming_url for track_id: [{track_id}] -> [{streaming_url}]")
+    msgproc.log(f"build_streaming_url for track_id: [{track_id}] -> [{streaming_url}] Session Quality: [{get_session().audio_quality}]")
     return streaming_url
 
 @dispatcher.record('trackuri')
@@ -769,11 +775,132 @@ def get_category(category_name : str):
             match_list.append(current)
     if len(match_list) > 1: msgproc.log(f"get_category: multiple matches for [{category_name}], returning first")
     return first
-    
-def handler_tag_favorite_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+
+def compare_favorite_album_by_criteria_list(
+        criteria_list : list[AlbumSortCriteria], 
+        left : TidalAlbum, 
+        right : TidalAlbum) -> int:
+    cmp : int = 0
+    current : AlbumSortCriteria
+    for current in criteria_list:
+        cmp = current.compare(left, right)
+        if cmp != 0: break
+    return cmp
+
+def compare_favorite_artist_by_criteria_list(
+        criteria_list : list[ArtistSortCriteria], 
+        left : TidalArtist, 
+        right : TidalArtist) -> int:
+    cmp : int = 0
+    current : ArtistSortCriteria
+    for current in criteria_list:
+        cmp = current.compare(left, right)
+        if cmp != 0: break
+    return cmp
+
+def build_album_sort_criteria_by_artist(descending : bool = False) -> list[AlbumSortCriteria]:
+    criteria_list : list[AlbumSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    artist_extractor : Callable[[TidalAlbum], str] = lambda a : a.artist.name.upper() if a.artist and a.artist.name else ""
+    artist_comparator : Callable[[str, str], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(artist_extractor, artist_comparator))
+
+    rd_extractor : Callable[[TidalAlbum], float] = lambda a : a.available_release_date.timestamp() if a.available_release_date else 0.0
+    rd_comparator : Callable[[float, float], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(rd_extractor, rd_comparator))
+
+    t_extractor : Callable[[TidalAlbum], str] = lambda a : a.name.upper() if a.name else ""
+    t_comparator : Callable[[str, str], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(t_extractor, t_comparator))
+
+    return criteria_list
+
+def build_album_sort_criteria_by_release_date(descending : bool = False) -> list[AlbumSortCriteria]:
+    criteria_list : list[AlbumSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    extractor : Callable[[TidalAlbum], float] = lambda a : a.available_release_date.timestamp() if a.available_release_date else 0.0
+    comparator : Callable[[float, float], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(extractor, comparator))
+    return criteria_list
+
+def build_album_sort_criteria_by_user_date_added(descending : bool = False) -> list[AlbumSortCriteria]:
+    criteria_list : list[AlbumSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    extractor : Callable[[TidalAlbum], float] = lambda a : a.user_date_added.timestamp() if a.user_date_added else 0.0
+    comparator : Callable[[float, float], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(extractor, comparator))
+    return criteria_list
+
+def build_artist_sort_criteria_by_user_date_added(descending : bool = False) -> list[ArtistSortCriteria]:
+    criteria_list : list[ArtistSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    extractor : Callable[[TidalArtist], float] = lambda a : a.user_date_added.timestamp() if a.user_date_added else 0.0
+    comparator : Callable[[float, float], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(ArtistSortCriteria(extractor, comparator))
+    return criteria_list
+
+def build_album_sort_criteria_by_name(descending : bool = False) -> list[AlbumSortCriteria]:
+    criteria_list : list[AlbumSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    t_extractor : Callable[[TidalAlbum], str] = lambda a : a.name.upper() if a.name else ""
+    t_comparator : Callable[[str, str], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(AlbumSortCriteria(t_extractor, t_comparator))
+    return criteria_list
+
+def build_artist_sort_criteria_by_name(descending : bool = False) -> list[ArtistSortCriteria]:
+    criteria_list : list[ArtistSortCriteria] = list()
+    multiplier : int = -1 if descending else 1
+    t_extractor : Callable[[TidalArtist], str] = lambda a : a.name.upper() if a.name else ""
+    t_comparator : Callable[[str, str], int] = lambda left, right: multiplier * (-1 if left < right else 0 if left == right else 1)
+    criteria_list.append(ArtistSortCriteria(t_extractor, t_comparator))
+    return criteria_list
+
+def get_favorite_albums_by_artist(descending : bool, limit : int, offset : int = 0) -> list[TidalAlbum]:
+    items : list[TidalAlbum] = get_session().user.favorites.albums()
+    sc_list : list[AlbumSortCriteria] = build_album_sort_criteria_by_artist(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_album_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def get_favorite_albums_by_title(descending : bool, limit : int, offset : int = 0) -> list[TidalAlbum]:
+    items : list[TidalAlbum] = get_session().user.favorites.albums()
+    sc_list : list[AlbumSortCriteria] = build_album_sort_criteria_by_name(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_album_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def get_favorite_albums_by_release_date(descending : bool, limit : int, offset : int = 0) -> list[TidalAlbum]:
+    items : list[TidalAlbum] = get_session().user.favorites.albums()
+    sc_list : list[AlbumSortCriteria] = build_album_sort_criteria_by_release_date(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_album_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def get_favorite_albums_by_user_date_added(descending : bool, limit : int, offset : int = 0) -> list[TidalAlbum]:
+    items : list[TidalAlbum] = get_session().user.favorites.albums()
+    sc_list : list[AlbumSortCriteria] = build_album_sort_criteria_by_user_date_added(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_album_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def get_favorite_artists_by_name(descending : bool, limit : int, offset : int = 0) -> list[TidalArtist]:
+    items : list[TidalArtist] = get_session().user.favorites.artists()
+    sc_list : list[ArtistSortCriteria] = build_artist_sort_criteria_by_name(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_artist_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def get_favorite_artists_by_user_date_added(descending : bool, limit : int, offset : int = 0) -> list[TidalArtist]:
+    items : list[TidalArtist] = get_session().user.favorites.artists()
+    sc_list : list[ArtistSortCriteria] = build_artist_sort_criteria_by_user_date_added(descending = descending)
+    items.sort(key = cmp_to_key(lambda x, y : compare_favorite_artist_by_criteria_list(sc_list, x, y)))
+    return items[offset:offset + limit] if items else []
+
+def __handler_element_favorite_albums_common(
+        descending : bool,
+        element_type : ElementType,
+        list_retriever : Callable[[bool, int, int], list[TidalAlbum]],
+        objid, 
+        item_identifier : ItemIdentifier, 
+        entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     max_items : int = 50
-    items : list[TidalAlbum] = get_session().user.favorites.albums(limit = max_items, offset = offset)
+    items : list[TidalAlbum] = list_retriever(descending, max_items, offset)
     current : TidalAlbum
     for current in items:
         entries.append(album_to_album_container(
@@ -782,26 +909,196 @@ def handler_tag_favorite_albums(objid, item_identifier : ItemIdentifier, entries
     if len(items) >= max_items:
         next_button = create_next_button(
             objid = objid, 
-            element_type = ElementType.TAG, 
-            element_id = TagType.FAVORITE_ALBUMS.getTagName(),
+            element_type = element_type, 
+            element_id = element_type.getName(),
             next_offset = offset + max_items)
         entries.append(next_button)
     return entries
 
-def handler_tag_favorite_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+def handler_element_favorite_albums_by_artist_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_ARTIST_ASC,
+        list_retriever = get_favorite_albums_by_artist,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_artist_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_ARTIST_DESC,
+        list_retriever = get_favorite_albums_by_artist,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_title_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_TITLE_ASC,
+        list_retriever = get_favorite_albums_by_title,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_title_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_TITLE_DESC,
+        list_retriever = get_favorite_albums_by_title,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_release_date_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_ASC,
+        list_retriever = get_favorite_albums_by_release_date,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_release_date_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_DESC,
+        list_retriever = get_favorite_albums_by_release_date,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_user_date_added_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_ASC,
+        list_retriever = get_favorite_albums_by_user_date_added,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_element_favorite_albums_by_user_date_added_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_element_favorite_albums_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_DESC,
+        list_retriever = get_favorite_albums_by_user_date_added,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_tag_favorite_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    tuple_array = [
+        (ElementType.FAVORITE_ALBUMS_BY_ARTIST_ASC, "By Artist (Asc)", build_album_sort_criteria_by_artist, False),
+        (ElementType.FAVORITE_ALBUMS_BY_ARTIST_DESC, "By Artist (Desc)", build_album_sort_criteria_by_artist, True),
+        (ElementType.FAVORITE_ALBUMS_BY_TITLE_ASC, "By Title (Asc)", build_album_sort_criteria_by_name, False),
+        (ElementType.FAVORITE_ALBUMS_BY_TITLE_DESC, "By Title (Desc)", build_album_sort_criteria_by_name, True),
+        (ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_ASC, "By Release Date (Asc)", build_album_sort_criteria_by_release_date, False),
+        (ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_DESC, "By Release Date (Desc)", build_album_sort_criteria_by_release_date, True),
+        (ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_ASC, "By Date Added (Asc)", build_album_sort_criteria_by_user_date_added, False),
+        (ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_DESC, "By Date Added (Desc)", build_album_sort_criteria_by_user_date_added, True)] 
+    for current_tuple in tuple_array:
+        identifier : ItemIdentifier = ItemIdentifier(
+            current_tuple[0].getName(), 
+            current_tuple[0].getName())
+        id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(identifier))
+        entry = upmplgutils.direntry(id, 
+            objid, 
+            current_tuple[1])
+        entries.append(entry)
+        descending : bool = current_tuple[3]
+        sc_list_builder : Callable[[bool], list[AlbumSortCriteria]] = current_tuple[2]
+        sc_list : list[AlbumSortCriteria] = sc_list_builder(descending)
+        favorite_list : list[TidalAlbum] = get_session().user.favorites.albums()
+        favorite_list.sort(key = cmp_to_key(lambda x, y : compare_favorite_album_by_criteria_list(sc_list, x, y)))
+        first : TidalAlbum = favorite_list[0] if favorite_list and len(favorite_list) > 0 else None
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(first) if first else None, entry)
+    return entries
+
+def handler_favorite_artists_by_name_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return handler_favorite_artists_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ARTISTS_BY_NAME_ASC,
+        list_retriever = get_favorite_artists_by_name,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_favorite_artists_by_name_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return handler_favorite_artists_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ARTISTS_BY_NAME_DESC,
+        list_retriever = get_favorite_artists_by_name,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_favorite_artists_by_user_date_added_asc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return handler_favorite_artists_common(
+        descending = False,
+        element_type = ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC,
+        list_retriever = get_favorite_artists_by_user_date_added,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_favorite_artists_by_user_date_added_desc(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return handler_favorite_artists_common(
+        descending = True,
+        element_type = ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC,
+        list_retriever = get_favorite_artists_by_user_date_added,
+        objid = objid,
+        item_identifier = item_identifier,
+        entries = entries)
+
+def handler_favorite_artists_common(
+        descending : bool,
+        element_type : ElementType,
+        list_retriever : Callable[[bool, int, int], list[TidalArtist]],
+        objid, 
+        item_identifier : ItemIdentifier, 
+        entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     max_items : int = 50
-    items : list[TidalArtist] = get_session().user.favorites.artists(limit = max_items, offset = offset)
+    items : list[TidalArtist] = list_retriever(descending, max_items, offset)
     current : TidalArtist
     for current in items:
         entries.append(artist_to_entry(objid, artist = current))
     if len(items) >= max_items:
         next_button = create_next_button(
             objid = objid, 
-            element_type = ElementType.TAG, 
-            element_id = TagType.FAVORITE_ARTISTS.getTagName(),
+            element_type = element_type, 
+            element_id = element_type.getName(),
             next_offset = offset + max_items)
         entries.append(next_button)
+    return entries
+
+def handler_tag_favorite_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    tuple_array = [
+        (ElementType.FAVORITE_ARTISTS_BY_NAME_ASC, "By Name (Asc)", build_artist_sort_criteria_by_name, False),
+        (ElementType.FAVORITE_ARTISTS_BY_NAME_DESC, "By Name (Desc)", build_artist_sort_criteria_by_name, True),
+        (ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC, "By Date Added (Asc)", build_artist_sort_criteria_by_user_date_added, False),
+        (ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC, "By Date Added (Desc)", build_artist_sort_criteria_by_user_date_added, True)] 
+    for current_tuple in tuple_array:
+        identifier : ItemIdentifier = ItemIdentifier(
+            current_tuple[0].getName(), 
+            current_tuple[0].getName())
+        id : str = identifier_util.create_objid(
+            objid = objid, 
+            id = identifier_util.create_id_from_identifier(identifier))
+        entry = upmplgutils.direntry(id, 
+            objid, 
+            current_tuple[1])
+        entries.append(entry)
+        descending : bool = current_tuple[3]
+        sc_list_builder : Callable[[bool], list[ArtistSortCriteria]] = current_tuple[2]
+        sc_list : list[ArtistSortCriteria] = sc_list_builder(descending)
+        favorite_list : list[TidalArtist] = get_session().user.favorites.artists()
+        favorite_list.sort(key = cmp_to_key(lambda x, y : compare_favorite_artist_by_criteria_list(sc_list, x, y)))
+        first : TidalArtist = favorite_list[0] if favorite_list and len(favorite_list) > 0 else None
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(first) if first else None, entry)
     return entries
 
 def handler_tag_favorite_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1168,13 +1465,19 @@ def handler_element_playlist_container(
         entries : list) -> list:
     playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     playlist : TidalPlaylist = get_session().playlist(playlist_id)
+    tracks_container_maxsize : list[int] = [20, 60]
     pl_tuple_array = [
-        (ElementType.PLAYLIST_NAVIGABLE, "Navigable"), 
-        (ElementType.PLAYLIST, "Tracks")]
+        (ElementType.PLAYLIST_NAVIGABLE, "Navigable", None)]
+    current_max_size : int
+    for current_max_size in tracks_container_maxsize:
+        pl_tuple_array.append((ElementType.PLAYLIST, f"Tracks (First {current_max_size})", current_max_size))
+    pl_tuple_array.append((ElementType.PLAYLIST, "Tracks (All)", None))
     for current_tuple in pl_tuple_array:
         identifier : ItemIdentifier = ItemIdentifier(
             current_tuple[0].getName(), 
             playlist_id)
+        max_items : int = current_tuple[2]
+        if max_items: identifier.set(ItemIdentifierKey.MAX_ITEMS, max_items)
         id : str = identifier_util.create_objid(
             objid = objid, 
             id = identifier_util.create_id_from_identifier(identifier))
@@ -1337,9 +1640,11 @@ def playlist_to_entries(
         entries : list) -> list:
     playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items : int = item_identifier.get(ItemIdentifierKey.MAX_ITEMS, None)
     playlist : TidalPlaylist = get_session().playlist(playlist_id)
     tracks : list[TidalTrack] = playlist.tracks()
     track_number : int = offset + 1
+    counter : int = 0
     for track in tracks:
         options : dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
@@ -1353,7 +1658,9 @@ def playlist_to_entries(
             msgproc.log(f"Cannot create track entry for track_id [{track.id}] num [{track_number}] [{track.name}] [{track.album.id}] [{track.album.name}] Exception [{ex}]")
         # let use know some tracks are missing
         track_number += 1
+        counter += 1
         if track_entry: entries.append(track_entry)
+        if max_items and counter == max_items: break
     return entries
 
 def handler_element_album(
@@ -2121,6 +2428,18 @@ __elem_action_dict : dict = {
     ElementType.MOST_PLAYED_ALBUMS.getName(): handler_element_most_played_albums,
     ElementType.REMOVE_ALBUM_FROM_STATS.getName(): handler_element_remove_album_from_stats,
     ElementType.REMOVE_TRACK_FROM_STATS.getName(): handler_element_remove_track_from_stats,
+    ElementType.FAVORITE_ALBUMS_BY_ARTIST_ASC.getName(): handler_element_favorite_albums_by_artist_asc,
+    ElementType.FAVORITE_ALBUMS_BY_ARTIST_DESC.getName(): handler_element_favorite_albums_by_artist_desc,
+    ElementType.FAVORITE_ALBUMS_BY_TITLE_ASC.getName(): handler_element_favorite_albums_by_title_asc,
+    ElementType.FAVORITE_ALBUMS_BY_TITLE_DESC.getName(): handler_element_favorite_albums_by_title_desc,
+    ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_ASC.getName(): handler_element_favorite_albums_by_release_date_asc,
+    ElementType.FAVORITE_ALBUMS_BY_RELEASE_DATE_DESC.getName(): handler_element_favorite_albums_by_release_date_desc,
+    ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_ASC.getName(): handler_element_favorite_albums_by_user_date_added_asc,
+    ElementType.FAVORITE_ALBUMS_BY_USER_DATE_ADDED_DESC.getName(): handler_element_favorite_albums_by_user_date_added_desc,
+    ElementType.FAVORITE_ARTISTS_BY_NAME_ASC.getName(): handler_favorite_artists_by_name_asc,
+    ElementType.FAVORITE_ARTISTS_BY_NAME_DESC.getName(): handler_favorite_artists_by_name_desc,
+    ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC.getName(): handler_favorite_artists_by_user_date_added_asc,
+    ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC.getName(): handler_favorite_artists_by_user_date_added_desc
 }
 
 def tag_list_to_entries(objid, tag_list : list[TagType]) -> list[dict[str, any]]:

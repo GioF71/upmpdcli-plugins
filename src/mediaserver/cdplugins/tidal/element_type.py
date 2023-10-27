@@ -54,6 +54,18 @@ class ElementType(Enum):
     FAV_ALBUM_DEL = 35, "fvrtlbmdel",
     REMOVE_ALBUM_FROM_STATS = 36, "rmvlbmstts",
     REMOVE_TRACK_FROM_STATS = 37, "rmvtrkstts",
+    FAVORITE_ALBUMS_BY_ARTIST_ASC = 39, "fvlbmbrtsta",
+    FAVORITE_ALBUMS_BY_ARTIST_DESC = 40, "fvlbmbrtstd",
+    FAVORITE_ALBUMS_BY_TITLE_ASC = 41, "fvlbmttla",
+    FAVORITE_ALBUMS_BY_TITLE_DESC = 42, "fvlbmttld",
+    FAVORITE_ALBUMS_BY_RELEASE_DATE_ASC = 43, "fvlbmrdta",
+    FAVORITE_ALBUMS_BY_RELEASE_DATE_DESC = 44, "fvlbmrdtd",
+    FAVORITE_ALBUMS_BY_USER_DATE_ADDED_ASC = 45, "fvlbmudaa",
+    FAVORITE_ALBUMS_BY_USER_DATE_ADDED_DESC = 46, "fvlbmudad",
+    FAVORITE_ARTISTS_BY_NAME_ASC = 47, "fvrtstna",
+    FAVORITE_ARTISTS_BY_NAME_DESC = 48, "fvrtstnd",
+    FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC = 49, "fvrtstudaa",
+    FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC = 50, "fvrtstudad",
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
