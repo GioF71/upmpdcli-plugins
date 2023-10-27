@@ -23,6 +23,10 @@ mimetype_flac: str = "audio/flac"
 mimetype_aac: str = "audio/aac"
 mimetype_mp3: str = "audio/mp3"
 
+title_mother_earth_radio : str = "Mother Earth Radio"
+title_mother_earth_klassik : str = "Mother Earth Klassik"
+title_mother_earth_instrumental : str = "Mother Earth Instrumental"
+
 radio_station_list: list[RadioStationEntry] = list()
 
 
@@ -36,55 +40,55 @@ def __add(codec: str, url: str, title: str, mimetype: str):
 
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth/motherearth",
-    title="Mother Earth Radio",
+    title=title_mother_earth_radio,
     codec=codec_flac,
     mimetype=mimetype_flac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth/motherearth.aac",
-    title="Mother Earth Radio",
+    title=title_mother_earth_radio,
     codec=codec_aac,
     mimetype=mimetype_aac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth/motherearth.mp3",
-    title="Mother Earth Radio",
+    title=title_mother_earth_radio,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik",
-    title="Mother Earth Klassik",
+    title=title_mother_earth_klassik,
     codec=codec_flac,
     mimetype=mimetype_flac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik.aac",
-    title="Mother Earth Klassik",
+    title=title_mother_earth_klassik,
     codec=codec_aac,
     mimetype=mimetype_aac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik.mp3",
-    title="Mother Earth Klassik",
+    title=title_mother_earth_klassik,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental",
-    title="Mother Earth Instrumental",
+    title=title_mother_earth_instrumental,
     codec=codec_flac,
     mimetype=mimetype_flac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental.aac",
-    title="Mother Earth Instrumental",
+    title=title_mother_earth_instrumental,
     codec=codec_aac,
     mimetype=mimetype_aac,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental.mp3",
-    title="Mother Earth Instrumental",
+    title=title_mother_earth_instrumental,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
 )

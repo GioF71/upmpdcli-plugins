@@ -106,7 +106,7 @@ def radio_entry_data_to_entry(objid, entry_id : str, radio_station_entry : Radio
     title : str = f"{radio_station_entry.title} [{radio_station_entry.codec}]"
     upnp_util.set_album_title(title, entry)
     upnp_util.set_artist(radio_station_entry.title, entry)
-    entry['upnp:album'] = constants.plugin_name_ext
+    entry['upnp:album'] = radio_station_entry.codec
     entry['res:mime'] = radio_station_entry.mimetype
     return entry
 
