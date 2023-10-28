@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.11"
+__tidal_plugin_release : str = "0.0.12"
 
 import json
 import copy
@@ -1221,8 +1221,10 @@ def create_next_button(
 def handler_element_mix(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     mix_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     mix : TidalMix = get_session().mix(mix_id)
+    max_items : int = item_identifier.get(ItemIdentifierKey.MAX_ITEMS, None)
     tracks : list[TidalTrack] = mix.items()
     track_number : int = 1
+    counter : int = 0
     for track in tracks:
         options : dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
@@ -1231,7 +1233,9 @@ def handler_element_mix(objid, item_identifier : ItemIdentifier, entries : list)
             track_adapter = instance_tidal_track_adapter(track = track), 
             options = options)
         track_number += 1
+        counter += 1
         entries.append(track_entry)
+        if max_items and counter == max_items: break
     return entries
 
 def get_genres() -> list[TidalGenre]:
@@ -1386,13 +1390,19 @@ def handler_element_mix_container(
         entries : list) -> list:
     mix_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     mix : TidalPlaylist = get_session().mix(mix_id)
+    tracks_container_maxsize : list[int] = [20, 60]
     pl_tuple_array = [
-        (ElementType.MIX_NAVIGABLE, "Navigable"), 
-        (ElementType.MIX, "Mix Items")]
+        (ElementType.MIX_NAVIGABLE, "Navigable", None)]
+    current_max_size : int
+    for current_max_size in tracks_container_maxsize:
+        pl_tuple_array.append((ElementType.MIX, f"Mix Items (First {current_max_size})", current_max_size))
+    pl_tuple_array.append((ElementType.MIX, "Mix Items (All)", None))
     for current_tuple in pl_tuple_array:
         identifier : ItemIdentifier = ItemIdentifier(
             current_tuple[0].getName(), 
             mix_id)
+        max_items : int = current_tuple[2]
+        if max_items: identifier.set(ItemIdentifierKey.MAX_ITEMS, max_items)
         id : str = identifier_util.create_objid(
             objid = objid, 
             id = identifier_util.create_id_from_identifier(identifier))

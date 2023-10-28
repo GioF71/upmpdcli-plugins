@@ -19,14 +19,10 @@ class ItemIdentifierKey(Enum):
     
     THING_NAME = 0, 'n'
     THING_VALUE = 1, 'v'
-    GENRE_NAME = 2, 'g'
     PAGE_NUMBER = 3, 'p'
     ALBUM_ID = 4, 'a'
     OFFSET = 5, 'o'
     TAG_TYPE = 6, 't',
-    ALBUM_VERSION_PATH_BASE64 = 7, 'ap',
-    RADIO_NAME = 8, 'rn',
-    SONG_AS_ENTRY = 9, 'sntr'
     CATEGORY_TITLE = 10, 'catt'
     PAGE_LIST = 11, 'pglst'
     PAGE_LINK_API_PATH = 12, "pglnkppth"
