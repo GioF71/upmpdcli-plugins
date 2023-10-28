@@ -153,10 +153,14 @@ def artist_initial_to_entry(
     return entry
 
 def build_intermediate_url(track_id : str) -> str:
-    http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
-    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
-    if config.log_intermediate_url: msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
-    return url
+    #msgproc.log(f"build_intermediate_url track_id [{track_id}] skip_intermediate_url [{config.skip_intermediate_url}]")
+    if not config.skip_intermediate_url:
+        http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
+        url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
+        if config.log_intermediate_url: msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
+        return url
+    else:
+        return connector_provider.get().buildSongUrl(track_id)
 
 def song_to_entry(
         objid, 

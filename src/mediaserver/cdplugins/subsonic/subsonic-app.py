@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.4"
+__subsonic_plugin_release : str = "0.2.5"
 
 import subsonic_init
 import subsonic_util
@@ -97,8 +97,6 @@ plugin_name : str = constants.plugin_name
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = f"0${plugin_name}$"
 upmplgutils.setidprefix(plugin_name)
-
-log_intermediate_url : bool = upmplgutils.getOptionValue(f"{plugin_name}log_intermediate_url", "1") == "1"
 
 __tag_initial_page_enabled_default : dict[str, bool] = {
     TagType.NEWEST.getTagName(): False,
