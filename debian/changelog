@@ -1,17 +1,27 @@
+upmpdcli (1.8.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Misc. improvements to the Tidal, Subsonic,and Radio Paradise Media
+    Server plugins.
+  * New Mother Earth Radio Media Server plugin.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 30 Oct 2023 11:30:00 +0100
+
 upmpdcli (1.8.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Completely new Tidal plugin by Giovanni Fulco. Tidal access is working again !
-  * Media Server: change the internal URL format to avoid characters needing quoting in XML: work
-    around misc. device bugs.
-  * Qobuz: add option to obtain actual item resource info when listing a container.
+  * Completely new Tidal plugin by Giovanni Fulco. Tidal access is
+    working again !
+  * Media Server: change the internal URL format to avoid characters
+    needing quoting in XML: work around misc. device bugs.
+  * Qobuz: add option to obtain actual item resource info when listing
+    a container.
   
  -- Jean-Francois Dockes <jf@dockes.org>  Sun, 17 Sep 2023 16:00:00 +0200
 
 upmpdcli (1.8.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Add configuration variable to enable the internal WEB server local
-    file serving function, mostly for use by Media Server plugins for serving
-    icons. Off by default.
+    file serving function, mostly for use by Media Server plugins for
+    serving icons. Off by default.
   * Subsonic/Navidrome plugin: misc. updates and improvements.
   * Uprcl: fix using the 'albumartist' tag in priority when it is set.
 
@@ -26,13 +36,15 @@ upmpdcli (1.7.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.7.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Media Server: fix issues in upnp-to-recoll search translation, and improve search behaviour with
-    some control points (bubble and kazoo).
+  * Media Server: fix issues in upnp-to-recoll search translation, and
+    improve search behaviour with some control points (bubble and
+    kazoo).
   * Fix potential issues with parallel requests.
   * Uprcl: index artist documents so that they can be searched for
-  * When a search request is relative to objid "0", use the plugin root instead of last browsed
-    container.
-  * Avoid phantom entries by adjusting the result count for entries filtered out by class.
+  * When a search request is relative to objid "0", use the plugin
+    root instead of last browsed container.
+  * Avoid phantom entries by adjusting the result count for entries
+    filtered out by class.
 
  -- Jean-Francois Dockes <jf@dockes.org>  Tue, 21 Mar 2023 16:31:00 +0100
 
