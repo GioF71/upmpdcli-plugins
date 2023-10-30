@@ -639,13 +639,24 @@ bool ConfSimple::write()
     }
 }
 
+
+bool ConfSimple::content_write(std::ostream& out) const
+{
+    return sortwalk(varprinter, &out) == WALK_CONTINUE ? true : false;
+}
+
+
 // Write out the tree in configuration file format:
 // This does not check holdWrites, this is done by write(void), which
-// lets ie: showall work even when holdWrites is set
+// lets this work even when holdWrites is set
 bool ConfSimple::write(std::ostream& out) const
 {
     if (!ok()) {
         return false;
+    }
+    if (m_order.empty()) {
+        // Then we have no presentation data. Just output the values and subkeys
+        content_write(out);
     }
     std::string sk;
     for (const auto& confline : m_order) {
@@ -690,14 +701,6 @@ bool ConfSimple::write(std::ostream& out) const
         }
     }
     return true;
-}
-
-void ConfSimple::showall() const
-{
-    if (!ok()) {
-        return;
-    }
-    write(std::cout);
 }
 
 std::vector<std::string> ConfSimple::getNames(const std::string& sk, const char *pattern) const

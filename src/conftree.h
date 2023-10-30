@@ -104,11 +104,11 @@ public:
     virtual bool hasNameAnywhere(const std::string& nm) const = 0;
     virtual int erase(const std::string&, const std::string&) = 0;
     virtual int eraseKey(const std::string&) = 0;
-    virtual void showall() const {};
     virtual std::vector<std::string> getSubKeys() const = 0;
     virtual std::vector<std::string> getSubKeys(bool) const = 0;
     virtual bool holdWrites(bool) = 0;
     virtual bool sourceChanged() const = 0;
+    virtual bool write(std::ostream&) const {return true;};
 };
 
 struct CaseComparator {
@@ -245,13 +245,9 @@ public:
      *         WALK_CONTINUE else (got to end of config)
      */
     enum WalkerCode {WALK_STOP, WALK_CONTINUE};
-    virtual WalkerCode sortwalk(WalkerCode
-                                (*wlkr)(void *cldata, const std::string& nm,
-                                        const std::string& val),
-                                void *clidata) const;
-
-    /** Print all values to stdout */
-    virtual void showall() const override;
+    virtual WalkerCode sortwalk(
+        WalkerCode (*wlkr)(void *cldata, const std::string& nm, const std::string& val),
+        void *clidata) const;
 
     /** Return all names in given submap. On win32, the pattern thing
         only works in recoll builds */
@@ -322,9 +318,11 @@ public:
     }
 
     /**
-     * Write in file format to out
+     * Write in file format to out. If the object was normally constructed from a file or string,
+     * this will respect the original comments and declarations order. If this object was copied
+     * from another, this will just output the significant content (submaps and parameters values).
      */
-    bool write(std::ostream& out) const;
+    bool write(std::ostream& out) const override;
 
     /** Give access to semi-parsed file contents */
     const std::vector<ConfLine>& getlines() const {
@@ -344,18 +342,23 @@ private:
     // null subkey)
     std::map<std::string, std::map<std::string, std::string, CaseComparator>,
              CaseComparator> m_submaps;
-    std::vector<std::string> m_subkeys_unsorted;
-    // Presentation data. We keep the comments, empty lines and
-    // variable and subkey ordering information in there (for
-    // rewriting the file while keeping hand-edited information)
+    // Presentation data. We keep the comments, empty lines and variable and subkey ordering
+    // information in there (for rewriting the file while keeping hand-edited information).
+    // ** This is not copied by the copy constructor or assignment operator, and is only valid
+    //    for an object directly constructed from data. **
     std::vector<ConfLine>    m_order;
-    // Control if we're writing to the backing store
+    std::vector<std::string> m_subkeys_unsorted;
+    // Control if we're writing to the backing store after each set()
     bool m_holdWrites{false};
+    // Comparators to use for names and keys comparisons. One is passed to the maps constructors,
+    // depending on our construction flags
     CaseComparator m_casecomp;
     CaseComparator m_nocasecomp{true};
 
     void parseinput(std::istream& input);
     bool write();
+    bool content_write(std::ostream& out) const;
+
     // Internal version of set: no RW checking
     virtual int i_set(const std::string& nm, const std::string& val,
                       const std::string& sk, bool init = false);
@@ -383,14 +386,15 @@ private:
 class ConfTree : public ConfSimple {
 
 public:
-    /* The constructors just call ConfSimple's, asking for key tilde
-     * expansion */
+    /* The constructors just call ConfSimple's, asking for key tilde expansion */
     ConfTree(const char *fname, int readonly = 0, bool trimvalues=true)
         : ConfSimple(fname, readonly, true, trimvalues) {}
     ConfTree(const std::string& data, int readonly = 0, bool trimvalues=true)
         : ConfSimple(data, readonly, true, trimvalues) {}
     ConfTree(int readonly = 0, bool trimvalues=true)
         : ConfSimple(readonly, true, trimvalues) {}
+    ConfTree(int flags, const std::string& dataorfn)
+        : ConfSimple(flags|ConfSimple::CFSF_TILDEXP, dataorfn) {}
     virtual ~ConfTree() = default;
     ConfTree(const ConfTree& r) : ConfSimple(r) {};
     ConfTree& operator=(const ConfTree& r) {
@@ -405,7 +409,6 @@ public:
      */
     virtual int get(const std::string& name, std::string& value,
                     const std::string& sk) const override;
-    using ConfSimple::get;
 };
 
 /**
@@ -422,19 +425,33 @@ public:
  */
 template <class T> class ConfStack : public ConfNull {
 public:
-    /// Construct from configuration file names. The earler
-    /// files in have priority when fetching values. Only the first
-    /// file will be updated if ro is false and set() is used.
-    ConfStack(const std::vector<std::string>& fns, bool ro = true) {
-        construct(fns, ro);
+    /// Construct from configuration file names. The earlier files in have priority when fetching
+    /// values.
+    /// Only the first file will be updated by set().
+    ConfStack(int flags, const std::vector<std::string>& fns) {
+        ConfStack::construct(flags, fns);
     }
+
+    // Old call, compat.
+    ConfStack(const std::vector<std::string>& fns, bool ro)
+        : ConfStack((ro ? ConfSimple::CFSF_RO : ConfSimple::CFSF_NONE), fns) {}
+
     /// Construct out of single file name and multiple directories
-    ConfStack(const std::string& nm, const std::vector<std::string>& dirs, bool ro = true) {
+    ConfStack(const std::string& nm, const std::vector<std::string>& dirs, bool ro) {
         std::vector<std::string> fns;
         for (const auto& dir : dirs) {
             fns.push_back(path_cat(dir, nm));
         }
-        ConfStack::construct(fns, ro);
+        ConfStack::construct((ro ? ConfSimple::CFSF_RO : ConfSimple::CFSF_NONE), fns);
+    }
+
+    /// Construct out of single file name and multiple directories
+    ConfStack(int flags, const std::string& nm, const std::vector<std::string>& dirs) {
+        std::vector<std::string> fns;
+        for (const auto& dir : dirs) {
+            fns.push_back(path_cat(dir, nm));
+        }
+        ConfStack::construct(flags, fns);
     }
 
     ConfStack(const ConfStack& rhs)
@@ -613,11 +630,11 @@ private:
     /// Common construct from file names.
     /// Fail if any fails, except for missing files in all but the bottom location, or the
     /// top one in rw mode.
-    void construct(const std::vector<std::string>& fns, bool ro) {
+    void construct(int flags, const std::vector<std::string>& fns) {
         bool ok{true};
         for (unsigned int i = 0; i < fns.size(); i++) {
             const auto& fn = fns[i];
-            T* p = new T(fn.c_str(), ro);
+            T* p = new T(flags, fn);
             if (p && p->ok()) {
                 m_confs.push_back(p);
             } else {
@@ -626,14 +643,14 @@ private:
                 // In rw mode, the topmost file must be present.
                 if (!path_exists(fn)) {
                     // !ro can only be true for i==0
-                    if (!ro || (i == fns.size() - 1)) {
+                    if (!(flags & ConfSimple::CFSF_RO) || (i == fns.size() - 1)) {
                         ok = false;
                         break;
                     }
                 }
             }
             // Only the first file is opened rw
-            ro = true;
+            flags |= ConfSimple::CFSF_RO;
         }
         m_ok = ok;
     }
