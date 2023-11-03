@@ -447,30 +447,29 @@ bool stringToBool(const std::string& s)
     return s.find_first_of("yYtT") == 0;
 }
 
-void trimstring(std::string& s, const char *ws)
+std::string& trimstring(std::string& s, const char *ws)
 {
     rtrimstring(s, ws);
     ltrimstring(s, ws);
+    return s;
 }
 
-void rtrimstring(std::string& s, const char *ws)
+std::string& rtrimstring(std::string& s, const char *ws)
 {
     std::string::size_type pos = s.find_last_not_of(ws);
     if (pos == std::string::npos) {
         s.clear();
     } else if (pos != s.length() - 1) {
-        s.replace(pos + 1, std::string::npos, std::string());
+        s.erase(pos + 1);
     }
+    return s;
 }
 
-void ltrimstring(std::string& s, const char *ws)
+std::string& ltrimstring(std::string& s, const char *ws)
 {
     std::string::size_type pos = s.find_first_not_of(ws);
-    if (pos == std::string::npos) {
-        s.clear();
-        return;
-    }
-    s.replace(0, pos, std::string());
+    s.erase(0, pos);
+    return s;
 }
 
 // Remove some chars and replace them with spaces

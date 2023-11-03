@@ -162,9 +162,9 @@ extern bool stringToBool(const std::string& s);
 
 /** Remove instances of characters belonging to set (default {space,
     tab}) at beginning and end of input string */
-extern void trimstring(std::string& s, const char *ws = " \t");
-extern void rtrimstring(std::string& s, const char *ws = " \t");
-extern void ltrimstring(std::string& s, const char *ws = " \t");
+extern std::string& trimstring(std::string& s, const char *ws = " \t");
+extern std::string& rtrimstring(std::string& s, const char *ws = " \t");
+extern std::string& ltrimstring(std::string& s, const char *ws = " \t");
 
 /** Escape things like < or & by turning them into entities */
 extern std::string escapeHtml(const std::string& in);

@@ -258,7 +258,7 @@ ConfSimple::ConfSimple(int flags, const std::string& dataorfn)
         m_submaps =  std::map<std::string, std::map<std::string, std::string, CaseComparator>,
                               CaseComparator>(m_nocasecomp);
     }
-    LOGDEB0("ConfSimple::ConfSimple: RO: " << (status==STATUS_RO) << " tildexp " << dotildexpand <<
+    CONFDEB("ConfSimple::ConfSimple: RO: " << (status==STATUS_RO) << " tildexp " << dotildexpand <<
            " trimvalues " << trimvalues << " from string? " << bool(flags & CFSF_FROMSTRING) <<
            " file name: " << ((flags & CFSF_FROMSTRING)?" data input " : dataorfn.c_str()) << "\n");
     if (flags & CFSF_FROMSTRING) {
@@ -798,8 +798,7 @@ int ConfTree::get(const std::string& name, std::string& value, const std::string
     const
 {
     if (sk.empty() || !path_isabsolute(sk)) {
-        LOGDEB2("ConfTree::get: looking in global space for ["  <<
-                sk << "]\n");
+        CONFDEB("ConfTree::get: looking in global space for ["  << sk << "]\n");
         return ConfSimple::get(name, value, sk);
     }
 
@@ -812,7 +811,7 @@ int ConfTree::get(const std::string& name, std::string& value, const std::string
 
     // Look in subkey and up its parents until root ('')
     for (;;) {
-        LOGDEB2("ConfTree::get: looking for ["  << name << "] in ["  <<
+        CONFDEB("ConfTree::get: looking for ["  << name << "] in ["  <<
                 msk << "]\n");
         if (ConfSimple::get(name, value, msk)) {
             return 1;
