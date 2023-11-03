@@ -33,7 +33,7 @@ on Android tablets or phones.
 
 %prep
 %setup -q
-%patch0 -p1
+%patch 0 -p1
 sh autogen.sh
 
 %build
