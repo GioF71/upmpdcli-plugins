@@ -1,10 +1,11 @@
-upmpdcli (1.8.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.8.4-3~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
+  * Rebuilt for rpi 1 (armv6) compatibility
   * Misc. improvements to the Tidal, Subsonic,and Radio Paradise Media
     Server plugins.
   * New Mother Earth Radio Media Server plugin.
   
- -- Jean-Francois Dockes <jf@dockes.org>  Mon, 30 Oct 2023 11:30:00 +0100
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 05 Nov 2023 05:15:00 +0100
 
 upmpdcli (1.8.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
