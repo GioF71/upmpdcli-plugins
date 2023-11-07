@@ -146,6 +146,7 @@ def playlists_art_retriever() -> str:
     response : Response[Playlists] = connector_provider.get().getPlaylists()
     if not response.isOk(): return None
     playlist_list : list[Playlist] = response.getObj().getPlaylists()
+    if not playlist_list or len(playlist_list) == 0: return None
     select : Playlist = secrets.choice(playlist_list)
     if not select: return None
     return select.getCoverArt()

@@ -35,8 +35,8 @@ allow_blacklisted_codec_in_song : int = int(get_plugin_option_value("allowblackl
 disable_navigable_album : int = int(get_plugin_option_value("disablenavigablealbumview", "0"))
 tag_initial_page_enabled_prefix : str = plugin_config_variable_name("taginitialpageenabled")
 autostart : int = int(get_plugin_option_value("autostart", "0"))
-log_intermediate_url : bool = get_plugin_option_value("logintermediate_url", "0") == "1"
-skip_intermediate_url : bool = get_plugin_option_value("skipintermediate_url", "0") == "1"
+log_intermediate_url : bool = get_plugin_option_value("logintermediateurl", "0") == "1"
+skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0") == "1"
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
     

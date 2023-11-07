@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.6"
+__subsonic_plugin_release : str = "0.2.7"
 
 import subsonic_init
 import subsonic_util
@@ -379,7 +379,7 @@ def _playlist_entry_to_entry(
     entry['id'] = id
     entry['pid'] = playlist_entry.getId()
     upnp_util.set_class_music_track(entry)
-    song_uri : str = entry_creator.build_intermediate_url(trackid = playlist_entry.getId())
+    song_uri : str = entry_creator.build_intermediate_url(track_id = playlist_entry.getId())
     entry['uri'] = song_uri
     title : str = playlist_entry.getTitle()
     entry['tt'] = title
@@ -1003,9 +1003,19 @@ def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, en
     msgproc.log(f"  radio:           [{get_radio_entry_list_elapsed_time:.3f}])")
     return entries
 
+def __getSimilarSongs(iid : str, count : int = 10) -> list[dict[str, any]]:
+    try:
+        res : Response[SimilarSongs] = connector_provider.get().getSimilarSongs(iid = iid, count = count)
+        if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
+        return res
+    except Exception as ex:
+        msgproc.log(f"Cannot execute getSimilarSongs for iid [{iid}]")
+
 def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
-    res : Response[SimilarSongs] = connector_provider.get().getSimilarSongs(iid = iid, count = 10)
-    if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
+    res : Response[SimilarSongs] = __getSimilarSongs(iid = iid, count = 10)
+    if not res or not res.isOk(): 
+        msgproc.log(f"Cannot get similar songs for iid {iid}")
+        return []
     if len(res.getObj().getSongs()) > 0:
         # ok to add entry
         radio_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
@@ -1251,7 +1261,11 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
         title = get_tag_Type_by_name(tag.getTagName()).getTagTitle())
     art_id : str = None
     if tagname in tag_art_retriever:
-        art_id = tag_art_retriever[tagname]()
+        art_id : str = None
+        try:
+            art_id = tag_art_retriever[tagname]()
+        except Exception as ex:
+            msgproc.log(f"Cannot retrieve art for tag [{tagname}]")
     if art_id:
         upnp_util.set_album_art_from_album_id(
             art_id, 
