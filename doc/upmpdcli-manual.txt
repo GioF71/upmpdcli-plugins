@@ -748,7 +748,7 @@ link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidro
 code.
 
 NOTE: The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.1.17/[subsonic-connector version 0.1.17] and
+link:https://pypi.org/project/subsonic-connector/0.2.6/[subsonic-connector version 0.2.6] and
 link:https://pypi.org/project/py-sonic/[py-sonic].
 
 List of currently available Features:
@@ -788,12 +788,16 @@ Notes on navigation by genre:
 
 The subsonic plugin is enabled by uncommenting the bogus setting for the `subsonicuser` variable
 in the upmpdcli configuration file.
-So will also need to specify:
+So you will also need to specify:
 
 - subsonicbaseurl
 - subsonicport
 - subsonicuser
 - subsonicpassword
+
+and, optionally, 
+
+- subsoniclegacyauth
 
 For example if your server is https://my-navidrome.mydomain.com, you will need to set
 
@@ -809,6 +813,10 @@ Consider that mpd will need to access those url, as well as your phone/tablet if
 plan to use BubbleUpnpServer. Consider using ip addresses if your android phone has difficulties
 resolving local network hostnames. If this happens, you might not be able to see the
 album covers, for example.
+
+The parameter subsoniclegacyauth is optional and disabled by default.
+Legacy authentication should be set (enable it with true) for subsonic servers which need these authentication mode.
+To my knowledge, only lms (Lightweight Media Server) currently needs legacy authentication to be enabled.
 
 There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
 

@@ -13,18 +13,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import connector_provider
 from subsonic_connector.artist_cover import ArtistCover
+from retrieved_art import RetrievedArt
 from typing import Callable
+
+import connector_provider
+import config
 
 def __album_id_converter(album_id : str) -> str:
     return connector_provider.get().buildCoverArtUrl(album_id) if album_id else None
 
-def __artist_id_converter(artist_id : str) -> str:
+def __artist_id_converter(artist_id : str, albums_only : bool = False) -> RetrievedArt:
     artist_cover : ArtistCover = connector_provider.get().getCoverByArtistId(artist_id)
     if not artist_cover: return None
-    return artist_cover.getCoverArt()
+    return (RetrievedArt(art_url = artist_cover.getArtistArtUrl())
+        if artist_cover.getArtistArtUrl() and config.allow_artist_art
+        else RetrievedArt(cover_art = artist_cover.getAlbumId()))
 
 converter_album_id_to_url : Callable[[str], str] = __album_id_converter
-converter_artist_id_to_url : Callable[[str], str] = __artist_id_converter
+converter_artist_id_to_url : Callable[[str, bool], RetrievedArt] = __artist_id_converter
 

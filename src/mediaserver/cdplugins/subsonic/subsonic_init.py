@@ -27,6 +27,7 @@ from subsonic_connector.artists_initial import ArtistsInitial
 from subsonic_connector.album import Album
 from subsonic_connector.genres import Genres
 from subsonic_connector.artists import Artists
+from subsonic_connector.internet_radio_stations import InternetRadioStations
 
 import connector_provider
 import cache_manager_provider
@@ -39,10 +40,41 @@ def subsonic_init():
     init_success : bool = False
     try:
         initial_caching()
+        check_supports()
         init_success = True
     except Exception as e:
         msgproc.log(f"Subsonic Initialization failed [{e}]")
     msgproc.log(f"Subsonic Initialization success: [{init_success}]")
+
+def check_supports():
+    check_supports_highest()
+    check_supports_internet_radios()
+
+def check_supports_highest():
+    # see if there is support for highest in getAlbumLists2
+    supported : bool = False
+    try:
+        res : Response[AlbumList] = connector_provider.get().getAlbumList(ltype = ListType.HIGHEST, size = 1)
+        if res and res.isOk():
+            # supported!
+            supported = True
+    except Exception as ex:
+        msgproc.log(f"check_supports_highest highest not supported [{type(ex)}] [{ex}]")
+    msgproc.log(f"highest type in getAlbumList supported: [{'yes' if supported else 'no'}]")  
+    if not supported: config.album_list_by_highest_supported = False
+
+def check_supports_internet_radios():
+    # see if there is support for highest in getAlbumLists2
+    supported : bool = False
+    try:
+        res : Response[InternetRadioStations] = connector_provider.get().getInternetRadioStations()
+        if res and res.isOk():
+            # supported!
+            supported = True
+    except Exception as ex:
+        msgproc.log(f"check_supports_highest highest not supported [{type(ex)}] [{ex}]")
+    msgproc.log(f"Internet Radio stations supported: [{'yes' if supported else 'no'}]")  
+    if not supported: config.internet_radio_stations_supported = False
 
 def initial_caching():
     load_by_newest()

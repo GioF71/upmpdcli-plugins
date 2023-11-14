@@ -250,10 +250,16 @@ upradiostitle = Upmpdcli Radio List
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
 #subsonicport = 4533
+# Subsonic legacy authentication
+#subsoniclegacyauth = false
 # SubSonic items per page
 #subsonicitemsperpage = 36
 # Append year to album
 #subsonicappendyeartoalbum = 1
+# Enable transcoding
+#subsonictranscodecodec = ogg
+# Set transcoding max bitrate
+#subsonictranscodemaxbitrate = 320
 
 # Upmpdcli BBC Sounds plugin parameters
 

@@ -605,6 +605,10 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Required for SubSonic authentication. Set it to the appropriate password.</descr></var>
 #subsonicpassword = subsonicpassword
 
+# <var name="subsoniclegacyauth" type="string"><brief>SubSonic legacy authentication mode.</brief>
+# <descr>Required for SubSonic authentication with some servers (e.g. lms). Set to true to enable.</descr></var>
+#subsoniclegacyauth = false
+
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
 #subsonicbaseurl = http://subsonic.localdomain.local
@@ -620,6 +624,14 @@ upradiostitle = Upmpdcli Radio List
 # <var name="subsonicappendyeartoalbum" type="bool"><brief>Append year to album</brief>
 # <descr>If enabled, the year will be appended to the album in the lists. Enabled by default.</descr></var>
 #subsonicappendyeartoalbum = 1
+
+# <var name="subsonictranscodecodec" type="string"><brief>Enable transcoding</brief>
+# <descr>If a value is set, it will be used as the codec for the transcoding process</descr></var>
+#subsonictranscodecodec = ogg
+
+# <var name="subsonictranscodemaxbitrate" type="int"><brief>Set max bitrate for transcoding</brief>
+# <descr>If a value is set, it will be used as the max bitrate for the transcoding process</descr></var>
+#subsonictranscodemaxbitrate = 320
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 

@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.2.7"
+__subsonic_plugin_release : str = "0.3.0"
 
 import subsonic_init
 import subsonic_util
@@ -52,8 +52,8 @@ from subsonic_connector.starred import Starred
 
 import config
 
-from tag_type import TagType, get_tag_Type_by_name
-from element_type import ElementType
+from tag_type import TagType, get_tag_type_by_name
+from element_type import ElementType, get_element_type_by_name
 from search_type import SearchType
 
 from item_identifier_key import ItemIdentifierKey
@@ -76,14 +76,18 @@ from album_util import AlbumTracks
 from album_util import get_display_artist
 
 from art_retriever import tag_art_retriever
+from retrieved_art import RetrievedArt
 
 from subsonic_util import get_random_art_by_genre
 from subsonic_util import get_album_tracks
+
+from tag_type import get_tag_type_by_name
 
 import connector_provider
 import converter
 import subsonic_init
 import artist_initial_cache_provider
+import art_retriever
 
 import secrets
 import mimetypes
@@ -132,32 +136,68 @@ def _initsubsonic():
     return True
 
 def build_streaming_url(track_id : str) -> str:
-    streaming_url : str = connector_provider.get().buildSongUrl(song_id = track_id)
+    streaming_url : str = connector_provider.get().buildSongUrl(
+        song_id = track_id,
+        format = config.get_transcode_codec(),
+        max_bitrate = config.get_transcode_max_bitrate())
     msgproc.log(f"build_streaming_url for track_id: [{track_id}] -> [{streaming_url}]")
     return streaming_url
+
+mime_type_by_suffix : dict[str, str] = {
+    'flac': 'audio/flac',
+    'opus': 'audio/opus',
+    'mp3':  'audio/mp3',
+    'm4a':  'audio/aac',
+    'aac':  'audio/aac',
+    'oga':  'audio/ogg',
+    'ogg':  'audio/ogg'}
 
 @dispatcher.record('trackuri')
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
-    url = build_streaming_url(track_id) or ""
+    http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
+    orig_url : str = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
     res : Response[Song] = connector_provider.get().getSong(song_id = track_id)
     song : Song = res.getObj() if res else None
     if not song: return {'media_url' : ""}
-    media_url : str = connector_provider.get().buildSongUrlBySong(song)
-    mime_type : str = song.getContentType()
-    kbs : str = str(song.getBitRate())
-    msgproc.log(f"media_url [{media_url}] mimetype [{mime_type}] kbs [{kbs}]")
-    return {
-        'media_url' : media_url,
-        'mimetype' : mime_type,
-        'kbs' : kbs
-    }
+    media_url : str = connector_provider.get().buildSongUrlBySong(
+        song = song, 
+        format = config.get_transcode_codec(),
+        max_bitrate = config.get_transcode_max_bitrate())
+    mime_type : str = mime_type_by_suffix[config.get_transcode_codec()] if config.get_transcode_codec() else song.getContentType()
+    suffix : str = config.get_transcode_codec() if config.get_transcode_codec() else song.getSuffix()
+    if not mime_type:
+        # guess from url
+        msgproc.log(f"trackuri mimetype missing, guessing from url ...")
+        guess_mimetype_tuple = mimetypes.guess_type(url = media_url)
+        mime_type = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
+        msgproc.log(f"trackuri mimetype guess successful [{'yes' if mime_type else 'no'}]: [{mime_type}]")
+        if (not mime_type) and suffix:
+            msgproc.log(f"trackuri guessing mimetype failed, using know mimetype table by suffix ...")
+            mime_type = mime_type_by_suffix[suffix] if suffix in mime_type_by_suffix else None
+            msgproc.log(f"trackuri mimetype found [{'yes' if mime_type else 'no'}]: [{mime_type}] (suffix is [{suffix}])")
+        elif (not mime_type):
+            # nothing to do...
+            msgproc.log(f"trackuri suffix is also missing, we will not be adding mimetype to response.")
+    kbs : str = (str(config.get_transcode_max_bitrate())
+        if config.get_transcode_max_bitrate()
+        else (str(song.getBitRate()) 
+              if song.getBitRate() 
+              else None))
+    duration : str = str(song.getDuration()) if song.getDuration() else None
+    msgproc.log(f"trackuri interm_url [{orig_url}] media_url [{media_url}] mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] duration [{duration}]")
+    result : dict[str, str] = dict()
+    result['media_url'] = media_url
+    if mime_type: result["mimetype"] = mime_type
+    if kbs: result['kbs'] = kbs
+    if duration: result["duration"] = duration
+    return result
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""
-    return {"entries" : json.dumps(entries), "nocache" : "0"}
+    return {"entries" : json.dumps(entries), "nocache" : "1"}
 
 def _station_to_entry(
         objid, 
@@ -175,7 +215,8 @@ def _station_to_entry(
     upnp_util.set_album_title(station.getName(), entry)
     entry['tp']= 'it'
     upnp_util.set_artist("Internet Radio", entry)
-    mime_type : str = mimetypes.guess_type(stream_url)[0]
+    guess_mimetype_tuple = mimetypes.guess_type(stream_url)
+    mime_type : str = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
     msgproc.log(f"_station_to_entry guessed mimetype [{mime_type}] for stream_url [{stream_url}]")
     if not mime_type: mime_type = "audio/mpeg"
     entry['res:mime'] = mime_type
@@ -456,39 +497,43 @@ def _create_tag_next_entry(
         title = "Next")
     return tag_entry
 
-def __handler_tag_type(objid, item_identifier : ItemIdentifier, tag_type : TagType, entries : list) -> list:
+def __handler_tag_album_listype(objid, item_identifier : ItemIdentifier, tag_type : TagType, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    entries = _load_albums_by_type(
-        objid = objid, 
-        entries = entries, 
-        tagType = tag_type, 
-        offset = offset)
-    # offset is: current offset + the entries length
-    if (len(entries) == config.items_per_page):
-        next_page : dict = _create_tag_next_entry(
+    try:
+        entries = _load_albums_by_type(
             objid = objid, 
-            tag = tag_type, 
-            offset = offset + len(entries))
-        entries.append(next_page)
-    return entries
+            entries = entries, 
+            tagType = tag_type, 
+            offset = offset)
+        # offset is: current offset + the entries length
+        if (len(entries) == config.items_per_page):
+            next_page : dict = _create_tag_next_entry(
+                objid = objid, 
+                tag = tag_type, 
+                offset = offset + len(entries))
+            entries.append(next_page)
+        return entries
+    except Exception as ex:
+        msgproc.log(f"Cannot handle tag [{tag_type.getTagName()}] [{type(ex)}] [{ex}]")
+        return list()
 
 def _handler_tag_newest(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.NEWEST, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST, entries)
 
 def _handler_tag_most_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.MOST_PLAYED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.MOST_PLAYED, entries)
 
 def _handler_tag_favourites(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.FAVOURITES, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.FAVOURITES, entries)
 
 def _handler_tag_highest_rated(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.HIGHEST_RATED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.HIGHEST_RATED, entries)
 
 def _handler_tag_recently_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.RECENTLY_PLAYED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.RECENTLY_PLAYED, entries)
 
 def _handler_tag_random(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_type(objid, item_identifier, TagType.RANDOM, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.RANDOM, entries)
 
 def _handler_tag_random_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, True)
@@ -910,15 +955,19 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
         artist_album_id, 
         objid, 
         title = "Albums")
-    album_art : str = converter.converter_artist_id_to_url(artist_id)
-    if album_art: upnp_util.set_album_art_from_album_id(
-            album_art, 
-            albums_entry)
+    # use one album for this entry image
+    art_album_id : str = subsonic_util.get_artist_art(artist_id, subsonic_init_provider.initializer_callback)
+    upnp_util.set_album_art_from_album_id(
+        art_album_id, 
+        albums_entry)
     entries.append(albums_entry)
-    top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, artist_id, artist.getName()) 
-    top_songs_entry : dict[str, any]
-    for top_songs_entry in top_songs_entry_list: 
-        entries.append(top_songs_entry)
+    try:
+        top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, artist_id, artist.getName()) 
+        top_songs_entry : dict[str, any]
+        for top_songs_entry in top_songs_entry_list: 
+            entries.append(top_songs_entry)
+    except Exception as ex:
+        msgproc.log(f"Cannot get top songs for artist_id [{artist_id}] [{type(ex)}] [{ex}]")
     similar_artists_entry : dict[str, any] = _similar_artists_for_artist(objid, artist_id)
     if similar_artists_entry: entries.append(similar_artists_entry)
     radio_entry_list : list[dict[str, any]] = _radio_entry(objid, iid = artist.getId())
@@ -975,32 +1024,49 @@ def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, en
     get_album_elapsed_time : float = time.time() - get_album_start_time
     entries.append(album_entry)
     get_artist_start_time : float = time.time()
-    artist_entry : dict[str, any] = _artist_entry_for_album(objid, album)
-    get_artist_elapsed_time : float = time.time() - get_artist_start_time
-    entries.append(artist_entry)
+    get_artist_elapsed_time : float = None
+    if album.getArtistId():
+        artist_entry : dict[str, any] = _artist_entry_for_album(objid, album)
+        get_artist_elapsed_time = time.time() - get_artist_start_time
+        entries.append(artist_entry)
+    else:
+        msgproc.log(f"_handler_element_navigable_album no artistId for album [{album.getId()}] [{album.getTitle()}], not creating artist entry")
+    get_top_songs_elapsed_time : float = 0
     get_top_songs_start_time : float = time.time()
-    top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, album.getArtistId(), album.getArtist())
-    top_songs_entry: dict[str, any]
-    get_top_songs_elapsed_time : float = time.time() - get_top_songs_start_time
-    for top_songs_entry in top_songs_entry_list:
-        entries.append(top_songs_entry)
+    get_top_songs_elapsed_time : float = None
+    if album.getArtistId():
+        try:
+            top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, album.getArtistId(), album.getArtist())
+            top_songs_entry: dict[str, any]
+            get_top_songs_elapsed_time = time.time() - get_top_songs_start_time
+            for top_songs_entry in top_songs_entry_list:
+                entries.append(top_songs_entry)
+        except Exception as ex:
+            msgproc.log(f"_handler_element_navigable_album cannot add top songs entry [{type(ex)}] [{ex}]")    
+    else:
+        msgproc.log(f"_handler_element_navigable_album no artistId for album [{album.getId()}] [{album.getTitle()}], not creating top songs entry")
     get_similar_artists_start_time : float = time.time()
-    similar_artist_entry : dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
-    get_similar_artists_elapsed_time : float = time.time() - get_similar_artists_start_time
-    if similar_artist_entry: entries.append(similar_artist_entry)
+    get_similar_artists_elapsed_time : float = None
+    if album.getArtistId():
+        similar_artist_entry : dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
+        get_similar_artists_elapsed_time = time.time() - get_similar_artists_start_time
+        if similar_artist_entry: entries.append(similar_artist_entry)
+    else:
+        msgproc.log(f"_handler_element_navigable_album no artistId for album [{album.getId()}] [{album.getTitle()}], not creating similar artists entry")
     get_radio_entry_list_start_time : float = time.time()
+    get_radio_entry_list_elapsed_time : float = None
     _radio_entry_list : list[dict[str, any]] = _radio_entry(objid, album.getId())
-    get_radio_entry_list_elapsed_time : float = time.time() - get_radio_entry_list_start_time
+    get_radio_entry_list_elapsed_time = time.time() - get_radio_entry_list_start_time
     radio_entry : dict[str, any]
     for radio_entry in _radio_entry_list if _radio_entry_list else []:
         entries.append(radio_entry)
     elapsed_time : float = time.time() - start_time
     msgproc.log(f"_handler_element_navigable_album for album_id {album_id} took [{elapsed_time:.3f}] seconds")
     msgproc.log(f"  album:           [{get_album_elapsed_time:.3f}]")
-    msgproc.log(f"  artist:          [{get_artist_elapsed_time:.3f}])")
-    msgproc.log(f"  top songs:       [{get_top_songs_elapsed_time:.3f}])")
-    msgproc.log(f"  similar artists: [{get_similar_artists_elapsed_time:.3f}])")
-    msgproc.log(f"  radio:           [{get_radio_entry_list_elapsed_time:.3f}])")
+    if get_artist_elapsed_time: msgproc.log(f"  artist:          [{get_artist_elapsed_time:.3f}])")
+    if get_top_songs_elapsed_time: msgproc.log(f"  top songs:       [{get_top_songs_elapsed_time:.3f}])")
+    if get_similar_artists_elapsed_time: msgproc.log(f"  similar artists: [{get_similar_artists_elapsed_time:.3f}])")
+    if get_radio_entry_list_elapsed_time: msgproc.log(f"  radio:           [{get_radio_entry_list_elapsed_time:.3f}])")
     return entries
 
 def __getSimilarSongs(iid : str, count : int = 10) -> list[dict[str, any]]:
@@ -1060,12 +1126,16 @@ def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
         artist_id, 
         objid, 
         title = f"Artist: {album.getArtist()}")
-    artist_art : str = converter.converter_artist_id_to_url(album.getArtistId())
-    if artist_art:
-        upnp_util.set_album_art_from_album_id(
-            artist_art, 
+    artist_art : RetrievedArt = converter.converter_artist_id_to_url(album.getArtistId())
+    if artist_art and artist_art.art_url:
+        upnp_util.set_album_art_from_uri(
+            artist_art.art_url, 
             artist_entry)
-        cache_manager_provider.get().cache_element_value(ElementType.ARTIST, album.getArtistId(), artist_art)
+    elif artist_art and artist_art.cover_art:
+        upnp_util.set_album_art_from_album_id(
+            artist_art.cover_art, 
+            artist_entry)
+        cache_manager_provider.get().cache_element_value(ElementType.ARTIST, album.getArtistId(), artist_art.cover_art)
     return artist_entry
 
 def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> list[dict[str, any]]:
@@ -1161,28 +1231,56 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
     return entries
 
 def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    entry_list : list[dict[str, any]] = tag_list_to_entries(
-        objid, 
-        [
+    tag_list : list[TagType] = [
             TagType.NEWEST,
             TagType.RECENTLY_PLAYED,
             TagType.HIGHEST_RATED,
             TagType.MOST_PLAYED,
             TagType.RANDOM,
             TagType.FAVOURITES
-        ])
-    entries = entries + entry_list
+        ]
+    current : TagType
+    for current in tag_list:
+        if config.is_tag_supported(current):
+            try:
+                entry : dict[str, any] = tag_to_entry(
+                    objid, 
+                    current)
+                entries.append(entry)
+            except Exception as ex:
+                msgproc.log("Cannot create entry for tag [{current.getTagName()}] [{type(ex)}] [{ex}]")
+        else:
+            msgproc.log(f"_handler_tag_group_albums skipping unsupported [{current}]")
     return entries
 
 def _handler_tag_group_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    entry_list : list[dict[str, any]] = tag_list_to_entries(
-        objid, 
-        [
-            TagType.ARTISTS_ALL,
-            TagType.ARTISTS_INDEXED,
-            TagType.FAVOURITE_ARTISTS
-        ])
-    entries = entries + entry_list
+    tag_list : list[TagType] = [
+        TagType.ARTISTS_ALL,
+        TagType.ARTISTS_INDEXED]
+    current_tag : TagType
+    for current_tag in tag_list:
+        entry : dict[str, any] = create_entry_for_tag(objid, current_tag)
+        # pick random song for image
+        res : Response[RandomSongs] = connector_provider.get().getRandomSongs(size = 1)
+        random_song : Song = res.getObj().getSongs()[0] if res and len(res.getObj().getSongs()) > 0 else None
+        album_id : str = random_song.getAlbumId()
+        upnp_util.set_album_art_from_album_id(
+            album_id = album_id, 
+            target = entry)
+        entries.append(entry)
+    fav_artist_entry : dict[str, any] = create_entry_for_tag(objid, TagType.FAVOURITE_ARTISTS)
+    fav_artists : list[Artist] = connector_provider.get().getStarred().getObj().getArtists()
+    select_fav : Artist = secrets.choice(fav_artists) if fav_artists and len(fav_artists) > 0 else None
+    if select_fav:
+        msgproc.log(f"_handler_tag_group_artists fav_artist [{select_fav.getId()}] [{select_fav.getName()}]")
+        # select random album
+        art : RetrievedArt = art_retriever.get_artist_art(artist_id = select_fav.getId())
+        msgproc.log(f"_handler_tag_group_artists   art: [{art.cover_art}] [{art.art_url}]")
+        if art and art.cover_art:
+            upnp_util.set_album_art_from_album_id(
+                album_id = art.cover_art, 
+                target = fav_artist_entry)
+    entries.append(fav_artist_entry)
     return entries
 
 def _handler_tag_group_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1251,30 +1349,42 @@ def tag_list_to_entries(objid, tag_list : list[TagType]) -> list[dict[str, any]]
         entry_list.append(entry)
     return entry_list
 
-def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
+def create_entry_for_tag(objid, tag : TagType) -> dict[str, any]:
     tagname : str = tag.getTagName()
     identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry : dict = upmplgutils.direntry(
         id = id, 
         pid = objid, 
-        title = get_tag_Type_by_name(tag.getTagName()).getTagTitle())
-    art_id : str = None
+        title = get_tag_type_by_name(tag.getTagName()).getTagTitle())
+    return entry    
+
+def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
+    entry : dict[str, any] = create_entry_for_tag(objid, tag)
+    retrieved_art : RetrievedArt = None
+    tagname : str = tag.getTagName()
     if tagname in tag_art_retriever:
-        art_id : str = None
         try:
-            art_id = tag_art_retriever[tagname]()
+            retrieved_art = tag_art_retriever[tagname]()
         except Exception as ex:
-            msgproc.log(f"Cannot retrieve art for tag [{tagname}]")
-    if art_id:
+            msgproc.log(f"Cannot retrieve art for tag [{tagname}] [{type(ex)}] [{ex}]")
+    msgproc.log(f"tag_to_entry [{get_tag_type_by_name(tag.getTagName())}] got a [{type(retrieved_art) if retrieved_art else None}]")
+    if retrieved_art and retrieved_art.cover_art:
         upnp_util.set_album_art_from_album_id(
-            art_id, 
+            retrieved_art.cover_art, 
+            entry)
+    elif retrieved_art and retrieved_art.art_url:
+        upnp_util.set_album_art_from_uri(
+            retrieved_art.art_url, 
             entry)
     return entry
 
 def _show_tags(objid, entries : list) -> list:
     for tag in TagType:
-        if tag_enabled_in_initial_page(tag): entries.append(tag_to_entry(objid, tag))
+        if config.is_tag_supported(tag):
+            if tag_enabled_in_initial_page(tag): entries.append(tag_to_entry(objid, tag))
+        else:
+            msgproc.log(f"_show_tags skipping unsupported [{tag}]")
     return entries
 
 @dispatcher.record('browse')
@@ -1309,7 +1419,7 @@ def browse(a):
             msgproc.log(f"browse: should serve tag: --{thing_value}--")
             tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
             if tag_handler:
-                msgproc.log(f"browse: found tag handler for: --{thing_value}--")
+                msgproc.log(f"browse: found tag handler for: --{get_tag_type_by_name(thing_value)}--")
                 entries = tag_handler(objid, item_identifier, entries)
                 return _returnentries(entries)
             else:
@@ -1318,7 +1428,7 @@ def browse(a):
             msgproc.log(f"browse: should serve element: --{thing_name}-- [{thing_value}]")
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
             if elem_handler:
-                msgproc.log(f"browse: found elem handler for: --{thing_name}--")
+                msgproc.log(f"browse: found elem handler for: --{get_element_type_by_name(thing_name)}--")
                 entries = elem_handler(objid, item_identifier, entries)
             else:
                 msgproc.log(f"browse: element handler for: --{thing_name}-- not found")

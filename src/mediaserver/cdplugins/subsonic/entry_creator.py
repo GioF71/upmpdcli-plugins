@@ -16,7 +16,9 @@
 from subsonic_connector.album import Album
 from subsonic_connector.genre import Genre
 from subsonic_connector.song import Song
+from subsonic_connector.artist import Artist
 from subsonic_connector.playlist import Playlist
+from subsonic_connector.response import Response
 
 from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
@@ -119,7 +121,9 @@ def artist_to_entry(
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(), 
         artist_id)
-    id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id : str = identifier_util.create_objid(
+        objid = objid, 
+        id = identifier_util.create_id_from_identifier(identifier))
     entry = direntry(id, 
         objid, 
         entry_name)
@@ -160,7 +164,10 @@ def build_intermediate_url(track_id : str) -> str:
         if config.log_intermediate_url: msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
         return url
     else:
-        return connector_provider.get().buildSongUrl(track_id)
+        return connector_provider.get().buildSongUrl(
+            song_id = track_id,
+            format = config.get_transcode_codec(),
+            max_bitrate = config.get_transcode_max_bitrate())
 
 def song_to_entry(
         objid, 

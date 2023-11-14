@@ -19,6 +19,7 @@ import upmplgutils
 #from upmplgutils import getOptionValue
 import libsonic
 from subsonic_connector.configuration import ConfigurationInterface
+from tag_type import TagType
 
 def plugin_config_variable_name(name : str) -> str:
     return f"{constants.plugin_name}{name}"
@@ -37,12 +38,55 @@ tag_initial_page_enabled_prefix : str = plugin_config_variable_name("taginitialp
 autostart : int = int(get_plugin_option_value("autostart", "0"))
 log_intermediate_url : bool = get_plugin_option_value("logintermediateurl", "0") == "1"
 skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0") == "1"
+allow_artist_art : bool = get_plugin_option_value("allowartistart", "0") == "1"
+
+__transcode_codec : str = get_plugin_option_value("transcodecodec", "")
+__transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
+
+# supported unless initializer understands it is not
+# begin
+album_list_by_highest_supported : bool = True
+internet_radio_stations_supported : bool = True
+# end
+
+__fallback_transcode_codec : str = "ogg"
+
+def __is_transcode_enabled() -> bool:
+    return __transcode_codec or __transcode_max_bitrate
+
+def get_transcode_codec() -> str:
+    if __transcode_codec: return __transcode_codec
+    if __is_transcode_enabled(): return __fallback_transcode_codec
+    return None
+
+def get_transcode_max_bitrate() -> int:
+    if __transcode_max_bitrate: return int(__transcode_max_bitrate)
+    if __transcode_codec: return 320
+    return None
+
+def is_tag_supported(tag : TagType) -> bool:
+    # true unless there are exceptions ...
+    if tag == TagType.HIGHEST_RATED:
+        return album_list_by_highest_supported
+    elif tag == TagType.INTERNET_RADIOS:
+        return internet_radio_stations_supported
+    return True
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
     
     def getBaseUrl(self) -> str: return get_plugin_option_value("baseurl")
+    
     def getPort(self) -> int: return get_plugin_option_value("port")
+    
     def getUserName(self) -> str: return get_plugin_option_value("user")
+    
     def getPassword(self) -> str: return get_plugin_option_value("password")
+    
+    def getLegacyAuth(Self) -> bool:
+        legacy_auth_enabled_str : str = get_plugin_option_value("legacyauth", "false")
+        if not legacy_auth_enabled_str.lower() in ['true', 'false']: 
+            raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
+        return legacy_auth_enabled_str == "true"
+
     def getApiVersion(self) -> str: return libsonic.API_VERSION
     def getAppName(self) -> str: return "upmpdcli"
