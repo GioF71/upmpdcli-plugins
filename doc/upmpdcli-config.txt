@@ -404,14 +404,6 @@ tidalexpirytime:: Token expiry time. The expiry time, as an epoch-based floating
 tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA, HI_RES_LOSSLESS for
 hi-res FLAC files (if your subscription allows streaming each of the formats).
 
-=== Deezer streaming service parameters 
-
-[[deezeruser]]
-deezeruser:: Deezer user name. Your Deezer login name.
-
-[[deezerpass]]
-deezerpass:: Deezer password. The password for your Deezer account.
-
 === Local Media Server parameters 
 
 [[uprcluser]]
@@ -512,6 +504,9 @@ subsonicuser:: SubSonic User name variable. Decides if the service should be sta
 [[subsonicpassword]]
 subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
 
+[[subsoniclegacyauth]]
+subsoniclegacyauth:: SubSonic legacy authentication mode. Required for SubSonic authentication with some servers (e.g. lms). Set to true to enable.
+
 [[subsonicbaseurl]]
 subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
 
@@ -523,6 +518,12 @@ subsonicitemsperpage:: SubSonic items per page Number of items per page for SubS
 
 [[subsonicappendyeartoalbum]]
 subsonicappendyeartoalbum:: Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
+
+[[subsonictranscodecodec]]
+subsonictranscodecodec:: Enable transcoding If a value is set, it will be used as the codec for the transcoding process
+
+[[subsonictranscodemaxbitrate]]
+subsonictranscodemaxbitrate:: Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
 
 === Upmpdcli BBC Sounds plugin parameters 
 

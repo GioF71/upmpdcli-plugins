@@ -218,4 +218,5 @@ def search(a):
 
 
 msgproc.log("Deezer running")
+maybelogin()
 msgproc.mainloop()

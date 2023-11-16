@@ -2,6 +2,7 @@
 # Copyright (C) 2021 Jean-Francois Dockes
 #
 # A lot of code strongly inspired or copied from the Kodi Deezer API,
+# https://github.com/Valentin271/DeezerKodi
 # the copyright of which is not too clear (but it's GPL):
 #     Copyright (C) 2016 Jakub Gawron
 #     Copyright (C) 2020 Valentin271 (Github.com)
@@ -24,6 +25,10 @@
 
 # Deezer low level interface and session management. We return barely
 # prepared json objects
+
+##### *** NOTE: this is broken as of fall 2023. Deezer changed the "tv" host (URL updated here) and
+#####     API (old one not working, no idea of new one). ***
+# See https://github.com/Valentin271/DeezerKodi/issues/32
 
 import sys
 import time
@@ -52,7 +57,7 @@ from upmplgutils import *
 class MLog(object):
     def __init__(self):
         self.f = sys.stderr
-        self.level = 1
+        self.level = 3
     def _doprint(self, msg):
         print("DeezerAPI: %s" % msg, file=self.f)
     def debug(self, msg):
@@ -71,8 +76,8 @@ class DeezerAPI(object):
 
     def __init__(self):
         self.apiUrl = "http://api.deezer.com/2.0/{service}/{id}/{method}"
-        self.streamingUrl = "http://tv.deezer.com/smarttv/streaming.php"
-        self.authUrl = "http://tv.deezer.com/smarttv/authentication.php"
+        self.streamingUrl = "https://tv2.deezer.com/smarttv/streaming.php"
+        self.authUrl = "https://tv2.deezer.com/smarttv/authentication.php"
         self.username = None
         self.passmd5 = None
         self.access_token = None
@@ -155,6 +160,7 @@ class DeezerAPI(object):
             data = self.session.get(self.authUrl, params={
                 'login': self.username, 'password': self.passmd5,
                 'device': 'panasonic'})
+            log.info(f"data {data}")
             js = data.json()
             if 'access_token' not in js:
                 log.warn("login failed")

@@ -186,13 +186,6 @@
 # Tidal maximum stream quality.
 #tidalaudioquality = LOSSLESS
 
-# Deezer streaming service parameters
-
-# Deezer user name.
-#deezeruser = me@some.place
-# Deezer password.
-#deezerpass = agoodpassword
-
 # Local Media Server parameters
 
 # Bogus user name variable.
@@ -246,19 +239,19 @@ upradiostitle = Upmpdcli Radio List
 #subsonicuser = subsonic
 # SubSonic Password variable.
 #subsonicpassword = subsonicpassword
+# SubSonic legacy authentication mode.
+#subsoniclegacyauth = false
 # SubSonic server base url.
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
 #subsonicport = 4533
-# Subsonic legacy authentication
-#subsoniclegacyauth = false
 # SubSonic items per page
 #subsonicitemsperpage = 36
 # Append year to album
 #subsonicappendyeartoalbum = 1
 # Enable transcoding
 #subsonictranscodecodec = ogg
-# Set transcoding max bitrate
+# Set max bitrate for transcoding
 #subsonictranscodemaxbitrate = 320
 
 # Upmpdcli BBC Sounds plugin parameters

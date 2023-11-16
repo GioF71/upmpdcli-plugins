@@ -188,7 +188,7 @@ Additionally:
   completely independant: *upmpdcli* can run as Renderer only, or Media Server only, or both, and
   the Media Server can be accessed by any Control Point and serve streams to any Renderer, not only
   to its co-hosted one. The Upmpdcli Media Server implements gateways to external streaming services
-  (Highresaudio, Qobuz, Tidal, Deezer...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*]
+  (Highresaudio, Qobuz, Tidal...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*]
   module, which provides a Media Server for local audio files. *uprcl* is based on the
   link:https://www.recoll.org[Recoll] medata extraction and search functions.
 
@@ -824,10 +824,9 @@ There are currently a few additional configuration parameters in the <<subsonicu
 [[UPMPDCLI-MS-STR]]
 === Streaming Services
   
-The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio and
-Qobuz currently work fine (1.6.2).
-
-The Deezer plugin works for low quality (but still usable) streams (128 kb/s mp3).
+The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio,
+Tidal and Qobuz currently work fine (1.7.0). Deezer used to work, but does not any more (API change
+fall 2023).
 
 You will need a valid subscription for any service that you want to use.
 
@@ -921,27 +920,6 @@ The configuration parameters are described in the <<qobuzuser,configuration sect
 If you are using the Linn Kazoo Control Point, upmpdcli has support for the `Credentials` service,
 which facilitates configuration. Details xref:UPMPDCLI-MS-STR-CRED[here].
 
-
-'''
-[[UPMPDCLI-MS-STR-DEEZER]]
-=== Deezer
-
-You will need a premium (paid) account.
-
-The plugin is based on code from the link:https://github.com/Valentin271/DeezerKodi.git[Kodi
-add-on], by Jakub Gawron (kubatek94) and ? (Valentin271).
-
-It uses the Deezer "television" API and only provides access to 128 kb/s MP3 streams.
-
-NOTE: The plugin uses the `requests` Python3 package, which is usually installed as a package
-dependency. Else install it from Pypi.
-
-
-Enable this function by installing the upmpdcli Deezer module (which may be a separate package,
-e.g. upmpdcli-deezer on Debian), and adding your login and password to the configuration.
-
-The configuration parameters are described in the <<deezeruser,configuration section>>. Only
-`deezeruser` and `deezerpass` actually.
 
 
 '''
@@ -1348,7 +1326,7 @@ programming interface which may be also usable by programs other than their own 
 
 Upmpdcli offered a gateway for quite a few of these services in the past. Unfortunately, changes in
 some of the service APIs have made it impossible to access them from an open-source
-application (e.g. Spotify), and only a few remain, sometimes with restrictions (Deezer).
+application (e.g. Spotify), and only a few remain.
 
 The only thing that the services interfaces have in common with UPnP is that most of them use HTTP
 to retrieve the audio stream (as a short-lived URL). Spotify was an exception, and used a specific

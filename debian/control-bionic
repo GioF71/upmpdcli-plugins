@@ -47,14 +47,6 @@ Description: upmpdcli Qobuz plugin
  upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
  streaming service.
 
-Package: upmpdcli-deezer
-Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Deezer plugin
- upmpdcli-deezer allows upmpdcli to proxy access to the Deezer music
- streaming service.
-
 Package: upmpdcli-radios
 Architecture: all
 Section: contrib/sound

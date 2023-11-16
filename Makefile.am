@@ -229,12 +229,6 @@ dist_cdpluginshra_DATA = \
                   src/mediaserver/cdplugins/hra/hraapi.py \
                   src/mediaserver/cdplugins/hra/session.py
 
-cdpluginsdeezerdir = $(pkgdatadir)/cdplugins/deezer
-dist_cdpluginsdeezer_DATA = \
-                  src/mediaserver/cdplugins/deezer/deezer-app.py \
-                  src/mediaserver/cdplugins/deezer/deezerapi.py \
-                  src/mediaserver/cdplugins/deezer/deezersession.py
-
 cdpluginsbbcdir = $(pkgdatadir)/cdplugins/bbc
 dist_cdpluginsbbc_DATA = \
                   src/mediaserver/cdplugins/bbc/bbc-app.py
@@ -354,7 +348,6 @@ install-data-hook:
 		mv upmpdcli.conf-dist upmpdcli.conf; chmod 600 upmpdcli.conf)
 	(cd $(DESTDIR)$(pkgdatadir); test -d src_scripts || mkdir src_scripts)
 	(cd $(DESTDIR)/$(cdpluginsbbcdir); chmod a+x bbc-app.py) 
-	(cd $(DESTDIR)/$(cdpluginsdeezerdir); chmod a+x deezer-app.py) 
 	(cd $(DESTDIR)/$(cdpluginshradir); chmod a+x hra-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsmotherearthradiodir); chmod a+x mother-earth-radio-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsqobuzdir); chmod a+x qobuz-app.py) 
