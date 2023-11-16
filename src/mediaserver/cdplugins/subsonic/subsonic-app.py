@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.3.0"
+__subsonic_plugin_release : str = "0.3.1"
 
 import subsonic_init
 import subsonic_util
@@ -197,7 +197,7 @@ def trackuri(a):
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""
-    return {"entries" : json.dumps(entries), "nocache" : "1"}
+    return {"entries" : json.dumps(entries), "nocache" : "0"}
 
 def _station_to_entry(
         objid, 
