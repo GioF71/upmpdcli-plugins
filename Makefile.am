@@ -319,6 +319,9 @@ dist_cdpluginssubsonic_DATA = \
                  src/mediaserver/cdplugins/subsonic/item_identifier_key.py \
                  src/mediaserver/cdplugins/subsonic/item_identifier.py \
                  src/mediaserver/cdplugins/subsonic/msgproc_provider.py \
+                 src/mediaserver/cdplugins/subsonic/option_key.py \
+                 src/mediaserver/cdplugins/subsonic/option_util.py \
+                 src/mediaserver/cdplugins/subsonic/radio_entry_type.py \
                  src/mediaserver/cdplugins/subsonic/retrieved_art.py \
                  src/mediaserver/cdplugins/subsonic/search_type.py \
                  src/mediaserver/cdplugins/subsonic/selector.py \

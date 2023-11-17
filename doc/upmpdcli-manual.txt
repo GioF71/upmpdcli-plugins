@@ -815,7 +815,7 @@ resolving local network hostnames. If this happens, you might not be able to see
 album covers, for example.
 
 The parameter subsoniclegacyauth is optional and disabled by default.
-Legacy authentication should be set (enable it with true) for subsonic servers which need these authentication mode.
+Legacy authentication should be set (enable it with 1) for subsonic servers which need these authentication mode.
 To my knowledge, only lms (Lightweight Media Server) currently needs legacy authentication to be enabled.
 
 There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  

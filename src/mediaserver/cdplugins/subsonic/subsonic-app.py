@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.3.1"
+__subsonic_plugin_release : str = "0.3.2"
 
 import subsonic_init
 import subsonic_util
@@ -83,11 +83,16 @@ from subsonic_util import get_album_tracks
 
 from tag_type import get_tag_type_by_name
 
+from option_key import OptionKey
+import option_util
+
 import connector_provider
 import converter
 import subsonic_init
 import artist_initial_cache_provider
 import art_retriever
+
+from radio_entry_type import RadioEntryType
 
 import secrets
 import mimetypes
@@ -154,6 +159,7 @@ mime_type_by_suffix : dict[str, str] = {
 
 @dispatcher.record('trackuri')
 def trackuri(a):
+    msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
@@ -162,6 +168,11 @@ def trackuri(a):
     res : Response[Song] = connector_provider.get().getSong(song_id = track_id)
     song : Song = res.getObj() if res else None
     if not song: return {'media_url' : ""}
+    # scrobble if allowed
+    if config.server_side_scrobbling:
+        msgproc.log(f"Scrobbling song with id: [{song.getId()}] ...")
+        connector_provider.get().scrobble(song_id = song.getId())
+        msgproc.log(f"Song with id: [{song.getId()}] has been successfully scrobbled")
     media_url : str = connector_provider.get().buildSongUrlBySong(
         song = song, 
         format = config.get_transcode_codec(),
@@ -272,12 +283,23 @@ def _load_album_tracks(
                 track_num = 1
             #msgproc.log(f"_load_album_tracks current_base_path {current_base_path} new_base_path {new_base_path} track_num {track_num}")
             current_base_path = new_base_path
+            options : dict[str, any] = {}
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.FORCE_TRACK_NUMBER, 
+                option_value = track_num)
+            option_util.set_option(
+                options = options,
+                option_key = OptionKey.ALBUM_ART_URI,
+                option_value = albumArtURI)
+            option_util.set_option(
+                options = options,
+                option_key = OptionKey.MULTI_CODEC_ALBUM,
+                option_value = multi_codec_album)
             entry = entry_creator.song_to_entry(
                 objid = objid, 
                 song = current_song, 
-                albumArtURI = albumArtURI, 
-                multi_codec_album = multi_codec_album,
-                track_num = str(track_num))
+                options = options)
             entries.append(entry)
     return entries
 
@@ -296,7 +318,9 @@ def _load_albums_by_type(
             cache_manager_provider.get().cache_element_value(ElementType.TAG, tagType.getTagName(), current_album.getId())
             tag_cached = True
         if config.disable_navigable_album == 1:
-            entries.append(entry_creator.album_to_entry(objid, current_album))
+            entries.append(entry_creator.album_to_entry(
+                objid = objid, 
+                album = current_album))
         else:            
             entries.append(entry_creator.album_to_navigable_entry(
                 objid, 
@@ -321,7 +345,15 @@ def _albums_by_artist_to_entries(objid, album_list : list[Album], entries : list
             artist_tag_cached = True
         cache_manager.cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
         cache_manager.cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-        entries.append(entry_creator.album_to_entry(objid, current_album))
+        options : dict[str, any] = {}
+        option_util.set_option(
+            options = options, 
+            option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE, 
+            option_value = False)
+        entries.append(entry_creator.album_to_entry(
+            objid = objid, 
+            album = current_album, 
+            options = options))
     return entries
 
 def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> list:
@@ -560,7 +592,7 @@ def _handler_element_song_entry_song(objid, item_identifier : ItemIdentifier, en
     msgproc.log(f"_handler_element_song_entry_song start song_id {song_id}")
     song : Song = connector_provider.get().getSong(song_id).getObj()
     if song:
-        entries.append(entry_creator.song_to_entry(objid, song))
+        entries.append(entry_creator.song_to_entry(objid = objid, song = song))
     return entries
 
 def _handler_radio(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -584,8 +616,18 @@ def _handler_radio_song_list(objid, item_identifier : ItemIdentifier, entries : 
     res : Response[SimilarSongs] = connector_provider.get().getSimilarSongs(iid)
     if not res.isOk(): raise Exception(f"Cannot get similar songs for iid {iid}")
     song : Song
+    cnt : int = 0
+    options : dict[str, any] = {}
     for song in res.getObj().getSongs():
-        song_entry : dict[str, any] = entry_creator.song_to_entry(objid, song)
+        cnt += 1
+        option_util.set_option(
+            options = options, 
+            option_key = OptionKey.FORCE_TRACK_NUMBER, 
+            option_value = cnt)
+        song_entry : dict[str, any] = entry_creator.song_to_entry(
+            objid = objid, 
+            song = song, 
+            options = options)
         entries.append(song_entry)
     return entries
 
@@ -617,9 +659,19 @@ def _handler_element_artist_top_songs_common(
     top_song_res : Response[TopSongs] = connector_provider.get().getTopSongs(artist.getName())
     if not top_song_res.isOk(): raise Exception(f"Cannot get top songs for artist {artist.getName()}")
     song : Song
+    cnt : int = 0
+    options : dict[str, any] = {}
     for song in top_song_res.getObj().getSongs():
+        cnt += 1
         if list_mode:
-            song_entry : dict[str, any] = entry_creator.song_to_entry(objid, song)
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.FORCE_TRACK_NUMBER, 
+                option_value = cnt)
+            song_entry : dict[str, any] = entry_creator.song_to_entry(
+                objid = objid, 
+                song = song, 
+                options = options)
             entries.append(song_entry)
         else:
             entries.append(_song_to_song_entry(
@@ -668,7 +720,7 @@ def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries
     entries.append(song_entry)
     msgproc.log(f"_handler_element_song_entry start song_id {song_id} go on with album")
     album : Album = connector_provider.get().getAlbum(song.getAlbumId()).getObj()
-    entries.append(entry_creator.album_to_entry(objid, album))
+    entries.append(entry_creator.album_to_entry(objid = objid, album = album))
     artist_id : str = song.getArtistId() if song.getArtistId() else album.getArtistId()
     if not artist_id: msgproc.log(f"_handler_element_song_entry artist_id not found for song_id {song.getId()} album_id {song.getAlbumId()} artist {song.getArtist()}")
     if artist_id:
@@ -826,9 +878,12 @@ def _handler_element_genre_artist_albums(objid, item_identifier : ItemIdentifier
     album_slice : list[Album] = album_list[offset:min(len(album_list), offset + config.items_per_page)]
     current_album : Album
     for current_album in album_slice if album_slice and len(album_slice) > 0 else []:
+        options : dict[str, any] = {}
+        option_util.set_option(options = options, option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE, option_value = False)
         entry : dict[str, any] = entry_creator.album_to_entry(
-            objid, 
-            current_album)
+            objid = objid, 
+            album = current_album,
+            options = options)
         entries.append(entry)
     if need_next:
         next_identifier : ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
@@ -864,7 +919,7 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
             once = True
         cache_manager.cache_element_value(ElementType.GENRE_ALBUM_LIST, genre, current_album.getId())
         cache_manager.cache_element_value(ElementType.GENRE_ALBUM_LIST, current_album.getGenre(), current_album.getId())
-        entries.append(entry_creator.album_to_entry(objid, current_album))
+        entries.append(entry_creator.album_to_entry(objid = objid, album = current_album))
     if len(album_list) == config.items_per_page:
         # create next button
         entries = _genre_add_albums_node(
@@ -970,7 +1025,7 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
         msgproc.log(f"Cannot get top songs for artist_id [{artist_id}] [{type(ex)}] [{ex}]")
     similar_artists_entry : dict[str, any] = _similar_artists_for_artist(objid, artist_id)
     if similar_artists_entry: entries.append(similar_artists_entry)
-    radio_entry_list : list[dict[str, any]] = _radio_entry(objid, iid = artist.getId())
+    radio_entry_list : list[dict[str, any]] = _radio_entry(objid = objid, iid = artist.getId(), radio_entry_type = RadioEntryType.ARTIST_RADIO)
     radio_entry : dict[str, any]
     for radio_entry in radio_entry_list if radio_entry_list else []:
         entries.append(radio_entry)
@@ -1015,7 +1070,7 @@ def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, en
     response : Response[Album] = connector_provider.get().getAlbum(album_id)
     if not response.isOk(): raise Exception(f"Cannot load album with album_id {album_id}")
     album : Album = response.getObj()
-    album_entry : dict[str, any] = entry_creator.album_to_entry(objid, album)
+    album_entry : dict[str, any] = entry_creator.album_to_entry(objid = objid, album = album)
     # set title a little differently here ...
     title : str = f"Album: {album.getTitle()}"
     album_year : int = album.getYear()
@@ -1055,7 +1110,7 @@ def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, en
         msgproc.log(f"_handler_element_navigable_album no artistId for album [{album.getId()}] [{album.getTitle()}], not creating similar artists entry")
     get_radio_entry_list_start_time : float = time.time()
     get_radio_entry_list_elapsed_time : float = None
-    _radio_entry_list : list[dict[str, any]] = _radio_entry(objid, album.getId())
+    _radio_entry_list : list[dict[str, any]] = _radio_entry(objid = objid, iid = album.getId(), radio_entry_type = RadioEntryType.ALBUM_RADIO)
     get_radio_entry_list_elapsed_time = time.time() - get_radio_entry_list_start_time
     radio_entry : dict[str, any]
     for radio_entry in _radio_entry_list if _radio_entry_list else []:
@@ -1077,28 +1132,33 @@ def __getSimilarSongs(iid : str, count : int = 10) -> list[dict[str, any]]:
     except Exception as ex:
         msgproc.log(f"Cannot execute getSimilarSongs for iid [{iid}]")
 
-def _radio_entry(objid, iid : str) -> list[dict[str, any]]:
-    res : Response[SimilarSongs] = __getSimilarSongs(iid = iid, count = 10)
-    if not res or not res.isOk(): 
-        msgproc.log(f"Cannot get similar songs for iid {iid}")
-        return []
-    if len(res.getObj().getSongs()) > 0:
-        # ok to add entry
-        radio_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
-        radio_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_identifier))
-        radio_entry : dict = upmplgutils.direntry(
-            radio_id, 
-            objid, 
-            title = "Radio")
-        radio_song_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.getName(), iid)
-        radio_song_list_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_song_list_identifier))
-        radio_song_list_entry : dict = upmplgutils.direntry(
-            radio_song_list_id, 
-            objid, 
-            title = "Radio (List)")
-        upnp_util.set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_entry)
-        upnp_util.set_album_art_from_album_id(secrets.choice(res.getObj().getSongs()).getAlbumId(), radio_song_list_entry)
-        return [radio_entry, radio_song_list_entry]
+def _radio_entry(objid, iid : str, radio_entry_type : RadioEntryType) -> list[dict[str, any]]:
+    msgproc.log(f"_radio_entry for {iid} [{radio_entry_type}]")
+    radio_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
+    radio_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_identifier))
+    radio_entry : dict = upmplgutils.direntry(
+        radio_id, 
+        objid, 
+        title = "Radio")
+    radio_song_list_identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.getName(), iid)
+    radio_song_list_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(radio_song_list_identifier))
+    radio_song_list_entry : dict = upmplgutils.direntry(
+        radio_song_list_id, 
+        objid, 
+        title = "Radio (List)")
+    if RadioEntryType.ARTIST_RADIO == radio_entry_type:
+        # pick two random albums
+        res : Response[Artist] = connector_provider.get().getArtist(artist_id = iid)
+        artist : Artist = res.getObj() if res and res.isOk() else None
+        album_list : list[Album] = artist.getAlbumList() if artist else None
+        first_art_album : Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
+        second_art_album : Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
+        upnp_util.set_album_art_from_album_id(first_art_album.getId() if first_art_album else None, radio_entry)
+        upnp_util.set_album_art_from_album_id(second_art_album.getId() if second_art_album else None, radio_song_list_entry)
+    else:
+        upnp_util.set_album_art_from_album_id(iid, radio_entry)
+        upnp_util.set_album_art_from_album_id(iid, radio_song_list_entry)
+    return [radio_entry, radio_song_list_entry]
 
 def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
     res_artist_info : Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
@@ -1445,17 +1505,14 @@ def search(a):
     _initsubsonic()
     objid = a["objid"]
     entries = []
-
     # Run the search and build a list of entries in the expected format. See for example
     # ../radio-browser/radiotoentry for an example
     value : str = a["value"]
     field : str = a["field"]
     objkind : str = a["objkind"] if "objkind" in a else None
     origsearch : str = a["origsearch"] if "origsearch" in a else None
-    
     msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
     resultset_length : int = 0
-    
     if not objkind or len(objkind) == 0:
         if SearchType.ALBUM.getName() == field:
             # search albums by specified value
@@ -1470,8 +1527,8 @@ def search(a):
             for current_album in album_list:
                 cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
                 entries.append(entry_creator.album_to_entry(
-                    objid, 
-                    current_album))
+                    objid = objid, 
+                    album = current_album))
                 resultset_length += 1
         elif SearchType.TRACK.getName() == field:
             # search tracks by specified value
@@ -1517,8 +1574,8 @@ def search(a):
             for current_album in album_list:
                 cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
                 entries.append(entry_creator.album_to_entry(
-                    objid, 
-                    current_album))
+                    objid = objid, 
+                    album = current_album))
                 resultset_length += 1
         elif SearchType.TRACK.getName() == objkind:
             # search tracks by specified value
@@ -1549,8 +1606,6 @@ def search(a):
                     artist_id = current_artist.getId(),
                     entry_name = current_artist.getName()))
                 resultset_length += 1
-
-
     msgproc.log(f"Search for [{value}] as [{field}] with objkind [{objkind}] returned [{resultset_length}] entries")
     return _returnentries(entries)
 

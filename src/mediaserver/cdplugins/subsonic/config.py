@@ -39,6 +39,7 @@ autostart : int = int(get_plugin_option_value("autostart", "0"))
 log_intermediate_url : bool = get_plugin_option_value("logintermediateurl", "0") == "1"
 skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0") == "1"
 allow_artist_art : bool = get_plugin_option_value("allowartistart", "0") == "1"
+server_side_scrobbling : bool = get_plugin_option_value("serversidescrobbling", "0") == "1"
 
 __transcode_codec : str = get_plugin_option_value("transcodecodec", "")
 __transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
@@ -84,9 +85,9 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
     
     def getLegacyAuth(Self) -> bool:
         legacy_auth_enabled_str : str = get_plugin_option_value("legacyauth", "false")
-        if not legacy_auth_enabled_str.lower() in ['true', 'false']: 
+        if not legacy_auth_enabled_str.lower() in ["true", "false", "1", "0"]: 
             raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
-        return legacy_auth_enabled_str == "true"
+        return legacy_auth_enabled_str in ["true", "1"] 
 
     def getApiVersion(self) -> str: return libsonic.API_VERSION
     def getAppName(self) -> str: return "upmpdcli"

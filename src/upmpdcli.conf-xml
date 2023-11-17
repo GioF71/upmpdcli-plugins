@@ -596,9 +596,9 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Required for SubSonic authentication. Set it to the appropriate password.</descr></var>
 #subsonicpassword = subsonicpassword
 
-# <var name="subsoniclegacyauth" type="string"><brief>SubSonic legacy authentication mode.</brief>
-# <descr>Required for SubSonic authentication with some servers (e.g. lms). Set to true to enable.</descr></var>
-#subsoniclegacyauth = false
+# <var name="subsoniclegacyauth" type="bool"><brief>SubSonic legacy authentication mode.</brief>
+# <descr>Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.</descr></var>
+#subsoniclegacyauth = 0
 
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
@@ -623,6 +623,10 @@ upradiostitle = Upmpdcli Radio List
 # <var name="subsonictranscodemaxbitrate" type="int"><brief>Set max bitrate for transcoding</brief>
 # <descr>If a value is set, it will be used as the max bitrate for the transcoding process</descr></var>
 #subsonictranscodemaxbitrate = 320
+
+# <var name="subsonicserversidescrobbling" type="bool"><brief>Enable server-side scrobbling</brief>
+# <descr>If enabled, we will scrobble the song when streaming starts. Disabled by default.</descr></var>
+#subsonicserversidescrobbling = 0
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 

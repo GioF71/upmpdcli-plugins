@@ -44,6 +44,9 @@ import codec
 import selector
 import constants
 
+from option_key import OptionKey
+from option_util import get_option
+
 from typing import Callable
 from upmplgutils import direntry
 
@@ -73,8 +76,13 @@ def genre_artist_to_entry(
 
 def album_to_navigable_entry(
         objid, 
-        current_album : Album) -> direntry:
+        current_album : Album,
+        options : dict[str, any] = {}) -> direntry:
     title : str = current_album.getTitle()
+    prepend_artist : bool = get_option(options = options, option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE)
+    if prepend_artist:
+        artist : str = current_album.getArtist()
+        if artist: title = f"{artist} - {title}"
     artist : str = current_album.getArtist()
     identifier : ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.getName(), current_album.getId())
     id : str = identifier_util.create_objid(
@@ -172,9 +180,7 @@ def build_intermediate_url(track_id : str) -> str:
 def song_to_entry(
         objid, 
         song: Song, 
-        albumArtURI : str = None,
-        multi_codec_album : MultiCodecAlbum = MultiCodecAlbum.NO,
-        track_num : int = None) -> dict:
+        options : dict[str, any] = {}) -> dict:
     entry = {}
     identifier : ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
@@ -184,17 +190,22 @@ def song_to_entry(
     song_uri : str = build_intermediate_url(track_id = song.getId())
     entry['uri'] = song_uri
     title : str = song.getTitle()
+    multi_codec_album : MultiCodecAlbum = get_option(options = options, option_key = OptionKey.MULTI_CODEC_ALBUM)
     if MultiCodecAlbum.YES == multi_codec_album and config.allow_blacklisted_codec_in_song == 1 and (not song.getSuffix() in config.whitelist_codecs):
         title = "{} [{}]".format(title, song.getSuffix())
     upnp_util.set_album_title(title, entry)
     entry['tp']= 'it'
     entry['discnumber'] = song.getDiscNumber()
-    track_num : str = str(track_num) if track_num is not None else song.getTrack()
+    track_num : str = song.getTrack()
+    force_track_number : int = get_option(options = options, option_key = OptionKey.FORCE_TRACK_NUMBER)
+    if force_track_number:
+        track_num = str(force_track_number)
     upnp_util.set_track_number(track_num, entry)
     upnp_util.set_artist(get_display_artist(song.getArtist()), entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
+    albumArtURI : str = get_option(options = options, option_key = OptionKey.ALBUM_ART_URI)
     if not albumArtURI:
         albumArtURI = connector_provider.get().buildCoverArtUrl(song.getId())
     upnp_util.set_album_art_from_uri(albumArtURI, entry)
@@ -216,15 +227,19 @@ def playlist_to_entry(
         upnp_util.set_album_art_from_uri(art_uri, entry)
     return entry
 
-def album_to_entry(objid, current_album : Album) -> direntry:
+def album_to_entry(objid, album : Album, options : dict[str, any] = {}) -> direntry:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
-    title : str = current_album.getTitle()
-    if config.append_year_to_album == 1 and current_album.getYear() is not None:
-        title = "{} [{}]".format(title, current_album.getYear())
+    title : str = album.getTitle()
+    prepend_artist : bool = get_option(options = options, option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE)
+    if prepend_artist:
+        artist : str = album.getArtist()
+        if artist: title = f"{artist} - {title}"
+    if config.append_year_to_album == 1 and album.getYear() is not None:
+        title = "{} [{}]".format(title, album.getYear())
     if config.append_codecs_to_album == 1:
-        song_list : list[Song] = current_album.getSongs()
+        song_list : list[Song] = album.getSongs()
         # load album
-        album_tracks : AlbumTracks = subsonic_util.get_album_tracks(current_album.getId())
+        album_tracks : AlbumTracks = subsonic_util.get_album_tracks(album.getId())
         song_list : list[Song] = album_tracks.getSongList()
         codecs : list[str] = []
         whitelist_count : int = 0
@@ -248,22 +263,22 @@ def album_to_entry(objid, current_album : Album) -> direntry:
                 title = strip_codec_from_album(title, codecs)
             codecs_str : str = ",".join(codecs)
             title = "{} [{}]".format(title, codecs_str)
-    artist = current_album.getArtist()
-    cache_manager.cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-    cache_manager.cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-    artist_initial : str = artist_initial_cache_provider.get().get(current_album.getArtistId())
+    artist = album.getArtist()
+    cache_manager.cache_element_value(ElementType.GENRE, album.getGenre(), album.getId())
+    cache_manager.cache_element_value(ElementType.ARTIST, album.getArtistId(), album.getId())
+    artist_initial : str = artist_initial_cache_provider.get().get(album.getArtistId())
     if artist_initial:
-        cache_manager.cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, current_album.getId())
-    identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
+        cache_manager.cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, album.getId())
+    identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry : dict = direntry(id, 
         objid, 
         title = title, 
         artist = artist)
     upnp_util.set_album_art_from_album_id(
-        current_album.getId(), 
+        album.getId(), 
         entry)
-    upnp_util.set_album_id(current_album.getId(), entry)
+    upnp_util.set_album_id(album.getId(), entry)
     upnp_util.set_class_album(entry)
     return entry
 

@@ -240,7 +240,7 @@ upradiostitle = Upmpdcli Radio List
 # SubSonic Password variable.
 #subsonicpassword = subsonicpassword
 # SubSonic legacy authentication mode.
-#subsoniclegacyauth = false
+#subsoniclegacyauth = 0
 # SubSonic server base url.
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
@@ -253,6 +253,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonictranscodecodec = ogg
 # Set max bitrate for transcoding
 #subsonictranscodemaxbitrate = 320
+# Enable server side scrobbling
+#subsonicserversidescrobbling = 1
 
 # Upmpdcli BBC Sounds plugin parameters
 
