@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.3.2"
+__subsonic_plugin_release : str = "0.3.3"
 
 import subsonic_init
 import subsonic_util
@@ -161,7 +161,7 @@ mime_type_by_suffix : dict[str, str] = {
 def trackuri(a):
     msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
-    msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
+    #msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
     orig_url : str = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
@@ -169,10 +169,18 @@ def trackuri(a):
     song : Song = res.getObj() if res else None
     if not song: return {'media_url' : ""}
     # scrobble if allowed
+    scrobble_msg : str = "no"
     if config.server_side_scrobbling:
-        msgproc.log(f"Scrobbling song with id: [{song.getId()}] ...")
-        connector_provider.get().scrobble(song_id = song.getId())
-        msgproc.log(f"Song with id: [{song.getId()}] has been successfully scrobbled")
+        scrobble_time : float = 0.0
+        scrobble_start : float = time.time()
+        scrobble_success : bool = False
+        try:
+            connector_provider.get().scrobble(song_id = song.getId())
+            scrobble_success = True
+        except Exception as ex:
+            msgproc.log(f"trackuri scrobble failed [{type(ex)}] [{ex}]")
+        scrobble_time = time.time() - scrobble_start
+        scrobble_msg = f"Success: ({'yes' if scrobble_success else 'no'}) Elapsed ({scrobble_time:.3f})]"
     media_url : str = connector_provider.get().buildSongUrlBySong(
         song = song, 
         format = config.get_transcode_codec(),
@@ -181,24 +189,25 @@ def trackuri(a):
     suffix : str = config.get_transcode_codec() if config.get_transcode_codec() else song.getSuffix()
     if not mime_type:
         # guess from url
-        msgproc.log(f"trackuri mimetype missing, guessing from url ...")
+        #msgproc.log(f"trackuri mimetype missing, guessing from url ...")
         guess_mimetype_tuple = mimetypes.guess_type(url = media_url)
         mime_type = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
-        msgproc.log(f"trackuri mimetype guess successful [{'yes' if mime_type else 'no'}]: [{mime_type}]")
+        #msgproc.log(f"trackuri mimetype guess successful [{'yes' if mime_type else 'no'}]: [{mime_type}]")
         if (not mime_type) and suffix:
-            msgproc.log(f"trackuri guessing mimetype failed, using know mimetype table by suffix ...")
+            #msgproc.log(f"trackuri guessing mimetype failed, using know mimetype table by suffix ...")
             mime_type = mime_type_by_suffix[suffix] if suffix in mime_type_by_suffix else None
-            msgproc.log(f"trackuri mimetype found [{'yes' if mime_type else 'no'}]: [{mime_type}] (suffix is [{suffix}])")
+            #msgproc.log(f"trackuri mimetype found [{'yes' if mime_type else 'no'}]: [{mime_type}] (suffix is [{suffix}])")
         elif (not mime_type):
             # nothing to do...
-            msgproc.log(f"trackuri suffix is also missing, we will not be adding mimetype to response.")
+            #msgproc.log(f"trackuri suffix is also missing, we will not be adding mimetype to response.")
+            pass
     kbs : str = (str(config.get_transcode_max_bitrate())
         if config.get_transcode_max_bitrate()
         else (str(song.getBitRate()) 
               if song.getBitRate() 
               else None))
     duration : str = str(song.getDuration()) if song.getDuration() else None
-    msgproc.log(f"trackuri interm_url [{orig_url}] media_url [{media_url}] mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] duration [{duration}]")
+    msgproc.log(f"trackuri intermediate_url [{orig_url}] media_url [{media_url}] mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] duration [{duration}] scrobble [{scrobble_msg}]")
     result : dict[str, str] = dict()
     result['media_url'] = media_url
     if mime_type: result["mimetype"] = mime_type
