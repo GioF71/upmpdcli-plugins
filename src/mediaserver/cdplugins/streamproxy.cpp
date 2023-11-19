@@ -223,10 +223,9 @@ static MHD_Result answer_to_connection(
     }
 }
 
-#undef PRINT_KEYS
+#undef PRINT_KEYS 1
 #ifdef PRINT_KEYS
 static vector<CharFlags> valueKind {
-    {MHD_RESPONSE_HEADER_KIND, "Response header"},
     {MHD_HEADER_KIND, "HTTP header"},
     {MHD_COOKIE_KIND, "Cookies"},
     {MHD_POSTDATA_KIND, "POST data"},
@@ -234,11 +233,10 @@ static vector<CharFlags> valueKind {
     {MHD_FOOTER_KIND, "HTTP footer"},
         };
 
-static int print_out_key (void *cls, enum MHD_ValueKind kind, 
-                          const char *key, const char *value)
+static MHD_Result print_out_key (void *cls, enum MHD_ValueKind kind, 
+                                 const char *key, const char *value)
 {
-    LOGDEB(valToString(valueKind, kind) << ": " << key << " -> " <<
-           value << endl);
+    LOGDEB(valToString(valueKind, kind) << ": " << key << " -> " << value << "\n");
     return MHD_YES;
 }
 #endif /* PRINT_KEYS */
