@@ -17,6 +17,7 @@
 #ifndef _UPMPDUTILS_H_X_INCLUDED_
 #define _UPMPDUTILS_H_X_INCLUDED_
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
