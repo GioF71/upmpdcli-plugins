@@ -150,14 +150,17 @@ radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
                        src/radio_scripts/radio-paradise-get-flac.py \
                        src/radio_scripts/radiolist.conf \
-                       src/radio_scripts/npr/src/main.rs \
-                       src/radio_scripts/npr/Cargo.toml \
-                       src/radio_scripts/npr/README \
                        src/radio_scripts/npo-dynamic-art.py \
                        src/radio_scripts/radio-paradise-get-art.sh \
                        src/radio_scripts/radio-paradise-meta.py \
                        src/radio_scripts/npo-funx-dynamic-art.py \
                        src/radio_scripts/radio-france-meta.py
+
+radioscriptsnprdir = $(pkgdatadir)/radio_scripts/npr
+dist_radioscriptsnpr_DATA = \
+                       src/radio_scripts/npr/src/main.rs \
+                       src/radio_scripts/npr/Cargo.toml \
+                       src/radio_scripts/npr/README
 
 webdir = $(pkgdatadir)
 nobase_dist_web_DATA = \
@@ -362,7 +365,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
 	(cd $(DESTDIR)/$(rdpl2streamdir);chmod a+x fetchStream.py)
-	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py)
+	(cd $(DESTDIR)/$(webdir)/web;chmod a+x scweb-standalone.py init/scweb-service)
         
 dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
 

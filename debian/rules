@@ -16,12 +16,13 @@ override_dh_autoreconf:
 	dh_autoreconf ./autogen.sh
 
 %:
-	dh $@  --with autoreconf,systemd --parallel
+	dh $@  --with autoreconf
 
 
 override_dh_auto_configure:
 	dh_auto_configure -- --enable-confgui
 
 override_dh_auto_install:
+	dh_installsystemd
 	dh_auto_install
 	rm -rf $(CURDIR)/debian/tmp/usr/share/upmpdcli/rdpl2stream/lib/__pycache__

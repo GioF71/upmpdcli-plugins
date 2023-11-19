@@ -1,5 +1,12 @@
-upmpdcli (1.8.4-3~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.8.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
+  * Remove deezer support, it was not working any more.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 19 Nov 2023 08:37:00 +0100
+
+upmpdcli (1.8.4-4~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Rebuilt for new npupnp/upnpp libs version numbering.
   * Rebuilt for rpi 1 (armv6) compatibility
   * Misc. improvements to the Tidal, Subsonic,and Radio Paradise Media
     Server plugins.

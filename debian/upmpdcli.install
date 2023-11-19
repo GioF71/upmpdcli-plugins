@@ -1,6 +1,7 @@
 etc
 usr/bin/scctl
 usr/bin/upmpdcli
+usr/share/man/man1/upmpdcli.1
 usr/share/upmpdcli/AVTransport.xml
 usr/share/upmpdcli/Analog-Input
 usr/share/upmpdcli/ConnectionManager.xml
@@ -24,3 +25,4 @@ usr/share/upmpdcli/radio_scripts
 usr/share/upmpdcli/rdpl2stream
 usr/share/upmpdcli/src_scripts
 usr/share/upmpdcli/upmpdcli.conf-dist
+usr/share/upmpdcli/upmpdcli.conf-xml
