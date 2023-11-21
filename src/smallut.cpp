@@ -1403,6 +1403,39 @@ std::string url_decode(const std::string &in)
     return out;
 }
 
+bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, int64_t>>& oranges)
+{
+    oranges.clear();
+    std::string::size_type pos = ranges.find("bytes=");
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos += 6;
+    bool done = false;
+    while(!done) {
+        std::string::size_type dash = ranges.find('-', pos);
+        if (dash == std::string::npos) {
+            return false;
+        }
+        std::string::size_type comma = ranges.find(',', pos);
+        std::string firstPart = ranges.substr(pos, dash-pos);
+        trimstring(firstPart);
+        int64_t start = firstPart.empty() ? -1 : atoll(firstPart.c_str());
+        std::string secondPart = ranges.substr(
+            dash+1, comma != std::string::npos ?
+            comma-dash-1 : std::string::npos);
+        trimstring(secondPart);
+        int64_t fin = secondPart.empty() ? -1 : atoll(secondPart.c_str());
+        std::pair<int64_t, int64_t> nrange(start,fin);
+        oranges.push_back(nrange);
+        if (comma != std::string::npos) {
+            pos = comma + 1;
+        }
+        done = comma == std::string::npos;
+    }
+    return true;
+}
+
 // Initialization for static stuff to be called from main thread before going
 // multiple
 void smallut_init_mt()

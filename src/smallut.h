@@ -291,6 +291,12 @@ extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);
 /// Decode percent-encoded URL
 extern std::string url_decode(const std::string&);
 
+/// Parse HTTP range header value into a vector of offset pairs. -1 is used as a placeholder
+/// wherever a part of a range is absent: either for a missing end or for a suffix range (absent
+/// start meaning count from the end).
+bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, int64_t>>& oranges);
+
+
 } // End namespace MedocUtils
 
 using namespace MedocUtils;
