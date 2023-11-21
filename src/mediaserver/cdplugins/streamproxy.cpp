@@ -51,14 +51,15 @@ public:
         // never be cleaned up because it was waiting on the queue
         // which was not sending data (at least in the spotify case)
         // because the proxy was used for the second request.
-        queue.set_take_timeout(
-            std::chrono::milliseconds(std::chrono::seconds(10)));
+        queue.set_take_timeout(std::chrono::milliseconds(std::chrono::seconds(10)));
     }
 
     ~ContentReader() {
         LOGDEB1("ContentReader::~ContentReader\n");
-        // This should not be necessary but see comments in
-        // tstcurlfetch code
+        // This should not be necessary but:  (also see tstcurlfetch code)
+        // !! Note !! have to delete the fetcher before returning, else
+        // the notify_all in the bufxchange setTerminate() will
+        // block. Looks like a libc bug to me ? but easy workaround.
         fetcher = std::unique_ptr<NetFetch>();
     }
     ssize_t contentRead(uint64_t pos, char *buf, size_t max);
@@ -75,7 +76,7 @@ public:
 
 ssize_t ContentReader::contentRead(uint64_t pos, char *obuf, size_t max)
 {
-    LOGDEB1("ContentReader::contentRead: pos "<<pos << " max " << max << endl);
+    LOGDEB1("ContentReader::contentRead: pos "<<pos << " max " << max << "\n");
     if (normalEOS) {
         LOGDEB1("ContentReader::contentRead: return EOS\n");
         return MHD_CONTENT_READER_END_OF_STREAM;
@@ -88,9 +89,9 @@ ssize_t ContentReader::contentRead(uint64_t pos, char *obuf, size_t max)
             int httpcode;
             fetcher->fetchDone(&code, &httpcode);
             LOGDEB("Reader: queue take failed code " << code <<
-                   " httpcode " << httpcode << endl);
+                   " httpcode " << httpcode << "\n");
             if (code == NetFetch::FETCH_RETRYABLE) {
-                LOGINF("Reader: retrying at " << pos+totcnt << endl);
+                LOGINF("Reader: retrying at " << pos+totcnt << "\n");
                 fetcher->reset();
                 fetcher->start(&queue, pos+totcnt);
                 return 0;
@@ -98,8 +99,7 @@ ssize_t ContentReader::contentRead(uint64_t pos, char *obuf, size_t max)
             LOGDEB("ContentReader::contentRead: return ERROR\n");
             return MHD_CONTENT_READER_END_WITH_ERROR;
         }
-        LOGDEB1("ContentReader::contentRead: got buffer with " <<
-                abuf->bytes << " bytes\n");
+        LOGDEB1("ContentReader::contentRead: got buffer with " << abuf->bytes << " bytes\n");
         if (abuf->bytes == 0) {
             normalEOS = true;
             if (totcnt == 0) {
@@ -131,7 +131,7 @@ ssize_t ContentReader::contentRead(uint64_t pos, char *obuf, size_t max)
             connfd = -1;
         }
     }
-    LOGDEB1("ContentReader::contentRead: return " << totcnt << endl);
+    LOGDEB1("ContentReader::contentRead: return " << totcnt << "\n");
     return totcnt;
 }
 
@@ -145,13 +145,13 @@ static ssize_t content_reader_cb(void *cls, uint64_t pos, char *buf, size_t max)
     }
 }
 
-void content_reader_free_callback(void *cls)
+static void content_reader_free_callback(void *cls)
 {
-    LOGDEB("content_reader_free_callback\n");
     if (cls) {
         ContentReader *reader = static_cast<ContentReader*>(cls);
         delete reader;
     }
+    LOGDEB0("content_reader_free_callback returning\n");
 }
 
 class StreamProxy::Internal {
@@ -177,7 +177,7 @@ public:
 };
 
 
-StreamProxy::StreamProxy(int listenport,UrlTransFunc urltrans)
+StreamProxy::StreamProxy(int listenport, UrlTransFunc urltrans)
     : m(new Internal(listenport, urltrans))
 {
 }
@@ -223,7 +223,7 @@ static MHD_Result answer_to_connection(
     }
 }
 
-#undef PRINT_KEYS 1
+#undef PRINT_KEYS
 #ifdef PRINT_KEYS
 static vector<CharFlags> valueKind {
     {MHD_HEADER_KIND, "HTTP header"},
@@ -251,51 +251,23 @@ static MHD_Result mapvalues_cb(void *cls, enum MHD_ValueKind kind,
     return MHD_YES;
 }
 
-// Parse range header. 
-static bool parseRanges(
-    const string& ranges, vector<pair<int64_t, int64_t>>& oranges)
-{
-    oranges.clear();
-    string::size_type pos = ranges.find("bytes=");
-    if (pos == string::npos) {
-        return false;
-    }
-    pos += 6;
-    bool done = false;
-    while(!done) {
-        string::size_type dash = ranges.find('-', pos);
-        if (dash == string::npos) {
-            return false;
-        }
-        string::size_type comma = ranges.find(',', pos);
-        string firstPart = ranges.substr(pos, dash-pos);
-        int64_t start = firstPart.empty() ? 0 : atoll(firstPart.c_str());
-        string secondPart = ranges.substr(dash+1, comma != string::npos ? 
-                                          comma-dash-1 : string::npos);
-        int64_t fin = secondPart.empty() ? -1 : atoll(secondPart.c_str());
-        pair<int64_t, int64_t> nrange(start,fin);
-        oranges.push_back(nrange);
-        if (comma != string::npos) {
-            pos = comma + 1;
-        }
-        done = comma == string::npos;
-    }
-    return true;
-}
-
 static bool processRange(struct MHD_Connection *mhdconn, uint64_t& offset)
 {
-    const char* rangeh =
-        MHD_lookup_connection_value(mhdconn, MHD_HEADER_KIND, "range");
+    const char* rangeh = MHD_lookup_connection_value(mhdconn, MHD_HEADER_KIND, "range");
     if (!rangeh) {
         LOGDEB1("NO RANGE\n");
         return true;
     }
+    LOGDEB1("StreamProxy: got range header: " << rangeh << "\n");
     vector<pair<int64_t, int64_t> > ranges;
-    if (parseRanges(rangeh, ranges) && ranges.size()) {
-        if (ranges[0].second != -1 || ranges.size() > 1) {
-            LOGERR("AProxy::mhdAnswerConn: unsupported range: " <<
-                   rangeh << "\n");
+    if (parseHTTPRanges(rangeh, ranges) && ranges.size()) {
+        // For now we only accept requests from positive offset to end, not "last n bytes" requests
+        // nor actual intervals nor multiple ranges. A better solution would be to just refuse
+        // multiple ranges, compute the size for the others (needed for mhd_create_response), pass
+        // the whole range data to curl and just forward the resulting content-length and
+        // content-range headers (like we do currently).
+        if (ranges[0].first == -1 || ranges[0].second != -1 || ranges.size() > 1) {
+            LOGERR("AProxy::mhdAnswerConn: unsupported range: " << rangeh << "\n");
             struct MHD_Response *response = 
                 MHD_create_response_from_buffer(0,0,MHD_RESPMEM_PERSISTENT);
             MHD_queue_response(mhdconn, 416, response);
@@ -303,8 +275,7 @@ static bool processRange(struct MHD_Connection *mhdconn, uint64_t& offset)
             return false;
         } else {
             offset = (uint64_t)ranges[0].first;
-            LOGDEB("AProxy::mhdAnswerConn: accept xx- range, offset "
-                   << offset << endl);
+            LOGDEB0("StreamProxy:processRange " << rangeh << " offset " << offset << "\n");
         }
     }
     return true;
@@ -316,7 +287,8 @@ MHD_Result StreamProxy::Internal::answerConn(
     const char *upload_data, size_t *upload_data_size,
     void **con_cls)
 {
-    LOGDEB1("answerConn con_cls " << *con_cls << "\n");
+    LOGDEB0("StreamProxy::answerConn: method " << method << " vers " << version <<
+            " con_cls " << *con_cls << " url " << _url << "\n");
     NetFetch::FetchStatus fetchcode;
     int httpcode;
 
@@ -336,11 +308,9 @@ MHD_Result StreamProxy::Internal::answerConn(
 
         // Compute destination url
         unordered_map<string,string>querydata;
-        MHD_get_connection_values(mhdconn, MHD_GET_ARGUMENT_KIND,
-                                  &mapvalues_cb, &querydata);
+        MHD_get_connection_values(mhdconn, MHD_GET_ARGUMENT_KIND, &mapvalues_cb, &querydata);
 
-        // Request the method (redirect or proxy), and the fetcher if
-        // we are proxying.
+        // Request the method (redirect or proxy), and the fetcher if we are proxying.
         string url(_url);
         std::unique_ptr<NetFetch> fetcher;
         UrlTransReturn ret = urltrans(url, querydata, fetcher);
@@ -373,7 +343,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         }
 
         // Create/Start the fetch transaction.
-        LOGDEB0("StreamProxy::answerConn: starting fetch for " << url << endl);
+        LOGDEB0("StreamProxy::answerConn: starting fetch for " << url << "\n");
         auto reader = new ContentReader(std::move(fetcher), cfd);
         if (killafterms > 0) {
             reader->killafterms = killafterms;
@@ -398,8 +368,7 @@ MHD_Result StreamProxy::Internal::answerConn(
             MHD_create_response_from_buffer(0, 0, MHD_RESPMEM_PERSISTENT);
         MHD_Result ret = MHD_queue_response(mhdconn, code, response);
         MHD_destroy_response(response);
-        LOGINF("StreamProxy::answerConn (1): return with http code: " <<
-               code << endl);
+        LOGINF("StreamProxy::answerConn (1): error return with http code: " << code << "\n");
         return ret;
     }
     LOGDEB1("StreamProxy::answerConn: waitForHeaders done\n");
@@ -407,8 +376,8 @@ MHD_Result StreamProxy::Internal::answerConn(
     string cl;
     uint64_t size = MHD_SIZE_UNKNOWN;
     if (reader->fetcher->headerValue("content-length", cl) && !cl.empty()) {
-        LOGDEB1("mhdAnswerConn: header content-length: " << cl << endl);
-        size  = (uint64_t)atoll(cl.c_str());
+        LOGDEB1("mhdAnswerConn: header content-length: " << cl << "\n");
+        size = (uint64_t)atoll(cl.c_str());
     }
     // Build a data response.
     // the block size seems to be flatly ignored by libmicrohttpd
@@ -417,23 +386,30 @@ MHD_Result StreamProxy::Internal::answerConn(
         MHD_create_response_from_callback(size, 4096,
                                           content_reader_cb, reader,
                                           content_reader_free_callback);
-    if (response == NULL) {
-        LOGERR("mhdAnswerConn: answer: could not create response" << endl);
+    if (nullptr == response) {
+        LOGERR("mhdAnswerConn: answer: could not create response" << "\n");
         return MHD_NO;
     }
-
     MHD_add_response_header (response, "Accept-Ranges", "bytes");
+
+    int code = MHD_HTTP_OK;
+    std::string cr;
+    if (reader->fetcher->headerValue("content-range", cr) && !cr.empty()) {
+        LOGDEB0("mhdAnswerConn: setting Content-Range " << cr << "\n");
+        MHD_add_response_header(response, "Content-Range" , cr.c_str());
+        code = 206;
+    }
     if (!cl.empty()) {
+        LOGDEB0("mhdAnswerConn: setting Content-Length " << cl << "\n");
         MHD_add_response_header(response, "Content-Length", cl.c_str());
     }
-    string ct;
+    std::string ct;
     if (reader->fetcher->headerValue("content-type", ct) && !ct.empty()) {
-        LOGDEB1("mhdAnswerConn: header content-type: " << ct << endl);
+        LOGDEB0("mhdAnswerConn: setting Content-Type: " << ct << "\n");
         MHD_add_response_header(response, "Content-Type", ct.c_str());
     }
 
-    int code = MHD_HTTP_OK;
-    LOGDEB1("StreamProxy::answerConn: calling fetchDone\n");
+    LOGDEB1("StreamProxy::answerConn: calling fetchDone to check for early end\n");
     if (reader->fetcher->fetchDone(&fetchcode, &httpcode)) {
         code = httpcode ? httpcode : MHD_HTTP_INTERNAL_SERVER_ERROR;
     }
@@ -451,9 +427,8 @@ request_completed_callback(
     // (e.g. for a second connection). check con_cls and do nothing if
     // it's not set.
     if (cls && *con_cls) {
-        StreamProxy::Internal *internal =
-            static_cast<StreamProxy::Internal*>(cls);
-        return internal->requestCompleted(conn, con_cls, toe);
+        StreamProxy::Internal *internal = static_cast<StreamProxy::Internal*>(cls);
+        internal->requestCompleted(conn, con_cls, toe);
     }
 }
 
@@ -477,9 +452,9 @@ void StreamProxy::Internal::requestCompleted(
     void **con_cls, enum MHD_RequestTerminationCode toe)
 {
     LOGDEB("StreamProxy::requestCompleted: status " <<
-           valToString(completionStatus, toe) << " *con_cls "<<*con_cls << endl);
-    // The content reader was supposedly deleted by the content_reader_free
-    // callback...
+           valToString(completionStatus, toe) << " *con_cls "<< *con_cls << "\n");
+    // The content reader will supposedly be deleted by the content_reader_free
+    // callback which is called right after us
 }
 
 bool StreamProxy::Internal::startMHD()
