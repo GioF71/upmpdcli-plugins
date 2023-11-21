@@ -84,7 +84,6 @@ CurlFetch::~CurlFetch()
 
 CurlFetch::Internal::~Internal()
 {
-    LOGDEB0("CurlFetch::Internal::~Internal\n");
     unique_lock<mutex> lock(curlmutex);
     aborting = true;
     // We would like to abort any waiting on the curl side here (in a select()) or whatever), but it
@@ -235,7 +234,7 @@ bool CurlFetch::headerValue(const string& hname, string& val)
     if (it != m->headers.end()) {
         val = it->second;
     } else {
-        LOGERR("CurlFetch::headerValue: header " << hname << " not found\n");
+        LOGDEB0("CurlFetch::headerValue: header " << hname << " not found\n");
         return false;
     }
     return true;
@@ -406,8 +405,8 @@ void CurlFetch::Internal::curlWorkerFunc()
         //curl_easy_setopt(curl, CURLOPT_HTTP_TRANSFER_DECODING, 1L);
     }
     
-    LOGDEB0("CurlFetch::curlWorker: fetching " << p->_url << " timeout " <<
-            p->timeoutsecs << " seconds\n");
+    LOGDEB0("CurlFetch::curlWorker: fetching " << p->_url << " offset " << p->startoffset <<
+            " timeout " <<  p->timeoutsecs << " seconds\n");
     curl_easy_setopt(curl, CURLOPT_URL, p->_url.c_str());
     if (p->startoffset) {
         char range[32];
