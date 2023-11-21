@@ -45,12 +45,9 @@ public:
     void curlWorkerFunc();
     size_t curlHeaderCB(void *contents, size_t size, size_t nmemb);
     size_t curlWriteCB(void *contents, size_t size, size_t nmemb);
-    int curlSockoptCB(curl_socket_t curlfd, curlsocktype purpose);
 
     CurlFetch *p{nullptr};
     CURL *curl{nullptr};
-    // The socket is used to kill any waiting by curl when we want to abort
-    curl_socket_t curlfd{-1};
     std::thread curlworker;
     bool curldone{false};
     CURLcode  curl_code{CURLE_OK};
@@ -66,9 +63,8 @@ public:
     bool headers_ok{false};
     map<string, string> headers;
 
-    // We pre-buffer the beginning of the stream so that the first
-    // block we actually release is always big enough for header
-    // forensics.
+    // We pre-buffer the beginning of the stream so that the first block we actually release is
+    // always big enough for possible header forensics.
     ABuffer headbuf{1024};
     
     // Synchronization
@@ -88,20 +84,20 @@ CurlFetch::~CurlFetch()
 
 CurlFetch::Internal::~Internal()
 {
-    LOGDEB1("CurlFetch::Internal::~Internal\n");
+    LOGDEB0("CurlFetch::Internal::~Internal\n");
     unique_lock<mutex> lock(curlmutex);
     aborting = true;
-    if (curlfd >= 0) {
-        close(curlfd);
-        curlfd = -1;
-    }
+    // We would like to abort any waiting on the curl side here (in a select()) or whatever), but it
+    // seems that the only way to do this would be to use the multi interface.
+    // https://stackoverflow.com/questions/8415976/example-how-to-cancel-a-libcurl-request
+    // We used to try and close the socket, but this would frequently end up closing the wrong fd
+    // (one from mhd) and crashing.
     if (p->outqueue) {
         p->outqueue->setTerminate();
     }
     curlcv.notify_all();
     while (extWaitingThreads > 0) {
-        LOGDEB1("CurlFetch::~CurlFetch: extWaitingThreads: " <<
-                extWaitingThreads << endl);
+        LOGDEB1("CurlFetch::~CurlFetch: extWaitingThreads: " << extWaitingThreads << endl);
         curlcv.notify_all();
         LOGDEB1("CurlFetch::~CurlFetch: waiting for ext thread wkup\n");
         curlcv.wait(lock);
@@ -113,12 +109,12 @@ CurlFetch::Internal::~Internal()
         curl_easy_cleanup(curl);
         curl = nullptr;
     }
-    LOGDEB1("CurlFetch::CurlFetch::~Internal: done\n");
+    LOGDEB0("CurlFetch::CurlFetch::~Internal: done\n");
 }
 
 bool CurlFetch::start(BufXChange<ABuffer*> *queue, uint64_t offset)
 {
-    LOGDEB0("CurlFetch::start: offset: " << offset << " " << std::hex <<
+    LOGDEB0("CurlFetch::start: offset: " << offset << " 0x" << std::hex <<
             offset << std::dec << "\n");
     if (nullptr == queue) {
         LOGERR("CurlFetch::start: called with nullptr\n");
@@ -134,8 +130,7 @@ bool CurlFetch::start(BufXChange<ABuffer*> *queue, uint64_t offset)
     // We return after the curl thread is actually running
     outqueue = queue;
     startoffset = offset;
-    m->curlworker =
-        std::thread(std::bind(&CurlFetch::Internal::curlWorkerFunc, m.get()));
+    m->curlworker = std::thread(std::bind(&CurlFetch::Internal::curlWorkerFunc, m.get()));
     while (!(m->curlrunning() || m->curldone || m->aborting)) {
         LOGDEB1("Start: waiting: running " << m->curlrunning() << " done " <<
                m->curldone << " aborting " << m->aborting << endl);
@@ -212,8 +207,7 @@ bool CurlFetch::waitForHeaders(int secs)
             return false;
         }
         if (secs) {
-            if (m->curlcv.wait_for(lock, std::chrono::seconds(secs)) ==
-                std::cv_status::timeout) {
+            if (m->curlcv.wait_for(lock, std::chrono::seconds(secs)) == std::cv_status::timeout) {
                 LOGERR("CurlFetch::waitForHeaders: timeout\n");
                 break;
             }
@@ -281,20 +275,6 @@ CurlFetch::Internal::curlHeaderCB(void *contents, size_t size, size_t cnt)
     return bcnt;
 }
 
-static int
-curl_sockopt_cb(void *userp, curl_socket_t curlfd, curlsocktype purpose)
-{
-    CurlFetch::Internal *me = (CurlFetch::Internal *)userp;
-    return me ? me->curlSockoptCB(curlfd, purpose) : -1;
-}
-
-int CurlFetch::Internal::curlSockoptCB(curl_socket_t cfd, curlsocktype)
-{
-    unique_lock<mutex> lock(curlmutex);
-    curlfd = cfd;
-    return CURL_SOCKOPT_OK;
-}
-
 static size_t
 curl_write_cb(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -312,13 +292,14 @@ size_t CurlFetch::Internal::curlWriteCB(void *contents, size_t size, size_t cnt)
     size_t bcnt = size * cnt;
 
 #ifdef DUMP_CONTENTS
-    LOGDEB("CurlWriteCB: bcnt " << bcnt << " headbuf.bytes " <<
-           headbuf.bytes << endl);
+    LOGDEB("CurlWriteCB: bcnt " << bcnt << " headbuf.bytes " << headbuf.bytes << endl);
     listmem(cerr, contents, MIN(bcnt, 128));
 #endif
 
     unique_lock<mutex> lock(curlmutex);
+
     if (p->datacount() == 0 && headbuf.bytes < 1024) {
+        // Buffering into the stream header buffer
         if (!headbuf.append((const char *)contents, bcnt)) {
             LOGERR("CurlFetch::curlWriteCB: buf append failed\n");
             curlcv.notify_all();
@@ -328,8 +309,11 @@ size_t CurlFetch::Internal::curlWriteCB(void *contents, size_t size, size_t cnt)
             return bcnt;
         }
     }
-    
+    // Done with header buffering
+
     if (p->datacount() == 0 && p->buf1cb) {
+        // Head of stream: give the user a chance to prepend something (returned sbuf
+        // contents) to the stream. The headbuf is passed only to possibly be looked at.
         string sbuf;
         if (!p->buf1cb(sbuf, headbuf.buf, headbuf.bytes)) {
             return -1;
@@ -341,7 +325,8 @@ size_t CurlFetch::Internal::curlWriteCB(void *contents, size_t size, size_t cnt)
             }
         }
     }
-    
+
+    // Send out the header buffer then any additional data from this call
     if (headbuf.bytes) {
         if (p->datacount() == 0) {
             curlcv.notify_all();
@@ -408,10 +393,8 @@ void CurlFetch::Internal::curlWorkerFunc()
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_cb);
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-        curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, curl_sockopt_cb);
-        curl_easy_setopt(curl, CURLOPT_SOCKOPTDATA, this);
 
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
         // Speedlimit is in bytes/S. 32Kbits/S
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 4L);
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60);
@@ -462,13 +445,11 @@ void CurlFetch::Internal::curlWorkerFunc()
             return;
         }
         if (headbuf.bytes) {
-            LOGDEB1("CurlFetch::curlWorker: flushing headbuf: " <<
-                   headbuf.bytes << " bytes\n");
+            LOGDEB1("CurlFetch::curlWorker: flushing headbuf: " << headbuf.bytes << " bytes\n");
             curlcv.notify_all();
             p->databufToQ(headbuf.buf, headbuf.bytes);
             headbuf.bytes = 0;
         }
-        curlfd = -1;
         curldone = true;
         curlcv.notify_all();
     }
