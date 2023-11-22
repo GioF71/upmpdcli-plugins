@@ -329,7 +329,10 @@ def valToBool(s):
 # Copyright 2019 Kenneth Reitz
 # Apache License - Version 2.0, January 2004 - http://www.apache.org/licenses
 
-from collections.abc import MutableMapping
+try:
+    from collections.abc import MutableMapping
+except:
+    from collections import MutableMapping
 
 class CaseInsensitiveDict(MutableMapping):
     """

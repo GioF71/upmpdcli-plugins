@@ -1426,6 +1426,9 @@ bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, i
             comma-dash-1 : std::string::npos);
         trimstring(secondPart);
         int64_t fin = secondPart.empty() ? -1 : atoll(secondPart.c_str());
+        if (start == -1 && fin == -1) {
+            return false;
+        }
         std::pair<int64_t, int64_t> nrange(start,fin);
         oranges.push_back(nrange);
         if (comma != std::string::npos) {
