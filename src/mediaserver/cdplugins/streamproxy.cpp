@@ -390,7 +390,6 @@ MHD_Result StreamProxy::Internal::answerConn(
         LOGERR("mhdAnswerConn: answer: could not create response" << "\n");
         return MHD_NO;
     }
-    MHD_add_response_header (response, "Accept-Ranges", "bytes");
 
     int code = MHD_HTTP_OK;
     std::string cr;
@@ -399,6 +398,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         MHD_add_response_header(response, "Content-Range" , cr.c_str());
         code = 206;
     }
+    MHD_add_response_header (response, "Accept-Ranges", "bytes");
     if (!cl.empty()) {
         LOGDEB0("mhdAnswerConn: setting Content-Length " << cl << "\n");
         MHD_add_response_header(response, "Content-Length", cl.c_str());
@@ -408,6 +408,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         LOGDEB0("mhdAnswerConn: setting Content-Type: " << ct << "\n");
         MHD_add_response_header(response, "Content-Type", ct.c_str());
     }
+    MHD_add_response_header (response, "Connection", "close");
 
     LOGDEB1("StreamProxy::answerConn: calling fetchDone to check for early end\n");
     if (reader->fetcher->fetchDone(&fetchcode, &httpcode)) {
