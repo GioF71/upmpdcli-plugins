@@ -26,9 +26,9 @@ mimetype_mp3: str = "audio/mp3"
 title_mother_earth_radio : str = "Mother Earth Radio"
 title_mother_earth_klassik : str = "Mother Earth Klassik"
 title_mother_earth_instrumental : str = "Mother Earth Instrumental"
+title_mother_earth_jazz : str = "Mother Earth Jazz"
 
 radio_station_list: list[RadioStationEntry] = list()
-
 
 def __add(codec: str, url: str, title: str, mimetype: str):
     id: int = len(radio_station_list) + 1
@@ -89,6 +89,24 @@ __add(
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental.mp3",
     title=title_mother_earth_instrumental,
+    codec=codec_mp3,
+    mimetype=mimetype_mp3,
+)
+__add(
+    url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz",
+    title=title_mother_earth_jazz,
+    codec=codec_flac,
+    mimetype=mimetype_flac,
+)
+__add(
+    url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz.mp4",
+    title=title_mother_earth_jazz,
+    codec=codec_aac,
+    mimetype=mimetype_aac,
+)
+__add(
+    url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz.mp3",
+    title=title_mother_earth_jazz,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
 )
