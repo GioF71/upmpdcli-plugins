@@ -54,6 +54,7 @@ def maybelogin(a={}):
     global httphp
     global pathprefix
     global _g_loginok
+    global renum_tracks
 
     # Do this always
     setidprefix(qobidprefix)
@@ -78,6 +79,12 @@ def maybelogin(a={}):
     # and normally not needed.
     needaudiodetails = getOptionValue('qobuzaudiodetails', False)
     showalbumrateandbits = getOptionValue('qobuzalbrateandbits', False)
+    
+    # renum_tracks will instruct the trackentries method to generate track numbers by
+    # counting the displayed elements, so the tracks should be always presented in the correct order
+    # in the case of playlists and, most importantly, multi-disc albums
+    # This is afaik to the benefit of kodi mostly
+    renum_tracks = getOptionValue('qobuzrenumtracks', True)
     
     appid = getOptionValue('qobuzappid')
     cfvalue = getOptionValue('qobuzcfvalue')
@@ -147,7 +154,12 @@ def trackuri(a):
 
 
 def track_list(tracks):
-    xbmcplugin.entries += trackentries(httphp, pathprefix, xbmcplugin.objid, tracks)
+    xbmcplugin.entries += trackentries(
+        httphp, 
+        pathprefix, 
+        xbmcplugin.objid, 
+        tracks, 
+        generate_track_nums = renum_tracks)
 
 @dispatcher.record('browse')
 def browse(a):

@@ -437,6 +437,10 @@
 # <descr>5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 # allows streaming each of the formats).</descr></var>
 #qobuzformatid = 6
+# <var name="qobuzrenumtracks" type="bool>
+# <brief>Qobuz track renumbering.</brief>
+# <descr>Renumber tracks by counting elements, avoiding issues with Kodi. Enabled by default.</descr></var>
+#qobuzrenumtracks = 1
 
 # <grouptitle>Tidal streaming service parameters</grouptitle>
 

@@ -170,6 +170,8 @@
 #qobuzpass = agoodpassword
 # Qobuz stream quality.
 #qobuzformatid = 6
+# Renumber tracks by counting elements, enabled by default
+#qobuzrenumtracks = 1
 
 # Tidal streaming service parameters
 
