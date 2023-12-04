@@ -172,6 +172,11 @@
 #qobuzformatid = 6
 # Renumber tracks by counting elements, enabled by default
 #qobuzrenumtracks = 1
+# Add item numbers in square brackes in lists, mostly for kodi compatibility/usability
+#qobuzexplicititemnumbers = 0
+# Prepend artist to album in album lists, mostly for kodi compatibility/usability
+#qobuzprependartisttoalbum = 0
+
 
 # Tidal streaming service parameters
 

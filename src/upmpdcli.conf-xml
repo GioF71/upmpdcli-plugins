@@ -441,6 +441,14 @@
 # <brief>Qobuz track renumbering.</brief>
 # <descr>Renumber tracks by counting elements, avoiding issues with Kodi. Enabled by default.</descr></var>
 #qobuzrenumtracks = 1
+# <var name="qobuzexplicititemnumbers" type="bool>
+# <brief>Explicit item numbers in brackets.</brief>
+# <descr>Add item numbers in square brackes in lists, mostly for kodi compatibility/usability. Disabled by default.</descr></var>
+#qobuzexplicititemnumbers = 0
+# <var name="qobuzprependartisttoalbum" type="bool>
+# <brief>Artist name before albums in album lists.</brief>
+# <descr>Prepend artist to album in album lists, mostly for kodi compatibility/usability. Disabled by default.</descr></var>
+#qobuzprependartisttoalbum = 0
 
 # <grouptitle>Tidal streaming service parameters</grouptitle>
 

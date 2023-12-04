@@ -44,20 +44,28 @@ class XbmcPlugin:
         self.count = 0
         self.total = 0
 
-
-    def add_directory(self, title, endpoint, arturi=None):
+    # item_num is the number to be prepended to the title, if different from None
+    # this is for the benefit of kodi which always sort entries by name
+    def add_directory(self, title, endpoint, arturi=None, item_num = None):
         if callable(endpoint):
             endpoint = self.routeplug.url_for(endpoint)
-        self.entries.append(direntry(self.idprefix + endpoint, self.objid, title, arturi=arturi))
+        if item_num: title = f"[{item_num:02}] {title}"
+        e = direntry(self.idprefix + endpoint, self.objid, title, arturi=arturi)
+        self.entries.append(e)
 
 
     def urls_from_id(self, view_func, items):
+        if not items: return []
         uplog("urls_from_id: items: %s" % str([item.id for item in items]), level=5)
         return [self.routeplug.url_for(view_func, item.id)
                 for item in items if str(item.id).find('http') != 0]
 
 
-    def view(self, data_items, urls, end=True):
+    # initial_item_num is the start number to be prepended to the title, if 
+    # different from None
+    # This is for the benefit of kodi which always sort entries by name
+    def view(self, data_items, urls, end=True, initial_item_num = None):
+        if not data_items or not urls: return
         for item, url in zip(data_items, urls):
             title = item.name
             try:
@@ -77,6 +85,9 @@ class XbmcPlugin:
             except:
                 description = None
             
+            if initial_item_num:
+                title = f"[{initial_item_num:02}] {title}"
+                initial_item_num += 1 
             self.entries.append(
                 direntry(self.idprefix + url, self.objid, title,
                          arturi=image, artist=artnm, upnpclass=upnpclass, description=description))

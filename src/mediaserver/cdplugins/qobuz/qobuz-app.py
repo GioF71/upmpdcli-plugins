@@ -55,6 +55,8 @@ def maybelogin(a={}):
     global pathprefix
     global _g_loginok
     global renum_tracks
+    global explicit_item_numbers
+    global prepend_artist_to_album
 
     # Do this always
     setidprefix(qobidprefix)
@@ -85,6 +87,19 @@ def maybelogin(a={}):
     # in the case of playlists and, most importantly, multi-disc albums
     # This is afaik to the benefit of kodi mostly
     renum_tracks = getOptionValue('qobuzrenumtracks', True)
+
+    # explicit_item_numbers will cause the lists to be prepended with a number in
+    # square brackets
+    # It is disabled by default
+    # This is afaik to the benefit of kodi mostly which always tries 
+    # to sort the lists by name
+    explicit_item_numbers = getOptionValue('qobuzexplicititemnumbers', False)
+
+    # prepend_artist_to_album will cause the album list to include the 
+    # artist before the album title so the contents of the list are more
+    # accessible on kodi, which does not display the name of the parent directory
+    # This is afaik to the benefit of kodi mostly, for better usability
+    prepend_artist_to_album = getOptionValue('qobuzprependartisttoalbum', False)
     
     appid = getOptionValue('qobuzappid')
     cfvalue = getOptionValue('qobuzcfvalue')
@@ -198,34 +213,44 @@ def root():
 @plugin.route('/root_genres')
 def root_genres():
     items = session.get_genres()
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(genre_view, items))
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(genre_view, items),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 @plugin.route('/genre/<genre_id>')
 def genre_view(genre_id):
-    xbmcplugin.add_directory('New Releases', plugin.url_for(genre_view_type,
-                                                 genre_id=genre_id,
-                                                 type='new-releases'))
-    xbmcplugin.add_directory('Qobuz Playlists', plugin.url_for(genre_view_playlists,
-                                                    genre_id=genre_id))
-    xbmcplugin.add_directory('Most Streamed', plugin.url_for(genre_view_type,
-                                                  genre_id=genre_id,
-                                                  type='most-streamed'))
-    xbmcplugin.add_directory('Most Downloaded', plugin.url_for(genre_view_type,
-                                                    genre_id=genre_id,
-                                                    type='best-sellers'))
-    xbmcplugin.add_directory('Editor Picks', plugin.url_for(genre_view_type,
-                                                 genre_id=genre_id,
-                                                 type='editor-picks'))
-    xbmcplugin.add_directory('Press Awards', plugin.url_for(genre_view_type,
-                                                 genre_id=genre_id,
-                                                 type='press-awards'))
+    endpoint_list = [
+        ('New Releases', plugin.url_for(genre_view_type, genre_id=genre_id, type='new-releases')),
+        ('Qobuz Playlists', plugin.url_for(genre_view_playlists, genre_id=genre_id)), 
+        ('Most Streamed', plugin.url_for(genre_view_type, genre_id=genre_id, type='most-streamed')),
+        ('Most Downloaded', plugin.url_for(genre_view_type, genre_id=genre_id, type='best-sellers')),
+        ('Editor Picks', plugin.url_for(genre_view_type, genre_id=genre_id, type='editor-picks')),
+        ('Press Awards', plugin.url_for(genre_view_type, genre_id=genre_id, type='press-awards'))]           
+
+    item_num = 1
+    for endpoint in endpoint_list:
+        xbmcplugin.add_directory(
+            endpoint[0], 
+            endpoint[1], 
+            item_num = item_num if explicit_item_numbers else None)
+        item_num += 1
+
     items = session.get_featured_albums(genre_id)
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
+    update_album_names(items)
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(album_view, items), 
+        initial_item_num=(len(endpoint_list) + 1)) if explicit_item_numbers else None
 
 @plugin.route('/featured/<genre_id>/<type>')
 def genre_view_type(genre_id, type):
     items = session.get_featured_albums(genre_id=genre_id, type=type)
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
+    update_album_names(items)
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(album_view, items),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 # This used to be /featured/<genre_id>/playlist, but this path can be
 # matched by the one for genre_view_type, and the wrong function may
@@ -234,7 +259,10 @@ def genre_view_type(genre_id, type):
 @plugin.route('/featured_playlists/<genre_id>')
 def genre_view_playlists(genre_id):
     items = session.get_featured_playlists(genre_id=genre_id)
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(playlist_view, items))
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(playlist_view, items),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 @plugin.route('/whats_new')
 def whats_new():
@@ -243,15 +271,35 @@ def whats_new():
     xbmcplugin.add_directory('Albums', plugin.url_for(featured, content_type='albums'))
     xbmcplugin.add_directory('Artists', plugin.url_for(featured, content_type='artists'))
 
+def update_album_names(items):
+    for item in items if items and len(items) > 0 else []:
+        update_album_name(item)
+
+def update_album_name(item):
+    if prepend_artist_to_album:
+        artist = item.artist.name if item.artist else None
+        if artist and len(artist) > 0: item.name = f"{artist} - {item.name}"
+
 @plugin.route('/featured/<content_type>')
 def featured(content_type=None):
+    msgproc.log(f"featured {content_type}")
     items = session.get_featured_items(content_type)
     if content_type == 'artists':
-        xbmcplugin.view(items, xbmcplugin.urls_from_id(artist_view, items))
+        xbmcplugin.view(
+            items, 
+            xbmcplugin.urls_from_id(artist_view, items), 
+            initial_item_num=1 if explicit_item_numbers else None)
     elif content_type == 'albums':
-        xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
+        update_album_names(items)
+        xbmcplugin.view(
+            items, 
+            xbmcplugin.urls_from_id(album_view, items), 
+            initial_item_num=1 if explicit_item_numbers else None)
     elif content_type == 'playlists':
-        xbmcplugin.view(items, xbmcplugin.urls_from_id(playlist_view, items))
+        xbmcplugin.view(
+            items, 
+            xbmcplugin.urls_from_id(playlist_view, items), 
+            initial_item_num=1 if explicit_item_numbers else None)
     else:
         print("qobuz-app bad featured type %s" % content_type, file=sys.stderr)
 
@@ -277,13 +325,19 @@ def playlist_view(playlist_id):
 def artist_view(artist_id):
     xbmcplugin.add_directory('Similar Artists', plugin.url_for(similar_artists, artist_id))
     albums = session.get_artist_albums(artist_id) 
-    xbmcplugin.view(albums, xbmcplugin.urls_from_id(album_view, albums))
+    xbmcplugin.view(
+        albums, 
+        xbmcplugin.urls_from_id(album_view, albums),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 
 @plugin.route('/artist/<artist_id>/similar')
 def similar_artists(artist_id):
     artists = session.get_artist_similar(artist_id)
-    xbmcplugin.view(artists, xbmcplugin.urls_from_id(artist_view, artists))
+    xbmcplugin.view(
+        artists, 
+        xbmcplugin.urls_from_id(artist_view, artists),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 
 @plugin.route('/favourite_tracks')
@@ -300,19 +354,29 @@ def favourite_artists():
         return
     if items:
         msgproc.log("First artist name %s"% items[0].name)
-        xbmcplugin.view(items, xbmcplugin.urls_from_id(artist_view, items))
+        xbmcplugin.view(
+            items, 
+            xbmcplugin.urls_from_id(artist_view, items),
+            initial_item_num=1 if explicit_item_numbers else None)
 
 
 @plugin.route('/favourite_albums')
 def favourite_albums():
     items = session.user.favorites.albums()
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
+    update_album_names(items)
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(album_view, items), 
+        initial_item_num=1 if explicit_item_numbers else None)
 
 
 @plugin.route('/favourite_playlists')
 def favourite_playlists():
     items = session.user.favorites.playlists()
-    xbmcplugin.view(items, xbmcplugin.urls_from_id(playlist_view, items))
+    xbmcplugin.view(
+        items, 
+        xbmcplugin.urls_from_id(playlist_view, items),
+        initial_item_num=1 if explicit_item_numbers else None)
 
 @dispatcher.record('search')
 def search(a):
