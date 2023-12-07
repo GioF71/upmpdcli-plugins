@@ -37,6 +37,8 @@ import config
 import connector_provider
 import art_retriever
 
+from retrieved_art import RetrievedArt
+
 import cmdtalkplugin
 
 import secrets
@@ -66,7 +68,10 @@ def get_album_tracks(album_id : str) -> album_util.AlbumTracks:
     connector : Connector = connector_provider.get()
     albumResponse : Response[Album] = connector.getAlbum(album_id)
     if not albumResponse.isOk(): raise Exception(f"Album with id {album_id} not found")
+    # cache
     album : Album = albumResponse.getObj()
+    if album and album.getArtist():
+        cache_manager_provider.get().on_album(album)
     albumArtURI : str = connector.buildCoverArtUrl(album.getId())
     song_list : list[Song] = album.getSongs()
     sort_song_list_result : album_util.SortSongListResult = album_util.sort_song_list(song_list)
@@ -128,18 +133,18 @@ def load_all_artists_by_genre(genre : str) -> set[str]:
 
 def get_artist_art(artist_id : str, initializer_callback : Callable[[], None]) -> str:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
-    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST)
+    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_ALBUMS)
     if art_cache_size == 0: initializer_callback()
-    artist_art : str = cache_manager.get_cached_element(ElementType.ARTIST, artist_id)
-    if not artist_art:
-        # can be new
-        if art_cache_size == 0: initializer_callback()
-        msgproc.log(f"get_artist_art searching artist_art for artist_id {artist_id}")
-        identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST, artist_id)
-        artist_art = art_retriever.artist_art_retriever(identifier)
-        # store if found
-        if artist_art: cache_manager.cache_element_value(ElementType.ARTIST, artist_id, artist_art)
-    return artist_art
+    random_album_id : str = cache_manager.get_random_album_id(artist_id)
+    if random_album_id: return connector_provider.get().buildCoverArtUrl(random_album_id)
+    # can be new
+    if art_cache_size == 0: 
+        msgproc.log(f"get_artist_art empty cache, reloading ...")
+        initializer_callback()
+    #msgproc.log(f"get_artist_art searching artist_art for artist_id {artist_id}")
+    identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST, artist_id)
+    artist_art : RetrievedArt = art_retriever.artist_art_retriever(identifier)
+    return artist_art.art_url if artist_art else None
 
 def get_album_list_by_artist_genre(
         artist : Artist, 

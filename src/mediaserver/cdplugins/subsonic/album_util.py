@@ -229,6 +229,27 @@ def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
                 stripped_title = strip_substring(album_title, codec_pattern)
     return stripped_title
 
+import cmdtalkplugin
+
+def has_year(album : Album) -> bool:
+    original_release_date : str = str(album.getOriginalReleaseDate())
+    year : int = album.getYear()
+    return (original_release_date and len(original_release_date) > 0) or year    
+
+def get_album_year_str(album : Album) -> str:
+    ord : str = album.getOriginalReleaseDate()
+    ord = (ord[0:4] 
+        if ord and len(ord) > 4 
+        else None)
+    year : int = album.getYear()
+    ord_set : bool = ord and len(ord) > 0
+    if ord_set and not year: return ord
+    if year and not ord_set: return year
+    if not year and not ord_set: return None
+    #both set
+    if ord_set and str(year) == ord: return ord
+    return f"{ord} ({year})"
+
 # Tests
 a1d1 : str = "Disc 1 - Studio Album"
 a1d2 : str = "Disc 2 Live Album"

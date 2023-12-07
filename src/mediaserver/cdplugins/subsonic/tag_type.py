@@ -26,6 +26,7 @@ class TagType(Enum):
     RANDOM = 160, "r", "Random Albums", "random"
     ARTISTS = 200, "grtsts", "Artists", None
     ARTISTS_ALL = 210, "a_all", "Artists (All)", None
+    ARTISTS_PAGINATED = 211, "a_pg", "Artists (Paginated)", None
     ARTISTS_INDEXED = 220, "a_ndx", "Artists (By Initial)", None
     FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,

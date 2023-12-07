@@ -85,7 +85,7 @@ def load_genres():
     genres_response : Response[Genres] = connector_provider.get().getGenres()
     if not genres_response.isOk(): return
     genre_list = genres_response.getObj().getGenres()
-    for current_genre in genre_list:
+    for current_genre in genre_list if genre_list and len(genre_list) > 0 else list():
         genre : str = current_genre.getName()
         if genre: load_single_genre(genre)
 
@@ -103,35 +103,23 @@ def load_single_genre(genre : str):
     if album_list_res.isOk() and album_list_res.getObj() and len(album_list_res.getObj().getAlbums()) > 0:
         album_list : AlbumList = album_list_res.getObj()
         album : Album = secrets.choice(album_list.getAlbums())
-        if album:
-            msgproc.log(f"Caching genre [{genre}] with album_id [{album.getId()}]")
-            cache_manager_provider.get().cache_element_value(ElementType.GENRE, genre, album.getId())
+        if not album: return
+        genre_list : list[str] = album.getGenres()
+        cache_manager_provider.get().on_album_for_genre_list(album, genre_list)
 
 def load_by_newest():
     sz : int = None
     album_list : list[Album] = None
     offset : int = 0
     total_albums : int = 0
-    first_processed : bool = False
     while not album_list or len(album_list) == config.subsonic_max_return_size:
         album_list = subsonic_util.get_albums(TagType.NEWEST.getQueryType(), size = config.subsonic_max_return_size, offset = offset)
         total_albums += len(album_list)
         msgproc.log(f"loaded {total_albums} albums ...")
         album : Album
         for album in album_list:
-            if not first_processed:
-                # action to do once
-                cache_manager_provider.get().cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), album.getId())
-                cache_manager_provider.get().cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), album.getId())
-                cache_manager_provider.get().cache_element_value(ElementType.TAG, TagType.ARTISTS_INDEXED.getTagName(), album.getId())
-                first_processed = True
             # for every album
-            genre : str = album.getGenre()
-            if not cache_manager_provider.get().is_element_cached(ElementType.GENRE, genre):
-                cache_manager_provider.get().cache_element_value(ElementType.GENRE, genre, album.getId())
-            artist_id : str = album.getArtistId()
-            if not cache_manager_provider.get().is_element_cached(ElementType.ARTIST, artist_id):
-                cache_manager_provider.get().cache_element_value(ElementType.ARTIST, artist_id, album.getId())
+            cache_manager_provider.get().on_album(album)
         offset += len(album_list)
 
 def load_by_artist_initial(current_artists_initial : ArtistsInitial):
@@ -140,10 +128,11 @@ def load_by_artist_initial(current_artists_initial : ArtistsInitial):
     current : ArtistListItem
     for current in artist_list_items:
         artist_id : str = current.getId()
-        if cache_manager_provider.get().is_element_cached(ElementType.ARTIST, artist_id):
-            artist_album_id : str = cache_manager_provider.get().get_cached_element(ElementType.ARTIST, artist_id)
-            cache_manager_provider.get().cache_element_value(ElementType.ARTIST_INITIAL, current_artists_initial.getName(), artist_album_id)
-            return
+        if cache_manager_provider.get().is_album_artist(artist_id):
+            cache_manager_provider.get().cache_element_multi_value(
+                ElementType.ARTIST_INITIAL,
+                current_artists_initial.getName(),
+                artist_id)
 
 def load_by_artists():
     #create art cache for artists by initial

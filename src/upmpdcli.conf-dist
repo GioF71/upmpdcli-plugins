@@ -262,6 +262,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonictranscodemaxbitrate = 320
 # Enable server side scrobbling
 #subsonicserversidescrobbling = 1
+# Subsonic enable internet radios
+#subsonictaginitialpageenabledir = 0
 
 # Upmpdcli BBC Sounds plugin parameters
 

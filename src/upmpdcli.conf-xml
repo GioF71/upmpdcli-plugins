@@ -640,6 +640,10 @@ upradiostitle = Upmpdcli Radio List
 # <descr>If enabled, we will scrobble the song when streaming starts. Disabled by default.</descr></var>
 #subsonicserversidescrobbling = 0
 
+# <var name="subsonictaginitialpageenabledir" type="int"><brief>Subsonic enable Internet Radios</brief>
+# <descr>Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling Internet Radios</descr></var>
+#subsonictaginitialpageenabledir = 0
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

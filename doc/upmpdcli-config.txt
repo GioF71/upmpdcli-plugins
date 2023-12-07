@@ -525,6 +525,9 @@ subsonictranscodecodec:: Enable transcoding If a value is set, it will be used a
 [[subsonictranscodemaxbitrate]]
 subsonictranscodemaxbitrate:: Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
 
+[[subsonictaginitialpageenabledir]]
+subsonictaginitialpageenabledir:: Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling Internet Radios
+
 === Upmpdcli BBC Sounds plugin parameters 
 
 [[bbcuser]]

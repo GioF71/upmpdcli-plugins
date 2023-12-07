@@ -23,6 +23,9 @@ class OptionKey(Enum):
     FORCE_TRACK_NUMBER = 2, "force-track-number", None
     ALBUM_ART_URI = 3, "album-art-uri", None
     MULTI_CODEC_ALBUM = 4, "multi-codec-album", MultiCodecAlbum.NO
+    SKIP_ART = 5, "skip-art", False
+    OFFSET = 6, "offset", 0
+    PAGINATED = 7, "paginated", False
 
     def __init__(self, 
             num : int, 

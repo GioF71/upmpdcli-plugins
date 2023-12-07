@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.3.3"
+__subsonic_plugin_release : str = "0.3.4"
 
 import subsonic_init
 import subsonic_util
@@ -74,6 +74,8 @@ from album_util import get_dir_from_path
 from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
 from album_util import get_display_artist
+from album_util import has_year
+from album_util import get_album_year_str
 
 from art_retriever import tag_art_retriever
 from retrieved_art import RetrievedArt
@@ -115,16 +117,19 @@ __tag_initial_page_enabled_default : dict[str, bool] = {
     TagType.RANDOM.getTagName(): False,
     TagType.FAVOURITES.getTagName(): False,
     TagType.ARTISTS_ALL.getTagName(): False,
+    TagType.ARTISTS_PAGINATED.getTagName(): False,
     TagType.ARTISTS_INDEXED.getTagName(): False,
     TagType.FAVOURITE_ARTISTS.getTagName(): False,
     TagType.RANDOM_SONGS.getTagName(): False,
     TagType.RANDOM_SONGS_LIST.getTagName(): False,
     TagType.FAVOURITE_SONGS.getTagName(): False,
-    TagType.FAVOURITE_SONGS_LIST.getTagName(): False
+    TagType.FAVOURITE_SONGS_LIST.getTagName(): False,
+    TagType.INTERNET_RADIOS.getTagName(): False
 }
 
 def tag_enabled_in_initial_page(tag_type : TagType) -> bool:
     enabled_default : bool = __tag_initial_page_enabled_default[tag_type.getTagName()] if tag_type.getTagName() in __tag_initial_page_enabled_default else True
+    msgproc.log(f"Tag enabling key for {tag_type}: [{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}]")
     enabled_int : int = int(upmplgutils.getOptionValue(f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}", "1" if enabled_default else "0"))
     return enabled_int == 1
 
@@ -323,6 +328,7 @@ def _load_albums_by_type(
     current_album : Album
     tag_cached : bool = False
     for current_album in albumList:
+        cache_manager_provider.get().on_album(current_album)
         if tagType and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(ElementType.TAG, tagType.getTagName(), current_album.getId())
             tag_cached = True
@@ -334,9 +340,6 @@ def _load_albums_by_type(
             entries.append(entry_creator.album_to_navigable_entry(
                 objid, 
                 current_album))
-        # cache genre art
-        current_genre : str = current_album.getGenre()
-        cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_genre, current_album.getId())
     return entries
 
 def _load_albums_by_artist(artist_id : str) -> list[Album]:
@@ -352,8 +355,14 @@ def _albums_by_artist_to_entries(objid, album_list : list[Album], entries : list
         if not artist_tag_cached:
             cache_manager.cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
             artist_tag_cached = True
-        cache_manager.cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-        cache_manager.cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+        if current_album.getArtistId():
+            cache_manager_provider.get().on_album(current_album)
+        genre_list : list[str] = current_album.getGenres()
+        for curr in genre_list:
+            cache_manager.cache_element_multi_value(
+                ElementType.GENRE, 
+                curr,
+                current_album.getId())
         options : dict[str, any] = {}
         option_util.set_option(
             options = options, 
@@ -370,7 +379,7 @@ def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> li
     # caching disabled, too slow
     #art_by_artist_id : dict[str, str] = __create_art_by_artist_id_cache()
     art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_INITIAL)
-    msgproc.log(f"__load_artists_by_initial art_cache_size {art_cache_size}")
+    #msgproc.log(f"__load_artists_by_initial art_cache_size {art_cache_size}")
     if art_cache_size == 0: subsonic_init.initial_caching()
     artists_response : Response[Artists] = connector_provider.get().getArtists()
     if not artists_response.isOk(): return entries
@@ -380,16 +389,16 @@ def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> li
         if current_artists_initial.getName() == artist_initial:
             current_artist : ArtistListItem
             for current_artist in current_artists_initial.getArtistListItems():
-                artist_initial_cache_provider.get().set(current_artist.getId(), current_artists_initial.getName())
-                msgproc.log(f"__load_artists_by_initial loading art for artist_id {current_artist.getId()} artist_name {current_artist.getName()}")
+                if not cache_manager_provider.get().is_album_artist(current_artist.getId()): continue
+                artist_initial_cache_provider.get().set(
+                    artist_id = current_artist.getId(), 
+                    artist_initial = current_artists_initial.getName())
+                #msgproc.log(f"__load_artists_by_initial loading art for artist_id {current_artist.getId()} artist_name {current_artist.getName()}")
                 entry : dict = entry_creator.artist_to_entry(
                     objid = objid, 
                     artist_id = current_artist.getId(), 
                     entry_name = current_artist.getName())
                 # if artist has art, set that art for artists by initial tile
-                artist_art : str = subsonic_util.get_artist_art(current_artist.getId(), subsonic_init_provider.initializer_callback)
-                if artist_art:
-                    cache_manager.cache_element_value(ElementType.TAG, TagType.ARTISTS_INDEXED.getTagName(), artist_art)
                 entries.append(entry)
     return entries
 
@@ -411,21 +420,47 @@ def _create_list_of_genres(objid, entries : list) -> list:
             entries.append(entry)
     return entries
 
-def _get_list_of_artists(objid, entries : list) -> list:
-    art_cache_size : int = cache_manager_provider.get().get_cache_size(ElementType.ARTIST)
+def _get_list_of_artists(
+        objid, 
+        entries : list, 
+        options : dict[str, any] = {}) -> list:
+    paginated : bool = option_util.get_option(options = options, option_key = OptionKey.PAGINATED)
+    offset : int = option_util.get_option(options = options, option_key = OptionKey.OFFSET)
+    counter : int = 0
+    art_cache_size : int = cache_manager_provider.get().get_cache_size(ElementType.ALBUM_ARTIST)
     if art_cache_size == 0: subsonic_init.initial_caching()
     artists_response : Response[Artists] = connector_provider.get().getArtists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
+    broke_out : bool = False
     for current_artists_initial in artists_initial:
         current_artist : ArtistListItem
         for current_artist in current_artists_initial.getArtistListItems():
+            if not current_artist.getId() or not cache_manager_provider.get().is_album_artist(current_artist.getId()):
+                # not an album artist
+                continue
+            if paginated and counter < offset: 
+                counter += 1
+                continue
+            if paginated and counter >= offset + config.items_per_page: 
+                broke_out = True
+                break
+            counter += 1
             entries.append(entry_creator.artist_to_entry(
                 objid = objid, 
                 artist_id = current_artist.getId(), 
-                entry_name = current_artist.getName()))
-            artist_initial_cache_provider.get().set(current_artist.getId(), current_artists_initial.getName())
+                entry_name = current_artist.getName(),
+                options = options))
+            artist_initial_cache_provider.get().set(
+                artist_id = current_artist.getId(), 
+                artist_initial = current_artists_initial.getName())
+    if broke_out:
+        next_entry : dict[str, any] = _create_tag_next_entry(
+            objid = objid,
+            tag = TagType.ARTISTS_PAGINATED,
+            offset = offset + config.items_per_page)
+        entries.append(next_entry)
     return entries
 
 def _create_list_of_playlist(objid, entries : list) -> list:
@@ -491,25 +526,21 @@ def _create_list_of_artist_initials(objid, entries : list) -> list:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
     art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_INITIAL)
     msgproc.log(f"_create_list_of_artist_initials art_cache_size {art_cache_size}")
-    if art_cache_size == 0: subsonic_init.initial_caching()
+    if art_cache_size == 0: 
+        msgproc.log(f"_create_list_of_artist_initials empty cache, reloading ...")
+        subsonic_init.initial_caching()
     artists_response : Response[Artists] = connector_provider.get().getArtists()
     if not artists_response.isOk(): return entries
+    #msgproc.log(f"_create_list_of_artist_initials artists loaded ...")
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
     for current_artists_initial in artists_initial:
+        #msgproc.log(f"_create_list_of_artist_initials processing [{current_artists_initial.getName()}] ...")
         entry : dict = entry_creator.artist_initial_to_entry(
             objid = objid, 
             artist_initial = current_artists_initial.getName())
         entries.append(entry)
-        art_id = cache_manager.get_cached_element(ElementType.ARTIST_INITIAL, current_artists_initial.getName())
-        if art_id:
-            upnp_util.set_album_art_from_album_id(
-                art_id, 
-                entry)
-        current_artist : ArtistListItem
         # populate cache of artist by initial
-        for current_artist in current_artists_initial.getArtistListItems():
-            artist_initial_cache_provider.get().set(current_artist.getId(), current_artists_initial.getName())
     return entries
 
 def _present_album(
@@ -938,8 +969,38 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
             entries = entries)
     return entries
 
+def _handler_tag_artists_paginated(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    # all artists, paginated -> no skip art
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    options : dict[str, any] = dict()
+    option_util.set_option(
+        options = options, 
+        option_key = OptionKey.SKIP_ART,
+        option_value = False)
+    option_util.set_option(
+        options = options, 
+        option_key = OptionKey.PAGINATED,
+        option_value = True)
+    option_util.set_option(
+        options = options, 
+        option_key = OptionKey.OFFSET,
+        option_value = offset)
+    return _get_list_of_artists(
+        objid = objid, 
+        entries = entries, 
+        options = options)
+
 def _handler_tag_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return _get_list_of_artists(objid, entries)
+    # all artist -> skip art
+    options : dict[str, any] = dict()
+    option_util.set_option(
+        options = options, 
+        option_key = OptionKey.SKIP_ART,
+        option_value = False)
+    return _get_list_of_artists(
+        objid = objid, 
+        entries = entries, 
+        options = options)
 
 def _handler_tag_artists_favourite(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
@@ -988,7 +1049,14 @@ def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entr
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} offset {offset}")
-    album_list : list[Album] = _load_albums_by_artist(artist_id)
+    album_list : list[Album]
+    try:
+        album_list = _load_albums_by_artist(artist_id)
+    except Exception as ex:
+        msgproc.log(f"Cannot get albums for artistId {artist_id} [{type(ex)}] [{ex}]")
+        album_list = list()
+        cache_manager_provider.get().on_missing_artist_id(artist_id)
+        pass
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} found {len(album_list)} albums")
     next_needed : bool = len(album_list) > (config.items_per_page + offset)
     num_albums_to_show : int = config.items_per_page if next_needed or len(album_list) == config.items_per_page else len(album_list) % config.items_per_page
@@ -1009,8 +1077,15 @@ def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entr
 
 def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    artist_response : Response[Artist] = connector_provider.get().getArtist(artist_id)
-    if not artist_response.isOk(): raise Exception(f"Cannot retrieve artist by id {artist_id}")
+    artist_response : Response[Artist] = None
+    try:
+        artist_response = connector_provider.get().getArtist(artist_id)
+    except Exception as ex:
+        msgproc.log(f"Cannot get artist with id {artist_id} [{type(ex)}] [{ex}]")
+    if not artist_response or not artist_response.isOk(): 
+        msgproc.log(f"Cannot retrieve artist by id {artist_id}")
+        cache_manager_provider.get().on_missing_artist_id(artist_id)
+        return entries
     artist : Artist = artist_response.getObj()
     #msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
     artist_album_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
@@ -1020,10 +1095,12 @@ def _handler_element_artist(objid, item_identifier : ItemIdentifier, entries : l
         objid, 
         title = "Albums")
     # use one album for this entry image
-    art_album_id : str = subsonic_util.get_artist_art(artist_id, subsonic_init_provider.initializer_callback)
+    album_list : list[Album] = artist.getAlbumList()
+    select_album : Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
     upnp_util.set_album_art_from_album_id(
-        art_album_id, 
+        select_album.getId() if select_album else None, 
         albums_entry)
+    msgproc.log(f"_handler_element_artist for {artist_id} -> album_id: {select_album.getId() if select_album else None}")
     entries.append(albums_entry)
     try:
         top_songs_entry_list : list[dict[str, any]] = _artist_to_top_songs_entry(objid, artist_id, artist.getName()) 
@@ -1082,8 +1159,7 @@ def _handler_element_navigable_album(objid, item_identifier : ItemIdentifier, en
     album_entry : dict[str, any] = entry_creator.album_to_entry(objid = objid, album = album)
     # set title a little differently here ...
     title : str = f"Album: {album.getTitle()}"
-    album_year : int = album.getYear()
-    if album_year: title = f"{title} [{album_year}]"
+    if has_year(album): title = f"{title} [{get_album_year_str(album)}]"
     upnp_util.set_album_title(title, album_entry)
     get_album_elapsed_time : float = time.time() - get_album_start_time
     entries.append(album_entry)
@@ -1181,7 +1257,8 @@ def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
             objid, 
             title = "Similar Artists")
         # artist_art
-        sim_artist_art : str = cache_manager_provider.get().get_cached_element(ElementType.ARTIST, res_artist_info.getObj().getSimilarArtists()[0].getId())
+        similar_artist_id : str = res_artist_info.getObj().getSimilarArtists()[0].getId()
+        sim_artist_art : str = cache_manager_provider.get().get_random_album_id(similar_artist_id)
         if sim_artist_art:
             upnp_util.set_album_art_from_album_id(
                 sim_artist_art, 
@@ -1189,10 +1266,12 @@ def _similar_artists_for_artist(objid, artist_id : str) -> dict[str, any]:
         return similar_artists_entry    
 
 def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
-    artist_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST.getName(), album.getArtistId())
-    artist_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_identifier))
+    artist_identifier : ItemIdentifier = ItemIdentifier(
+        name = ElementType.ARTIST.getName(), 
+        value = album.getArtistId())
+    id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_identifier))
     artist_entry : dict = upmplgutils.direntry(
-        artist_id, 
+        id, 
         objid, 
         title = f"Artist: {album.getArtist()}")
     artist_art : RetrievedArt = converter.converter_artist_id_to_url(album.getArtistId())
@@ -1204,7 +1283,8 @@ def _artist_entry_for_album(objid, album : Album) -> dict[str, any]:
         upnp_util.set_album_art_from_album_id(
             artist_art.cover_art, 
             artist_entry)
-        cache_manager_provider.get().cache_element_value(ElementType.ARTIST, album.getArtistId(), artist_art.cover_art)
+    # cache
+    cache_manager_provider.get().on_album(album)
     return artist_entry
 
 def _artist_to_top_songs_entry(objid, artist_id : str, artist : str) -> list[dict[str, any]]:
@@ -1325,6 +1405,7 @@ def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries :
 def _handler_tag_group_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     tag_list : list[TagType] = [
         TagType.ARTISTS_ALL,
+        TagType.ARTISTS_PAGINATED,
         TagType.ARTISTS_INDEXED]
     current_tag : TagType
     for current_tag in tag_list:
@@ -1376,6 +1457,7 @@ __tag_action_dict : dict = {
     TagType.RANDOM.getTagName(): _handler_tag_random,
     TagType.GENRES.getTagName(): _handler_tag_genres,
     TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
+    TagType.ARTISTS_PAGINATED.getTagName(): _handler_tag_artists_paginated,
     TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
     TagType.FAVOURITE_ARTISTS.getTagName(): _handler_tag_artists_favourite,
     TagType.PLAYLISTS.getTagName(): _handler_tag_playlists,
@@ -1451,7 +1533,11 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
 def _show_tags(objid, entries : list) -> list:
     for tag in TagType:
         if config.is_tag_supported(tag):
-            if tag_enabled_in_initial_page(tag): entries.append(tag_to_entry(objid, tag))
+            if tag_enabled_in_initial_page(tag): 
+                start_time : float = time.time()
+                entries.append(tag_to_entry(objid, tag))
+                elapsed : float = time.time() - start_time
+                msgproc.log(f"Tag {tag} took [{elapsed:.3f}]")
         else:
             msgproc.log(f"_show_tags skipping unsupported [{tag}]")
     return entries
@@ -1469,7 +1555,13 @@ def browse(a):
     curr_path : str
     for curr_path in path_list:
         if not _g_myprefix == curr_path:
-            msgproc.log(f"browse: path: [{curr_path}] decodes to {codec.decode(curr_path)}")
+            decoded : str = None
+            try:
+                decoded = codec.decode(curr_path)
+            except Exception as ex:
+                msgproc.log(f"Could not decode [{curr_path}]")
+                decoded = "<decode failed>"
+            msgproc.log(f"browse: path: [{curr_path}] decodes to {decoded}")
     last_path_item : str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
     msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
     entries = []
@@ -1525,6 +1617,7 @@ def search(a):
     if not objkind or len(objkind) == 0:
         if SearchType.ALBUM.getName() == field:
             # search albums by specified value
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = 0, 
                 songCount = 0,
@@ -1534,13 +1627,14 @@ def search(a):
             filters : dict[str, str] = {}
             msgproc.log(f"search: filters = {filters}")
             for current_album in album_list:
-                cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                cache_manager_provider.get().on_album(current_album)
                 entries.append(entry_creator.album_to_entry(
                     objid = objid, 
                     album = current_album))
                 resultset_length += 1
         elif SearchType.TRACK.getName() == field:
             # search tracks by specified value
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = 0, 
                 songCount = config.items_per_page,
@@ -1555,6 +1649,7 @@ def search(a):
                 resultset_length += 1
         elif SearchType.ARTIST.getName() == field:
             # search artists
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = config.items_per_page, 
                 songCount = 0,
@@ -1572,6 +1667,7 @@ def search(a):
         # objkind is set
         if SearchType.ALBUM.getName() == objkind:
             # search albums by specified value
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = 0, 
                 songCount = 0,
@@ -1581,13 +1677,19 @@ def search(a):
             filters : dict[str, str] = {}
             msgproc.log(f"search: filters = {filters}")
             for current_album in album_list:
-                cache_manager_provider.get().cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
+                genre_list : list[str] = current_album.getGenres()
+                for curr in genre_list:
+                    cache_manager_provider.get().cache_element_multi_value(
+                        ElementType.GENRE, 
+                        curr, 
+                        current_album.getId())
                 entries.append(entry_creator.album_to_entry(
                     objid = objid, 
                     album = current_album))
                 resultset_length += 1
         elif SearchType.TRACK.getName() == objkind:
             # search tracks by specified value
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = 0, 
                 songCount = config.items_per_page,
@@ -1602,6 +1704,7 @@ def search(a):
                 resultset_length += 1
         elif SearchType.ARTIST.getName() == objkind:
             # search artists
+            if not value: return _returnentries(entries)
             search_result : SearchResult = connector_provider.get().search(value, 
                 artistCount = config.items_per_page, 
                 songCount = 0,

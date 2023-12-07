@@ -14,11 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from subsonic_connector.album import Album
+from subsonic_connector.album_list import AlbumList
 from subsonic_connector.genre import Genre
 from subsonic_connector.song import Song
 from subsonic_connector.artist import Artist
 from subsonic_connector.playlist import Playlist
 from subsonic_connector.response import Response
+from subsonic_connector.list_type import ListType
 
 from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
@@ -29,6 +31,8 @@ from album_util import AlbumTracks
 from album_util import get_display_artist
 from album_util import strip_codec_from_album
 from album_util import get_last_path_element
+from album_util import get_album_year_str
+from album_util import has_year
 
 import config
 import connector_provider
@@ -52,6 +56,7 @@ from upmplgutils import direntry
 
 from msgproc_provider import msgproc
 
+import secrets
 import os
 
 def genre_artist_to_entry(
@@ -69,7 +74,7 @@ def genre_artist_to_entry(
         objid, 
         artist_name)
     artist_art : str = selector.selector_artist_id_to_album_id(artist_id)
-    upnp_util.set_album_art_from_album_id(
+    upnp_util.set_album_art_from_uri(
         artist_art, 
         entry)
     return entry
@@ -88,9 +93,8 @@ def album_to_navigable_entry(
     id : str = identifier_util.create_objid(
         objid = objid, 
         id = identifier_util.create_id_from_identifier(identifier))
-    album_year : int = current_album.getYear()
-    if album_year:
-        title = f"{title} [{album_year}]"
+    if has_year(current_album):
+        title = f"{title} [{get_album_year_str(current_album)}]"
     entry : dict = direntry(
         id = id, 
         pid = objid, 
@@ -109,11 +113,33 @@ def genre_to_entry(
         current_genre : Genre,
         converter_album_id_to_url : Callable[[str], str]) -> direntry:
     name : str = current_genre.getName()
-    genre_art : str = cache_manager_provider.get().get_cached_element(ElementType.GENRE, current_genre.getName())
+    genre_art : str = None
+    genre_album_set : set[str] = cache_manager_provider.get().get_cached_element(
+        ElementType.GENRE,
+        name)
+    random_album_id : str = (secrets.choice(tuple(genre_album_set))
+        if genre_album_set and len(genre_album_set) > 0
+        else None)
+    if random_album_id: genre_art = random_album_id
+    if not genre_art:
+        res : Response[AlbumList] = connector_provider.get().getAlbumList(
+            ltype = ListType.BY_GENRE, 
+            genre = name)
+        if not res or not res.isOk(): msgproc.log(f"Cannot get albums by genre [{name}]")
+        album_list : AlbumList = res.getObj()
+        if album_list and len(album_list.getAlbums()) > 0:
+            album : Album = secrets.choice(album_list.getAlbums())
+            genre_art = album.getId()
+            for album in album_list.getAlbums():
+                cache_manager_provider.get().on_album_for_genre(
+                    album = album,
+                    genre = name)
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.GENRE.getName(), 
         current_genre.getName())
-    id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id : str = identifier_util.create_objid(
+        objid, 
+        identifier_util.create_id_from_identifier(identifier))
     entry = direntry(id, 
         objid, 
         name)
@@ -125,7 +151,8 @@ def genre_to_entry(
 def artist_to_entry(
         objid, 
         artist_id : str,
-        entry_name : str) -> direntry:
+        entry_name : str,
+        options : dict[str, any] = {}) -> direntry:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(), 
         artist_id)
@@ -135,10 +162,28 @@ def artist_to_entry(
     entry = direntry(id, 
         objid, 
         entry_name)
-    art_album_id : str = subsonic_util.get_artist_art(artist_id, subsonic_init_provider.initializer_callback)
-    upnp_util.set_album_art_from_album_id(
-        art_album_id, 
-        entry)
+    skip_art : bool = get_option(options = options, option_key = OptionKey.SKIP_ART)
+    if not skip_art and artist_id:
+        # find art
+        art_album_id : str = cache_manager_provider.get().get_random_album_id(artist_id)
+        if art_album_id: 
+            upnp_util.set_album_art_from_album_id(
+                album_id = art_album_id, 
+                target = entry)
+        else:
+            # load artist
+            try:
+                res : Response[Artist] = connector_provider.get().getArtist(artist_id = artist_id)
+                artist : Artist = res.getObj() if res and res.isOk() else None
+                album_list : list[Album] = artist.getAlbumList() if artist else None
+                select_album : Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
+                if select_album:
+                    cache_manager_provider.get().on_album(select_album)
+                upnp_util.set_album_art_from_album_id(
+                    album_id = select_album.getId() if select_album else None, 
+                    target = entry)
+            except Exception as ex:
+                msgproc.log(f"artist_to_entry cannot load artist [{artist_id}] [{type(ex)}] [{ex}]")
     upnp_util.set_class_artist(entry)
     return entry
 
@@ -149,13 +194,13 @@ def artist_initial_to_entry(
         ElementType.ARTIST_INITIAL.getName(), 
         artist_initial)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    art_album_id : str = cache_manager_provider.get().get_cached_element(ElementType.ARTIST_INITIAL, artist_initial)
-    if not art_album_id:
-        # can be new
-        identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_INITIAL, artist_initial)
-        art_album_id = art_retriever.artist_initial_art_retriever(identifier)
-        # store if found
-        if art_album_id: cache_manager_provider.get().cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, art_album_id)
+    artist_set : set[str] = cache_manager_provider.get().get_cached_element(
+        ElementType.ARTIST_INITIAL, 
+        artist_initial)
+    msgproc.log(f"artist_initial_to_entry initial [{artist_initial}] set length [{len(artist_set) if artist_set else 0}]")
+    random_artist_id : str = secrets.choice(tuple(artist_set)) if artist_set and len(artist_set) > 0 else None
+    art_album_id : str = cache_manager_provider.get().get_random_album_id(random_artist_id) if random_artist_id else None
+    msgproc.log(f"artist_initial_to_entry initial [{artist_initial}] -> random artist_id [{random_artist_id}] album_id [{art_album_id}]")
     entry = direntry(id, 
         objid, 
         artist_initial)
@@ -234,8 +279,8 @@ def album_to_entry(objid, album : Album, options : dict[str, any] = {}) -> diren
     if prepend_artist:
         artist : str = album.getArtist()
         if artist: title = f"{artist} - {title}"
-    if config.append_year_to_album == 1 and album.getYear() is not None:
-        title = "{} [{}]".format(title, album.getYear())
+    if config.append_year_to_album == 1 and has_year(album):
+        title = "{} [{}]".format(title, get_album_year_str(album))
     if config.append_codecs_to_album == 1:
         song_list : list[Song] = album.getSongs()
         # load album
@@ -264,11 +309,13 @@ def album_to_entry(objid, album : Album, options : dict[str, any] = {}) -> diren
             codecs_str : str = ",".join(codecs)
             title = "{} [{}]".format(title, codecs_str)
     artist = album.getArtist()
-    cache_manager.cache_element_value(ElementType.GENRE, album.getGenre(), album.getId())
-    cache_manager.cache_element_value(ElementType.ARTIST, album.getArtistId(), album.getId())
+    cache_manager_provider.get().on_album(album)
     artist_initial : str = artist_initial_cache_provider.get().get(album.getArtistId())
-    if artist_initial:
-        cache_manager.cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, album.getId())
+    if artist_initial and album.getArtistId():
+        cache_manager.cache_element_multi_value(
+            ElementType.ARTIST_INITIAL, 
+            artist_initial, 
+            album.getArtistId())
     identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry : dict = direntry(id, 
@@ -289,27 +336,27 @@ def album_version_to_entry(
         album_version_path : str,
         codec_set : set[str]) -> direntry:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
-    #msgproc.log(f"album_version_to_entry creating identifier for album_id {current_album.getId()}")
     identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
     avp_encoded : str = codec.encode(album_version_path)
-    #msgproc.log(f"album_version_to_entry storing path [{album_version_path}] as [{avp_encoded}]")
     identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_encoded)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    #msgproc.log(f"album_version_to_entry caching artist_id {current_album.getArtistId()} to genre {current_album.getGenre()} [{cached}]")
     title : str = f"Version #{version_number}"
-    if config.append_year_to_album == 1 and current_album.getYear() is not None:
-        title = "{} [{}]".format(title, current_album.getYear())
+    if config.append_year_to_album == 1 and has_year(current_album):
+        title = "{} [{}]".format(title, get_album_year_str(current_album))
     codecs_str : str = ",".join(codec_set)
     title = "{} [{}]".format(title, codecs_str)
     last_path : str = get_last_path_element(album_version_path)
     title = "{} [{}]".format(title, last_path)
     artist = current_album.getArtist()
-    cache_manager.cache_element_value(ElementType.GENRE, current_album.getGenre(), current_album.getId())
-    cache_manager.cache_element_value(ElementType.ARTIST, current_album.getArtistId(), current_album.getId())
-    msgproc.log(f"album_version_to_entry searching initial for artist_id {current_album.getArtistId()}")
-    artist_initial : str = artist_initial_cache_provider.get().get(current_album.getArtistId())
-    if artist_initial:
-        cache_manager.cache_element_value(ElementType.ARTIST_INITIAL, artist_initial, current_album.getId())
+    cache_manager_provider.get().on_album(current_album)
+    if current_album.getArtistId():
+        #msgproc.log(f"album_version_to_entry searching initial for artist_id {current_album.getArtistId()}")
+        artist_initial : str = artist_initial_cache_provider.get().get(current_album.getArtistId())
+        if artist_initial and current_album.getArtistId():
+            cache_manager.cache_element_multi_value(
+                ElementType.ARTIST_INITIAL, 
+                artist_initial, 
+                current_album.getArtistId())
     entry : dict = direntry(id, 
         objid, 
         title = title, 

@@ -56,21 +56,21 @@ def __get_cover_art_from_album_list(response : Response[AlbumList], random : boo
     return RetrievedArt(cover_art = album.getCoverArt())
 
 def group_albums_art_retriever() -> RetrievedArt:
-    # try favourite
+    # try in favorites (pick random)
     art : str = favourite_albums_art_retriever(random_range = 500, random = True)
-    # else random
+    # else random album
     if not art: art = random_albums_art_retriever()
     return art
 
 def group_artists_art_retriever() -> RetrievedArt:
-    # try favourite
+    # try in favorites (pick random)
     art : RetrievedArt = favourite_artist_art_retriever()
-    # else random
-    if not art: art = random_artist_art_retriever()
+    # else random album
+    if not art: art = random_albums_art_retriever()
     return art
 
 def group_songs_art_retriever() -> RetrievedArt:
-    # try favourite
+    # try in favorites (pick random)
     art = art_for_favourite_song(random = True)
     # else random
     if not art: art = random_albums_art_retriever()
@@ -132,7 +132,7 @@ def _get_random_artist_cover() -> RetrievedArt:
 
 def get_artist_art(artist_id : str) -> RetrievedArt:
     artist_cover : ArtistCover = connector_provider.get().getCoverByArtistId(artist_id)
-    msgproc.log(f"art_retriever.get_artist_art [{artist_id}] artist_cover [{'found' if artist_cover else 'not found'}] album_id: [{artist_cover.getAlbumId() if artist_cover else None}] artist_art_url: [{artist_cover.getArtistArtUrl() if artist_cover else None}]")
+    #msgproc.log(f"art_retriever.get_artist_art [{artist_id}] artist_cover [{'found' if artist_cover else 'not found'}] album_id: [{artist_cover.getAlbumId() if artist_cover else None}] artist_art_url: [{artist_cover.getArtistArtUrl() if artist_cover else None}]")
     if not artist_cover: return None
     return (RetrievedArt(art_url = artist_cover.getArtistArtUrl()) 
         if artist_cover.getArtistArtUrl() and config.allow_artist_art
@@ -174,7 +174,7 @@ def _get_artist_initial(initial_list : list[ArtistsInitial], initial_name : str)
     for current in initial_list:
         if current.getName() == initial_name: return current
 
-def artist_art_retriever(item_identifier : ItemIdentifier) -> str:
+def artist_art_retriever(item_identifier : ItemIdentifier) -> RetrievedArt:
     artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     return get_artist_art(artist_id)
 
@@ -204,6 +204,7 @@ tag_art_retriever : dict[str, Callable[[], RetrievedArt]] = {
     TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,
     TagType.GENRES.getTagName(): genres_art_retriever,
     TagType.ARTISTS_ALL.getTagName(): random_artist_art_retriever,
+    TagType.ARTISTS_PAGINATED.getTagName(): random_artist_art_retriever,
     TagType.ARTISTS_INDEXED.getTagName(): random_artist_art_retriever,
     TagType.FAVOURITE_ARTISTS.getTagName(): favourite_artist_art_retriever,
     TagType.PLAYLISTS.getTagName(): playlists_art_retriever,
