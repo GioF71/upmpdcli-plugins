@@ -4,17 +4,18 @@ Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
 # not directly needed for building upmpdcli
-Build-Depends: debhelper (>= 9.0.0), dh-systemd, autotools-dev,
-               dh-autoreconf, pkg-config,
+# Also may need: qt5-default (if qmake says: could not find a Qt installation of '')
+Build-Depends: debhelper-compat (=12), python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
-               qt5-default, qt5-qmake, qtbase5-dev,
-               libupnpp7-dev (>= 0.24.0)
-Standards-Version: 3.9.8
+               qt5-qmake, qtbase5-dev,
+               libupnpp-dev (>= 0.24.1)
+Standards-Version: 4.5.1
 Homepage: http://www.lesbonscomptes.com/upmpdcli
 
 Package: upmpdcli
 Architecture: any
+Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, python3, python3-requests
 Section: contrib/sound
 Description: UPnP Media Renderer front-end to MPD, the Music Player Daemon
@@ -41,11 +42,12 @@ Description: web interface for controlling multiple Songcast Receivers
 Package: upmpdcli-bbc
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, python3-bs4, python3-feedparser, python3-dateutil,
+Depends: upmpdcli, python3, python3-requests, python3-bs4,
+         python3-feedparser, python3-dateutil,
          ${misc:Depends}
 Description: upmpdcli BBC radio plugin
- upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the web site and listen to
- them.
+ upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the
+ web site and listen to them.
 
 Package: upmpdcli-hra
 Architecture: all
@@ -76,14 +78,14 @@ Architecture: all
 Section: contrib/sound
 Depends: upmpdcli, python3, python3-requests,${misc:Depends}
 Description: upmpdcli https://radio-browser.info plugin
- upmpdcli-bbc allows you to browse the radio catalog through the Media Server interface and play
- streams. You will need to install the pyradios Python3 module with pip3, it is not packaged at the
- moment. 
+ upmpdcli-radio-browser allows you to browse the radio catalog through the Media
+ Server interface and play streams. You will need to install the pyradios
+ Python3 module with pip3, it is not packaged at the moment.
 
 Package: upmpdcli-radio-paradise
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests,${misc:Depends}
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Radio Paradise plugin
  upmpdcli-mother-earth-radio allows upmpdcli to proxy access to the
  Radio Paradise streams.
@@ -91,18 +93,19 @@ Description: upmpdcli Radio Paradise plugin
 Package: upmpdcli-subsonic
 Architecture: all
 Section: contrib/sound
-Depends: upmpdcli, python3 ${misc:Depends}
+Depends: upmpdcli, python3, ${misc:Depends}
 Description: upmpdcli Subsonic plugin
- upmpdcli-subsonic allows upmpdcli to proxy access to a Subsonic or Navidrome server.
- It needs the installation of the subsonic-connector (version 0.3.1) and py-sonic (version 1.0.0) Python modules (not packaged by
- Debian, use Pypi).
+ upmpdcli-subsonic allows upmpdcli to proxy access to a Subsonic or
+ Navidrome server. It needs the installation of the subsonic-connector (version
+ 0.3.1) and py-sonic (version 1.0.0) Python modules (not packaged by Debian,
+ use Pypi).
 
 Package: upmpdcli-tidal
 Architecture: all
 Section: contrib/sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
-Description: upmpdcli Tidal plugin. You will need to install the tidalapi Python3 module with pip3,
- it is not packaged at the moment. 
+Description: upmpdcli Tidal plugin. You will need to install the tidalapi
+ Python3 module with pip3, it is not packaged at the moment. 
 
 Package: upmpdcli-radios
 Architecture: all
