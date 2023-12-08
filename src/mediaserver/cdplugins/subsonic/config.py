@@ -40,7 +40,7 @@ log_intermediate_url : bool = get_plugin_option_value("logintermediateurl", "0")
 skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0") == "1"
 allow_artist_art : bool = get_plugin_option_value("allowartistart", "0") == "1"
 server_side_scrobbling : bool = get_plugin_option_value("serversidescrobbling", "0") == "1"
-
+prepend_number_in_album_list : bool = get_plugin_option_value("prependnumberinalbumlist", "1") == "1"
 __transcode_codec : str = get_plugin_option_value("transcodecodec", "")
 __transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
 

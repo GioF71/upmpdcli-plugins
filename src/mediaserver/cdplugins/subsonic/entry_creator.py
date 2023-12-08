@@ -88,6 +88,8 @@ def album_to_navigable_entry(
     if prepend_artist:
         artist : str = current_album.getArtist()
         if artist: title = f"{artist} - {title}"
+    prepend_number : int = get_option(options = options, option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
+    if prepend_number: title = f"[{prepend_number:02}] {title}"
     artist : str = current_album.getArtist()
     identifier : ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.getName(), current_album.getId())
     id : str = identifier_util.create_objid(
@@ -272,13 +274,18 @@ def playlist_to_entry(
         upnp_util.set_album_art_from_uri(art_uri, entry)
     return entry
 
-def album_to_entry(objid, album : Album, options : dict[str, any] = {}) -> direntry:
+def album_to_entry(
+        objid, 
+        album : Album, 
+        options : dict[str, any] = {}) -> direntry:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
     title : str = album.getTitle()
     prepend_artist : bool = get_option(options = options, option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE)
     if prepend_artist:
         artist : str = album.getArtist()
         if artist: title = f"{artist} - {title}"
+    prepend_number : int = get_option(options = options, option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
+    if prepend_number: title = f"[{prepend_number:02}] {title}"
     if config.append_year_to_album == 1 and has_year(album):
         title = "{} [{}]".format(title, get_album_year_str(album))
     if config.append_codecs_to_album == 1:

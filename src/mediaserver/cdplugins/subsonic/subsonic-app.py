@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__subsonic_plugin_release : str = "0.3.4"
+__subsonic_plugin_release : str = "0.3.5"
 
 import subsonic_init
 import subsonic_util
@@ -322,12 +322,19 @@ def _load_albums_by_type(
         entries : list, 
         tagType : TagType,
         offset : int = 0,
-        size : int = config.items_per_page) -> list:
+        size : int = config.items_per_page,
+        options : dict[str, any] = dict()) -> list:
     albumList : list[Album] = subsonic_util.get_albums(tagType.getQueryType(), size = size, offset = str(offset))
     sz : int = len(albumList)
     current_album : Album
     tag_cached : bool = False
+    counter : int = offset
     for current_album in albumList:
+        counter += 1
+        option_util.set_option(
+            options = options, 
+            option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE, 
+            option_value = counter)
         cache_manager_provider.get().on_album(current_album)
         if tagType and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(ElementType.TAG, tagType.getTagName(), current_album.getId())
@@ -335,11 +342,13 @@ def _load_albums_by_type(
         if config.disable_navigable_album == 1:
             entries.append(entry_creator.album_to_entry(
                 objid = objid, 
-                album = current_album))
+                album = current_album,
+                options = options))
         else:            
             entries.append(entry_creator.album_to_navigable_entry(
                 objid, 
-                current_album))
+                current_album,
+                options = options))
     return entries
 
 def _load_albums_by_artist(artist_id : str) -> list[Album]:
@@ -347,11 +356,17 @@ def _load_albums_by_artist(artist_id : str) -> list[Album]:
     if not artist_response.isOk(): raise Exception(f"Cannot get albums for artist_id {artist_id}")
     return artist_response.getObj().getAlbumList()    
 
-def _albums_by_artist_to_entries(objid, album_list : list[Album], entries : list) -> list:
+def _albums_by_artist_to_entries(
+        objid, 
+        album_list : list[Album], 
+        offset : int, 
+        entries : list) -> list:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
     current_album : Album
     artist_tag_cached : bool = False
+    counter : int = offset
     for current_album in album_list:
+        counter += 1
         if not artist_tag_cached:
             cache_manager.cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
             artist_tag_cached = True
@@ -368,6 +383,11 @@ def _albums_by_artist_to_entries(objid, album_list : list[Album], entries : list
             options = options, 
             option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE, 
             option_value = False)
+        if config.prepend_number_in_album_list:
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE, 
+                option_value = counter)
         entries.append(entry_creator.album_to_entry(
             objid = objid, 
             album = current_album, 
@@ -571,12 +591,21 @@ def _create_tag_next_entry(
 
 def __handler_tag_album_listype(objid, item_identifier : ItemIdentifier, tag_type : TagType, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    counter : int = offset
     try:
+        counter += 1
+        options : dict[str, any] = dict()
+        if config.prepend_number_in_album_list:
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE, 
+                option_value = counter)
         entries = _load_albums_by_type(
             objid = objid, 
             entries = entries, 
             tagType = tag_type, 
-            offset = offset)
+            offset = offset,
+            options = options)
         # offset is: current offset + the entries length
         if (len(entries) == config.items_per_page):
             next_page : dict = _create_tag_next_entry(
@@ -917,9 +946,19 @@ def _handler_element_genre_artist_albums(objid, item_identifier : ItemIdentifier
     need_next : bool = album_list and len(album_list) > (offset + config.items_per_page)
     album_slice : list[Album] = album_list[offset:min(len(album_list), offset + config.items_per_page)]
     current_album : Album
+    counter : int = offset
     for current_album in album_slice if album_slice and len(album_slice) > 0 else []:
+        counter += 1
         options : dict[str, any] = {}
-        option_util.set_option(options = options, option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE, option_value = False)
+        if config.prepend_number_in_album_list:
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE, 
+                option_value = counter)
+        option_util.set_option(
+            options = options, 
+            option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE, 
+            option_value = False)
         entry : dict[str, any] = entry_creator.album_to_entry(
             objid = objid, 
             album = current_album,
@@ -952,14 +991,25 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
     album_list : list[Album] = album_list_response.getObj().getAlbums()
     msgproc.log(f"got {len(album_list)} albums for genre {genre} from offset {offset}")
     once : bool = False
+    counter : int = offset
     current_album : Album
     for current_album in album_list:
+        counter += 1
         if not once:
             cache_manager.cache_element_value(ElementType.TAG, TagType.GENRES.getTagName(), current_album.getId())    
             once = True
         cache_manager.cache_element_value(ElementType.GENRE_ALBUM_LIST, genre, current_album.getId())
         cache_manager.cache_element_value(ElementType.GENRE_ALBUM_LIST, current_album.getGenre(), current_album.getId())
-        entries.append(entry_creator.album_to_entry(objid = objid, album = current_album))
+        options : dict[str, any] = dict()
+        if config.prepend_number_in_album_list:
+            option_util.set_option(
+                options = options, 
+                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE, 
+                option_value = counter)
+        entries.append(entry_creator.album_to_entry(
+            objid = objid, 
+            album = current_album,
+            options = options))
     if len(album_list) == config.items_per_page:
         # create next button
         entries = _genre_add_albums_node(
@@ -1062,7 +1112,11 @@ def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entr
     num_albums_to_show : int = config.items_per_page if next_needed or len(album_list) == config.items_per_page else len(album_list) % config.items_per_page
     msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} next_needed {next_needed} num_albums_to_show {num_albums_to_show}")
     if num_albums_to_show > 0:
-        entries = _albums_by_artist_to_entries(objid, album_list[offset : offset + num_albums_to_show], entries)
+        entries = _albums_by_artist_to_entries(
+            objid = objid, 
+            album_list = album_list[offset : offset + num_albums_to_show], 
+            offset = offset,
+            entries = entries)
         msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
         if next_needed:
             next_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)

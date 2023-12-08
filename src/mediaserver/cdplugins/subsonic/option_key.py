@@ -25,7 +25,9 @@ class OptionKey(Enum):
     MULTI_CODEC_ALBUM = 4, "multi-codec-album", MultiCodecAlbum.NO
     SKIP_ART = 5, "skip-art", False
     OFFSET = 6, "offset", 0
-    PAGINATED = 7, "paginated", False
+    PAGINATED = 7, "paginated", False,
+    # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
+    PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE = 8, "prepend-entry-number-in-album-title", None
 
     def __init__(self, 
             num : int, 
