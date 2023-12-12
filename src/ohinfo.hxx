@@ -32,19 +32,19 @@ class OHPlaylist;
 
 class OHInfo : public OHService {
 public:
-    // updstatus is set if we are the first service (avt not
-    // running). We actually fetch the MPD status instead of using the
-    // cached data.
+    // updstatus is set if we are the first service (avt not running). We actually fetch the MPD
+    // status instead of using the cached data.
     OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus);
 
-    // When set from a radio, metadata is the static channel name and
-    // metatext is the dynamic current title info. Both are
-    // didl-encoded
+    // When set from a radio, metadata is the static channel name and metatext is the dynamic
+    // current title info. Both are didl-encoded
     void setMetadata(const std::string& metadata, const std::string& metatext);
     void resetMetadata() {
-        m_metatext = m_metadata = "";
+        m_metatext = m_metadata = m_codec = "";
+        m_bitdepth = 16;
         m_metatextcnt++;
     }
+
     void setOHPL(OHPlaylist *ohp) {
         m_ohpl = ohp;
     }
@@ -62,9 +62,18 @@ private:
     void makedetails(std::string &duration, std::string& bitrate,
                      std::string& bitdepth, std::string& samplerate);
 
+    // metadata *only if set from a call to setMetaData. Else we use the data from the metacache
+    // (and store some values codec/lossless/bitdepth for easier use for events)
     std::string m_metadata;
+    // Metatext if set from setMetadata
     std::string m_metatext;
-    int m_metatextcnt{0};
+    int m_metatextcnt{0};    
+    // Decoded metadata from cache for easier use for events, and the uri it's for
+    std::string m_metauri;
+    std::string m_codec;
+    bool m_lossless;
+    int m_bitdepth;
+
     bool m_updstatus{false};
     OHPlaylist *m_ohpl{0};
     bool m_meta_text_into_data{false};

@@ -28,6 +28,8 @@
 
 #include "libupnpp/log.hxx"
 #include "libupnpp/soaphelp.hxx"
+#include "libupnpp/upnpavutils.hxx"
+#include "libupnpp/control/cdircontent.hxx"
 
 #include "mpdcli.hxx"
 #include "upmpd.hxx"
@@ -55,45 +57,78 @@ OHInfo::OHInfo(UpMpd *dev, UpMpdOpenHome *udev, bool updstatus)
                                   std::bind(&OHService::onEvent, this, _1));
 }
 
+// Determine current uri and metadata
 void OHInfo::urimetadata(string& uri, string& metadata)
 {
-    const MpdStatus &mpds =  m_dev->getMpdStatus();
-    bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
-        (mpds.state == MpdStatus::MPDS_PAUSE);
-
-    // If somebody (e.g. ohradio) took care to set the metadata, use it.
-    // Metadata is reset by OHProduct::setSourceIndex.
+    // If somebody (e.g. ohradio) took care to set the metadata, it is stored in m_metadata, use it.
+    // m_metadata is reset by OHProduct::setSourceIndex.
     if (!m_metadata.empty()) {
         metadata = m_metadata;
-    } else {
-        if (is_song) {
-            uri = mpds.currentsong.rsrc.uri;
-            // Playlist or AVTransport playing, probably.
-            // Prefer metadata from cache (copy from media server) to
-            // whatever comes from mpd.
-            if (m_ohpl && m_ohpl->cacheFind(uri, metadata)) {
-                return;
+        return;
+    }
+
+    const MpdStatus &mpds =  m_dev->getMpdStatus();
+    bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || (mpds.state == MpdStatus::MPDS_PAUSE);
+
+    if (!is_song) {
+        uri.clear();
+        metadata.clear();
+        return;
+    }
+
+    uri = mpds.currentsong.rsrc.uri;
+
+    // Try to find the metadata in the cache. It's there if it it came in through UPnP. Might not be
+    // there if an mpd client or other CP created/updated the playlist, in which case, we make up
+    // one from MPD data. We stop there, as there is no point extracting data from there, MPD data
+    // will be directly used instead.
+    if (!m_ohpl || !m_ohpl->cacheFind(uri, metadata)) {
+        metadata = didlmake(mpds.currentsong);
+        return;
+    }
+
+    // The metadata was found in the cache, use it.
+    if (m_metauri == uri) {
+        // Parse, and extraction already done, the necessary data was stored.
+        return;
+    }
+
+    m_metauri = uri;
+    UPnPClient::UPnPDirContent dirc;
+    if (!dirc.parse(metadata) || dirc.m_items.size() == 0) {
+        return;
+    }
+    UPnPClient::UPnPDirObject& item = dirc.m_items[0];
+    for (int i = 0; i < int(item.m_resources.size()); i++) {
+        UPnPClient::UPnPResource& res = item.m_resources[i];
+        if (res.m_uri == uri) {
+            std::string sbits;
+            if (item.getrprop(i, "bitsPerSample", sbits)) {
+                m_bitdepth = atoi(sbits.c_str());
+            } else {
+                m_bitdepth = 16;
             }
-            metadata = didlmake(mpds.currentsong);
-        } else {
-            uri.clear();
-            metadata.clear();
+            UPnPP::ProtocolinfoEntry e;
+            res.protoInfo(e);
+            mimeToCodec(e.contentFormat, m_codec, &m_lossless);
+            break;
         }
     }
 }
 
-void OHInfo::makedetails(string &duration, string& bitrate, 
-                         string& bitdepth, string& samplerate)
+void OHInfo::makedetails(string &duration, string& bitrate, string& bitdepth, string& samplerate)
 {
     const MpdStatus mpds =  m_dev->getMpdStatus();
-
-    bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || 
-        (mpds.state == MpdStatus::MPDS_PAUSE);
+    bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || (mpds.state == MpdStatus::MPDS_PAUSE);
 
     if (is_song) {
         duration = SoapHelp::i2s(mpds.songlenms / 1000);
         bitrate = SoapHelp::i2s(mpds.kbrate * 1000);
-        bitdepth = SoapHelp::i2s(mpds.bitdepth);
+        if (!m_codec.empty()) {
+            bitdepth = SoapHelp::i2s(m_bitdepth);
+        } else {
+            bitdepth = SoapHelp::i2s(mpds.bitdepth);
+        }
         samplerate = SoapHelp::i2s(mpds.sample_rate);
     } else {
         duration = bitrate = bitdepth = samplerate = "0";
@@ -114,8 +149,12 @@ bool OHInfo::makestate(unordered_map<string, string> &st)
     st["Metadata"] = metadata;
     st["Metatext"] = m_metatext;
     makedetails(st["Duration"], st["BitRate"], st["BitDepth"],st["SampleRate"]);
-    st["Lossless"] = "0";
-    st["CodecName"] = "";
+    if (!m_codec.empty()) {
+        st["Lossless"] = m_lossless ? "1" : "0";
+    } else {
+        st["Lossless"] = "0";
+    }
+    st["CodecName"] = m_codec;
     return true;
 }
 
@@ -168,8 +207,7 @@ int OHInfo::metatext(const SoapIncoming& sc, SoapOutgoing& data)
 // Called from ohradio only at the moment. Should we call it from playlist?
 void OHInfo::setMetadata(const string& metadata, const string& metatext)
 {
-    LOGDEB0("OHInfo::setMetadata: metadata [" << metadata <<
-            "] metatext [" << metatext << "]\n");
+    LOGDEB0("OHInfo::setMetadata: metadata [" << metadata << "] metatext [" << metatext << "]\n");
 
     if (m_meta_text_into_data && !metatext.empty()) {
         m_metadata = metatext;

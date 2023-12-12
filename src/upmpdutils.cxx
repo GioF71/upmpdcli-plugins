@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2020 J.F.Dockes
+/* Copyright (C) 2014-2023 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -44,6 +44,7 @@
 #ifndef O_STREAMING
 #define O_STREAMING 0
 #endif
+#include <map>
 #include <fstream>
 #include <sstream>
 #include <utility>
@@ -297,8 +298,7 @@ bool metaSameTitle(const string& meta1, const string& meta2)
     const string& tit1(dirc1.m_items[0].m_title);
     const string& tit2(dirc2.m_items[0].m_title);
     if (tit1.compare(tit2)) {
-        LOGDEB0("metaSameTitle: not same title [" << tit1 << "] [" <<
-                tit2 << "]\n");
+        LOGDEB0("metaSameTitle: not same title [" << tit1 << "] [" << tit2 << "]\n");
         return false;
     }
     LOGDEB2("metaSameTitle: same\n");
@@ -336,8 +336,7 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
 
     struct stat st;
     if (stat(fn, &st) < 0) {
-        LOGERR("ensureconfreadable: can't stat " << fn << " errno " <<
-               errno << endl);
+        LOGERR("ensureconfreadable: can't stat " << fn << " errno " << errno << endl);
         return false;
     }
     if ((st.st_mode & S_IROTH)) {
@@ -442,3 +441,76 @@ std::string fnameSetup(const std::string in)
     pcSubst(in, out, fnameSubst);
     return out;
 }
+
+
+static const std::map<std::string, std::string> lossless_mimes {
+    {"audio/x-flac", "FLAC"},
+    {"audio/l16", "L16"},
+    {"application/flac", "FLAC"},
+    {"application/x-flac", "FLAC"},
+    {"audio/flac", "FLAC"},
+    {"audio/x-flac", "FLAC"},
+    {"audio/x-aiff", "AIFF"},
+    {"audio/aif", "AIFF"},
+    {"audio/aiff", "AIFF"},
+    {"audio/dff", "DSD"},
+    {"audio/x-dff", "DSD"},
+    {"audio/dsd", "DSD"},
+    {"audio/x-dsd", "DSD"},
+    {"audio/dsf", "DSD"},
+    {"audio/x-dsf", "DSD"},
+    {"audio/wav", "WAV"},
+    {"audio/x-wav", "WAV"},
+    {"audio/wave", "WAV"},
+    {"audio/x-monkeys-audio", "APE"},
+    {"audio/x-ape", "APE"},
+    {"audio/ape", "APE"},
+};
+
+static const std::map<std::string, std::string> lossy_mimes {
+    {"audio/mpeg", "MP3"},
+    {"application/ogg", "VORBIS"},
+    {"audio/aac", "AAC"},
+    {"audio/m4a", "MP4"},
+    {"audio/x-m4a", "MP4"},
+    {"audio/matroska", "MATROSKA"},
+    {"audio/x-matroska", "MATROSKA"},
+    {"audio/mp1", "MP1"},
+    {"audio/mp3", "MP3"},
+    {"audio/mp4", "MP4"},
+    {"audio/mpeg", "MP3"},
+    {"audio/x-mpeg", "MP3"},
+    {"audio/ogg", "VORBIS"},
+    {"audio/vorbis", "VORBIS"},
+    {"audio/x-ms-wma", "WMA"},
+    {"audio/x-ogg", "VORBIS"},
+    {"audio/x-vorbis+ogg", "VORBIS"},
+    {"audio/x-vorbis", "VORBIS"},
+    {"audio/x-wavpack", "WAVPACK"},
+    {"video/mp4", "MP4"},
+};
+
+bool mimeToCodec(const std::string& mime, std::string& codec, bool *lossless)
+{
+    int ret = true;
+    auto it = lossless_mimes.find(stringtolower(mime));
+    if (it != lossless_mimes.end()) {
+        codec = it->second;
+        *lossless = true;
+        goto out;
+    }
+    it = lossy_mimes.find(stringtolower(mime));
+    if (it != lossy_mimes.end()) {
+        codec = it->second;
+        *lossless = false;
+        goto out;
+    }
+
+    ret = false;
+    codec = "UNKNOWN";
+    *lossless = false;
+out:
+    LOGDEB1("mimeToCodec: name " << codec << " lossless " << *lossless << "\n");
+    return ret;
+}
+

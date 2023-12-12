@@ -488,8 +488,7 @@ bool MPDCli::updStatus()
     m_stat.songelapsedms = mpd_status_get_elapsed_ms(mpds);
     m_stat.songlenms = mpd_status_get_total_time(mpds) * 1000;
     m_stat.kbrate = mpd_status_get_kbit_rate(mpds);
-    const struct mpd_audio_format *maf =
-        mpd_status_get_audio_format(mpds);
+    const struct mpd_audio_format *maf = mpd_status_get_audio_format(mpds);
     if (maf) {
         m_stat.bitdepth = maf->bits;
         m_stat.sample_rate = maf->sample_rate;
@@ -501,8 +500,7 @@ bool MPDCli::updStatus()
         m_stat.currentsong.rsrc.samplefreq = m_stat.sample_rate;
         m_stat.currentsong.rsrc.bitsPerSample = m_stat.bitdepth;
         m_stat.currentsong.rsrc.channels = m_stat.channels;
-
-        LOGDEB1("MPD AUDIO FORMAT: " <<  int(maf->sample_rate) << " samps/S " <<
+        LOGDEB1("mpd audioformat: " <<  int(maf->sample_rate) << " samps/S " <<
                 m_stat.kbrate << " kbits/S " << int(maf->bits) << " bits " <<
                 int(maf->channels) << " channels\n");
     } else {

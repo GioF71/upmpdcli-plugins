@@ -114,11 +114,9 @@ bool metaSameTitle(const std::string& meta1, const std::string& meta2);
 extern int percentodbvalue(int value);
 extern int dbvaluetopercent(int dbvalue);
 
-// Return mapvalue or null strings, for maps where absent entry and
-// null data are equivalent
+// Return mapvalue or null strings, for maps where absent entry and null data are equivalent
 extern const std::string& mapget(
-    const std::unordered_map<std::string, std::string>& im, 
-    const std::string& k);
+    const std::unordered_map<std::string, std::string>& im, const std::string& k);
 
 // Format a didl fragment from MPD status data. Used by the renderer
 extern std::string didlmake(const UpSong& song, bool noresource = false);
@@ -156,5 +154,7 @@ extern bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_
 extern std::string fnameSetup(const std::string in);
 
 extern std::string upmpdcliVersionInfo();
+
+extern bool mimeToCodec(const std::string& mime, std::string& codec, bool *lossless);
 
 #endif /* _UPMPDUTILS_H_X_INCLUDED_ */
