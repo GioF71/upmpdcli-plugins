@@ -1,4 +1,4 @@
-# Copyright (C) 2017 J.F.Dockes
+# Copyright (C) 2017-2034 J.F.Dockes
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation; either version 2 of the License, or
@@ -15,8 +15,6 @@
 #   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 
-from __future__ import print_function
-
 import os
 import time
 import bottle
@@ -27,13 +25,17 @@ from upmplgutils import uplog
 from uprclutils import embedded_open
 import uprclinit
 
-# Checking for numeric HOST header
+# DNS rebinding mitigation. We check that the HOST header is either the configured host:port (with a
+# possible domain-based host) or a numeric address.
 _hostre = re.compile('''[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+''')
 def _checkhost():
+    httphp = uprclinit.getHttphp()
     if 'host' in bottle.request.headers:
         host = bottle.request.headers['host']
+        if host == httphp:
+            return True
         if not _hostre.match(host):
-            uplog("Streamer: Bad Host <%s>" % host)
+            uplog(f"Streamer: Bad Host <{host}> (httphp: {httphp})")
             return False
     return True
 
@@ -104,6 +106,7 @@ class Streamer(object):
             bottle.response.set_header("Content-type", ctype)
             bottle.response.set_header("Content-Length", size)
             return f
+
         # Binary paths: transmitted as follows (See bottle._handle())
         #   binarypath->binarypath.decode('latin1')->urlquote()->NETWORK->
         #   urlunquote()->encode('latin1').decode('utf-8', 'ignore')
@@ -121,12 +124,11 @@ class Streamer(object):
             if not os.path.exists(fullpath):
                 uplog("uprcl: no such file: %s" % fullpath)
                 return bottle.HTTPResponse(status=404)
+
         uplog("Streaming: %s " % fullpath)
         mutf = mutagen.File(fullpath)
-            
         if mutf:
-            return bottle.static_file(fullpath, root=root,
-                                      mimetype=mutf.mime[0])
+            return bottle.static_file(fullpath, root=root, mimetype=mutf.mime[0])
         else:
             return bottle.static_file(fullpath, root=root)
     
