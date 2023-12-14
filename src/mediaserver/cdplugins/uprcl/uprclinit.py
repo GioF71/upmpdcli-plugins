@@ -223,11 +223,6 @@ def uprcl_init():
             pthstr += p + ":" + p + ","
         pthstr = pthstr.rstrip(",")
     uplog("Path translation: pthstr: %s" % pthstr)
-    lpth = pthstr.split(',')
-    pathmap = {}
-    for ptt in lpth:
-        l = ptt.split(':')
-        pathmap[l[0]] = l[1]
         
     host,port = _g_httphp.split(':')
 
