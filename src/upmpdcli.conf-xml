@@ -422,6 +422,10 @@
 # (en/de).</brief> <descr>Some Highresaudio messages will be set in the
 # appropriate language.</descr></var>
 #hralang = en
+# <var name="hratitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#hratitle = Highres Audio
 
 
 # <grouptitle>Qobuz streaming service parameters</grouptitle>
@@ -437,18 +441,22 @@
 # <descr>5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 # allows streaming each of the formats).</descr></var>
 #qobuzformatid = 6
-# <var name="qobuzrenumtracks" type="bool>
+# <var name="qobuzrenumtracks" type="bool">
 # <brief>Qobuz track renumbering.</brief>
 # <descr>Renumber tracks by counting elements, avoiding issues with Kodi. Enabled by default.</descr></var>
 #qobuzrenumtracks = 1
-# <var name="qobuzexplicititemnumbers" type="bool>
+# <var name="qobuzexplicititemnumbers" type="bool">
 # <brief>Explicit item numbers in brackets.</brief>
 # <descr>Add item numbers in square brackes in lists, mostly for kodi compatibility/usability. Disabled by default.</descr></var>
 #qobuzexplicititemnumbers = 0
-# <var name="qobuzprependartisttoalbum" type="bool>
+# <var name="qobuzprependartisttoalbum" type="bool">
 # <brief>Artist name before albums in album lists.</brief>
 # <descr>Prepend artist to album in album lists, mostly for kodi compatibility/usability. Disabled by default.</descr></var>
 #qobuzprependartisttoalbum = 0
+# <var name="qobuztitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#qobuztitle = Qobuz
 
 # <grouptitle>Tidal streaming service parameters</grouptitle>
 
@@ -469,11 +477,17 @@
 #tidalexpirytime = 1697143990.40669
 # <var name="tidalaudioquality" type="cstr" values="LOW HIGH LOSSLESS HI_RES HI_RES_LOSSLESS">
 # <brief>Tidal maximum stream quality.</brief>
-# <descr>LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA, HI_RES_LOSSLESS for 
-# hi-res FLAC files (if your subscription allows streaming each of the formats).</descr></var>
+# <descr>LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,
+# HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
+# formats).</descr></var>
 #tidalaudioquality = LOSSLESS
+# <var name="tidaltitle" type="string">
+# <brief>Plugin Title.</brief>
+# <descr>This will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#tidaltitle = Tidal
 
-# <grouptitle>Local Media Server parameters</grouptitle>
+# <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 
 # <var name="uprcluser" type="string">
 # <brief>Bogus user name variable.</brief>
@@ -585,18 +599,30 @@ upradiostitle = Upmpdcli Radio List
 # <var name="radio-browseruser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #radio-browseruser = bugsbunny
+# <var name="radio-browsertitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#radio-browsertitle = Radio Browser
 
 # <grouptitle>Radio Paradise (https://www.radioparadise.com/) plugin parameters</grouptitle>
 
 # <var name="radio-paradiseuser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #radio-paradiseuser = bugsbunny
+# <var name="radio-paradisetitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#radio-paradisetitle = Radio Paradise
 
 # <grouptitle>Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters</grouptitle>
 
 # <var name="mother-earth-radiouser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #mother-earth-radiouser = bugsbunny
+# <var name="mother-earth-radiotitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#mother-earth-radiotitle = Mother Earth Radio
 
 # <grouptitle>SubSonic plugin parameters</grouptitle>
 
@@ -640,13 +666,21 @@ upradiostitle = Upmpdcli Radio List
 # <descr>If enabled, we will scrobble the song when streaming starts. Disabled by default.</descr></var>
 #subsonicserversidescrobbling = 0
 
-# <var name="subsonicprependnumberinalbumlist" type="bool"><brief>Add a progressive number to album in album lists.
-Mostly for Kodi compatibility and usability. Enabled by default.</descr></var>
+# <var name="subsonicprependnumberinalbumlist" type="bool">
+# <brief>Add a progressive number to album in album lists.</brief>
+# <descr>Mostly for Kodi compatibility and usability. Enabled by default.</descr></var>
 #subsonicprependnumberinalbumlist = 1
 
-# <var name="subsonictaginitialpageenabledir" type="int"><brief>Subsonic enable Internet Radios</brief>
-# <descr>Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling Internet Radios</descr></var>
+# <var name="subsonictaginitialpageenabledir" type="int">
+# <brief>Subsonic enable Internet Radios</brief>
+# <descr>Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling
+# Internet Radios</descr></var>
 #subsonictaginitialpageenabledir = 0
+
+# <var name="subsonictitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#subsonictitle = Subsonic
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
@@ -659,6 +693,10 @@ Mostly for Kodi compatibility and usability. Enabled by default.</descr></var>
 # <brief>Past days in BBC Sounds catalog listing.</brief>
 # <descr>This controls how many days are listed in the station displays.</descr></var>
 #bbcprogrammedays = 30
+# <var name="bbctitle" type="string"> <brief>Plugin Title.</brief><descr>This
+# will be displayed as the plugin entry in the Media Server root
+# directory.</descr></var>
+#bbctitle = Upmpdcli Radio List
 
 # <grouptitle>Songcast Receiver parameters</grouptitle>
 
