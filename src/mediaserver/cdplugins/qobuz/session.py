@@ -4,6 +4,7 @@
 
 import sys
 import json
+from datetime import datetime
 from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, Category, Genre
 from upmplgutils import *
 from qobuz.api import raw
@@ -278,13 +279,22 @@ def _parse_album(json_obj, artist=None, artists=None):
     if 'description' in json_obj:
         #uplog(f"_parse_album: setting description {json_obj['description'][0:80]}...")
         kwargs['description'] = json_obj['description']
-        
-    if 'releaseDate' in json_obj:
-        try:
-            # Keep this as a string else we fail to json-reserialize it later
-            kwargs['release_date'] = json_obj['releaseDate']
-        except ValueError:
-            pass
+
+    try:
+        if "release_date_original" in json_obj:
+            #uplog(f"release_date_original: {json_obj['release_date_original']}")
+            kwargs["release_date"] = json_obj["release_date_original"]
+        elif "released_at" in json_obj:
+            ts = json_obj["released_at"]
+            dte = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+            #uplog(f"released_at: {ts} -> {dte}")
+            kwargs["release_date"] = dte
+        elif "releaseDate" in json_obj:
+            #  I think that this is obsolete: not in qobuz data any more (if it ever was).
+            kwargs["release_date"] = json_obj["releaseDate"]
+    except Exception as ex:
+        uplog(f"album: got exception {ex} while trying to set date")
+        pass
 
     return Album(**kwargs)
 

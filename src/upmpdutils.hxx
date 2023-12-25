@@ -46,7 +46,8 @@ public:
     std::string genre;
     std::string artUri;
     std::string upnpClass;
-    std::string date;
+    // Date as iso string YYYY-MM-dd. dc:date in UPnP data.
+    std::string dcdate;
     std::string dcdescription;
 
     // A raw didl fragment to be added to the output when converting to DIDL. For Media Server

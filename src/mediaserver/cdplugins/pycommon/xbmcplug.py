@@ -159,7 +159,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums = False)
             if not track.image and track.album.image:
                 li['upnp:albumArtURI'] = track.album.image
             if track.album.release_date:
-                li['releasedate'] = track.album.release_date
+                li['dc:date'] = track.album.release_date
             # Do we really want to do this ? This would currently be the only way to display the,
             # e.gh. Qobuz album description in upplay (because the description is not set in album
             # lists used by the dir browser, only when querying a specific album), but it does not

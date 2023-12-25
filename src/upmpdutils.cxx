@@ -219,7 +219,7 @@ string UpSong::didl(bool noresource) const
     UPNPXML(genre, upnp:genre);
     UPNPXML(artist, dc:creator);
     UPNPXML(artist, upnp:artist);
-    UPNPXML(date, dc:date);
+    UPNPXML(dcdate, dc:date);
     UPNPXML(dcdescription, dc:description);
     UPNPXML(artUri, upnp:albumArtURI);
 
