@@ -324,19 +324,21 @@ string regsub1(const string& sexp, const string& input, const string& repl)
     return re.simpleSub(input, repl);
 }
 
-// Make sure that the configuration file is readable by user upmpdcli.
-// This is only called if we are started as root, before switching
-// users.  We do the minimum change: set the user read bit if the
-// file belongs to it, else set the group read bit if it belongs to
-// one of the user groups, else, have to chrgp it.
+// Make sure that the configuration file is readable by a process running as user uid group gid This
+// is only called if we are started as root, before switching users. We do the minimum change: set
+// the user read bit if the file belongs to upmpdcli, else change the file group to
+// upmpdcli's base group and set the group read bit.
+// We used to look at the upmpdcli group list and set the group read bit if the file group was part
+// of the list, but this was, I now think, stupid in addition to complicated as this could end up
+// setting the read permission for a wide group.
 bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
 {
     LOGDEB1("ensureconfreadable: fn " << fn << " user " << user << " uid " <<
-            uid << " gid " << gid << endl);
+            uid << " gid " << gid << "\n");
 
     struct stat st;
     if (stat(fn, &st) < 0) {
-        LOGERR("ensureconfreadable: can't stat " << fn << " errno " << errno << endl);
+        LOGSYSERR("ensureconfreadable", "stat", fn);
         return false;
     }
     if ((st.st_mode & S_IROTH)) {
@@ -347,13 +349,11 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
 
     if (st.st_uid == uid) {
         LOGDEB1("ensureconfreadable: file belongs to user\n");
-        // File belongs to user. Make sure that "owner read" is
-        // set. Don't complicate things. "no owner read" does not make
-        // sense anyway (can always chmod).
+        // File belongs to user. Make sure that "owner read" is set. Don't complicate things. "no
+        // owner read" does not make sense anyway (can always chmod).
         if (!(st.st_mode & S_IRUSR)) {
             if (chmod(fn, st.st_mode|S_IRUSR) < 0) {
-                LOGERR("ensureconfreadable: chmod(st.st_mode|S_IRUSR) failed."
-                       " errno " << errno << endl);
+                LOGSYSERR("ensureconfreadable", "chmod(st.st_mode|S_IRUSR)", fn);
                 return false;
             }
         }
@@ -361,50 +361,14 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
     }
 
 #ifndef __APPLE__
-    // Deal with groups.
-    // Note that 1000 is arbitrary, we should call with 0 to retrieve
-    // the actual size and allocate accordingly then recall
-    int ngroups{1000};
-    gid_t groups[1000];
-    if (getgrouplist(user, gid, groups, &ngroups) < 0) {
-        LOGERR("ensureconfreadable: getgrouplist failed for " << user << endl);
-        return false;
-    }
-
-    // Check if file belongs to one of our groups. Make it
-    // group-readable if so. Determine our lowest group while we're at
-    // it.
-    unsigned int mingroup{UINT_MAX};
-    for (int i = 0;i < ngroups; i++) {
-        if (groups[i] < mingroup) {
-            mingroup = groups[i];
-        }
-        if (st.st_gid == groups[i]) {
-            if (!(st.st_mode & S_IRGRP)) {
-                if (chmod(fn, st.st_mode|S_IRGRP) < 0) {
-                    LOGERR("ensureconfreadable: chmod(st.st_mode|S_IRGRP) "
-                           "failed.  errno " << errno << endl);
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-    
-    // File does not belong to any of our groups. We already checked
-    // that "other read" was not set. Have to change the file
-    // group. Note that we could also add the file group to our group
-    // list, but this seems like a worse idea (making us a setgid
-    // executable in practise).
-    if (chown(fn, (uid_t)-1, mingroup) < 0) {
-        LOGERR("ensureconfreadable: chown(" << fn << "-1, " << mingroup <<") "
-               "failed. errno " << errno << endl);
+    // Change the file group, then make it group-readable.
+    if (chown(fn, (uid_t)-1, gid) < 0) {
+        LOGSYSERR("ensureconfreadable", "chown", fn);
         return false;
     }
     if (!(st.st_mode & S_IRGRP)) {
         if (chmod(fn, st.st_mode|S_IRGRP) < 0) {
-            LOGERR("ensureconfreadable: chmod(st.st_mode|S_IRGRP) "
-                   "failed.  errno " << errno << endl);
+            LOGSYSERR("ensureconfreadable", "chmod(st.st_mode|S_IRGRP)", fn);
             return false;
         }
     }
