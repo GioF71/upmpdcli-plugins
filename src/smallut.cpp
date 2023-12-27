@@ -1358,8 +1358,8 @@ std::string valToString(const std::vector<CharFlags>& flags, unsigned int val)
     return out;
 }
 
-// Decode %-encoded URL. No encoding method is defined here because the problem is too complex and
-// ambiguous (at least 3 RFCs + comments). Decoding however is unambiguous.
+// Decode %-encoded string. We leave along anything which does not look like %xy where x,y are
+// hexadecimal digits.
 static inline int h2d(int c) {
     if ('0' <= c && c <= '9')
         return c - '0';
@@ -1371,9 +1371,7 @@ static inline int h2d(int c) {
         return -1;
 }
 
-
-
-std::string url_decode(const std::string &in)
+std::string pc_decode(const std::string &in)
 {
     if (in.size() <= 2)
         return in;

@@ -288,8 +288,8 @@ extern std::string flagsToString(const std::vector<CharFlags>&, unsigned int val
 /// Translate a value into a name
 extern std::string valToString(const std::vector<CharFlags>&, unsigned int val);
 
-/// Decode percent-encoded URL
-extern std::string url_decode(const std::string&);
+/// Decode percent-encoded string
+extern std::string pc_decode(const std::string&);
 
 /// Parse HTTP range header value into a vector of offset pairs. -1 is used as a placeholder
 /// wherever a part of a range is absent: either for a missing end or for a suffix range (absent
