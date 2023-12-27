@@ -371,6 +371,11 @@ hralang:: Hra language setting
 (en/de). Some Highresaudio messages will be set in the
 appropriate language.
 
+[[hratitle]]
+hratitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
+
 === Qobuz streaming service parameters 
 
 [[qobuzuser]]
@@ -382,6 +387,20 @@ qobuzpass:: Qobuz password. The password for your Qobuz account.
 [[qobuzformatid]]
 qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 allows streaming each of the formats).
+
+[[qobuzrenumtracks]]
+qobuzrenumtracks:: Qobuz track renumbering. Renumber tracks by counting elements, avoiding issues with Kodi. Enabled by default.
+
+[[qobuzexplicititemnumbers]]
+qobuzexplicititemnumbers:: Explicit item numbers in brackets. Add item numbers in square brackes in lists, mostly for kodi compatibility/usability. Disabled by default.
+
+[[qobuzprependartisttoalbum]]
+qobuzprependartisttoalbum:: Artist name before albums in album lists. Prepend artist to album in album lists, mostly for kodi compatibility/usability. Disabled by default.
+
+[[qobuztitle]]
+qobuztitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
 
 === Tidal streaming service parameters 
 
@@ -401,10 +420,15 @@ tidalrefreshtoken:: Refresh Token. The refresh token used for authentication.
 tidalexpirytime:: Token expiry time. The expiry time, as an epoch-based floating point number, of the token used for authentication.
 
 [[tidalaudioquality]]
-tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA, HI_RES_LOSSLESS for
-hi-res FLAC files (if your subscription allows streaming each of the formats).
+tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,
+HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
+formats).
 
-=== Local Media Server parameters 
+[[tidaltitle]]
+tidaltitle:: Plugin Title. This will be displayed as the plugin entry in the Media Server root
+directory.
+
+=== UPRCL Local Media Server parameters 
 
 [[uprcluser]]
 uprcluser:: Bogus user name variable. Used for consistency with other Media Server plugins to decide if the service should be
@@ -486,15 +510,30 @@ up this process, this is the maximum thread count.
 [[radio-browseruser]]
 radio-browseruser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+[[radio-browsertitle]]
+radio-browsertitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
+
 === Radio Paradise (https://www.radioparadise.com/) plugin parameters 
 
 [[radio-paradiseuser]]
 radio-paradiseuser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+[[radio-paradisetitle]]
+radio-paradisetitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
+
 === Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters 
 
 [[mother-earth-radiouser]]
 mother-earth-radiouser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
+
+[[mother-earth-radiotitle]]
+mother-earth-radiotitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
 
 === SubSonic plugin parameters 
 
@@ -505,7 +544,7 @@ subsonicuser:: SubSonic User name variable. Decides if the service should be sta
 subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
 
 [[subsoniclegacyauth]]
-subsoniclegacyauth:: SubSonic legacy authentication mode. Required for SubSonic authentication with some servers (e.g. lms). Set to true to enable.
+subsoniclegacyauth:: SubSonic legacy authentication mode. Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.
 
 [[subsonicbaseurl]]
 subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
@@ -525,8 +564,20 @@ subsonictranscodecodec:: Enable transcoding If a value is set, it will be used a
 [[subsonictranscodemaxbitrate]]
 subsonictranscodemaxbitrate:: Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
 
+[[subsonicserversidescrobbling]]
+subsonicserversidescrobbling:: Enable server-side scrobbling If enabled, we will scrobble the song when streaming starts. Disabled by default.
+
+[[subsonicprependnumberinalbumlist]]
+subsonicprependnumberinalbumlist:: Add a progressive number to album in album lists. Mostly for Kodi compatibility and usability. Enabled by default.
+
 [[subsonictaginitialpageenabledir]]
-subsonictaginitialpageenabledir:: Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling Internet Radios
+subsonictaginitialpageenabledir:: Subsonic enable Internet Radios Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling
+Internet Radios
+
+[[subsonictitle]]
+subsonictitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
 
 === Upmpdcli BBC Sounds plugin parameters 
 
@@ -536,6 +587,11 @@ bbcuser:: Bogus user name variable. Set this to activate the plugin, the value i
 
 [[bbcprogrammedays]]
 bbcprogrammedays:: Past days in BBC Sounds catalog listing. This controls how many days are listed in the station displays.
+
+[[bbctitle]]
+bbctitle:: Plugin Title. This
+will be displayed as the plugin entry in the Media Server root
+directory.
 
 === Songcast Receiver parameters 
 

@@ -161,6 +161,8 @@
 #hrapass = your Hra password
 # Hra language setting (en/de).
 #hralang = en
+# Plugin Title.
+#hratitle = Highres Audio
 
 # Qobuz streaming service parameters
 
@@ -170,13 +172,14 @@
 #qobuzpass = agoodpassword
 # Qobuz stream quality.
 #qobuzformatid = 6
-# Renumber tracks by counting elements, enabled by default
+# Qobuz track renumbering.
 #qobuzrenumtracks = 1
-# Add item numbers in square brackes in lists, mostly for kodi compatibility/usability
+# Explicit item numbers in brackets.
 #qobuzexplicititemnumbers = 0
-# Prepend artist to album in album lists, mostly for kodi compatibility/usability
+# Artist name before albums in album lists.
 #qobuzprependartisttoalbum = 0
-
+# Plugin Title.
+#qobuztitle = Qobuz
 
 # Tidal streaming service parameters
 
@@ -192,8 +195,10 @@
 #tidalexpirytime = 1697143990.40669
 # Tidal maximum stream quality.
 #tidalaudioquality = LOSSLESS
+# Plugin Title.
+#tidaltitle = Tidal
 
-# Local Media Server parameters
+# UPRCL Local Media Server parameters
 
 # Bogus user name variable.
 #uprcluser = bugsbunny
@@ -229,16 +234,22 @@ upradiostitle = Upmpdcli Radio List
 
 # Bogus user name variable.
 #radio-browseruser = bugsbunny
+# Plugin Title.
+#radio-browsertitle = Radio Browser
 
 # Radio Paradise (https://www.radioparadise.com/) plugin parameters
 
 # Bogus user name variable.
 #radio-paradiseuser = bugsbunny
+# Plugin Title.
+#radio-paradisetitle = Radio Paradise
 
 # Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters
 
 # Bogus user name variable.
 #mother-earth-radiouser = bugsbunny
+# Plugin Title.
+#mother-earth-radiotitle = Mother Earth Radio
 
 # SubSonic plugin parameters
 
@@ -260,12 +271,14 @@ upradiostitle = Upmpdcli Radio List
 #subsonictranscodecodec = ogg
 # Set max bitrate for transcoding
 #subsonictranscodemaxbitrate = 320
-# Enable server side scrobbling
-#subsonicserversidescrobbling = 1
-# Subsonic enable internet radios
-#subsonictaginitialpageenabledir = 0
-# Prepend album lists with progressive number
+# Enable server-side scrobbling
+#subsonicserversidescrobbling = 0
+# Add a progressive number to album in album lists.
 #subsonicprependnumberinalbumlist = 1
+# Subsonic enable Internet Radios
+#subsonictaginitialpageenabledir = 0
+# Plugin Title.
+#subsonictitle = Subsonic
 
 # Upmpdcli BBC Sounds plugin parameters
 
@@ -273,6 +286,8 @@ upradiostitle = Upmpdcli Radio List
 #bbcuser = bugsbunny
 # Past days in BBC Sounds catalog listing.
 #bbcprogrammedays = 30
+# Plugin Title.
+#bbctitle = Upmpdcli Radio List
 
 # Songcast Receiver parameters
 

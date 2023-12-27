@@ -360,7 +360,7 @@ install-data-hook:
 	(cd $(DESTDIR)/$(cdpluginsradiobrowserdir); chmod a+x radio-browser-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsradioparadisedir); chmod a+x radio-paradise-app.py) 
 	(cd $(DESTDIR)/$(cdpluginssubsonicdir); chmod a+x subsonic-app.py) 
-	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py) 
+	(cd $(DESTDIR)/$(cdpluginstidaldir); chmod a+x tidal-app.py get_credentials.py) 
 	(cd $(DESTDIR)/$(cdpluginsradiosdir); chmod a+x upradios-app.py) 
 	(cd $(DESTDIR)/$(cdpluginsuprcldir); chmod a+x uprcl-app.py) 
 	(cd $(DESTDIR)/$(radioscriptsdir);chmod a+rx . *;chmod a-x radiolist.conf)
