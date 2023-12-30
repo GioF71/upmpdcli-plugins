@@ -486,6 +486,11 @@
 # <descr>This will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
 #tidaltitle = Tidal
+# <var name="tidalprependnumberinitemlist" type="bool">
+# <brief>Use item numbers in album lists for kodi compatibility</brief>
+# <descr>Kodi always tries to sort things, with this parameter we force it to show
+# the entries in the desired order.</descr></var>
+#tidalprependnumberinitemlist = 0
 
 # <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 

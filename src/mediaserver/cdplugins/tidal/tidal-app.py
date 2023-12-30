@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.0.12"
+__tidal_plugin_release : str = "0.0.13"
 
 import json
 import copy
@@ -91,7 +91,8 @@ msgproc = cmdtalkplugin.Processor(dispatcher)
 
 session : TidalSession = None
 
-log_intermediate_url : bool = upmplgutils.getOptionValue(f"{plugin_name}log_intermediate_url", "0") == "1"
+log_intermediate_url : bool = upmplgutils.getOptionValue(f"{plugin_name}logintermediateurl", "0") == "1"
+prepend_number_in_album_list : bool = upmplgutils.getOptionValue(f"{plugin_name}prependnumberinitemlist", "0") == "1"
 
 def album_retriever(album_id : str) -> TidalAlbum:
     return get_session().album(album_id)
@@ -591,20 +592,28 @@ def artist_to_entry(
 
 def album_to_album_container(
         objid,
-        album : TidalAlbum) -> upmplgutils.direntry:
-    options : dict[str, any] = dict()
+        album : TidalAlbum,
+        options : dict[str, any] = dict()) -> upmplgutils.direntry:
+    out_options : dict[str, any] = dict()
+    item_num : int = get_option(
+        options = options, 
+        option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME)
+    if item_num: set_option(
+        options = out_options,
+        option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME,
+        option_value = item_num)
     set_option(
-        options = options,
+        options = out_options,
         option_key = OptionKey.ENTRY_AS_CONTAINER,
         option_value = True)
     set_option(
-        options = options,
+        options = out_options,
         option_key = OptionKey.ADD_ARTIST_TO_ALBUM_ENTRY,
         option_value = True)
     return album_to_entry(
         objid = objid,
         album = album,
-        options = options)
+        options = out_options)
 
 def album_to_entry(
         objid,
@@ -628,6 +637,11 @@ def album_to_entry(
         option_key = OptionKey.ADD_ARTIST_TO_ALBUM_ENTRY)
     if add_artist:
         album_title = f"{album.artist.name} - {album_title}"
+    entry_number : int = get_option(
+        options = options,
+        option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME)
+    if entry_number: album_title = f"[{entry_number:02}] {album_title}"
+
     add_explicit : bool = get_option(
         options = options, 
         option_key = OptionKey.ADD_EXPLICIT)
@@ -899,13 +913,22 @@ def __handler_element_favorite_albums_common(
         item_identifier : ItemIdentifier, 
         entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    counter : int = offset
     max_items : int = 50
     items : list[TidalAlbum] = list_retriever(descending, max_items, offset)
     current : TidalAlbum
     for current in items:
+        counter += 1
+        options : dict[str, any] = dict()
+        if prepend_number_in_album_list:
+            set_option(
+                options = options,
+                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME,
+                option_value = counter)
         entries.append(album_to_album_container(
             objid = objid, 
-            album = current))
+            album = current,
+            options = options))
     if len(items) >= max_items:
         next_button = create_next_button(
             objid = objid, 

@@ -26,6 +26,8 @@ class OptionKey(Enum):
     ADD_ALBUM_YEAR = 8, "add-album-year", True
     SKIP_ART = 9, "skip-art", False
     ADD_ARTIST_TO_ALBUM_ENTRY = 10, "add-artist-to-album-entry", False
+    # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
+    PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME = 11, "prepend-entry-number-in-entry-name", None
     
     def __init__(self, 
             num : int, 

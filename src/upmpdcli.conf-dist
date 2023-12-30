@@ -197,6 +197,8 @@
 #tidalaudioquality = LOSSLESS
 # Plugin Title.
 #tidaltitle = Tidal
+# Use item numbers in album lists for kodi compatibility
+#tidalprependnumberinitemlist = 0
 
 # UPRCL Local Media Server parameters
 
