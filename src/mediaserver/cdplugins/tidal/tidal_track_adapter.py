@@ -15,6 +15,7 @@
 
 from track_adapter import TrackAdapter
 from tidalapi import Quality as TidalQuality
+from tidalapi.session import Session as TidalSession
 from tidalapi.media import Track as TidalTrack
 from tidalapi.album import Album as TidalAlbum
 
@@ -24,14 +25,15 @@ import tidal_util
 
 class TidalTrackAdapter(TrackAdapter):
 
-    def __init__(self, track : TidalTrack, album_retriever : Callable[[str], TidalAlbum]):
+    def __init__(self, tidal_session : TidalSession, track : TidalTrack, album_retriever : Callable[[TidalSession, str], TidalAlbum]):
+        self._tidal_session : TidalSession = tidal_session
         self._track : TidalTrack = track
-        self._album_retriever : Callable[[str], TidalAlbum] = album_retriever
+        self._album_retriever : Callable[[TidalSession, str], TidalAlbum] = album_retriever
         self._loaded_album : TidalAlbum = None
 
     def __get_album(self): 
         if not self._loaded_album:
-            self._loaded_album = self._album_retriever(self._track.album.id)
+            self._loaded_album = self._album_retriever(self._tidal_session, self._track.album.id)
         return self._loaded_album
 
     def get_id(self) -> int: return self._track.id
