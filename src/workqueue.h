@@ -18,6 +18,7 @@
 #ifndef _WORKQUEUE_H_INCLUDED_
 #define _WORKQUEUE_H_INCLUDED_
 
+#include <chrono>
 #include <thread>
 #if HAVE_STD_FUTURE
 #include <future>
@@ -33,6 +34,8 @@
 #else
 #include "log.h"
 #endif
+
+using namespace std::chrono_literals;
 
 /**
  * A WorkQueue manages the synchronisation around a queue of work items,
@@ -216,9 +219,8 @@ public:
             m_clients_waiting--;
         }
 
-        LOGDEB(""  << m_name << ": tasks "  << m_tottasks << " nowakes "  <<
-                m_nowake << " wsleeps "  << m_workersleeps << " csleeps "  <<
-                m_clientsleeps << "\n");
+        LOGDEB(m_name << ": tasks " << m_tottasks << " nowakes " << m_nowake << " wsleeps " <<
+               m_workersleeps << " csleeps " << m_clientsleeps << "\n");
         // Perform the thread joins and compute overall status
         // Workers return (void*)1 if ok
         void *statusall = (void*)1;
@@ -237,7 +239,7 @@ public:
 
         // Reset to start state.
         m_workers_exited = m_clients_waiting = m_workers_waiting =
-                m_tottasks = m_nowake = m_workersleeps = m_clientsleeps = 0;
+            m_tottasks = m_nowake = m_workersleeps = m_clientsleeps = 0;
         m_ok = true;
 
         LOGDEB("setTerminateAndWait:"  << m_name << " done\n");
@@ -249,7 +251,7 @@ public:
      * Sleeps if there are not enough. Signal if we go to sleep on empty
      * queue: client may be waiting for our going idle.
      */
-    bool take(T* tp, size_t *szp = nullptr) {
+    bool take(T* tp, size_t *szp = nullptr, std::chrono::duration<double> waitdur = {-1ms}) {
         std::unique_lock<std::mutex> lock(m_mutex);
         if (!ok()) {
             LOGDEB("WorkQueue::take:"  << m_name << ": not ok\n");
@@ -262,7 +264,13 @@ public:
             if (m_queue.empty()) {
                 m_ccond.notify_all();
             }
-            m_wcond.wait(lock);
+            if (waitdur < 0ms) {
+                m_wcond.wait(lock);
+            } else if (m_wcond.wait_for(lock, waitdur) == std::cv_status::timeout) {
+                *tp = nullptr;
+                return true;
+            }
+
             if (!ok()) {
                 // !ok is a normal condition when shutting down
                 m_workers_waiting--;
@@ -385,4 +393,3 @@ private:
 };
 
 #endif /* _WORKQUEUE_H_INCLUDED_ */
-

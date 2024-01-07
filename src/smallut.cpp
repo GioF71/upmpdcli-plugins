@@ -19,35 +19,28 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cerrno>
-#include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <iostream>
-#include <list>
-#include <numeric>
-#include <set>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <functional>
+#include <list>
+#include <map>
+#include <set>
+#include <unordered_set>
+#include <string>
+#include <utility>
+#include <vector>
 
 // Older compilers don't support stdc++ regex, but Windows does not have the Linux one. Have a
 // simple class to solve the simple cases.
 #if defined(_WIN32)
 #define USE_STD_REGEX
+#include <regex>
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 #define localtime_r(a,b) localtime_s(b,a)
-#else
-#define USE_LINUX_REGEX
-#endif
-
-#ifdef USE_STD_REGEX
-#include <regex>
 #else
 #include <regex.h>
 #endif
@@ -775,7 +768,7 @@ std::string breakIntoLines(const std::string& in, unsigned int ll, unsigned int 
     std::string query = in;
     std::string oq;
     unsigned int nlines = 0;
-    while (query.length() > 0) {
+    while (!query.empty()) {
         std::string ss = query.substr(0, ll);
         if (ss.length() == ll) {
             std::string::size_type pos = ss.find_last_of(' ');
@@ -791,7 +784,7 @@ std::string breakIntoLines(const std::string& in, unsigned int ll, unsigned int 
             }
         }
         // This cant happen, but anyway. Be very sure to avoid an infinite loop
-        if (ss.length() == 0) {
+        if (ss.empty()) {
             oq = query;
             break;
         }
@@ -810,7 +803,7 @@ static bool parsedate(std::vector<std::string>::const_iterator& it,
                       std::vector<std::string>::const_iterator end, DateInterval *dip)
 {
     dip->y1 = dip->m1 = dip->d1 = dip->y2 = dip->m2 = dip->d2 = 0;
-    if (it->length() > 4 || !it->length() ||
+    if (it->length() > 4 || it->empty() ||
         it->find_first_not_of("0123456789") != std::string::npos) {
         return false;
     }
@@ -824,7 +817,7 @@ static bool parsedate(std::vector<std::string>::const_iterator& it,
         return false;
     }
 
-    if (it->length() > 2 || !it->length() ||
+    if (it->length() > 2 || it->empty() ||
         it->find_first_not_of("0123456789") != std::string::npos) {
         return false;
     }
@@ -838,7 +831,7 @@ static bool parsedate(std::vector<std::string>::const_iterator& it,
         return false;
     }
 
-    if (it->length() > 2 || !it->length() ||
+    if (it->length() > 2 || it->empty() ||
         it->find_first_not_of("0123456789") != std::string::npos) {
         return false;
     }
@@ -1158,11 +1151,7 @@ void catstrerror(std::string *reason, const char *what, int _errno)
     }
 
     reason->append(": errno: ");
-
-    char nbuf[20];
-    sprintf(nbuf, "%d", _errno);
-    reason->append(nbuf);
-
+    reason->append(std::to_string(_errno));
     reason->append(" : ");
 
 #if defined(sun) || defined(_WIN32)
@@ -1186,10 +1175,10 @@ void catstrerror(std::string *reason, const char *what, int _errno)
     // https://www.zverovich.net/2015/03/13/reliable-detection-of-strerror-variants.html
     char errbuf[200];
     errbuf[0] = 0;
-    reason->append(_check_strerror_r(
-                       strerror_r(_errno, errbuf, sizeof(errbuf)), errbuf));
+    reason->append(_check_strerror_r(strerror_r(_errno, errbuf, sizeof(errbuf)), errbuf));
 #endif
 }
+
 
 #ifndef SMALLUT_NO_REGEX
 #ifdef USE_STD_REGEX
@@ -1232,7 +1221,7 @@ std::string SimpleRegexp::getMatch(const std::string&, int i) const
     return m->res.str(i);
 }
 
-#else // -> !WIN32
+#else // -> !USE_STD_REGEX, use classic regex.h
 
 class SimpleRegexp::Internal {
 public:
@@ -1331,7 +1320,7 @@ std::string flagsToString(const std::vector<CharFlags>& flags, unsigned int val)
         }
         if (s && *s) {
             /* We have something to write */
-            if (out.length()) {
+            if (!out.empty()) {
                 // If not first, add '|' separator
                 out.append("|");
             }
@@ -1427,8 +1416,7 @@ bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, i
         if (start == -1 && fin == -1) {
             return false;
         }
-        std::pair<int64_t, int64_t> nrange(start,fin);
-        oranges.push_back(nrange);
+        oranges.emplace_back(start, fin);
         if (comma != std::string::npos) {
             pos = comma + 1;
         }
