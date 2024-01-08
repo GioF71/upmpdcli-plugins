@@ -1,3 +1,9 @@
+upmpdcli (1.8.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Misc small plugins fixes.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 08 Jan 2024 10:56:00 +0100
+
 upmpdcli (1.8.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix issues in the HTTP streaming proxy. They were preventing its use with Kodi.

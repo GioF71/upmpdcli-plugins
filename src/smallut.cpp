@@ -1332,19 +1332,13 @@ std::string flagsToString(const std::vector<CharFlags>& flags, unsigned int val)
 
 std::string valToString(const std::vector<CharFlags>& flags, unsigned int val)
 {
-    std::string out;
-    for (const auto& flag : flags) {
-        if (flag.value == val) {
-            out = flag.yesname;
-            return out;
-        }
-    }
-    {
-        char mybuf[100];
-        sprintf(mybuf, "Unknown Value 0x%x", val);
-        out = mybuf;
-    }
-    return out;
+    for (const auto& flag : flags)
+        if (flag.value == val)
+            return flag.yesname;
+
+    char mybuf[100];
+    sprintf(mybuf, "Unknown Value 0x%x", val);
+    return mybuf;
 }
 
 // Decode %-encoded string. We leave along anything which does not look like %xy where x,y are
