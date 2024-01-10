@@ -293,6 +293,7 @@ def stringToStrings(s, quotes = '"', escape = '\\', escapedquotes = '"',
         lex.escapedquotes = escapedquotes
     if whitespace is not None:
         lex.whitespace = whitespace
+    lex.commenters = ""
     l = []
     while True:
         tok = lex.get_token()

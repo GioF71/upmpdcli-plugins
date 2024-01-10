@@ -143,18 +143,21 @@ class CmdTalk(object):
         self.outfile.buffer.write(makebytes("%s: %d\n" % (nm, l)))
         self.breakwrite(self.outfile.buffer, data)
         
-    # Send answer: document, ipath, possible eof.
+
+    # Send answer
     def answer(self, outfields):
         for nm,value in outfields.items():
             #self.log("Senditem: [%s] -> [%s]" % (nm, value))
             self.senditem(nm, value)
             
-        # End of message
+        # End of message: empty line
         print(file=self.outfile)
         self.outfile.flush()
         #self.log("done writing data")
 
-    # Call processor with input params, send result
+
+    # Call processor with input params, send result. This base version works with, for example
+    # the cmdtalkplugin processor.
     def processmessage(self, processor, params):
         # In normal usage we try to recover from processor errors, but
         # we sometimes want to see the real stack trace when testing

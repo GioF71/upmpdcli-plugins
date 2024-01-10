@@ -14,6 +14,21 @@
 # Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+# This implements a cmdtalk processor (class Processor) which expects a method name in each set of
+# input parameters, under the key prcnmkey: "cmdtalk:proc". The client module creates a Dispatch
+# object which it uses to record the methods to call. The message processor looks for the prcnmkey
+# value and call the processing method accordingly. Example code:
+#  
+#     dispatcher = cmdtalkplugin.Dispatch()
+#     msgproc = cmdtalkplugin.Processor(dispatcher)
+#
+#     @dispatcher.record('trackuri')
+#     def trackuri(a):
+#       dosomething(a)
+#     ....
+#
+#     msgproc.mainloop()
+
 import sys
 import cmdtalk
 
@@ -34,10 +49,8 @@ class Dispatch:
         return func(params)
     
 class Processor:
-    def __init__(self, dispatcher, outfile=sys.stdout, infile=sys.stdin,
-                 exitfunc=None):
-        self.em = cmdtalk.CmdTalk(outfile=outfile, infile=infile,
-                                  exitfunc=exitfunc)
+    def __init__(self, dispatcher, outfile=sys.stdout, infile=sys.stdin, exitfunc=None):
+        self.em = cmdtalk.CmdTalk(outfile=outfile, infile=infile, exitfunc=exitfunc)
         self.dispatcher = dispatcher
         
     def log(self, s, doexit = 0, exitvalue = 1):

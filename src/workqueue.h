@@ -267,6 +267,7 @@ public:
             if (waitdur < 0ms) {
                 m_wcond.wait(lock);
             } else if (m_wcond.wait_for(lock, waitdur) == std::cv_status::timeout) {
+                m_workers_waiting--;
                 *tp = nullptr;
                 return true;
             }
