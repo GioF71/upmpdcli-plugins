@@ -15,7 +15,42 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.2.0"
+__tidal_plugin_release : str = "0.2.1"
+
+class ChangeHistoryEntry:
+
+    def __init__(self, version: str, short_date : str, description : str):
+        self.version = version
+        self.short_date = short_date
+        self.description = description
+
+    @property
+    def version(self) -> str:
+        return self.__version
+
+    @version.setter
+    def version(self, v: str):
+        self.__version : str = v
+
+    @property
+    def short_date(self) -> str:
+        return self.__short_date
+
+    @short_date.setter
+    def short_date(self, v: str):
+        self.__short_date : str = v
+
+    @property
+    def description(self) -> str:
+        return self.__description
+
+    @description.setter
+    def description(self, v: str):
+        self.__description : str = v
+
+__change_history : list[ChangeHistoryEntry] = [
+    ChangeHistoryEntry("0.2.1", "2024-01-23", "Calls to choose_track_adapter were missing the tidal session argument")    
+]
 
 import json
 import copy
@@ -2312,12 +2347,15 @@ def is_played_track_complete(played_track : PlayedTrack) -> bool:
         not played_track.artist_name is None) 
 
 def played_track_list_to_entries(objid, played_tracks : list[PlayedTrack], entries : list) -> list:
+    tidal_session : TidalSession = get_session()
     current : PlayedTrack
     options : dict[str, any] = dict()
     set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
     track_num : int = 1
     for current in played_tracks if played_tracks else list():
-        track_adapter : TrackAdapter = choose_track_adapter(current)
+        track_adapter : TrackAdapter = choose_track_adapter(
+            tidal_session = tidal_session,
+            played_track = current)
         set_option(options = options, option_key = OptionKey.FORCED_TRACK_NUMBER, option_value = track_num)
         track_entry : dict = track_to_navigable_track(
             objid = objid, 
@@ -2463,7 +2501,9 @@ def played_track_list_to_list_entries(objid, played_tracks : list[PlayedTrack], 
     track_number : int = 1
     tidal_session : TidalSession = get_session()
     for current in played_tracks if played_tracks else list():
-        track_adapter : TrackAdapter = choose_track_adapter(tidal_session, current)
+        track_adapter : TrackAdapter = choose_track_adapter(
+            tidal_session = tidal_session, 
+            played_track = current)
         options : dict[str, any] = dict()
         set_option(
             options = options, 
