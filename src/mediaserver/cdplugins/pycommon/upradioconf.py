@@ -142,7 +142,8 @@ def radioToEntry(pid, id, radio):
         'upnp:albumArtURI': radio["artUri"],
         'tt': radio["title"],
         # This is for Kodi mostly, to avoid displaying a big "Unknown" placeholder
-        'upnp:artist': "Internet Radio"
+        'upnp:artist': "Internet Radio",
+        'upnp:album': "upmpdcli"
     }
 
 def radioIndexFromId(objid):
