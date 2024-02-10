@@ -1,4 +1,3 @@
-#ifndef TEST_CHRONO
 /* Copyright (C) 2014 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +12,7 @@
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this program; if not, write to the
  *   Free Software Foundation, Inc.,
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 // Measure and display time intervals.
@@ -36,7 +35,7 @@ Chrono::Chrono()
 {
 }
 
-long Chrono::restart()
+int64_t Chrono::restart()
 {
     auto nnow = chrono::steady_clock::now();
     auto ms =
@@ -45,7 +44,7 @@ long Chrono::restart()
     return ms.count();
 }
 
-long Chrono::urestart()
+int64_t Chrono::urestart()
 {
     auto nnow = chrono::steady_clock::now();
     auto ms =
@@ -54,7 +53,7 @@ long Chrono::urestart()
     return ms.count();
 }
 
-long Chrono::millis(bool frozen)
+int64_t Chrono::millis(bool frozen)
 {
     if (frozen) {
         return chrono::duration_cast<chrono::milliseconds>
@@ -65,13 +64,24 @@ long Chrono::millis(bool frozen)
     }
 }
 
-long Chrono::micros(bool frozen)
+int64_t Chrono::micros(bool frozen)
 {
     if (frozen) {
         return chrono::duration_cast<chrono::microseconds>
             (o_now - m_orig).count();
     } else {
         return chrono::duration_cast<chrono::microseconds>
+            (chrono::steady_clock::now() - m_orig).count();
+    }
+}
+
+int64_t Chrono::nanos(bool frozen)
+{
+    if (frozen) {
+        return chrono::duration_cast<chrono::nanoseconds>
+            (o_now - m_orig).count();
+    } else {
+        return chrono::duration_cast<chrono::nanoseconds>
             (chrono::steady_clock::now() - m_orig).count();
     }
 }
@@ -86,69 +96,3 @@ float Chrono::secs(bool frozen)
                 (chrono::steady_clock::now() - m_orig)).count();
     }
 }
-
-#else
-
-// Test
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
-#include <stdlib.h>
-
-#include "chrono.h"
-
-using namespace std;
-
-static char *thisprog;
-static void
-Usage(void)
-{
-    fprintf(stderr, "Usage : %s \n", thisprog);
-    exit(1);
-}
-
-Chrono achrono;
-Chrono rchrono;
-
-void
-showsecs(long msecs)
-{
-    fprintf(stderr, "%3.5f S", (double(msecs)) / 1000.0);
-}
-
-void
-sigint(int sig)
-{
-    signal(SIGINT, sigint);
-    signal(SIGQUIT, sigint);
-
-    fprintf(stderr, "Absolute interval: ");
-    showsecs(achrono.millis());
-    fprintf(stderr, ". Relative interval: ");
-    showsecs(rchrono.restart());
-    fprintf(stderr, ".\n");
-    if (sig == SIGQUIT) {
-        exit(0);
-    }
-}
-
-int main(int argc, char **argv)
-{
-    thisprog = argv[0];
-    argc--; argv++;
-    if (argc != 0) {
-        Usage();
-    }
-    sleep(1);
-    fprintf(stderr, "Initial micros: %ld\n", achrono.micros());;
-    fprintf(stderr, "Type ^C for intermediate result, ^\\ to stop\n");
-    signal(SIGINT, sigint);
-    signal(SIGQUIT, sigint);
-    achrono.restart();
-    rchrono.restart();
-    while (1) {
-        pause();
-    }
-}
-
-#endif /*TEST_CHRONO*/

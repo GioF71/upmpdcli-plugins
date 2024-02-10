@@ -12,11 +12,12 @@
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this program; if not, write to the
  *   Free Software Foundation, Inc.,
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #ifndef _CHRONO_H_
 #define _CHRONO_H_
 #include <chrono>
+#include <cstdint>
 
 /** Easy interface to measuring time intervals */
 class Chrono {
@@ -25,9 +26,9 @@ public:
     Chrono();
 
     /** Re-store current time and return mS since init or last call */
-    long restart();
+    int64_t restart();
     /** Re-store current time and return uS since init or last call */
-    long urestart();
+    int64_t urestart();
 
     /** Snapshot current time to static storage */
     static void refnow();
@@ -38,8 +39,9 @@ public:
      * allow for using one actual system call to get values from many
      * chrono objects, like when examining timeouts in a queue
      */
-    long millis(bool frozen = false);
-    long micros(bool frozen = false);
+    int64_t millis(bool frozen = false);
+    int64_t micros(bool frozen = false);
+    int64_t nanos(bool frozen = false);
     float secs(bool frozen = false);
 
 private:

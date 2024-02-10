@@ -124,7 +124,9 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
 void path_slashize(std::string& s);
 void path_backslashize(std::string& s);
 
-extern std::string path_shortpath(const std::string& path);
+std::string path_shortpath(const std::string& path);
+bool path_hasdrive(const std::string& s);
+bool path_isdriveabs(const std::string& s);
 
 #else // !_WIN32 ->
 

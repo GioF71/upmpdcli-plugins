@@ -254,7 +254,6 @@ private:
             } else {
                 _startelem(tag, attrs, emptyel);
             }
-            spos = m_pos;
             if (!_chardata()) {
                 return false;
             }
@@ -302,10 +301,9 @@ private:
         return m_in[m_pos + 1 + sz];
     }
     void trimtag(std::string& tag) {
-        std::string::size_type trimpos = tag.find_last_not_of(" \t\n\r");
-        if (trimpos != std::string::npos) {
-            tag = tag.substr(0, trimpos+1);
-        }
+        auto trimpos = tag.find_last_not_of(" \t\n\r");
+        if (trimpos != std::string::npos)
+            tag.resize(trimpos + 1);
     }
 
     bool skipDecl() {
@@ -435,7 +433,7 @@ private:
             }
             // Position: m_pos minus the string size (including 2 quotes) plus position inside s
             epos = m_pos - (s.size() + 2) + it - s.begin();
-            it++;
+            ++it;
             std::string code;
             while (it != s.end() && *it != ';') {
                 code += *it++;
@@ -447,7 +445,7 @@ private:
                 out.clear();
                 break;
             }
-            it++;
+            ++it;
             if (code == e_quot) {
                 out += '"';
             } else if (code == e_amp) {

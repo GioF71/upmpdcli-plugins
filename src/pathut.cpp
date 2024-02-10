@@ -303,14 +303,14 @@ static bool path_strlookslikedrive(const std::string& s)
     return s.size() == 2 && isalpha(s[0]) && s[1] == ':';
 }
 
-static bool path_hasdrive(const std::string& s)
+bool path_hasdrive(const std::string& s)
 {
     if (s.size() >= 2 && isalpha(s[0]) && s[1] == ':') {
         return true;
     }
     return false;
 }
-static bool path_isdriveabs(const std::string& s)
+bool path_isdriveabs(const std::string& s)
 {
     if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && s[2] == '/') {
         return true;
