@@ -1,11 +1,11 @@
-= Upmpdcli Media Server plugin interface
+= Upmpdcli Media Server plugins
 
 :toc: left
 
-About implementing a Media Server plugin.
+Implementing a Media Server plugin.
 
 The upmpdcli Media Server subsystem has multiple functions: proxying for external media services
-(like Qobuz, Tidal etc.), or non-UPnP servers (Subsonic),serving local media files, giving access to
+(Qobuz, Tidal etc.), or non-UPnP servers (Subsonic), serving local media files, giving access to
 external radio catalogs or services (bbc, radio-browser, radio-paradise, mother-earth-radio).
 
 The main process does nothing itself, beyond implementing the UPnP Media Server protocol. All the
@@ -27,8 +27,8 @@ Each plugin has a name (e.g. `tidal`, `uprcl`, `qobuz`...). This name is the nam
 subdirectory where the plugin code is stored under `$datadir/cdplugins`, where `$datadir` is the
 place where upmpdcli stores its readonly data (typically `/usr/share/upmpdcli`).
 
-The main Python program for the plugin must be named $datadir/cdplugins/<plgname>/<plgname>-app.py,
-e.g. `/usr/share/upmpdcli/cdplugins/uprcl/uprcl-app.py`.
+The main Python program for the plugin must be named `$datadir/cdplugins/<plgname>/<plgname>-app.py`
+ e.g. `/usr/share/upmpdcli/cdplugins/uprcl/uprcl-app.py`.
 
 upmpdcli will enable a plugin by creating a container of the same name in the UPnP Media Server root
 container. This will happen if the above directory and program exist, and if a variable named
@@ -36,7 +36,7 @@ container. This will happen if the above directory and program exist, and if a v
 when the container is actually accessed.
 
 In addition, if a variable named `<plgname>autostart` is set, a process for the plugin will be
-started during initialisation so that the plugin can perform its own initialisation before the first
+started immediately so that the plugin can perform its own initialisation before the first
 access.
 
 
@@ -47,11 +47,11 @@ all plugins, and they will be described with the specific function that they sup
   
 PYTHONPATH is set so that the Python code in the `pycommon` directory can be imported directly.
 
-== Helper methods, the upmplgutils module
+=== Helper methods, the upmplgutils module
 
 This module is directly accessible from a plugin with `import upmplgutils`.
 
-=== getOptionValue()
+==== getOptionValue()
 
 [source,python]
 ----
@@ -64,7 +64,7 @@ configuration file (from the key `nm`), but also possibly from the environment v
 then the environment. If the key is not found, the `dflt` value is returned. If `dflt` is
 set, and a value is found, the method tries to convert the string value to the type of `dflt`.
 
-=== getcachedir()
+==== getcachedir()
 
 [source,python]
 ----
@@ -75,7 +75,7 @@ Return the name of a cache directory for this plugin. The location will exist an
 private to the plugin, to store whatever it needs. The information will be persistent across reboots
 (typically under `/var/cache/upmpdcli/<plgname>`).
 
-=== direntry()
+==== direntry()
 
 [source,python]
 ----
@@ -86,7 +86,7 @@ direntry(id, pid, title, arturi=None, artist=None, upnpclass=None,
 Create and return a container object with the specified values (see further down about container and
 item objects).
              
-=== getConfigObject()
+==== getConfigObject()
 [source,python]
 ----
 getConfigObject()
@@ -94,14 +94,14 @@ getConfigObject()
 Return the upmpdcli configuration as a `ConfSimple` object (see the `pycommon/conftree.py`
 module). Normally not used as `getOptionValue()` will do a better job.
 
-=== uplog()
+==== uplog()
 [source,python]
 ----
 uplog(s, level=3)
 ----
 Print a message to the log (which is usually stderr at the moment).
 
-=== getserviceuserpass()
+==== getserviceuserpass()
 [source,python]
 ----
 getserviceuserpass(servicename)
@@ -125,6 +125,9 @@ Server interface:
 Both kinds of objects have a similar structure and are represented in the interface as Python
 dictionaries. The parent-child relationships are defined by specific field values.
 
+Some plugins present a tree-like hierarchy of containers holding other containers and items. Others
+may be as simple as a single root container having a number of child items.
+
 The methods in the plugins can usually return multiple objects, and they do so in the form of
 JSON-encoded arrays of dictionaries.
 
@@ -137,9 +140,6 @@ JSON-encoded arrays of dictionaries.
 ----
 
 Each entry object is a Python dict. See further for the contents.
-
-Some plugins present a tree-like hierarchy of containers holding other containers and items. Others
-may be as simple as a single root container having a number of child items.
 
 === Common object fields
 
@@ -213,7 +213,7 @@ objects each describing a specific representation of the performance, as above. 
 resources with different formats (MIME, sample rate, etc.) may allow the Control Point and Renderer
 to choose the best one.
 
-== The interface
+== The plugin interface
 
 All plugins need to implement two methods, each having a decorator which allows the dispatcher to
 call them when a request comes over the pipe: `browse()` and `search()`. The latter can always

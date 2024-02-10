@@ -623,6 +623,9 @@ the configuration file.
   internet radio list], access to the xref:UPMPDCLI-MS-BBC[BBC Sounds service], or the
   xref:UPMPDCLI-MS-RADIO-BROWSER[Radio Browser] Web radios catalog...
 
+- A plugin can be a quite simple Python program, and if you feel like writing one, we have a
+  link:https://www.lesbonscomptes.com/upmpdcli/pages/upmpdcli-plugin-dev.html[doc for you].
+  
 When at least one plugin is activated, *upmpdcli* creates a separate auxiliary Media Server. By
 default, the Media Server name is the `friendlyname` for the Upmpdcli instance, with _-mediaserver_
 appended, but this can be changed in the xref:msfriendlyname[configuration].

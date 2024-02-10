@@ -428,6 +428,10 @@ formats).
 tidaltitle:: Plugin Title. This will be displayed as the plugin entry in the Media Server root
 directory.
 
+[[tidalprependnumberinitemlist]]
+tidalprependnumberinitemlist:: Use item numbers in album lists for kodi compatibility Kodi always tries to sort things, with this parameter we force it to show
+the entries in the desired order.
+
 === UPRCL Local Media Server parameters 
 
 [[uprcluser]]
