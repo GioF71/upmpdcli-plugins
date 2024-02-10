@@ -74,7 +74,7 @@ def browse(a):
 @dispatcher.record('search')
 def search(a):
     msgproc.log("search: [%s]" % a)
-    return {"entries" : [], "nocache" : "0"}
+    return {"entries" : "[]", "nocache" : "0"}
 
 
 _initradios()
