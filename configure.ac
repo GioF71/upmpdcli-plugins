@@ -9,6 +9,8 @@ AH_BOTTOM([#include "src/conf_post.h"])
 AM_INIT_AUTOMAKE([1.10 no-define subdir-objects foreign])
 
 AC_PROG_CXX
+CPP_STD=-std=c++17
+AC_SUBST(CPP_STD)
 
 # ! Not sure that this is needed for upmpdcli and not only libupnpp
 # libupnp is configured with large file support, and we need to do the same,
