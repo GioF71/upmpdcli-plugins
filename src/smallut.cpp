@@ -1063,12 +1063,11 @@ std::string valToString(const std::vector<CharFlags>& flags, unsigned int val)
 static inline int h2d(int c) {
     if ('0' <= c && c <= '9')
         return c - '0';
-    else if ('A' <= c && c <= 'F')
+    if ('A' <= c && c <= 'F')
         return 10 + c - 'A';
-    else if ('a' <= c && c <= 'f')
+    if ('a' <= c && c <= 'f')
         return 10 + c - 'a';
-    else 
-        return -1;
+    return -1;
 }
 
 std::string pc_decode(const std::string &in)
