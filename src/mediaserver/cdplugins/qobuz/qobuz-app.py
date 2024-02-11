@@ -151,7 +151,7 @@ def login(a):
     return {'appid': appid, 'token' : token}
     
     
-@dispatcher.record('trackuri')
+@dispatcher.record("trackuri")
 def trackuri(a):
     msgproc.log(f"trackuri: [{a}]")
     maybelogin()
@@ -159,13 +159,7 @@ def trackuri(a):
     trackid = trackid_from_urlpath(pathprefix, a)
     media_url = session.get_media_url(trackid)
 
-    if formatid == 5:
-        mime = "audio/mpeg"
-        kbs = "320"
-    else:
-        mime = "application/flac"
-        kbs = "1410"
-    return {'media_url' : media_url, 'mimetype' : mime, 'kbs' : kbs}
+    return {"media_url" : media_url}
 
 
 def track_list(tracks):
