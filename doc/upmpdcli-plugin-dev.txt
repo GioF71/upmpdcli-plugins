@@ -113,6 +113,29 @@ configuration, but the user name will always be defined (even with a bogus non-n
 its presence determines if upmpdcli will start a process for the corresponding plugin. This method
 need not be used by plugins which don't actually require user credentials.
 
+[[URL_FROM_TRACKID]]
+==== url_from_trackid()
+[source,python]
+----
+def url_from_trackid(httphp, pathprefix, trackid):
+----
+See the xref:TRACKURI[trackuri()] plugin method description for a detailed explanation.
+
+Return an URL constructed from the upmpdcli HTTP server host and port (`UPMPDCLI_HOSTPORT`), the
+plugin pathprefix (`UPMPDCLI_PATHPREFIX`), and the service track identifier.
+
+[[TRACKID_FROM_URLPATH]]
+==== trackid_from_urlpath()
+[source,python]
+----
+def trackid_from_urlpath(pathprefix, a):
+----
+See the xref:TRACKURI[trackuri()] plugin method description for a detailed explanation.
+
+Return a track identifier extracted from the path part of an URL constructed by `url_from_trackid()`
+(or built like them). The `a` parameter is the one received by `trackuri()`.
+
+
 == The data produced by plugins
 
 The plugins output essentially two types of objects, which reflect closely those in the UPnP Media
@@ -275,7 +298,7 @@ This gets a single Python `dict` parameter with the following keys:
 
 The return value is identical to the one for the `browse()` method.
 
-
+[[TRACKURI]]
 === The trackuri() method
 
 Some plugins act as proxies for streaming music services like Qobuz or Tidal. The streams supplied
@@ -292,10 +315,32 @@ support redirection, proxies the stream data. The choice between proxying or red
 currently done globally, for all plugins and renderers, but this could be changed. By default,
 redirection is used, being much more efficient.
 
-This mechanism is supported by the `trackuri()` method, which receives the initial permanent URI
-data, and asks the service for the temporary one from which the audio data can actually be fetched.
+This mechanism is implemented in the plugin by the `trackuri()` method, which receives the permanent
+URL, extracts the track id, and requests the temporary URL from which the audio data can actually be
+fetched from the streaming service.
 
-The initial permanent URIs are constructed in the following way: the host and port are obtained from
+Example, the Qobuz plugin `trackuri()` method:
+
+[source, python]
+----
+@dispatcher.record("trackuri")
+def trackuri(a):
+    msgproc.log(f"trackuri: [{a}]")
+    maybelogin()
+
+    trackid = trackid_from_urlpath(pathprefix, a)
+    media_url = session.get_media_url(trackid)
+
+    return {"media_url" : media_url}
+----
+
+The `trackuri()` method receives a single parameter which is the URL path part, and should extract
+the track identifier and request a temporary URL from the service.
+
+Return value: the method must return a Python dictionary with a single key: "media_url", the
+temporary service URL.
+
+The permanent URLs are constructed in the following way: the host and port are obtained from
 the `UPMPDCLI_HOSTPORT` configuration variable (e.g. "192.168.1.1:9090"), and the beginning of the
 path part is obtained from `UPMPDCLI_PATHPREFIX` (in practise "/" + <plgname>, e.g. "/tidal"). The
 host and port is of course necessary so that the renderer goes to the right server. The path prefix
@@ -303,11 +348,11 @@ tells the server from what plugin it should request the actual URL. The rest of 
 the plugin, but some common code (not of mandatory use) assumes the following form:
 `<pathprefix>/track/version/1/trackId/<trackid>`
 
-the `trackuri()` method receives a single parameter which is the URL path part, and should extract
-the track identifier and request a temporary URL from the service.
+Two helper methods in the `upmplgutil` module support the mechanism:
+xref:URL_FROM_TRACKID[url_from_trackid()] constructs an appropriate URL, and
+xref:TRACKID_FROM_URLPATH[trackid_from_urlpath()] extracts the trackid from the path part of an
+incoming URL.
 
-Return value: the method must return a Python dictionary with a single key:
-"media_url", the temporary service URL.
 
 
 == WEB server
