@@ -44,6 +44,10 @@ def _initconfdir(confdir, topdirs):
         dst = os.path.join(confdir, fn)
         src = os.path.join(datadir, "rclconfig-" + fn)
         shutil.copyfile(src, dst)
+    try:
+        os.truncate(os.path.join(confdir, "backends"), 0)
+    except Exception as err:
+        uplog(f"Failed truncating backends: {err}")
 
     # Update "stored" section of the "fields" file according to minim config: some custom
     # tags may nnot be in our predefined list
