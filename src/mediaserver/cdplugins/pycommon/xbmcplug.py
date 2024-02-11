@@ -129,7 +129,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums = False)
         The permanent URIs, are of the following form, based on the
         configured host:port and pathprefix arguments and track Id:
             http://host:port/pathprefix/track/version/1/trackId/<trackid>
-        We now call upmplgutils.urlpath_from_trackid() to generate them
+        We now call upmplgutils.url_from_trackid() to generate them
     """
     entries = []
     track_counter : int = 0
@@ -147,7 +147,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums = False)
         li['pid'] = objid
         li['id'] = objid + '$' + "%s" % track.id
         li['tt'] = track.name
-        li['uri'] = upmplgutils.urlpath_from_trackid(httphp, pathprefix, track.id)
+        li['uri'] = upmplgutils.url_from_trackid(httphp, pathprefix, track.id)
         li['tp'] = 'it'
         image = getattr(track, 'image', None)
         if image:

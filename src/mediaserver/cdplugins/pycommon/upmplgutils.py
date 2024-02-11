@@ -66,7 +66,7 @@ def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchabl
 
 
 # Generate an permanent URL in the form which can be used trackid_from_urlpath
-def urlpath_from_trackid(httphp, pathprefix, trackid):
+def url_from_trackid(httphp, pathprefix, trackid):
     return f"http://{httphp}" + posixpath.join(pathprefix, f"track/version/1/trackId/{trackid}")
                     
 
