@@ -64,7 +64,6 @@ from typing import Optional
 import cmdtalkplugin
 import upmplgutils
 import html
-import xbmcplug
 
 import codec
 import identifier_util
@@ -309,7 +308,7 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> str:
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
+    track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     tidal_session : TidalSession = get_session()
     media_url = build_streaming_url(
         tidal_session = tidal_session, 

@@ -28,10 +28,11 @@ our parent expects or sends on the pipe.
 
 import sys
 import os
-import subprocess
 import pwd
 import errno
 import inspect
+import posixpath
+import re
 
 import conftree
 
@@ -62,6 +63,46 @@ def direntry(id, pid, title, arturi=None, artist=None, upnpclass=None, searchabl
     if description:
         ret['dc:description'] = description
     return ret
+
+
+# Generate an permanent URL in the form which can be used trackid_from_urlpath
+def urlpath_from_trackid(httphp, pathprefix, trackid):
+    return f"http://{httphp}" + posixpath.join(pathprefix, f"track/version/1/trackId/{trackid}")
+                    
+
+# Extract the service (qobuz,tidal...) trackid from one of our special form permanent URLs.
+# 
+# This typically gets called from the plugin trackuri() method, which is used for translating from
+# our permanent URLs to a service temporary URL when the renderer tries to fetch the stream.
+def trackid_from_urlpath(pathprefix, a):
+    """
+    Extract track id from a permanent URL path part.
+
+    This supposes that the input URL has the format produced by urlpath_from_trackid()
+    (called from, e.g., trackentries()): <pathprefix>/track/version/1/trackId/<trackid>
+
+    Args:
+        pathprefix (str): our configured path prefix (e.g. /qobuz/)
+        a (dict): the argument dict out of cmdtalk with a 'path' key
+    Returns:
+        str: the track Id.
+    """
+    
+    if 'path' not in a:
+        raise Exception("trackuri: no 'path' in args")
+    path = a['path']
+
+    # pathprefix + 'track/version/1/trackId/trackid
+    exp = posixpath.join(pathprefix, '''track/version/1/trackId/(.+)$''')
+    m = re.match(exp, path)
+    if m is None:
+        exp_old = posixpath.join(pathprefix, '''track\?version=1&trackId=(.+)$''')        
+        m = re.match(exp_old, path)
+    if m is None:
+        raise Exception(f"trackuri: path [{path}] does not match [{exp}]")
+    trackid = m.group(1)
+    return trackid
+
 
 _g_upconfig = None
 def getOptionValue(nm, dflt = None):

@@ -22,7 +22,6 @@ from typing import Callable
 
 import html
 import cmdtalkplugin
-import xbmcplug
 import upmplgutils
 
 import codec
@@ -82,7 +81,7 @@ def build_streaming_url(station_id : str) -> str:
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    rp_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
+    rp_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     url = build_streaming_url(rp_id) or ""
     msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
     return {'media_url' : url}

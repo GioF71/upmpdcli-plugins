@@ -23,7 +23,6 @@ import json
 import html
 import upmplgutils
 import os
-import xbmcplug
 
 from subsonic_connector.response import Response
 from subsonic_connector.album_list import AlbumList
@@ -167,7 +166,7 @@ def trackuri(a):
     msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     #msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    track_id = xbmcplug.trackid_from_urlpath(upmpd_pathprefix, a)
+    track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
     orig_url : str = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
     res : Response[Song] = connector_provider.get().getSong(song_id = track_id)
