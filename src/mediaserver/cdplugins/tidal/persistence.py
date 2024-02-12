@@ -268,9 +268,16 @@ def __alter_table_drop_column(table_name : str, column_name : str):
     cursor_obj = __connection.cursor()
     # Creating table
     alter : str = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
-    cursor_obj.execute(alter)
+    success : bool = False
+    try:
+        cursor_obj.execute(alter)
+        success = True
+    except Exception as ex:
+        msgproc.log(f"WARN: Cannot alter table {table_name} and drop column {column_name} due to [{ex}]")
+        msgproc.log(f"WARN: Check you sqlite3 version, it should be >= 3.35.0")
     cursor_obj.close()
-    msgproc.log(f"Altered table {table_name} dropping column {column_name}.")
+    if success:
+        msgproc.log(f"Altered table {table_name} dropping column {column_name}.")
 
 def migration_0():
     msgproc.log(f"Creating db version 1 ...")
