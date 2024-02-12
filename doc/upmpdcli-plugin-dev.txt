@@ -16,7 +16,7 @@ All current plugins are written in Python, but this is not an absolute requireme
 "protocol" is very simple and can be implemented in another language. However, we will not describe
 this part in detail, and will concentrate instead on writing a Python plugin.
 
-The Python plugins share a common implementation of the protocol in a shared module. As a plugin
+The Python plugins share a common implementation of the pipe protocol in a shared module. As a plugin
 writer you will implement a small set of methods which will be called by the protocol handler and
 dispatcher which manages the dialog with the main process.
 
@@ -40,18 +40,18 @@ started immediately so that the plugin can perform its own initialisation before
 access.
 
 
-== Environment, configuration, utility methods
+== Environment
 
 Some environment variables are set by the main process for use by the plugins. None are needed by
 all plugins, and they will be described with the specific function that they support.
   
 PYTHONPATH is set so that the Python code in the `pycommon` directory can be imported directly.
 
-=== Helper methods, the upmplgutils module
+== Helper methods, the upmplgutils module
 
 This module is directly accessible from a plugin with `import upmplgutils`.
 
-==== getOptionValue()
+=== getOptionValue()
 
 [source,python]
 ----
@@ -64,7 +64,7 @@ configuration file (from the key `nm`), but also possibly from the environment v
 then the environment. If the key is not found, the `dflt` value is returned. If `dflt` is
 set, and a value is found, the method tries to convert the string value to the type of `dflt`.
 
-==== getcachedir()
+=== getcachedir()
 
 [source,python]
 ----
@@ -75,7 +75,7 @@ Return the name of a cache directory for this plugin. The location will exist an
 private to the plugin, to store whatever it needs. The information will be persistent across reboots
 (typically under `/var/cache/upmpdcli/<plgname>`).
 
-==== direntry()
+=== direntry()
 
 [source,python]
 ----
@@ -86,7 +86,7 @@ direntry(id, pid, title, arturi=None, artist=None, upnpclass=None,
 Create and return a container object with the specified values (see further down about container and
 item objects).
              
-==== getConfigObject()
+=== getConfigObject()
 [source,python]
 ----
 getConfigObject()
@@ -94,14 +94,14 @@ getConfigObject()
 Return the upmpdcli configuration as a `ConfSimple` object (see the `pycommon/conftree.py`
 module). Normally not used as `getOptionValue()` will do a better job.
 
-==== uplog()
+=== uplog()
 [source,python]
 ----
 uplog(s, level=3)
 ----
 Print a message to the log (which is usually stderr at the moment).
 
-==== getserviceuserpass()
+=== getserviceuserpass()
 [source,python]
 ----
 getserviceuserpass(servicename)
@@ -114,7 +114,7 @@ its presence determines if upmpdcli will start a process for the corresponding p
 need not be used by plugins which don't actually require user credentials.
 
 [[URL_FROM_TRACKID]]
-==== url_from_trackid()
+=== url_from_trackid()
 [source,python]
 ----
 def url_from_trackid(httphp, pathprefix, trackid):
@@ -125,7 +125,7 @@ Return an URL constructed from the upmpdcli HTTP server host and port (`UPMPDCLI
 plugin pathprefix (`UPMPDCLI_PATHPREFIX`), and the service track identifier.
 
 [[TRACKID_FROM_URLPATH]]
-==== trackid_from_urlpath()
+=== trackid_from_urlpath()
 [source,python]
 ----
 def trackid_from_urlpath(pathprefix, a):
@@ -134,6 +134,7 @@ See the xref:TRACKURI[trackuri()] plugin method description for a detailed expla
 
 Return a track identifier extracted from the path part of an URL constructed by `url_from_trackid()`
 (or built like them). The `a` parameter is the one received by `trackuri()`.
+
 
 
 == The data produced by plugins
