@@ -1,3 +1,10 @@
+upmpdcli (1.8.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Tidal: avoid SQL error with older sqlite versions.
+  * Misc subsonic and Tidal improvements
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 12 Feb 2024 16:58:00 +0100
+
 upmpdcli (1.8.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Misc small plugins fixes.
