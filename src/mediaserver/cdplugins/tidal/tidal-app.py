@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__tidal_plugin_release : str = "0.2.1"
+__tidal_plugin_release : str = "0.2.1.1"
 
 class ChangeHistoryEntry:
 
