@@ -149,6 +149,7 @@ dist_rdpl2stream_DATA = \
     
 radioscriptsdir = $(pkgdatadir)/radio_scripts
 dist_radioscripts_DATA = \
+                       src/radio_scripts/mother-earth-meta.py \
                        src/radio_scripts/radio-paradise-get-flac.py \
                        src/radio_scripts/radiolist.conf \
                        src/radio_scripts/npo-dynamic-art.py \
