@@ -27,6 +27,7 @@
 
 #include "libupnpp/log.h"
 #include "workqueue.h"
+#include "smallut.h"
 
 using namespace std;
 
@@ -72,47 +73,13 @@ static string encode(const string& in)
     return out;
 }
 
-static int h2d(int c)
-{
-    if ('0' <= c && c <= '9')
-        return c - '0';
-    else if ('A' <= c && c <= 'F')
-        return 10 + c - 'A';
-    else 
-        return -1;
-}
-
-static string decode(const string &in)
-{
-    string out;
-    const char *cp = in.c_str();
-    if (in.size() <= 2)
-        return in;
-    string::size_type i = 0;
-    for (; i < in.size() - 2; i++) {
-        if (cp[i] == '%') {
-            int d1 = h2d(cp[++i]);
-            int d2 = h2d(cp[++i]);
-            if (d1 != -1 && d2 != -1)
-                out += (d1 << 4) + d2;
-        } else {
-            out += cp[i];
-        }
-    }
-    while (i < in.size()) {
-        out += cp[i++];
-    }
-    return out;
-}
-
 bool dmcacheSave(const string& fn, const mcache_type& cache)
 {
     SaveCacheTask *tsk = new SaveCacheTask(fn, cache);
-
-    // Use the flush option to put() so that only the latest version
-    // stays on the queue, possibly saving writes.
+    // Use the flush option to put() so that only the latest version stays on the queue, possibly
+    // saving writes.
     if (!saveQueue.put(tsk, true)) {
-        LOGERR("dmcacheSave: can't queue save task" << endl);
+        LOGERR("dmcacheSave: can't queue save task\n");
         return false;
     }
     return true;
@@ -124,66 +91,60 @@ static void *dmcacheSaveWorker(void *)
         SaveCacheTask *tsk = 0;
         size_t qsz;
         if (!saveQueue.take(&tsk, &qsz)) {
-            LOGERR("dmcacheSaveWorker: can't get task from queue" << endl);
+            LOGERR("dmcacheSaveWorker: can't get task from queue" << "\n");
             saveQueue.workerExit();
             return (void*)1;
         }
         LOGDEB("dmcacheSave: got save task: " << tsk->m_cache.size() << 
-               " entries to " << tsk->m_fn << endl);
+               " entries to " << tsk->m_fn << "\n");
 
         string tfn = tsk->m_fn + "-";
         ofstream output(tfn, ios::out | ios::trunc);
         if (!output.is_open()) {
-            LOGERR("dmcacheSave: could not open " << tfn 
-                   << " for writing" << endl);
+            LOGERR("dmcacheSave: could not open " << tfn << " for writing" << "\n");
             delete tsk;
             continue;
         }
 
-        for (mcache_type::const_iterator it = tsk->m_cache.begin();
-             it != tsk->m_cache.end(); it++) {
-            output << encode(it->first) << '=' << encode(it->second) << '\n';
+        for (const auto& [key, value] : tsk->m_cache) {
+            output << encode(key) << '=' << encode(value) << '\n';
             if (!output.good()) {
-                LOGERR("dmcacheSave: write error while saving to " << 
-                       tfn << endl);
+                LOGERR("dmcacheSave: write error while saving to " << tfn << "\n");
                 break;
             }
         }
         output.flush();
         if (!output.good()) {
-            LOGERR("dmcacheSave: flush error while saving to " << 
-                   tfn << endl);
+            LOGERR("dmcacheSave: flush error while saving to " << tfn << "\n");
         }
         if (rename(tfn.c_str(), tsk->m_fn.c_str()) != 0) {
-            LOGERR("dmcacheSave: rename(" << tfn << ", " << tsk->m_fn << ")" <<
-                   " failed: errno: " << errno << endl);
+            LOGSYSERR("dmcacheSave", "rename", tfn + ", " + tsk->m_fn);
         }
 
         delete tsk;
         if (slptimesecs) {
-            LOGDEB1("dmcacheSave: sleeping " << slptimesecs << endl);
+            LOGDEB1("dmcacheSave: sleeping " << slptimesecs << "\n");
             sleep(slptimesecs);
         }
     }
 }
 
 // Max size of metadata element ??
-#define LL 10*1024
+#define LL 20*1024
 
 bool dmcacheRestore(const string& fn, mcache_type& cache)
 {
-    // Restore is called once at startup, so seize the opportunity to start the
-    // save thread
+    // Restore is called once at startup, so seize the opportunity to start the save thread
     saveQueue.setTaskFreeFunc(freeSaveCacheTask);
     if (!saveQueue.start(1, dmcacheSaveWorker, 0)) {
-        LOGERR("dmcacheRestore: could not start save thread" << endl);
+        LOGERR("dmcacheRestore: could not start save thread" << "\n");
         return false;
     }
 
     ifstream input;
     input.open(fn, ios::in);
     if (!input.is_open()) {
-        LOGERR("dmcacheRestore: could not open " << fn << endl);
+        LOGERR("dmcacheRestore: could not open " << fn << "\n");
         return false;
     }
 
@@ -193,16 +154,16 @@ bool dmcacheRestore(const string& fn, mcache_type& cache)
         if (input.eof())
             break;
         if (!input.good()) {
-            LOGERR("dmcacheRestore: read error on " << fn << endl);
+            LOGERR("dmcacheRestore: read error on " << fn << "\n");
             return false;
         }
         char *cp = strchr(cline, '=');
         if (cp == 0) {
-            LOGERR("dmcacheRestore: no = in line !" << endl);
+            LOGERR("dmcacheRestore: no = in line !" << "\n");
             return false;
         }
         *cp = 0;
-        cache[decode(cline)] = decode(cp+1);
+        cache[pc_decode(cline)] = pc_decode(cp+1);
     }
     return true;
 }
