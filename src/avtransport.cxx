@@ -245,7 +245,7 @@ bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
     // other client told it to.  Also the current metadata may come from mpd, or be the bogus
     // unknown entry (will have <orig>mpd</orig> in both cases because null id in the song). In
     // these cases, build meta from the mpd song.
-    URLDEB("AVT::tpstateMToU: curmeta: " << m_curMetadata << "\n");
+    LOGDEB1("AVT::tpstateMToU: curmeta: " << m_curMetadata << "\n");
     if (m_dev->radioPlaying() || m_curMetadata.find("<orig>mpd</orig>") != string::npos) {
         URLDEB("AVT::tpstateMToU: radio playing, or current metadata from mpd: didlmake\n");
         m_curMetadata = didlmake(mpds.currentsong);
@@ -270,6 +270,7 @@ bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
             }
         }
     }
+    /*testing m_curMetadata = "NOT_IMPLEMENTED";*/
     
     status["CurrentTrack"] = "1";
     string playmedium("NONE");
@@ -295,6 +296,7 @@ bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
         URLDEB("AVT::tpstateMToU NextAVT...Meta: !ownqueue: didlmake\n");
         status["NextAVTransportURIMetaData"] = is_song ? didlmake(mpds.nextsong) : "";
     }
+    /*testing status["NextAVTransportURIMetaData"] = "NOT_IMPLEMENTED"; */
 #endif
 
     status["PlaybackStorageMedium"] = playmedium;

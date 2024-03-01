@@ -186,9 +186,13 @@ string UpSong::didl(bool noresource) const
     ss << "<" << typetag;
     if (!id.empty()) {
         ss << " id=\"" << id;
+    } else {
+        ss << " id=\"" << "mpdid:" << mpdid;
     }
     if (!parentid.empty()) {
         ss << "\" parentID=\"" << parentid << "\"";
+    } else {
+        ss << "\" parentID=\"" << "0" << "\"";
     }
     ss << " restricted=\"1\" searchable=\"" <<
         (searchable ? string("1") : string("0")) << "\">" <<
