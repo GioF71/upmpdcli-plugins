@@ -38,8 +38,8 @@ upmpdcli log. 4 is very verbose.
 .TP
 .BI "pkgdatadir = "dfn
 XML and other constant data storage
-directory. Default: '$prefix/share/upmpdcli' (e.g.:
-'/usr/share/upmpdcli').
+directory. Default: '$prefix/share/upmpdcli' (e.g.: '/usr/share/upmpdcli').
+
 .TP
 .BI "pidfile = "fn
 Name of the lock file used to store the current process pid. Only used if the process is launched by user root. Used by the init system, and to avoid
@@ -351,9 +351,8 @@ service, which seems to happen esp. with Qobuz.
 .BI "msiconpath = "fn
 Path to the Media Server icon. The image will be displayed by Control Points which support
 it. Due to current (and probably permanent) *upmpdcli* limitations, the
-image file *must* be a 64x64 32 bits-per-pixel png file. Default:
-'$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
-starts up.
+image file *must* be a 64x64 32 bits-per-pixel png file. Default: '$pkgdatadir/icon.png'.
+The icon will only be read once, when upmpdcli starts up.
 .TP
 .BI "webserverdocumentroot = "fn
 Directory from which the internal HTTP server will directly serve files This is disabled by default for compatibility with older versions which never served
@@ -604,8 +603,8 @@ localhost.
 .TP
 .BI "scalsadevice = "string
 Alsa device used by sc2mpd
-for playing audio. Only used for scplaymethod=alsa. Use
-'aplay -L' to see the possible values.
+for playing audio. Only used for scplaymethod=alsa.
+Use 'aplay -L' to see the possible values.
 .TP
 .BI "sccvttype = "cstr
 sc2mpd resampling method. 
@@ -624,8 +623,8 @@ to time, depending on the clocks skew.
 .TP
 .BI "scusempdvolume = "bool
 Scale songcast stream based on mpd volume value Allow controlling the volume from the Control Point by scaling the
-stream according to the mpd volume value. Only works when scplaymethod is
-'alsa'.
+stream according to the mpd volume value. Only works when scplaymethod is 'alsa'.
+
 .TP
 .BI "sc2mpd = "string
 Path to
