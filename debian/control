@@ -1,26 +1,27 @@
 Source: upmpdcli
-Section: contrib/sound
+Section: sound
 Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
-# note: libexpat1-dev and libcurl-dev are only here because of pkg-config:
-# not directly needed for building upmpdcli
 # Also may need: qt5-default (if qmake says: could not find a Qt installation of '')
 Build-Depends: debhelper-compat (=13), python3, pkg-config,
                libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
                libexpat1-dev, libcurl4-gnutls-dev,
                qt5-qmake, qtbase5-dev,
-               libupnpp-dev (>= 0.24.1)
+               libupnpp-dev (>= 0.26.0)
 Standards-Version: 4.5.1
 Homepage: http://www.lesbonscomptes.com/upmpdcli
+Vcs-Browser: https://framagit.org/medoc92/upmpdcli
+Vcs-Git: https://framagit.org/medoc92/upmpdcli.git
 
 Package: upmpdcli
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
+# Note: python3 and python3-requests are used by the radio scripts
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, python3, python3-requests
-Section: contrib/sound
+Section: sound
 Description: UPnP Media Renderer front-end to MPD, the Music Player Daemon
  upmpdcli acts as an UPnP Media Renderer on the front-end so that you can
- control it with any UPnP controller like, e.g. Audionet or BubbleUPnP on an
+ control it with any UPnP controller like, e.g. BubbleUPnP on an
  Android tablet. It uses an MPD instance to actually play the tracks. 
  A typical configuration might have for example, MPD running on a Raspberry
  PI, with upmpdcli on the same host or any other Linux PC on the network.
@@ -28,30 +29,31 @@ Description: UPnP Media Renderer front-end to MPD, the Music Player Daemon
 Package: upmpdcli-config
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Section: contrib/sound
+Section: sound
 Description: GUI configuration editor for upmpdcli.
- upmpdcli-config is a qt-based GUI for editing an upmpdcli configuration file.
+ upmpdcli-config is a Qt-based GUI for the guided editing an upmpdcli configuration
+ file. It presents the different parameters in sections, with appropriate descriptions.
 
 Package: scweb
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, ${misc:Depends}
-Description: web interface for controlling multiple Songcast Receivers
- scweb is a web front-end to the scctl songcast receiver control command.
+Description: WEB interface for controlling multiple Songcast Receivers
+ scweb is a WEB front-end to the scctl songcast receiver control command. It
+ allows grouping and ungrouping songcast clients from a WEB browser.
 
 Package: upmpdcli-bbc
 Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests, python3-bs4,
-         python3-feedparser, python3-dateutil,
-         ${misc:Depends}
+Section: sound
+Depends: upmpdcli, python3, python3-requests, python3-bs4, python3-feedparser,
+         python3-dateutil, ${misc:Depends}
 Description: upmpdcli BBC radio plugin
  upmpdcli-bbc allows upmpdcli to retrieve the BBC radio programmes from the
  web site and listen to them.
 
 Package: upmpdcli-hra
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli highresaudio plugin
  upmpdcli-hra allows upmpdcli to proxy access to the highresaudio
@@ -59,7 +61,7 @@ Description: upmpdcli highresaudio plugin
 
 Package: upmpdcli-mother-earth-radio
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Mother Earth Radio plugin
  upmpdcli-mother-earth-radio allows upmpdcli to proxy access to the
@@ -67,7 +69,7 @@ Description: upmpdcli Mother Earth Radio plugin
 
 Package: upmpdcli-qobuz
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Qobuz plugin
  upmpdcli-qobuz allows upmpdcli to proxy access to the Qobuz music
@@ -75,16 +77,16 @@ Description: upmpdcli Qobuz plugin
 
 Package: upmpdcli-radio-browser
 Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3, python3-requests,${misc:Depends}
+Section: sound
+Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli https://radio-browser.info plugin
- upmpdcli-radio-browser allows you to browse the radio catalog through the Media
- Server interface and play streams. You will need to install the pyradios
- Python3 module with pip3, it is not packaged at the moment.
+ upmpdcli-radio-browser allows you to browse the radio catalog through the
+ Media Server interface and play streams. You will need to install the
+ pyradios Python3 module with pip3, it is not packaged at the moment.
 
 Package: upmpdcli-radio-paradise
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Radio Paradise plugin
  upmpdcli-mother-earth-radio allows upmpdcli to proxy access to the
@@ -92,24 +94,24 @@ Description: upmpdcli Radio Paradise plugin
 
 Package: upmpdcli-subsonic
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, ${misc:Depends}
 Description: upmpdcli Subsonic plugin
  upmpdcli-subsonic allows upmpdcli to proxy access to a Subsonic or
  Navidrome server. It needs the installation of the subsonic-connector
  (version 0.3.2) and py-sonic (version 1.0.0) Python modules (not packaged
- by Debian, use Pypi).
+ by Debian, use PyPI).
 
 Package: upmpdcli-tidal
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, python3-requests, ${misc:Depends}
 Description: upmpdcli Tidal plugin. You will need to install the tidalapi
  Python3 module with pip3, it is not packaged at the moment. 
 
 Package: upmpdcli-radios
 Architecture: all
-Section: contrib/sound
+Section: sound
 Depends: upmpdcli, python3, ${misc:Depends}
 Description: upmpdcli radio list export plugin
  upmpdcli-radios exports the upmpdcli OpenHome service radio list through
@@ -117,8 +119,10 @@ Description: upmpdcli radio list export plugin
 
 Package: upmpdcli-uprcl
 Architecture: all
-Section: contrib/sound
-Depends: upmpdcli, python3 (>= 3.5), recollcmd, python3-requests, python3-recoll,
-  python3-waitress, python3-mutagen, ${misc:Depends}
+Section: sound
+Depends: upmpdcli, python3 (>= 3.5), recollcmd, python3-requests,
+ python3-recoll, python3-waitress, python3-mutagen, ${misc:Depends}
 Description: upmpdcli local Media Server plugin
- upmpdcli-uprcl enables a Recoll-based local media server.
+ upmpdcli-uprcl implement a Media Server for local audio files. It indexes
+ the metadata from local audio files using Recoll, and makes it available and
+ browseable to UPnP Control Points on the local network.

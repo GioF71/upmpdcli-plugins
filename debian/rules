@@ -9,8 +9,7 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-# Use the following to use the needed non-default gcc-4.7 for wheezy raspbian
-# export CXX=g++-4.7
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 override_dh_autoreconf:
 	dh_autoreconf ./autogen.sh

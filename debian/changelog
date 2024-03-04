@@ -20,7 +20,8 @@ upmpdcli (1.8.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.8.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Fix issues in the HTTP streaming proxy. They were preventing its use with Kodi.
+  * Fix issues in the HTTP streaming proxy. They were preventing its use
+    with Kodi.
   
  -- Jean-Francois Dockes <jf@dockes.org>  Wed, 22 Nov 2023 09:34:00 +0100
 
@@ -63,8 +64,8 @@ upmpdcli (1.8.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.7.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Media Server: new Subsonic connector plugin by Giovanni Fulco: allows streaming music from a
-    Subsonic/Navidrome server to an UPnP renderer.
+  * Media Server: new Subsonic connector plugin by Giovanni Fulco: allows
+    streaming music from a Subsonic/Navidrome server to an UPnP renderer.
 
  -- Jean-Francois Dockes <jf@dockes.org>  Wed, 19 Apr 2023 10:43:00 +0100
 
@@ -84,11 +85,13 @@ upmpdcli (1.7.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.7.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Fix URL comparison issue which could cause false diags in checkContentFormat()
+  * Fix URL comparison issue which could cause false diags in
+    checkContentFormat().
   * Change the default value for checkcontentformat from true to false.
   * Qobuz: always use https.
   * New radio-browser Media Server plugin for https://www.radio-browser.info/
-  * Ensure that we exit when getting a terminating signal while waiting for mpd during init
+  * Ensure that we exit when getting a terminating signal while waiting for
+    mpd during init
   
  -- Jean-Francois Dockes <jf@dockes.org>  Mon, 13 Feb 2023 14:12:00 +0100
 
@@ -112,19 +115,20 @@ upmpdcli (1.7.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Upradios: set upnp:artist to "Internet Radio" to avoid "Unknown artist" display
-    in some Control Points.
+  * Upradios: set upnp:artist to "Internet Radio" to avoid "Unknown artist"
+    display in some Control Points.
   * Uprcl: Add id3 tag support for dsf and wav files
     
  -- Jean-Francois Dockes <jf@dockes.org>  Sun, 18 Dec 2022 10:10:00 +0100
 
 upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Media Server: uprcl, qobuz, upradios: properly implement UPnP Browse(Metadata),
-    for the sole use of Kodi, probably.
-  * Uprcl container sort: sort by file names if there are no tags (e.g. wav files).
-  * Uprcl: add uprclnotag view configuration variable to disable the "Tag View" entries in the
-    folders tree.   
+  * Media Server: uprcl, qobuz, upradios: properly implement UPnP
+    Browse(Metadata), for the sole use of Kodi, probably.
+  * Uprcl container sort: sort by file names if there are no tags (e.g. wav
+    files).
+  * Uprcl: add uprclnotag view configuration variable to disable the "Tag
+    View" entries in the folders tree.
   * Make configuration parameter names case-insensitive.
   * Small bugs fixes
   
@@ -133,29 +137,31 @@ upmpdcli (1.6.2-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 upmpdcli (1.6.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * uprcl: process custom tags (not predefined anywhere) as regular ones.
-  * main: change order of media server and renderer initialisations so that the media server does
-    not have to wait for mpd.
+  * main: change order of media server and renderer initialisations so that
+    the media server does not have to wait for mpd.
   
  -- Jean-Francois Dockes <jf@dockes.org>  Sat, 22 Oct 2022 09:10:00 +0200
 
 upmpdcli (1.6.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Allow all configuration variables to also be set through environment variables named UPMPD_xxx
-    where xxx is the upper-cased version of the variable name. This should facilitate running
-    upmpdcli in a container.
-  * Change the names of the low level UPnP library log variables from UPMPDCLI_xxx to UPMPD_xxx and
-    manage them in the same way as the rest (with config entries too).
-  * Allow substituting the host name (%h,%H) and version info (%v) in the configured
-    friendlyname. The default friendlyname is now UpMpd-%h
-  * Uprcl: use same host as upmpdcli by default. Add uprclport configuration variable to only set
-    the port
+  * Allow all configuration variables to also be set through environment
+    variables named UPMPD_xxx where xxx is the upper-cased version of the
+    variable name. This should facilitate running upmpdcli in a container.
+  * Change the names of the low level UPnP library log variables from
+    UPMPDCLI_xxx to UPMPD_xxx and manage them in the same way as the rest
+    (with config entries too).
+  * Allow substituting the host name (%h,%H) and version info (%v) in the
+    configured friendlyname. The default friendlyname is now UpMpd-%h
+  * Uprcl: use same host as upmpdcli by default. Add uprclport configuration
+    variable to only set the port
   
  -- Jean-Francois Dockes <jf@dockes.org>  Tue, 09 Oct 2022 09:44:00 +0200
 
 upmpdcli (1.5.20-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Uprcl: preserve stored playlist order
-  * Uprcl: choose folder image file rather than track-embedded art for folder or album
+  * Uprcl: choose folder image file rather than track-embedded art for folder
+    or album
   * Uprcl: misc fixes.
   
  -- Jean-Francois Dockes <jf@dockes.org>  Tue, 30 Aug 2022 09:17:00 +0200
@@ -169,8 +175,8 @@ upmpdcli (1.5.19-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.5.18-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Create an upmpdcli group during installation and change the group to upmpdcli when started as
-    root (in addition to the setuid()).
+  * Create an upmpdcli group during installation and change the group to
+    upmpdcli when started as root (in addition to the setuid()).
   * uprcl: try to show more information when the initialisation fails.
   * Add upmpdcli icon to the Debian package
   
@@ -240,7 +246,8 @@ upmpdcli (1.5.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.5.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Fix a number of memory leak and locking issues detected by valgrind/helgrind
+  * Fix a number of memory leak and locking issues detected by
+    valgrind/helgrind
   * Improve performance of big playlist insert by rate-limiting events.
   * Fix possible crash when started while mpd is not running.
   
@@ -248,7 +255,8 @@ upmpdcli (1.5.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.5.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * OHInfo issue resulted in no album art display in kazoo "now playing" screen
+  * OHInfo issue resulted in no album art display in kazoo "now playing"
+    screen
   * Pause/Unpause caused by other controller was not detected if the pause
     was long enough for the mpd connection to time out (60S).
     
@@ -727,7 +735,8 @@ upmpdcli (0.3-1) unstable; urgency=low
  -- Jean-Francois Dockes <jf@dockes.org>  Mon, 10 Feb 2014 14:09:20 +0100
 upmpdcli (0.2-1) unstable; urgency=low
 
-  * Improved event management. Moderate the load generated by sound volume changes
+  * Improved event management. Moderate the load generated by sound volume
+    changes
 
  -- Jean-Francois Dockes <jf@dockes.org>  Tue, 11 Feb 2014 11:20:00 +0100
 upmpdcli (0.1-1) unstable; urgency=low
