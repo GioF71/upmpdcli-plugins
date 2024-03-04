@@ -70,7 +70,7 @@ struct StringIcmpPred {
     explicit StringIcmpPred(const std::string& s1)
         : m_s1(s1) {
     }
-    bool operator()(const std::string& s2) {
+    bool operator()(const std::string& s2) const {
         return stringicmp(m_s1, s2) == 0;
     }
     const std::string& m_s1;
@@ -86,7 +86,7 @@ extern std::string stringtolower(const std::string& io);
 extern void stringtoupper(std::string& io);
 extern std::string stringtoupper(const std::string& io);
 extern bool beginswith(const std::string& b, const std::string& sml);
-
+extern bool endswith(const std::string& big, const std::string& small);
 
 /** Note for all templated functions:
  * By default, smallut.cpp has explicit instantiations for common

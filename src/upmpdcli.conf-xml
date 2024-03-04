@@ -268,7 +268,7 @@
 # <grouptitle>OpenHome parameters</grouptitle>
 
 # <var name="ohproductroom" type="string"><brief>The name of the room where
-# the Product is located.</brief><descr>Set to “Main Room” by default,
+# the Product is located.</brief><descr>Set to "Main Room" by default,
 # displayed in place of the "friendly name" by some control points.
 # ProductRoom is used to group the Product with other related Products in
 # the same physical room (e.g. a source with a pre-amp). Products which are
@@ -312,7 +312,7 @@
 # web site. </brief></var>
 #ohmanufacturerurl = http://www.lesbonscomptes.com/upmpdcli
 # <var name="ohmanufacturerimageuri" type="string"><brief>Uri for
-# manufacturer’s logo. </brief></var>
+# manufacturer's logo. </brief></var>
 #ohmanufacturerimageuri =
 # <var name="ohmodelname" type="string"><brief>Model name.</brief></var>
 #ohmodelname = UpMPDCli UPnP-MPD gateway
@@ -321,7 +321,7 @@
 # <var name="ohmodelurl" type="string"><brief>URL for model web
 # site.</brief></var>
 #ohmodelurl = http://www.lesbonscomptes.com/upmpdcli
-# <var name="ohmodelimageuri" type="string"><brief>Uri for model’s
+# <var name="ohmodelimageuri" type="string"><brief>Uri for model's
 # icon. </brief></var>
 #ohmodelimageuri =
 # <var name="ohproductname" type="string"><brief>User-visible product

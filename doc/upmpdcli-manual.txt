@@ -3,16 +3,32 @@
 
 == Introduction
 
-link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli] is primarily an UPnP Renderer, using the MPD
-music player for audio stream processing. It has a number of additional or alternative functions
-exposed through an UPnP Media Server.
+This manual is about link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli], a combined UPnP
+Media Renderer and Media Server program.
+
+The two functions, as Renderer or Server, are completely independant, and any instance can be
+configured to run as one, or the other, or both. The reason that they are implemented in a single
+program is mostly historical, and also justified by the shared UPnP libraries. In any case, if you
+are only interested in one aspect, you can completely ignore the sections of this document which
+deal with the other.
+
+For its Media Renderer function, upmpdcli uses the great Music Player Daemon (mpd) for audio stream
+processing. upmpdcli itself never touches the audio stream, which goes directly from its origin to
+mpd.
 
 Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high quality DAC I2S
 daugtherboard) you can transform it into a state of the art network streamer.
 
+As a Media Server, upmpdcli implements its functions through independant plugins. One of these will
+make local audio files accessible through UPnP, and some others will turn upmpdcli into a proxy for
+a number of streaming services, exposing their catalog and streams to the UPnP side. Some other
+plugins implement miscellaneous functions, mostly dealing with radio stations or catalogs.
+
 The xref:UPNP[next section] explains the network audio terms (UPnP, Media Renderer, etc.) if your
 knowledge needs a little brushing up. Else, you can jump to the xref:UPMPDCLI-OVERVIEW[upmpdcli
-overview] section.
+overview] section, which exposes the above in a little more detail, or, even directly to the
+xref:UPMPDCLI-RENDERER[upmpdcli media renderer] section, or to one of the chapters in the
+xref:UPMPDCLI-MS[upmpdcli media server] section.
 
 
 === Security
@@ -169,13 +185,13 @@ modifies the audio stream (actually the renderer part does not see it at all).
 
 Upplay, the companion Control Point, never accesses or modifies the audio data.
 
+
 [[UPMPDCLI-OVERVIEW]]
 == Upmpdcli overview
 
-
 link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli] was originally
-xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using a slave MPD to actually process the
-audio data. The renderer supports UPnP gapless track transitions and the OpenHome ohMedia services
+xref:UPMPDCLI-RENDERER[primarily an UPnP Media Renderer], using MPD to actually process the audio
+data. The renderer supports UPnP gapless track transitions and the OpenHome ohMedia services
 (including a Radio service to listen to Internet streams).
 
 .The Grand Upmpdcli Media Renderer Scheme of Things
@@ -528,7 +544,7 @@ other Receivers from the *upplay* control panel is quite straightforward.
 [[UPMPDCLI-SENDER-EXTSOURCES]]
 ==== Managing external sources
 
-In the Sender modes described above, *upmpdcli* (or rather its slave *mpd*
+In the Sender modes described above, *upmpdcli* (or rather its *mpd*
 process) is the source of the audio stream. The *mpd2sc* program (which is
 just a slight modification of a Linn sample) reads the *mpd* output from 
 a FIFO and sends it to Songcast Receivers (including the local one).

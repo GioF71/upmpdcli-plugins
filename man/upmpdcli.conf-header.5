@@ -1,0 +1,20 @@
+.TH "UPMPDCLI.CONF" "5" "Mar 04, 2024" "1.8.8" "Upmpdcli"
+.SH NAME
+upmpdcli.conf \- upmpdcli.conf documentation
+.SH DESCRIPTION
+.sp
+\fBupmpdcli.conf\fP is the configuration file for \fBupmpdcli(1)\fP\&. Its location must be
+indicated to the program either through the UPMPD_CONFIG environment variable or through the \-c
+command line option.
+.sp
+Each line in the configuration file contains a setting name and its value, e.g.:
+.sp
+\fBlogfilename = /tmp/upmpdcli.log\fP
+.sp
+Almost all configuration variables have suitable defaults, and the program distribution includes a
+sample file, typically installed to /etc, where variables are listed and commented.
+.sp
+You should have a look at the online manual for more complete information:
+\fI\%http://www.lesbonscomptes.com/upmpdcli/upmpdcli-manual.html\fP
+.SH PARAMETERS
+

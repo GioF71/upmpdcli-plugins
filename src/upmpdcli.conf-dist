@@ -113,7 +113,7 @@
 #ohmanufacturerinfo = Such nice guys and gals
 # URL for manufacturer web site. 
 #ohmanufacturerurl = http://www.lesbonscomptes.com/upmpdcli
-# Uri for manufacturer’s logo. 
+# Uri for manufacturer's logo. 
 #ohmanufacturerimageuri =
 # Model name.
 #ohmodelname = UpMPDCli UPnP-MPD gateway
@@ -121,7 +121,7 @@
 #ohmodelinfo =
 # URL for model web site.
 #ohmodelurl = http://www.lesbonscomptes.com/upmpdcli
-# Uri for model’s icon. 
+# Uri for model's icon. 
 #ohmodelimageuri =
 # User-visible product name. By default this is set to ModelName.
 #ohproductname = Upmpdcli

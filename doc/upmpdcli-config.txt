@@ -226,7 +226,7 @@ do not send the Play command.
 
 [[ohproductroom]]
 ohproductroom:: The name of the room where
-the Product is located. Set to “Main Room” by default,
+the Product is located. Set to "Main Room" by default,
 displayed in place of the "friendly name" by some control points.
 ProductRoom is used to group the Product with other related Products in
 the same physical room (e.g. a source with a pre-amp). Products which are
@@ -263,7 +263,7 @@ web site.
 
 [[ohmanufacturerimageuri]]
 ohmanufacturerimageuri:: Uri for
-manufacturer’s logo.  
+manufacturer's logo.  
 
 [[ohmodelname]]
 ohmodelname:: Model name. 
@@ -276,7 +276,7 @@ ohmodelurl:: URL for model web
 site. 
 
 [[ohmodelimageuri]]
-ohmodelimageuri:: Uri for model’s
+ohmodelimageuri:: Uri for model's
 icon.  
 
 [[ohproductname]]

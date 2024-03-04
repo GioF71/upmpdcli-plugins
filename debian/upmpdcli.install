@@ -2,6 +2,7 @@ etc
 usr/bin/scctl
 usr/bin/upmpdcli
 usr/share/man/man1/upmpdcli.1
+usr/share/man/man5/upmpdcli.5
 usr/share/upmpdcli/AVTransport.xml
 usr/share/upmpdcli/Analog-Input
 usr/share/upmpdcli/ConnectionManager.xml

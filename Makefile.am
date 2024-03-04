@@ -374,6 +374,7 @@ dist_pkgdata_SCRIPTS = samplescripts/Analog-Input
 dist_sysconf_DATA = src/upmpdcli.conf-dist
 
 dist_man1_MANS = man/upmpdcli.1
+dist_man5_MANS = man/upmpdcli.conf.5
 
 dist-hook:
 	if test -z "$(NOTAG)";then \
