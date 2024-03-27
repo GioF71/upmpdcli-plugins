@@ -118,7 +118,7 @@ class ConfSimple(object):
             return None
         return self.submaps[sk][nm]
 
-    def get(self, nm, sk = b''):
+    def get(self, nm, sk = b'', dflt=None):
         dodecode = False
         if type(nm) == type(u''):
             dodecode = True
@@ -129,6 +129,8 @@ class ConfSimple(object):
         v = self.getbin(nm, sk)
         if v is not None and dodecode:
             v = v.decode('utf-8')
+        if v is None:
+            return dflt
         return v
 
     def getNamesbin(self, sk = b''):

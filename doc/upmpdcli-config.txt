@@ -22,8 +22,8 @@ upmpdcli log. 4 is very verbose.
 
 [[pkgdatadir]]
 pkgdatadir:: XML and other constant data storage
-directory. Default: '$prefix/share/upmpdcli' (e.g.:
-'/usr/share/upmpdcli').
+directory. Default: '$prefix/share/upmpdcli' (e.g.: '/usr/share/upmpdcli').
+
 
 [[pidfile]]
 pidfile:: Name of the lock file used to store the current process pid. Only used if the process is launched by user root. Used by the init system, and to avoid
@@ -349,9 +349,8 @@ service, which seems to happen esp. with Qobuz.
 [[msiconpath]]
 msiconpath:: Path to the Media Server icon. The image will be displayed by Control Points which support
 it. Due to current (and probably permanent) *upmpdcli* limitations, the
-image file *must* be a 64x64 32 bits-per-pixel png file. Default:
-'$pkgdatadir/icon.png'. The icon will only be read once, when upmpdcli
-starts up.
+image file *must* be a 64x64 32 bits-per-pixel png file. Default: '$pkgdatadir/icon.png'.
+The icon will only be read once, when upmpdcli starts up.
 
 [[webserverdocumentroot]]
 webserverdocumentroot:: Directory from which the internal HTTP server will directly serve files This is disabled by default for compatibility with older versions which never served
@@ -624,8 +623,8 @@ localhost.
 
 [[scalsadevice]]
 scalsadevice:: Alsa device used by sc2mpd
-for playing audio. Only used for scplaymethod=alsa. Use
-'aplay -L' to see the possible values.
+for playing audio. Only used for scplaymethod=alsa.
+Use 'aplay -L' to see the possible values.
 
 [[sccvttype]]
 sccvttype:: sc2mpd resampling method. 
@@ -644,8 +643,8 @@ to time, depending on the clocks skew.
 
 [[scusempdvolume]]
 scusempdvolume:: Scale songcast stream based on mpd volume value Allow controlling the volume from the Control Point by scaling the
-stream according to the mpd volume value. Only works when scplaymethod is
-'alsa'.
+stream according to the mpd volume value. Only works when scplaymethod is 'alsa'.
+
 
 [[sc2mpd]]
 sc2mpd:: Path to

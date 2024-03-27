@@ -200,6 +200,8 @@ bool fsocc(const std::string& path, int *pc, long long *avmbs = nullptr);
 /// mkdir -p
 extern bool path_makepath(const std::string& path, int mode);
 
+extern bool path_rename(const std::string& oldpath, const std::string& newpath);
+
 ///
 bool path_chdir(const std::string& path);
 std::string path_cwd();

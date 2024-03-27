@@ -146,14 +146,14 @@ int stringuppercmp(const std::string& s1, const std::string& s2)
     return size1 == size2 ? 0 : 1;
 }
 
-bool beginswith(const std::string& big, const std::string& small)
+bool beginswith(const std::string& bg, const std::string& sml)
 {
-    return big.compare(0, small.size(), small) == 0;
+    return bg.compare(0, sml.size(), sml) == 0;
 }
-bool endswith(const std::string& big, const std::string& small)
+bool endswith(const std::string& bg, const std::string& sml)
 {
-    if (big.size() >= small.size()) {
-        return (!big.compare (big.length() - small.length(), small.length(), small));
+    if (bg.size() >= sml.size()) {
+        return (!bg.compare (bg.length() - sml.length(), sml.length(), sml));
     }
     return false;
 }

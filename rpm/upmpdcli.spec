@@ -1,12 +1,11 @@
 Summary:        UPnP Media Renderer front-end to MPD, the Music Player Daemon
 Name:           upmpdcli
-Version:        1.8.8
+Version:        1.8.9
 Release:        1%{?dist}
 Group:          Applications/Multimedia
 License:        GPLv2+
 URL:            http://www.lesbonscomptes.com/updmpdcli
 Source0:        http://www.lesbonscomptes.com/upmpdcli/downloads/upmpdcli-%{version}.tar.gz
-Patch0:         configure_cxxflags_pic.patch
 Requires(pre):  shadow-utils
 Requires(post): systemd
 Requires(preun): systemd
@@ -33,7 +32,6 @@ on Android tablets or phones.
 
 %prep
 %setup -q
-%patch 0 -p1
 sh autogen.sh
 
 %build
@@ -50,8 +48,7 @@ exit 0
 %install
 %{__rm} -rf %{buildroot}
 %{__make} install DESTDIR=%{buildroot} STRIP=/bin/true INSTALL='install -p'
-install -D -m644 systemd/upmpdcli.service \
-        %{buildroot}%{_unitdir}/upmpdcli.service
+install -D -m644 systemd/upmpdcli.service  %{buildroot}%{_unitdir}/upmpdcli.service
 
 
 %clean
@@ -63,6 +60,7 @@ install -D -m644 systemd/upmpdcli.service \
 %{_bindir}/scctl
 %{_datadir}/%{name}
 %{_mandir}/man1/%{name}.1*
+%{_mandir}/man5/upmpdcli.conf.5*
 %{_unitdir}/upmpdcli.service
 %config(noreplace) /etc/upmpdcli.conf
 
