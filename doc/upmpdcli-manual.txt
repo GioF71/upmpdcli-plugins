@@ -869,7 +869,7 @@ currently at version 0.7.3, by Thomas Amland (also using other useful modules by
 need to install the package separately, preferably system-wide, for example:
 
 ....
-sudo python3 -m pip install tidalapi
+sudo python3 -m pip install tidalapi==0.7.3
 ....
 
 The software only works with a valid Tidal subscription. It is not officially supported by
