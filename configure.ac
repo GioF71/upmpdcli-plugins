@@ -49,28 +49,25 @@ fi
 
 
 PKG_CHECK_MODULES([upnpp], [libupnpp], [], [AC_MSG_ERROR([libupnpp not found])])
-PKG_CHECK_MODULES([libmpdclient], [libmpdclient], [],
-	[AC_MSG_ERROR([libmpdclient not found])])
-PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd], [],
-	[AC_MSG_ERROR([libmicrohttpd not found])])
+PKG_CHECK_MODULES([libmpdclient], [libmpdclient], [], [AC_MSG_ERROR([libmpdclient not found])])
+PKG_CHECK_MODULES([libmicrohttpd], [libmicrohttpd], [], [AC_MSG_ERROR([libmicrohttpd not found])])
 PKG_CHECK_MODULES([jsoncpp], [jsoncpp], [], [AC_MSG_ERROR([jsoncpp not found])])
-
+PKG_CHECK_MODULES([curl], [libcurl], [], [AC_MSG_ERROR([libcurl])])
 
 AC_ARG_ENABLE(staticlink, AS_HELP_STRING([--enable-staticlink],
               [Enable static link by adding the needed libraries.]),
               enableStaticLink=$enableval, enableStaticLink="no")
 if test X$enableStaticLink = Xyes ; then
-    PKG_CHECK_MODULES([curl], [libcurl], [], [AC_MSG_ERROR([libcurl])])
-    PKG_CHECK_MODULES([expat], [expat], [], [AC_MSG_ERROR([libexpat])])
-    PKG_CHECK_MODULES([npupnp], [libnpupnp], [], [AC_MSG_ERROR([libnpupnp])])
-	addstaticlibs="$npupnp_LIBS $curl_LIBS $expat_LIBS $libmicrohttpd_LIBS"
+        PKG_CHECK_MODULES([npupnp], [libnpupnp], [], [AC_MSG_ERROR([libnpupnp])])
+	addstaticlibs="$npupnp_LIBS"
 else
 	addstaticlibs=""
 fi
 
-
-SCCTL_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs "
-UPMPDCLI_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS $addstaticlibs"
+SCCTL_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS \
+$addstaticlibs $curl_LIBS $libmicrohttpd_LIBS"
+UPMPDCLI_LIBS="$LIBS $libmpdclient_LIBS  $jsoncpp_LIBS  $libmicrohttpd_LIBS $upnpp_LIBS \
+$addstaticlibs $curl_LIBS $libmicrohttpd_LIBS"
 
 
 echo "UPMPDCLI_LIBS=$UPMPDCLI_LIBS"

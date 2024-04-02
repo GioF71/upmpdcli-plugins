@@ -1087,7 +1087,7 @@ to appropriate groups to allow it to open TCP sockets. See the issue entries for
 
 For building from source, you will need a C\++ compiler with full
 C++11 support, and the development packages for the supporting libraries:
-*libcurl*, *libmicrohttpd*, *libmpdclient*, and *libexpat*.
+*libcurl*, *libmicrohttpd*, and *libmpdclient*.
 
 Also the Python modules for streaming service support use the
 *python3-requests* package, so you may need to install it (it is only needed
@@ -1167,10 +1167,8 @@ brew install mpd
 brew install autoconf
 brew install automake
 brew install libtool
-brew install libupnp libmpdclient expat jsoncpp libmicrohttpd expat curl
+brew install libupnp libmpdclient jsoncpp libmicrohttpd curl
 brew install pkg-config
-brew install expat
-export PKG_CONFIG_PATH=/usr/local/opt/expat/lib/pkgconfig
 configure --prefix=/usr
 make
 ----

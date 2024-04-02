@@ -18,7 +18,6 @@ BuildRequires:  libupnpp
 BuildRequires:  libmpdclient-devel
 BuildRequires:  libmicrohttpd-devel
 BuildRequires:  jsoncpp-devel
-BuildRequires:  expat-devel
 BuildRequires:  systemd-units
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 

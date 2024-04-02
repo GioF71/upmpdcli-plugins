@@ -18,7 +18,6 @@ deps = []
 dep_libupnpp = dependency('libupnpp')
 deps += dep_libupnpp
 deps += dependency('libcurl')
-deps += dependency('expat')
 deps += dependency('libmicrohttpd')
 deps += dependency('jsoncpp')
 deps += dependency('libmpdclient')
