@@ -100,6 +100,8 @@ public:
 /// implemented by the ContentDirectory class.
 class CDPluginServices {
 public:
+    virtual ~CDPluginServices() = default;
+    
     /// Returns the plugin to which belongs the parameter path, based
     /// on the path prefix above.
     virtual CDPlugin *getpluginforpath(const std::string& path) = 0;

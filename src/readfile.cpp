@@ -113,6 +113,7 @@ bool file_to_string(const string& fn, string& data, string *reason)
 // (midstream). Both have a downstream
 class FileScanUpstream {
 public:
+    virtual ~FileScanUpstream() = default;
     virtual void setDownstream(FileScanDo *down) {
         m_down = down;
     }
@@ -129,6 +130,7 @@ public:
     FileScanSource(FileScanDo *down) {
         setDownstream(down);
     }
+    virtual ~FileScanSource() = default;
     virtual bool scan() = 0;
 };
 

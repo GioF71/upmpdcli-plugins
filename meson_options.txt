@@ -1,0 +1,3 @@
+option('confgui', type : 'boolean', value : false,
+       description: 'Enable building the Qt-based configuration editor GUI')
+
