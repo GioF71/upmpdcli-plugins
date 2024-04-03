@@ -1085,19 +1085,25 @@ to appropriate groups to allow it to open TCP sockets. See the issue entries for
 
 === Building upmpdcli on Linux
 
-For building from source, you will need a C\++ compiler with full
-C++11 support, and the development packages for the supporting libraries:
-*libcurl*, *libmicrohttpd*, and *libmpdclient*.
+For building from source, you will need a C\++ compiler with C++17 support, and the development
+packages for the supporting libraries: *libcurl*, *libmicrohttpd*, *libmpdclient*, and possibly
+*expat*, depending on configuration options.
 
 Also the Python modules for streaming service support use the
 *python3-requests* package, so you may need to install it (it is only needed
 at run time). 
 
-If you are using the source from the git repository, you will also need the
-*autoconf*, *automake*, *libtool* trio. Use the `autogen.sh` script to set
-things up.
+Older releases of the packages (until around April 2024) used the GNU autotools for building. Newer
+releases (and current git code) use *meson*, so the procedure changed. For now, we will describe
+both. 
 
-So you need to either clone 3 git repositories:
+If you are using the source from the git repository, and if you extract an older tag you will also
+need the *autoconf*, *automake*, *libtool* trio. Use the `autogen.sh` script to set things up.
+
+For current git code or newer releases, you need the *meson* and *ninja* utilities, which are quite
+probably packaged by your distribution.
+
+You need to either clone 3 git repositories:
 
 - https://framagit.org/medoc92/npupnp
 - https://framagit.org/medoc92/libupnpp
@@ -1107,36 +1113,46 @@ or download the release tar files from the the
 link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli
 download page]
 
-For upmpdcli, there are two specific configure options. Each needs the
-installation of additional dependancies:
+The upmpdcli build has one optional target, which needs the installation of additional dependancies
+(the Qt development packages), for building the upmpdcli-config GUI configuration file editor. This
+is set with _--enable-confgui_ when using the autotools build, or with _-Dconfgui=true_ with the
+*meson* build.
 
-- --enable-confgui: build the configuration editor GUI. This will need
-the Qt development packages
   
-Once the source is extracted, the procedure is standard for each of the
-three packages:
+Once the source is extracted, the procedure is standard for each of the three packages:
+
+For the older autotools builds:
 
     # Only for git source
-    sh autogen.sh 
+    sh autogen.sh
 
     ./configure --prefix=/usr --sysconfdir=/etc [other options]
     make
     sudo make install
 
-Which you should apply first to the *libnpupnp* source, then to *libupnpp*,
-then to *upmpdcli*.
+With *meson*:
 
-If you omit the `--sysconfdir=/etc` part, `upmpdcli.conf` will end up in
-`/usr/etc/`, which is ok, but confusing, as package installers put it in
-`/etc/`
+    meson setup --prefix /usr build
+    cd build
+    ninja
+    sudo meson install
+    
+Which you should apply first to the *libnpupnp* source, then to *libupnpp*, then to *upmpdcli*.
+
+If you omit the `--sysconfdir=/etc` part, `upmpdcli.conf` will end up in `/usr/etc/`, which is ok,
+but confusing, as package installers put it in `/etc/`
+
 
 ==== Boot time startup
 
-*upmpdcli* will try to change its `uid` to user `upmpdcli` if it is
-started by root. It will refuse to run if the user does not exist.
+If it is started as root, *upmpdcli* will try to change its `uid` to user `upmpdcli`.  It will
+refuse to run if the user does not exist.
 
 If started by `root`, *upmpdcli* will also write its process id to
 `/var/run/upmpdcli.pid`.
+
+There is no need for upmpdcli to be started by root, it can run as any user, but in this case, it
+will create its cache files in subdirectories the user home directory.
 
 There are boot-time startup scripts in the `debian/` directory inside the
 source tree (for Debian/Ubuntu/Mint/Raspbian etc.). There is also a systemd
