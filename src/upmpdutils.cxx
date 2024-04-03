@@ -61,10 +61,6 @@
 #include "pathut.h"
 #include "conftree.h"
 
-#if !defined(HAVE_EXP10)
-inline double exp10(double a) { return pow(10.0, a); }
-#endif
-
 using namespace std;
 using namespace UPnPP;
 using namespace UPnPClient;
@@ -84,19 +80,13 @@ int percentodbvalue(int value)
     return dbvalue;
 }
 
-#ifdef __APPLE__
-#define exp10 __exp10
-#endif
-#ifdef __UCLIBC__
-/* 10^x = 10^(log e^x) = (e^x)^log10 = e^(x * log 10) */
-#define exp10(x) (exp((x) * log(10)))
-#endif /* __UCLIBC__ */
-
 // Translate VolumeDB to MPD 0-100
 int dbvaluetopercent(int dbvalue)
 {
     float db = float(dbvalue) / 256.0;
-    float vol = exp10(db / 10);
+    /* exp10 is not always available */
+    /* 10^x = 10^(log e^x) = (e^x)^log10 = e^(x * log 10) */
+    float vol = exp((db / 10) * log(10));
     int percent = floor(sqrt(vol * 10000.0));
     if (percent < 0) {
         percent = 0;
