@@ -327,6 +327,6 @@ upradiostitle = Upmpdcli Radio List
 # localhost port to be used by the auxiliary mpd.
 #scsendermpdport = 6700
 # External sources script directory.
-#scripts_dir = /usr/share/upmpdcli/src_scripts
+#ohsrc_scripts_dir = /usr/share/upmpdcli/src_scripts
 # Grace period to wait for a script process to exit before it is forcely killed.
 #scscriptgracesecs = 2

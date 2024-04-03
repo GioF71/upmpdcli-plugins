@@ -55,8 +55,8 @@ static const string cstr_stsrcnmkey("ohproduct.sourceName");
 static string csxml("<SourceList>");
 static string csattrs("Info Time Volume");
 
-// This can be replaced by config data in listScripts()
-static string scripts_dir("/usr/share/upmpdcli/src_scripts");
+// This will be replaced by config data or default in listScripts(). Init anyway just in case.
+static string scripts_dir(DATADIR "/src_scripts");
 
 // (Type, Name) list
 static vector<pair<string, string> > o_sources;
