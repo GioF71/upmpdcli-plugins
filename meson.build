@@ -238,3 +238,7 @@ install_subdir('src/mediaserver/cdplugins',
      'curlfetch.cpp', 'curlfetch.h', 'netfetch.cpp', 'netfetch.h', 'plgwithslave.cxx',
      'plgwithslave.hxx', 'streamproxy.cpp', 'streamproxy.h', 'uprcl/testrunuprcl.sh'],
     )
+
+install_man('man/upmpdcli.1')
+install_man('man/upmpdcli.conf.5')
+
