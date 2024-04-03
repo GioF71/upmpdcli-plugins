@@ -34,7 +34,7 @@
  * first tries to contact the server, and does things itself if no
  * server is found (encurring 2-3 S of timeout in the latter case).
  */
-#include "../src/config.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
