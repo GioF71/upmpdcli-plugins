@@ -642,16 +642,18 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
     // The search had better be space-separated. no upnp:artist="beatles" for you
     vector<string> vs;
     stringToStrings(ss, vs);
-    // The sequence can now be either [field, op, value], or
-    // [field, op, value, and/or, field, op, value,...]
+    // The sequence can now be either [field, op, value], or [field, op, value, and/or, field, op,
+    // value,...]. The number of fields is n*4 - 1 (missing last conjunction)
     if ((vs.size() + 1) % 4 != 0) {
         LOGERR("PlgWithSlave::search: bad search string: [" << searchstr << "]\n");
         return false;
     }
 
+    // Note that if we only keep one object kind filtering clause and one content filtering one. If there are more,
+    // these will be the last ones.
     for (unsigned int i = 0; i < vs.size()-2; i += 4) {
         const string& upnpproperty = vs[i];
-        LOGDEB("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");
+        LOGERR("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");
         if (!upnpproperty.compare("upnp:class")) {
             // This defines -what- we are looking for (track/album/artist)
             const string& what(vs[i+2]);
@@ -670,15 +672,12 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
         } else if (!upnpproperty.compare("upnp:artist") || !upnpproperty.compare("dc:author")) {
             slavefield = "artist";
             value = vs[i+2];
-            break;
         } else if (!upnpproperty.compare("upnp:album")) {
             slavefield = "album";
             value = vs[i+2];
-            break;
         } else if (!upnpproperty.compare("dc:title")) {
             slavefield = "track";
             value = vs[i+2];
-            break;
         }
     }
     return true;

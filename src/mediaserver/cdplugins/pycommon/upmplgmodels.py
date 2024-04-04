@@ -53,7 +53,7 @@ class Artist(Model):
 
 
 class Playlist(Model):
-    upnpclass = "object.container.album"
+    upnpclass = "object.container.playlistContainer"
     # Using the proper playlistContainer type this confuses e.g. Kazoo
     #upnpclass = "object.container.playlistContainer"
     # We create a bogus artist with the playlist owner name when available
