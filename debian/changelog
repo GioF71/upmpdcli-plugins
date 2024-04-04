@@ -1,3 +1,9 @@
+upmpdcli (1.8.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Moved build system from autotools to meson
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Thi, 04 Apr 2024 15:28:00 +0200
+
 upmpdcli (1.8.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Add man page for the config file.

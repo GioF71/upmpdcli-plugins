@@ -11,17 +11,8 @@
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
-override_dh_autoreconf:
-	dh_autoreconf ./autogen.sh
-
 %:
-	dh $@  --with autoreconf
-
+	dh $@ 
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-confgui
-
-override_dh_auto_install:
-	dh_installsystemd
-	dh_auto_install
-	rm -rf $(CURDIR)/debian/tmp/usr/share/upmpdcli/rdpl2stream/lib/__pycache__
+	dh_auto_configure -- -Dconfgui=true -Dscctl=true
