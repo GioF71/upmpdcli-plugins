@@ -653,7 +653,7 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
     // these will be the last ones.
     for (unsigned int i = 0; i < vs.size()-2; i += 4) {
         const string& upnpproperty = vs[i];
-        LOGERR("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");
+        LOGDEB("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");
         if (!upnpproperty.compare("upnp:class")) {
             // This defines -what- we are looking for (track/album/artist)
             const string& what(vs[i+2]);
