@@ -1,5 +1,5 @@
 project(
-  'upmdcli',
+  'upmpdcli',
   'cpp',
   license: 'LGPL 2.1+',
   version: '1.8.10',
@@ -239,6 +239,7 @@ install_subdir('src/mediaserver/cdplugins',
      'plgwithslave.hxx', 'streamproxy.cpp', 'streamproxy.h', 'uprcl/testrunuprcl.sh'],
     )
 
+meson.add_install_script('tools/installconfig.sh')
+
 install_man('man/upmpdcli.1')
 install_man('man/upmpdcli.conf.5')
-

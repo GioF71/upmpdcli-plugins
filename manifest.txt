@@ -315,6 +315,7 @@ systemd/
 systemd/upmpdcli.service
 tools/
 tools/confxml.cpp
+tools/installconfig.sh
 web/
 web/bottle.py
 web/init/

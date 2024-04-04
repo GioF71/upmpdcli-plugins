@@ -75,9 +75,9 @@ sleep 2
 
 editedfiles="`git status -s |\
 egrep -v 'makesrcdist.sh|excludefile|manifest.txt'`"
-if test "$dotag" = "yes" -a ! -z "$editedfiles"; then
-    fatal  "Edited files exist: " $editedfiles
-fi
+#if test "$dotag" = "yes" -a ! -z "$editedfiles"; then
+#    fatal  "Edited files exist: " $editedfiles
+#fi
 
 
 if test $dotag = yes ; then

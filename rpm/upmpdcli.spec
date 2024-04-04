@@ -1,6 +1,6 @@
 Summary:        UPnP Media Renderer front-end to MPD, the Music Player Daemon
 Name:           upmpdcli
-Version:        1.8.9
+Version:        1.8.10
 Release:        1%{?dist}
 Group:          Applications/Multimedia
 License:        GPLv2+
@@ -11,13 +11,13 @@ Requires(post): systemd
 Requires(preun): systemd
 Requires(postun): systemd
 Requires: python-requests
-# Because of the configure.ac/Makefile.am patch, needs autotools
-BuildRequires:  autoconf
-BuildRequires:  automake
+BuildRequires:  meson
+BuildRequires:  gcc-c++
 BuildRequires:  libupnpp
-BuildRequires:  libmpdclient-devel
+BuildRequires:  libcurl-devel
 BuildRequires:  libmicrohttpd-devel
 BuildRequires:  jsoncpp-devel
+BuildRequires:  libmpdclient-devel
 BuildRequires:  systemd-units
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -30,12 +30,11 @@ on Android tablets or phones.
 
 
 %prep
-%setup -q
-sh autogen.sh
+%autosetup
 
 %build
-%configure
-%{__make} %{?_smp_mflags}
+%meson -Dscctl=true
+%meson_build
 
 %pre
 getent group upmpdcli >/dev/null || groupadd -r upmpdcli
@@ -45,10 +44,8 @@ getent passwd upmpdcli >/dev/null || \
 exit 0
 
 %install
-%{__rm} -rf %{buildroot}
-%{__make} install DESTDIR=%{buildroot} STRIP=/bin/true INSTALL='install -p'
+%meson_install
 install -D -m644 systemd/upmpdcli.service  %{buildroot}%{_unitdir}/upmpdcli.service
-
 
 %clean
 %{__rm} -rf %{buildroot}
@@ -61,6 +58,7 @@ install -D -m644 systemd/upmpdcli.service  %{buildroot}%{_unitdir}/upmpdcli.serv
 %{_mandir}/man1/%{name}.1*
 %{_mandir}/man5/upmpdcli.conf.5*
 %{_unitdir}/upmpdcli.service
+%{_sysconfdir}/upmpdcli.conf-dist
 %config(noreplace) /etc/upmpdcli.conf
 
 %post
