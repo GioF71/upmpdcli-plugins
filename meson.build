@@ -95,20 +95,20 @@ if get_option('confgui')
         moc_headers: ['cfgui/mainwindow.h', 'cfgui/confgui.h'],
     )
 
-    upmpdcli_config_sources = [
+    upmpdcli_config_sources = files(
         'cfgui/confgui.cpp',
         'cfgui/confmain.cpp',
         'src/conftree.cpp',
         'src/pathut.cpp',
         'src/smallut.cpp',
         processed,
-    ]
+    )
 
-    cfgincludes = [
+    cfgincludes = include_directories(
         dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
         'src',
         'cfgui',
-    ]
+    )
     confgui = executable(
         'upmpdcli-config',
         sources: upmpdcli_config_sources,
@@ -124,18 +124,18 @@ endif
 
 if get_option('scctl')
 
-    scctl_sources = [
+    scctl_sources = files(
         'scctl_src/scctl.cpp',
         'src/netcon.cpp',
         'src/smallut.cpp',
         'src/upmpdutils.cxx',
-    ]
+    )
 
-    scctl_includes = [
+    scctl_includes = include_directories(
         dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
         'src',
         'scctl_src',
-    ]
+    )
     scctl = executable(
         'scctl',
         sources: scctl_sources,
@@ -154,7 +154,7 @@ endif
 
 ######################### Install data
 
-upmpdcli_data = [
+upmpdcli_data = files(
     'src/description.xml',
     'src/AVTransport.xml',
     'src/RenderingControl.xml',
@@ -174,7 +174,7 @@ upmpdcli_data = [
     'src/icon.png',
     'src/upmpdcli.conf-dist',
     'src/upmpdcli.conf-xml',
-]
+)
 install_data(upmpdcli_data, install_dir: get_option('datadir') / 'upmpdcli')
 
 install_data('src/upmpdcli.conf-dist', install_dir: '/etc')
