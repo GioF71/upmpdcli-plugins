@@ -1,10 +1,10 @@
 project(
-    'upmpdcli',
-    'cpp',
-    license: 'LGPL 2.1+',
-    version: '1.8.10',
-    default_options: ['cpp_std=c++17', 'buildtype=debugoptimized'],
-    meson_version: '>=0.49',
+  'upmpdcli',
+  'cpp',
+  license: 'LGPL 2.1+',
+  version: '1.8.10',
+  default_options: ['cpp_std=c++17', 'buildtype=debugoptimized'],
+  meson_version: '>=0.49',
 )
 
 # Things that existed in the autoconf build
@@ -26,97 +26,96 @@ deps += dependency('threads')
 upmpdcli_incdir = include_directories('src')
 
 upmpdcli_sources = files(
-    'src/avtransport.cxx',
-    'src/chrono.cpp',
-    'src/closefrom.cpp',
-    'src/conftree.cpp',
-    'src/conman.cxx',
-    'src/execmd.cpp',
-    'src/main.cxx',
-    'src/mediaserver/cdplugins/cmdtalk.cpp',
-    'src/mediaserver/cdplugins/curlfetch.cpp',
-    'src/mediaserver/cdplugins/netfetch.cpp',
-    'src/mediaserver/cdplugins/plgwithslave.cxx',
-    'src/mediaserver/cdplugins/streamproxy.cpp',
-    'src/mediaserver/contentdirectory.cxx',
-    'src/mediaserver/mediaserver.cxx',
-    'src/mpdcli.cxx',
-    'src/netcon.cpp',
-    'src/ohcredentials.cxx',
-    'src/ohinfo.cxx',
-    'src/ohmetacache.cxx',
-    'src/ohplaylist.cxx',
-    'src/ohproduct.cxx',
-    'src/ohradio.cxx',
-    'src/ohreceiver.cxx',
-    'src/ohservice.cxx',
-    'src/ohsndrcv.cxx',
-    'src/ohtime.cxx',
-    'src/ohvolume.cxx',
-    'src/pathut.cpp',
-    'src/protocolinfo.cxx',
-    'src/readfile.cpp',
-    'src/renderctl.cxx',
-    'src/smallut.cpp',
-    'src/sysvshm.cpp',
-    'src/upmpd.cxx',
-    'src/upmpdutils.cxx',
-    'src/urlmorph.cxx',
-    'src/workqueue.h',
+  'src/avtransport.cxx',
+  'src/chrono.cpp',
+  'src/closefrom.cpp',
+  'src/conftree.cpp',
+  'src/conman.cxx',
+  'src/execmd.cpp',
+  'src/main.cxx',
+  'src/mediaserver/cdplugins/cmdtalk.cpp',
+  'src/mediaserver/cdplugins/curlfetch.cpp',
+  'src/mediaserver/cdplugins/netfetch.cpp',
+  'src/mediaserver/cdplugins/plgwithslave.cxx',
+  'src/mediaserver/cdplugins/streamproxy.cpp',
+  'src/mediaserver/contentdirectory.cxx',
+  'src/mediaserver/mediaserver.cxx',
+  'src/mpdcli.cxx',
+  'src/netcon.cpp',
+  'src/ohcredentials.cxx',
+  'src/ohinfo.cxx',
+  'src/ohmetacache.cxx',
+  'src/ohplaylist.cxx',
+  'src/ohproduct.cxx',
+  'src/ohradio.cxx',
+  'src/ohreceiver.cxx',
+  'src/ohservice.cxx',
+  'src/ohsndrcv.cxx',
+  'src/ohtime.cxx',
+  'src/ohvolume.cxx',
+  'src/pathut.cpp',
+  'src/protocolinfo.cxx',
+  'src/readfile.cpp',
+  'src/renderctl.cxx',
+  'src/smallut.cpp',
+  'src/sysvshm.cpp',
+  'src/upmpd.cxx',
+  'src/upmpdutils.cxx',
+  'src/urlmorph.cxx',
 )
 
 auto = configuration_data()
 ver = meson.project_version().split('.')
 auto.set_quoted('UPMPDCLI_VERSION', meson.project_version())
 cfile = configure_file(
-    input: 'src/config.h.in',
-    output: 'config.h',
-    configuration: auto,
+  input: 'src/config.h.in',
+  output: 'config.h',
+  configuration: auto,
 )
 
 upmpdcli_datadir = get_option('prefix') / get_option('datadir') / 'upmpdcli'
 
 upmpdcli = executable(
-    'upmpdcli',
-    upmpdcli_sources,
-    include_directories: upmpdcli_incdir,
-    dependencies: deps,
-    install: true,
-    cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"'],
+  'upmpdcli',
+  upmpdcli_sources,
+  include_directories: upmpdcli_incdir,
+  dependencies: deps,
+  install: true,
+  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"'],
 )
 
 ########################### Optional Configuration GUI
 if get_option('confgui')
 
-    qt5_mod = import('qt5')
-    qt5widgets = dependency('qt5', modules: 'Widgets')
+  qt5_mod = import('qt5')
+  qt5widgets = dependency('qt5', modules: 'Widgets')
 
-    processed = qt5_mod.preprocess(
-        moc_headers: ['cfgui/mainwindow.h', 'cfgui/confgui.h'],
-    )
+  processed = qt5_mod.preprocess(
+    moc_headers: ['cfgui/mainwindow.h', 'cfgui/confgui.h'],
+  )
 
-    upmpdcli_config_sources = files(
-        'cfgui/confgui.cpp',
-        'cfgui/confmain.cpp',
-        'src/conftree.cpp',
-        'src/pathut.cpp',
-        'src/smallut.cpp',
-        processed,
-    )
+  upmpdcli_config_sources = files(
+    'cfgui/confgui.cpp',
+    'cfgui/confmain.cpp',
+    'src/conftree.cpp',
+    'src/pathut.cpp',
+    'src/smallut.cpp',
+    processed,
+  )
 
-    cfgincludes = include_directories(
-        dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
-        'src',
-        'cfgui',
-    )
-    confgui = executable(
-        'upmpdcli-config',
-        sources: upmpdcli_config_sources,
-        install: true,
-        dependencies: [qt5widgets, dep_libupnpp],
-        include_directories: cfgincludes,
-        cpp_args: '-DENABLE_XMLCONF',
-    )
+  cfgincludes = include_directories(
+    dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
+    'src',
+    'cfgui',
+  )
+  confgui = executable(
+    'upmpdcli-config',
+    sources: upmpdcli_config_sources,
+    install: true,
+    dependencies: [qt5widgets, dep_libupnpp],
+    include_directories: cfgincludes,
+    cpp_args: '-DENABLE_XMLCONF',
+  )
 
 endif
 
@@ -124,118 +123,118 @@ endif
 
 if get_option('scctl')
 
-    scctl_sources = files(
-        'scctl_src/scctl.cpp',
-        'src/netcon.cpp',
-        'src/smallut.cpp',
-        'src/upmpdutils.cxx',
-    )
+  scctl_sources = files(
+    'scctl_src/scctl.cpp',
+    'src/netcon.cpp',
+    'src/smallut.cpp',
+    'src/upmpdutils.cxx',
+  )
 
-    scctl_includes = include_directories(
-        dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
-        'src',
-        'scctl_src',
-    )
-    scctl = executable(
-        'scctl',
-        sources: scctl_sources,
-        install: true,
-        dependencies: [dep_libupnpp],
-        include_directories: scctl_includes,
-    )
+  scctl_includes = include_directories(
+    dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
+    'src',
+    'scctl_src',
+  )
+  scctl = executable(
+    'scctl',
+    sources: scctl_sources,
+    install: true,
+    dependencies: [dep_libupnpp],
+    include_directories: scctl_includes,
+  )
 
-    install_subdir(
-        'web',
-        install_dir: get_option('datadir') / 'upmpdcli',
-        exclude_directories: '__pycache__',
-    )
+  install_subdir(
+    'web',
+    install_dir: get_option('datadir') / 'upmpdcli',
+    exclude_directories: '__pycache__',
+  )
 
 endif
 
 ######################### Install data
 
 upmpdcli_data = files(
-    'src/description.xml',
-    'src/AVTransport.xml',
-    'src/RenderingControl.xml',
-    'src/ConnectionManager.xml',
-    'src/OHProduct.xml',
-    'src/OHCredentials.xml',
-    'src/OHInfo.xml',
-    'src/OHTime.xml',
-    'src/OHVolume.xml',
-    'src/OHPlaylist.xml',
-    'src/OHReceiver.xml',
-    'src/OHRadio.xml',
-    'src/mediaserver/ContentDirectory.xml',
-    'src/mediaserver/MS-description.xml',
-    'src/protocolinfo.txt',
-    'src/presentation.html',
-    'src/icon.png',
-    'src/upmpdcli.conf-dist',
-    'src/upmpdcli.conf-xml',
+  'src/AVTransport.xml',
+  'src/ConnectionManager.xml',
+  'src/OHCredentials.xml',
+  'src/OHInfo.xml',
+  'src/OHPlaylist.xml',
+  'src/OHProduct.xml',
+  'src/OHRadio.xml',
+  'src/OHReceiver.xml',
+  'src/OHTime.xml',
+  'src/OHVolume.xml',
+  'src/RenderingControl.xml',
+  'src/description.xml',
+  'src/icon.png',
+  'src/mediaserver/ContentDirectory.xml',
+  'src/mediaserver/MS-description.xml',
+  'src/presentation.html',
+  'src/protocolinfo.txt',
+  'src/upmpdcli.conf-dist',
+  'src/upmpdcli.conf-xml',
 )
 install_data(upmpdcli_data, install_dir: get_option('datadir') / 'upmpdcli')
 
 install_data('src/upmpdcli.conf-dist', install_dir: '/etc')
 
 install_subdir(
-    'rdpl2stream',
-    install_dir: get_option('datadir') / 'upmpdcli',
-    exclude_directories: '__pycache__',
-    exclude_files: [
-        'tststreams.txt',
-    ],
+  'rdpl2stream',
+  install_dir: get_option('datadir') / 'upmpdcli',
+  exclude_directories: '__pycache__',
+  exclude_files: [
+    'tststreams.txt',
+  ],
 )
 
 install_subdir(
-    'samplescripts',
-    install_dir: get_option('datadir') / 'upmpdcli' / 'src_scripts',
-    strip_directory: true,
+  'samplescripts',
+  install_dir: get_option('datadir') / 'upmpdcli' / 'src_scripts',
+  strip_directory: true,
 )
 
 install_subdir(
-    'src/radio_scripts',
-    install_dir: get_option('datadir') / 'upmpdcli',
-    exclude_directories: 'npr',
+  'src/radio_scripts',
+  install_dir: get_option('datadir') / 'upmpdcli',
+  exclude_directories: 'npr',
 )
 
 install_subdir(
-    'src/mediaserver/cdplugins',
-    install_dir: get_option('datadir') / 'upmpdcli',
-    exclude_directories: [
-        'attic',
-        '.deps',
-        'uprcl/testrunuprcl.sh',
-        'bbc/__pycache__',
-        'hra/__pycache__',
-        'mother-earth-radio/__pycache__',
-        'pycommon/__pycache__',
-        'qobuz/__pycache__',
-        'qobuz/api/__pycache__',
-        'radio-browser/__pycache__',
-        'radio-paradise/__pycache__',
-        'subsonic/__pycache__',
-        'tidal/__pycache__',
-        'upradios/__pycache__',
-        'uprcl/__pycache__',
-    ],
-    exclude_files: [
-        'abuffer.h',
-        'bufxchange.h',
-        'cdplugin.hxx',
-        'cmdtalk.cpp',
-        'cmdtalk.h',
-        'curlfetch.cpp',
-        'curlfetch.h',
-        'netfetch.cpp',
-        'netfetch.h',
-        'plgwithslave.cxx',
-        'plgwithslave.hxx',
-        'streamproxy.cpp',
-        'streamproxy.h',
-        'uprcl/testrunuprcl.sh',
-    ],
+  'src/mediaserver/cdplugins',
+  install_dir: get_option('datadir') / 'upmpdcli',
+  exclude_directories: [
+    'attic',
+    '.deps',
+    'uprcl/testrunuprcl.sh',
+    'bbc/__pycache__',
+    'hra/__pycache__',
+    'mother-earth-radio/__pycache__',
+    'pycommon/__pycache__',
+    'qobuz/__pycache__',
+    'qobuz/api/__pycache__',
+    'radio-browser/__pycache__',
+    'radio-paradise/__pycache__',
+    'subsonic/__pycache__',
+    'tidal/__pycache__',
+    'upradios/__pycache__',
+    'uprcl/__pycache__',
+  ],
+  exclude_files: [
+    'abuffer.h',
+    'bufxchange.h',
+    'cdplugin.hxx',
+    'cmdtalk.cpp',
+    'cmdtalk.h',
+    'curlfetch.cpp',
+    'curlfetch.h',
+    'netfetch.cpp',
+    'netfetch.h',
+    'plgwithslave.cxx',
+    'plgwithslave.hxx',
+    'streamproxy.cpp',
+    'streamproxy.h',
+    'uprcl/testrunuprcl.sh',
+  ],
 )
 
 meson.add_install_script('tools/installconfig.sh')
