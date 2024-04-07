@@ -65,9 +65,8 @@ upmpdcli_sources = files(
 )
 
 auto = configuration_data()
-ver = meson.project_version().split('.')
 auto.set_quoted('UPMPDCLI_VERSION', meson.project_version())
-cfile = configure_file(
+configure_file(
   input: 'src/config.h.in',
   output: 'config.h',
   configuration: auto,
@@ -75,7 +74,7 @@ cfile = configure_file(
 
 upmpdcli_datadir = get_option('prefix') / get_option('datadir') / 'upmpdcli'
 
-upmpdcli = executable(
+executable(
   'upmpdcli',
   upmpdcli_sources,
   include_directories: upmpdcli_incdir,
@@ -108,7 +107,7 @@ if get_option('confgui')
     'src',
     'cfgui',
   )
-  confgui = executable(
+  executable(
     'upmpdcli-config',
     sources: upmpdcli_config_sources,
     install: true,
@@ -122,7 +121,6 @@ endif
 ########################### Optional scctl songcast control and web interface
 
 if get_option('scctl')
-
   scctl_sources = files(
     'scctl_src/scctl.cpp',
     'src/netcon.cpp',
@@ -135,7 +133,7 @@ if get_option('scctl')
     'src',
     'scctl_src',
   )
-  scctl = executable(
+  executable(
     'scctl',
     sources: scctl_sources,
     install: true,
@@ -148,7 +146,6 @@ if get_option('scctl')
     install_dir: get_option('datadir') / 'upmpdcli',
     exclude_directories: '__pycache__',
   )
-
 endif
 
 ######################### Install data
