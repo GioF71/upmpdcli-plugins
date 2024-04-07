@@ -21,21 +21,12 @@
  */
 
 // Get rid of macro names which could conflict with other package's
-#if defined(UPMPDCLI_NEED_PACKAGE_VERSION) && \
-    !defined(UPMPDCLI_PACKAGE_VERSION_DEFINED)
+#if defined(UPMPDCLI_NEED_PACKAGE_VERSION) && !defined(UPMPDCLI_PACKAGE_VERSION_DEFINED)
 #define UPMPDCLI_PACKAGE_VERSION_DEFINED
-static const char *UPMPDCLI_PACKAGE_VERSION = PACKAGE_VERSION;
+static const char *UPMPDCLI_PACKAGE_VERSION = UPMPDCLI_VERSION;
 #endif
 
 #define UPMPDCLI_SOURCE
-
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_URL
-#undef PACKAGE_VERSION
-
 
 // Newer versions of libupnpp export the UPNP_E_XXX error codes from
 // the base upnp lib. In consequence, all inclusions of upnp.h, the

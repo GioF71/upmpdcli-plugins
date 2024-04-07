@@ -107,7 +107,7 @@ upmpdcli_sources = files(
 
 auto = configuration_data()
 ver = meson.project_version().split('.')
-auto.set_quoted('PACKAGE_VERSION', meson.project_version())
+auto.set_quoted('UPMPDCLI_VERSION', meson.project_version())
 cfile = configure_file(input: 'src/config.h.in', output: 'config.h',
                        configuration: auto)
 
