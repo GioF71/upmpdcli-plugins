@@ -1,10 +1,12 @@
 #!/bin/sh
 
 myname=upmpdcli
-MYNAME=`echo $myname | tr a-z A-Z`
 wherefile=src/avtransport.cxx
+version=`grep "version:" meson.build | head -1 | awk '{print $2}' | tr -d "',"`
 islib=no
-#builtlib=build/libupnpp.so
+builtlib=
+
+MYNAME=`echo $myname | tr a-z A-Z`
 
 # A shell-script to make a source distribution.
 
@@ -58,8 +60,6 @@ if test $snap = yes ; then
   version=`date +%F_%H-%M-%S`
   TAG=""
 else
-    version=`grep "version:" meson.build | head -1 | awk '{print $2}' | tr -d "',"`
-    # trim whitespace
     version=`echo $version | xargs`
     TAG="${myname}-v$version"
 fi
@@ -70,21 +70,16 @@ if test "$dotag" = "yes" ; then
 else
     echo Creating version $version, no tagging
 fi
-sleep 2
 	
 
 editedfiles="`git status -s |\
 egrep -v 'makesrcdist.sh|excludefile|manifest.txt'`"
-#if test "$dotag" = "yes" -a ! -z "$editedfiles"; then
-#    fatal  "Edited files exist: " $editedfiles
-#fi
-
-
-if test $dotag = yes ; then
-    releasename=${myname}-$version
-else
-    releasename=beta${myname}-$version
+if test "$dotag" = "yes" -a ! -z "$editedfiles"; then
+    fatal  "Edited files exist: " $editedfiles
 fi
+
+
+releasename=${myname}-$version
 
 topdir=$targetdir/$releasename
 if test ! -d $topdir ; then
@@ -92,8 +87,8 @@ if test ! -d $topdir ; then
 else 
     echo "Removing everything under $topdir Ok ? (y/n)"
     read rep 
-    if test $rep = 'y';then
-    	rm -rf $topdir/*
+    if test "$rep" = 'y';then
+    	rm -rf $topdir/* $topdir/.??*
     fi
 fi
 
@@ -105,7 +100,7 @@ if test "$islib" = "yes" ; then
         meson setup build || exit 1
         meson configure build --buildtype release || exit 1
         (cd build;meson compile) || exit 1
-        nm -g --defined-only --demangle $builtlib | grep ' T ' | \
+        nm -g --defined-only --demangle "$builtlib" | grep ' T ' | \
             awk '{$1=$2="";print $0}' | diff symbols-reference - || exit 1
         rm -rf build
     fi
@@ -124,5 +119,6 @@ export LC_ALL=C
 tar tzf $targetdir/$out | sort | cut -d / -f 2- | \
     diff manifest.txt - || fatal "Please fix file list manifest.txt"
 
-# We tag .. as there is the 'packaging/' directory in there
-[ $dotag = "yes" ] && create_tag $TAG
+if test "$dotag" = "yes" ; then
+     create_tag $TAG
+fi

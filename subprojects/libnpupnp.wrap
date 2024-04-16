@@ -1,0 +1,6 @@
+[wrap-git]
+url=https://framagit.org/medoc92/npupnp.git
+revision=master
+
+[provide]
+libnpupnp = libnpupnp_dep
