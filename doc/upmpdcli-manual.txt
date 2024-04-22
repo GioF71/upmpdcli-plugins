@@ -1133,13 +1133,14 @@ For building from source, you will need a C\++ compiler with C++17 support, and 
 packages for the supporting libraries: *libcurl*, *libmicrohttpd*, *libmpdclient*, and possibly
 *expat*, depending on configuration options.
 
-Also the Python modules for streaming service support use the
-*python3-requests* package, so you may need to install it (it is only needed
-at run time). 
+Also the Python modules for streaming service support use the *python3-requests* package, so you may
+need to install it (it is only needed at run time).
 
-Older releases of the packages (until around April 2024) used the GNU autotools for building. Newer
-releases (and current git code) use *meson*, so the procedure changed. For now, we will describe
-both. 
+Older releases of the packages used the GNU autotools for building. Newer releases (and current git
+code) use *meson* and *ninja*.  The change releases were libnpupnp 6.1.2, libupnpp 0.26.3 and
+upmpdcli 1.8.10.
+
+For now, we will describe both methods.
 
 If you are using the source from the git repository, and if you extract an older tag you will also
 need the *autoconf*, *automake*, *libtool* trio. Use the `autogen.sh` script to set things up.
