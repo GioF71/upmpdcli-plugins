@@ -15,29 +15,34 @@
 
 from enum import Enum
 
+
 class ItemIdentifierKey(Enum):
-    
     THING_NAME = 0, 'n'
     THING_VALUE = 1, 'v'
     PAGE_NUMBER = 3, 'p'
     ALBUM_ID = 4, 'a'
     OFFSET = 5, 'o'
     TAG_TYPE = 6, 't',
+    ALBUM_PAGE = 7, 'ap'
     CATEGORY_TITLE = 10, 'catt'
     PAGE_LIST = 11, 'pglst'
     PAGE_LINK_API_PATH = 12, "pglnkppth"
     CATEGORY_KEY = 13, "catk"
     MAX_ITEMS = 14, "mxtms"
-            
-    def __init__(self, 
-            num : int, 
+    MISSING_ARTIST_ART = 15, "msngrtrt"
+    COUNT = 16, "cnt"
+    UNDERLYING_TYPE = 17, "ut"
+
+    def __init__(self,
+            num : int,
             key_name : str):
         self.num : int = num
         self.key_name : str = key_name
-    
+
     def getName(self) -> str:
         return self.key_name
-    
+
+
 # duplicate check
 name_checker_set : set[str] = set()
 id_checker_set : set[int] = set()

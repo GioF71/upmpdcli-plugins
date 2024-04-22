@@ -15,8 +15,8 @@
 
 from enum import Enum
 
+
 class TagType(Enum):
-    
     CATEGORIES = 100, "ctgrs", "Categories"
     MY_PLAYLISTS = 101, "myplsts", "My Playlists"
     ALL_PLAYLISTS = 102, "allplsts", "Playlists"
@@ -25,9 +25,9 @@ class TagType(Enum):
     FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks",
     PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics"
 
-    def __init__(self, 
-            num : int, 
-            tag_name : str, 
+    def __init__(self,
+            num : int,
+            tag_name : str,
             tag_title : str):
         self.num : int = num
         self.tag_name : str = tag_name
@@ -39,12 +39,14 @@ class TagType(Enum):
     def getTagTitle(self) -> str:
         return self.tag_title
 
+
 def get_tag_Type_by_name(tag_name : str) -> TagType:
-    #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
     for _, member in TagType.__members__.items():
         if tag_name == member.getTagName():
             return member
     raise Exception(f"get_tag_Type_by_name with {tag_name} NOT found")
+
 
 # duplicate check
 name_checker_set : set[str] = set()

@@ -16,6 +16,7 @@
 from typing import Callable
 from tidalapi.album import Album as TidalAlbum
 
+
 class AlbumSortCriteria:
 
     def __init__(self, extractor : Callable[[TidalAlbum], any], comparator : Callable[[any, any], int]):
@@ -24,4 +25,3 @@ class AlbumSortCriteria:
 
     def compare(self, left : TidalAlbum, right : TidalAlbum) -> int:
         return self._comparator(self._extractor(left), self._extractor(right))
-

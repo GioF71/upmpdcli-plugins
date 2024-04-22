@@ -15,6 +15,7 @@
 
 from enum import Enum
 
+
 class ElementType(Enum):
     TAG = 0, "tag"
     CATEGORY = 1, "cat",
@@ -66,11 +67,14 @@ class ElementType(Enum):
     FAVORITE_ARTISTS_BY_NAME_DESC = 48, "fvrtstnd",
     FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC = 49, "fvrtstudaa",
     FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC = 50, "fvrtstudad",
+    ARTIST_FOCUS = 51, "rtstrl"
+    ALBUMS_IN_MIX_OR_PLAYLIST = 52, "lbmnmxplst"
+    ARTISTS_IN_MIX_OR_PLAYLIST = 53, "rtstnmxplst"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
-    def __init__(self, 
-            num : int, 
+    def __init__(self,
+            num : int,
             element_name : str):
         self.num : int = num
         self.element_name : str = element_name
@@ -78,12 +82,14 @@ class ElementType(Enum):
     def getName(self):
         return self.element_name
 
+
 def get_element_type_by_name(element_name : str) -> ElementType:
-    #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
     for _, member in ElementType.__members__.items():
         if element_name == member.getName():
             return member
     raise Exception(f"get_element_type_by_name with {element_name} NOT found")
+
 
 # duplicate check
 name_checker_set : set[str] = set()

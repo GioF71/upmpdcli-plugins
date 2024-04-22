@@ -15,11 +15,13 @@
 
 import base64
 
+
 def encode(name : str) -> str:
     message_bytes : bytes = name.encode('utf-8')
     base64_bytes : bytes = base64.b64encode(message_bytes)
     id : str = base64_bytes.decode('utf-8')
     return id
+
 
 def decode(id : str) -> str:
     base64_bytes : bytes = id.encode('utf-8')

@@ -15,14 +15,14 @@
 
 from enum import Enum
 
+
 class TileType(Enum):
-    
     TAG = 1, "tag",
     CATEGORY = 2, "category"
     PAGE_LINK = 3, "pagelink"
 
-    def __init__(self, 
-            type_type_num : int, 
+    def __init__(self,
+            type_type_num : int,
             tile_type_name : str):
         self._type_type_num : int = type_type_num
         self._tile_type_name : str = tile_type_name
@@ -37,12 +37,14 @@ class TileType(Enum):
         """I'm the 'tile_type_name' property."""
         return self._tile_type_name
 
+
 def get_tile_type_by_name(tile_type_name : str) -> TileType:
-    #msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
     for _, member in TileType.__members__.items():
         if tile_type_name == member.tile_type_name:
             return member
     raise Exception(f"get_tile_type_by_name with {tile_type_name} NOT found")
+
 
 # duplicate check
 name_checker_set : set[str] = set()

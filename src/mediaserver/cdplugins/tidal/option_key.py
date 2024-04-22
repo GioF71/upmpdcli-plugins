@@ -15,6 +15,7 @@
 
 from enum import Enum
 
+
 class OptionKey(Enum):
     SKIP_TRACK_NUMBER = 0, "skip-track-number", False
     FORCED_TRACK_NUMBER = 1, "forced-track-number", None
@@ -28,9 +29,11 @@ class OptionKey(Enum):
     ADD_ARTIST_TO_ALBUM_ENTRY = 10, "add-artist-to-album-entry", False
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
     PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME = 11, "prepend-entry-number-in-entry-name", None
-    
-    def __init__(self, 
-            num : int, 
+    OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT = 12, "omit-rsts-nls-dffrnt", False
+    ALBUM_OMITTABLE_ARTIST_ID = 13, "omit-rtst", None
+
+    def __init__(self,
+            num : int,
             element_name : str,
             default_value : any):
         self.num : int = num
@@ -39,9 +42,10 @@ class OptionKey(Enum):
 
     def get_name(self) -> str:
         return self.element_name
-    
+
     def get_default_value(self) -> any:
         return self.default_value
+
 
 # duplicate check
 name_checker_set : set[str] = set()

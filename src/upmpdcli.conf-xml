@@ -462,24 +462,47 @@
 # <var name="tidaluser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #tidaluser = tidal
-# <var name="tidaltokentype" type="string"><brief>Authentication token type.</brief>
-# <descr>The type of token used for authentication, typically Bearer.</descr></var>
+# <var name="tidalenablepkce" type="bool">
+# <brief>Enable pkce authentication</brief>
+# <descr>Enables pkce mode authentication,
+# defaults to 0.</descr></var>
+#tidalenablepkce = 0
+# <var name="tidaltokentype" type="string"><brief>Oath2 authentication token type.</brief>
+# <descr>The type of token used for OAUTH2 authentication, typically Bearer.</descr></var>
 #tidaltokentype = Bearer
 # <var name="tidalaccesstoken" type="string"><brief>Access Token.</brief>
-# <descr>The access token used for authentication.</descr></var>
-#tidalaccesstoken = your_access_token
+# <descr>The access token used for Oath2 authentication.</descr></var>
+#tidalaccesstoken = your_oauth2_access_token
 # <var name="tidalrefreshtoken" type="string"><brief>Refresh Token.</brief>
-# <descr>The refresh token used for authentication.</descr></var>
-#tidalrefreshtoken = your_refresh_token
+# <descr>The refresh token used for Oath2 authentication.</descr></var>
+#tidalrefreshtoken = your_oauth2_refresh_token
 # <var name="tidalexpirytime" type="string"><brief>Token expiry time.</brief>
-# <descr>The expiry time, as an epoch-based floating point number, of the token used for authentication.</descr></var>
+# <descr>The Oath2 expiry time, as an epoch-based floating point number, of the token used for authentication.</descr></var>
 #tidalexpirytime = 1697143990.40669
+# <var name="tidalpkcetokentype" type="string"><brief>PKCE authentication token type.</brief>
+# <descr>The type of token used for PKCE authentication, typically Bearer.</descr></var>
+#tidalpkcetokentype = Bearer
+# <var name="tidalpkceaccesstoken" type="string"><brief>PKCE Access Token.</brief>
+# <descr>The access token used for OJCE authentication.</descr></var>
+#tidalpkceaccesstoken = your_pkce_access_token
+# <var name="tidalpkcerefreshtoken" type="string"><brief>PKCE Refresh Token.</brief>
+# <descr>The refresh token used for PKCE authentication.</descr></var>
+#tidalpkcerefreshtoken = your_pkce_refresh_token
+# <var name="tidalpkcesessionid" type="string"><brief>PKCE Session id</brief>
+# <descr>The session id used for PKCE authentication.</descr></var>
+#tidalpkcesessionid = your_pkce_session_id
 # <var name="tidalaudioquality" type="cstr" values="LOW HIGH LOSSLESS HI_RES HI_RES_LOSSLESS">
 # <brief>Tidal maximum stream quality.</brief>
 # <descr>LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,
 # HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
 # formats).</descr></var>
 #tidalaudioquality = LOSSLESS
+# <var name="tidalpkcetokentype" type="string"><brief>PKCE authentication token type.</brief>
+# <descr>The type of token used for PKCE authentication, typically Bearer.</descr></var>
+#tidalpkcetokentype = Bearer
+# <var name="tidalpkceaccesstoken" type="string"><brief>PKCE Access Token.</brief>
+# <descr>The access token used for PKCE authentication.</descr></var>
+#tidalpkceaccesstoken = your_pkce_access_token
 # <var name="tidaltitle" type="string">
 # <brief>Plugin Title.</brief>
 # <descr>This will be displayed as the plugin entry in the Media Server root

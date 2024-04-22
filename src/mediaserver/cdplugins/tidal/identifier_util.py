@@ -20,12 +20,14 @@ import codec
 
 import json
 
+
 def __escape_objid(value : str) -> str:
     return escape(value, quote = True)
+
 
 def create_objid(objid, id : str) -> str:
     return objid + "/" + __escape_objid(id)
 
+
 def create_id_from_identifier(identifier : ItemIdentifier) -> str:
     return codec.encode(json.dumps(identifier.getDictionary()))
-

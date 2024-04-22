@@ -15,6 +15,7 @@
 
 import datetime
 
+
 class PlayedTrack:
 
     def __init__(self):
@@ -35,6 +36,8 @@ class PlayedTrack:
         self._explicit : int = None
         self._artist_name : str = None
         self._album_duration : int = None
+        self._bit_depth : int = None
+        self._sample_rate : int = None
 
     @property
     def track_id(self) -> str:
@@ -42,7 +45,7 @@ class PlayedTrack:
 
     @track_id.setter
     def track_id(self, value : str):
-        self._track_id : str = value
+        self._track_id : str = str(value) if value else None
 
     @property
     def album_id(self) -> str:
@@ -50,7 +53,7 @@ class PlayedTrack:
 
     @album_id.setter
     def album_id(self, value : str):
-        self._album_id : str = value
+        self._album_id : str = str(value) if value else None
 
     @property
     def album_track_count(self) -> int:
@@ -75,6 +78,7 @@ class PlayedTrack:
     @last_played.setter
     def last_played(self, value : datetime.datetime):
         self._last_played : datetime.datetime = value
+
     @property
     def track_name(self) -> str:
         return self._track_name
@@ -171,3 +175,18 @@ class PlayedTrack:
     def album_duration(self, value : int):
         self._album_duration : int = value
 
+    @property
+    def bit_depth(self) -> int:
+        return self._bit_depth
+
+    @bit_depth.setter
+    def bit_depth(self, value : int):
+        self._bit_depth : int = value
+
+    @property
+    def sample_rate(self) -> int:
+        return self._sample_rate
+
+    @sample_rate.setter
+    def sample_rate(self, value : int):
+        self._sample_rate : int = value

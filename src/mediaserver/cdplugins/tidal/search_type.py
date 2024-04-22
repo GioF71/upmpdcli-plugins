@@ -13,19 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from element_type import ElementType
 import tidalapi
 
 from enum import Enum
 
+
 class SearchType(Enum):
-    
     ALBUM = 0, "album", "albums", tidalapi.album.Album
     ARTIST = 1, "artist", "artists", tidalapi.artist.Artist
     TRACK = 2, "track", "tracks", tidalapi.media.Track
 
-    def __init__(self, 
-            num : int, 
+    def __init__(self,
+            num : int,
             element_name : str,
             dict_entry : str,
             model : type):
@@ -42,7 +41,8 @@ class SearchType(Enum):
 
     def get_model(self) -> type:
         return self.model
-    
+
+
 # duplicate check
 name_checker_set : set[str] = set()
 id_checker_set : set[int] = set()
