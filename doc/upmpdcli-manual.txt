@@ -964,6 +964,9 @@ pkce-credentials.json in the tidal plugin cache folder.
 The script will also present, as an alternative, the corresponding set of variable to set
 in the upmpdcli.conf, but I recommend the approach described in the previous paragraph.
 
+Also, the PKCE mode requires the `webserverdocumentroot` to be enabled in upmpdcli.conf.
+Set it to a value like `/var/cache/upmpdcli/public`.
+
 The configuration variables are further described in the <<tidaluser,configuration section>>
 
 [[UPMPDCLI-MS-STR-QOBUZ]]

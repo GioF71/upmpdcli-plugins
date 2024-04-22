@@ -99,8 +99,8 @@ if get_option('confgui')
     'src/conftree.cpp',
     'src/pathut.cpp',
     'src/smallut.cpp',
-    processed,
   )
+  upmpdcli_config_sources += processed
 
   cfgincludes = include_directories(
     dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',

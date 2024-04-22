@@ -193,10 +193,15 @@ src/mediaserver/cdplugins/subsonic/upnp_util.py
 src/mediaserver/cdplugins/tidal/
 src/mediaserver/cdplugins/tidal/album_sort_criteria.py
 src/mediaserver/cdplugins/tidal/artist_sort_criteria.py
+src/mediaserver/cdplugins/tidal/authentication.py
 src/mediaserver/cdplugins/tidal/codec.py
+src/mediaserver/cdplugins/tidal/config.py
 src/mediaserver/cdplugins/tidal/constants.py
+src/mediaserver/cdplugins/tidal/context.py
+src/mediaserver/cdplugins/tidal/context_key.py
 src/mediaserver/cdplugins/tidal/element_type.py
 src/mediaserver/cdplugins/tidal/get_credentials.py
+src/mediaserver/cdplugins/tidal/get_credentials_pkce.py
 src/mediaserver/cdplugins/tidal/identifier_util.py
 src/mediaserver/cdplugins/tidal/item_identifier.py
 src/mediaserver/cdplugins/tidal/item_identifier_key.py
@@ -207,6 +212,7 @@ src/mediaserver/cdplugins/tidal/played_track.py
 src/mediaserver/cdplugins/tidal/played_track_adapter.py
 src/mediaserver/cdplugins/tidal/played_track_request.py
 src/mediaserver/cdplugins/tidal/search_type.py
+src/mediaserver/cdplugins/tidal/streaming_info.py
 src/mediaserver/cdplugins/tidal/tag_type.py
 src/mediaserver/cdplugins/tidal/tidal-app.py
 src/mediaserver/cdplugins/tidal/tidal_track_adapter.py

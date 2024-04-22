@@ -8,6 +8,7 @@
 .git
 .github
 .gitignore
+.vscode
 Makefile
 Makefile.am
 Makefile.in
@@ -30,3 +31,5 @@ manifest.txt
 missing
 rpm
 setversion.sh
+subprojects
+
