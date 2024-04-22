@@ -406,17 +406,33 @@ directory.
 [[tidaluser]]
 tidaluser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+[[tidalenablepkce]]
+tidalenablepkce:: Enable pkce authentication Enables pkce mode authentication,
+defaults to 0.
+
 [[tidaltokentype]]
-tidaltokentype:: Authentication token type. The type of token used for authentication, typically Bearer.
+tidaltokentype:: Oath2 authentication token type. The type of token used for OAUTH2 authentication, typically Bearer.
 
 [[tidalaccesstoken]]
-tidalaccesstoken:: Access Token. The access token used for authentication.
+tidalaccesstoken:: Access Token. The access token used for Oath2 authentication.
 
 [[tidalrefreshtoken]]
-tidalrefreshtoken:: Refresh Token. The refresh token used for authentication.
+tidalrefreshtoken:: Refresh Token. The refresh token used for Oath2 authentication.
 
 [[tidalexpirytime]]
-tidalexpirytime:: Token expiry time. The expiry time, as an epoch-based floating point number, of the token used for authentication.
+tidalexpirytime:: Token expiry time. The Oath2 expiry time, as an epoch-based floating point number, of the token used for authentication.
+
+[[tidalpkcetokentype]]
+tidalpkcetokentype:: PKCE authentication token type. The type of token used for PKCE authentication, typically Bearer.
+
+[[tidalpkceaccesstoken]]
+tidalpkceaccesstoken:: PKCE Access Token. The access token used for OJCE authentication.
+
+[[tidalpkcerefreshtoken]]
+tidalpkcerefreshtoken:: PKCE Refresh Token. The refresh token used for PKCE authentication.
+
+[[tidalpkcesessionid]]
+tidalpkcesessionid:: PKCE Session id The session id used for PKCE authentication.
 
 [[tidalaudioquality]]
 tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,

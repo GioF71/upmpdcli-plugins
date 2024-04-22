@@ -497,12 +497,6 @@
 # HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
 # formats).</descr></var>
 #tidalaudioquality = LOSSLESS
-# <var name="tidalpkcetokentype" type="string"><brief>PKCE authentication token type.</brief>
-# <descr>The type of token used for PKCE authentication, typically Bearer.</descr></var>
-#tidalpkcetokentype = Bearer
-# <var name="tidalpkceaccesstoken" type="string"><brief>PKCE Access Token.</brief>
-# <descr>The access token used for PKCE authentication.</descr></var>
-#tidalpkceaccesstoken = your_pkce_access_token
 # <var name="tidaltitle" type="string">
 # <brief>Plugin Title.</brief>
 # <descr>This will be displayed as the plugin entry in the Media Server root
