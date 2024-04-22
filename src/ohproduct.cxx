@@ -19,6 +19,8 @@
 #include "ohproduct.hxx"
 
 #include <unistd.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include <functional>
 #include <iostream>
@@ -45,22 +47,9 @@
 using namespace std;
 using namespace std::placeholders;
 
-static void listScripts(vector<pair<string, string> >& sources);
-
 static const string sTpProduct("urn:av-openhome-org:service:Product:");
 static const string sIdProduct("urn:av-openhome-org:serviceId:Product");
-
 static const string cstr_stsrcnmkey("ohproduct.sourceName");
-
-static string csxml("<SourceList>");
-static string csattrs("Info Time Volume");
-
-// This will be replaced by config data or default in listScripts(). Init anyway just in case.
-static string scripts_dir(DATADIR "/src_scripts");
-
-// (Type, Name) list
-static vector<pair<string, string> > o_sources;
-
 static const string SndRcvPLName("PL-to-Songcast");
 static const string SndRcvRDName("RD-to-Songcast");
 
@@ -76,17 +65,17 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProduct
       m_ohProductDesc(ohProductDesc), m_sourceIndex(0), m_standby(false)
 {
     // Playlist must stay first.
-    o_sources.push_back(pair<string,string>(OHPlaylistSourceType, OHPlaylistSourceName));
+    m_sources.emplace_back(OHPlaylistSourceType, OHPlaylistSourceName);
     if (m_udev->getohrd()) {
-        o_sources.push_back(pair<string, string>(OHRadioSourceType, OHRadioSourceName));
+        m_sources.emplace_back(OHRadioSourceType, OHRadioSourceName);
     }
     // version == 1 is for lumin compat, see upmpd.cxx
     if (version != 1) {
-        csattrs.append(" Credentials");
+        m_csattrs.append(" Credentials");
     }
     if (m_udev->getohrcv()) {
-        o_sources.push_back(pair<string,string>(OHReceiverSourceType, OHReceiverSourceName));
-        csattrs.append(" Receiver");        
+        m_sources.emplace_back(OHReceiverSourceType, OHReceiverSourceName);
+        m_csattrs.append(" Receiver");        
         if (m_udev->getsndrcv() &&
             m_udev->getohrcv()->playMethod() == OHReceiverParams::OHRP_ALSA) {
             if (!(m_dev->getopts().options & UpMpd::upmpdNoSongcastSource)) {
@@ -96,17 +85,17 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProduct
                 // original/saved one, not the current one, which is doing
                 // the playing and sending to the fifo, so we'd need to
                 // tell ohreceiver about using the right one.
-                o_sources.push_back(pair<string,string>(OHPlaylistSourceType, SndRcvPLName));
+                m_sources.emplace_back(OHPlaylistSourceType, SndRcvPLName);
                 if (m_udev->getohrd()) {
-                    o_sources.push_back(pair<string,string>(OHRadioSourceType, SndRcvRDName));
+                    m_sources.emplace_back(OHRadioSourceType, SndRcvRDName);
                 }
             }
-            listScripts(o_sources);
+            listScripts(m_sources);
         }
     }
 
-
-    for (const auto& entry : o_sources) {
+    m_csxml = "<SourceList>";
+    for (const auto& [typ, name] : m_sources) {
         // Receiver needs to be visible for Kazoo to use it. As a
         // consequence, Receiver appears in older upplay versions
         // source lists. Newer versions filters it out because you
@@ -114,21 +103,21 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProduct
         // (no way to specify the sender), so it is confusing
         // Note: only the UPNP/AV source has visible==false in Linn ohplayer
         string visible = "true";
-        csxml += string("<Source>") +
-            "<Name>" + entry.second + "</Name>" +
-            "<Type>" + entry.first + "</Type>" +
+        m_csxml += string("<Source>") +
+            "<Name>" + name + "</Name>" +
+            "<Type>" + typ + "</Type>" +
             "<Visible>" + visible + "</Visible>" +
-            "<SystemName>" + entry.second + "</SystemName>" +
+            "<SystemName>" + name + "</SystemName>" +
             "</Source>";
     }
-    csxml += string("</SourceList>");
-    LOGDEB0("OHProduct::OHProduct: sources: " << csxml << endl);
+    m_csxml += string("</SourceList>");
+    LOGDEB0("OHProduct::OHProduct: sources: " << m_csxml << '\n');
 
     if (getOptionValue("onstandby", m_standbycmd) && !m_standbycmd.empty()) {
         string out;
         if (ExecCmd::backtick(vector<string>{m_standbycmd}, out)) {
             m_standby = atoi(out.c_str());
-            LOGDEB("OHProduct: standby is " << m_standby << endl);
+            LOGDEB("OHProduct: standby is " << m_standby << '\n');
         }
     }
     
@@ -144,7 +133,7 @@ OHProduct::OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProduct
     udev->addActionMapping(this, "SetSourceIndexByName",
                            bind(&OHProduct::setSourceIndexByName, this, _1, _2));
     udev->addActionMapping(this, "SetSourceBySystemName", 
-                          bind(&OHProduct::setSourceBySystemName,this, _1, _2));
+                           bind(&OHProduct::setSourceBySystemName,this, _1, _2));
     udev->addActionMapping(this, "Source", bind(&OHProduct::source, this, _1, _2));
     udev->addActionMapping(this, "Attributes", bind(&OHProduct::attributes, this, _1, _2));
     udev->addActionMapping(this, "SourceXmlChangeCount",
@@ -181,17 +170,17 @@ bool OHProduct::makestate(unordered_map<string, string> &st)
     st["ProductUrl"] = m_ohProductDesc.product.url;
     st["ProductImageUri"] = m_ohProductDesc.product.imageUri;
     st["Standby"] = m_standby ? "1" : "0";
-    st["SourceCount"] = SoapHelp::i2s(o_sources.size());
-    st["SourceXml"] = csxml;
+    st["SourceCount"] = SoapHelp::i2s(m_sources.size());
+    st["SourceXml"] = m_csxml;
     st["SourceIndex"] = SoapHelp::i2s(m_sourceIndex);
-    st["Attributes"] = csattrs;
+    st["Attributes"] = m_csattrs;
 
     return true;
 }
 
 int OHProduct::manufacturer(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::manufacturer" << endl);
+    LOGDEB("OHProduct::manufacturer" << '\n');
     data.addarg("Name", m_ohProductDesc.manufacturer.name);
     data.addarg("Info", m_ohProductDesc.manufacturer.info);
     data.addarg("Url", m_ohProductDesc.manufacturer.url);
@@ -201,7 +190,7 @@ int OHProduct::manufacturer(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHProduct::model(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::model" << endl);
+    LOGDEB("OHProduct::model" << '\n');
     data.addarg("Name", m_ohProductDesc.model.name);
     data.addarg("Info", m_ohProductDesc.model.info);
     data.addarg("Url", m_ohProductDesc.model.url);
@@ -211,7 +200,7 @@ int OHProduct::model(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHProduct::product(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::product" << endl);
+    LOGDEB("OHProduct::product" << '\n');
     data.addarg("Room", m_ohProductDesc.room);
     data.addarg("Name", m_ohProductDesc.product.name);
     data.addarg("Info", m_ohProductDesc.product.info);
@@ -222,23 +211,22 @@ int OHProduct::product(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHProduct::standby(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::standby" << endl);
+    LOGDEB("OHProduct::standby" << '\n');
     data.addarg("Value", SoapHelp::i2s(m_standby));
     return UPNP_E_SUCCESS;
 }
 
 int OHProduct::setStandby(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::setStandby" << endl);
+    LOGDEB("OHProduct::setStandby" << '\n');
     if (!sc.get("Value", &m_standby)) {
         return UPNP_E_INVALID_PARAM;
     }
     if (!m_standbycmd.empty()) {
         string out;
-        if (ExecCmd::backtick(vector<string>{m_standbycmd,
-                        SoapHelp::i2s(m_standby)}, out)) {
+        if (ExecCmd::backtick(vector<string>{m_standbycmd, SoapHelp::i2s(m_standby)}, out)) {
             m_standby = atoi(out.c_str());
-            LOGDEB("OHProduct: standby is " << m_standby << endl);
+            LOGDEB("OHProduct: standby is " << m_standby << '\n');
         }
     }
     onEvent(nullptr);
@@ -247,29 +235,29 @@ int OHProduct::setStandby(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHProduct::sourceCount(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::sourceCount" << endl);
-    data.addarg("Value", SoapHelp::i2s(o_sources.size()));
+    LOGDEB("OHProduct::sourceCount" << '\n');
+    data.addarg("Value", SoapHelp::i2s(m_sources.size()));
     return UPNP_E_SUCCESS;
 }
 
 int OHProduct::sourceXML(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::sourceXML" << endl);
-    data.addarg("Value", csxml);
+    LOGDEB("OHProduct::sourceXML" << '\n');
+    data.addarg("Value", m_csxml);
     return UPNP_E_SUCCESS;
 }
 
 int OHProduct::sourceIndex(const SoapIncoming& sc, SoapOutgoing& data)
 {
     data.addarg("Value", SoapHelp::i2s(m_sourceIndex));
-    LOGDEB("OHProduct::sourceIndex: " << m_sourceIndex << endl);
+    LOGDEB("OHProduct::sourceIndex: " << m_sourceIndex << '\n');
     return UPNP_E_SUCCESS;
 }
 
 int OHProduct::iSrcNameToIndex(const string& nm)
 {
-    for (unsigned int i = 0; i < o_sources.size(); i++) {
-        if (!nm.compare(o_sources[i].second)) {
+    for (unsigned int i = 0; i < m_sources.size(); i++) {
+        if (nm == m_sources[i].second) {
             return int(i);
         }
     }
@@ -278,10 +266,9 @@ int OHProduct::iSrcNameToIndex(const string& nm)
 
 int OHProduct::iSetSourceIndex(int sindex)
 {
-    LOGDEB("OHProduct::iSetSourceIndex: current " << m_sourceIndex <<
-           " new " << sindex << endl);
-    if (sindex < 0 || sindex >= int(o_sources.size())) {
-        LOGERR("OHProduct::setSourceIndex: bad index: " << sindex << endl);
+    LOGDEB("OHProduct::iSetSourceIndex: current " << m_sourceIndex << " new " << sindex << '\n');
+    if (sindex < 0 || sindex >= int(m_sources.size())) {
+        LOGERR("OHProduct::setSourceIndex: bad index: " << sindex << '\n');
         return UPNP_E_INVALID_PARAM;
     }
 
@@ -292,24 +279,23 @@ int OHProduct::iSetSourceIndex(int sindex)
     m_udev->getohif()->resetMetadata();
 
     bool ok = true;
-    string curtp = o_sources[m_sourceIndex].first;
-    string curnm = o_sources[m_sourceIndex].second;
-    if (m_udev->getohpl() && !curtp.compare(OHPlaylistSourceType) &&
-        !curnm.compare(OHPlaylistSourceName)) {
+    string curtp = m_sources[m_sourceIndex].first;
+    string curnm = m_sources[m_sourceIndex].second;
+    if (m_udev->getohpl() &&
+        curtp == OHPlaylistSourceType && curnm == OHPlaylistSourceName) {
         m_udev->getohpl()->setActive(false);
-    } else if (m_udev->getohrcv() && !curtp.compare(OHReceiverSourceType) &&
-               !curnm.compare(OHReceiverSourceName)) {
+    } else if (m_udev->getohrcv() &&
+               curtp == OHReceiverSourceType && curnm == OHReceiverSourceName) {
         m_udev->getohrcv()->setActive(false);
-    } else if (m_udev->getohrd() && !curtp.compare(OHRadioSourceType) &&
-               !curnm.compare(OHRadioSourceName)) {
+    } else if (m_udev->getohrd() && curtp == OHRadioSourceType && curnm== OHRadioSourceName) {
         m_dev->setRadio(false);
         m_udev->getohrd()->setActive(false);
     } else if (m_udev->getsndrcv() && m_udev->getohpl() &&
-               !curtp.compare(OHPlaylistSourceType) && !curnm.compare(SndRcvPLName)) {
+               curtp == OHPlaylistSourceType && curnm == SndRcvPLName) {
         m_udev->getohpl()->setActive(false);
         ok = m_udev->getsndrcv()->stop();
     } else if (m_udev->getsndrcv() && m_udev->getohrd() &&
-               !curtp.compare(OHRadioSourceType) && !curnm.compare(SndRcvRDName)) {
+               curtp == OHRadioSourceType && curnm == SndRcvRDName) {
         m_dev->setRadio(false);
         m_udev->getohrd()->setActive(false);
         ok = m_udev->getsndrcv()->stop();
@@ -321,26 +307,24 @@ int OHProduct::iSetSourceIndex(int sindex)
     if (!ok)
         return UPNP_E_INTERNAL_ERROR;
 
-    string newtp = o_sources[sindex].first;
-    string newnm = o_sources[sindex].second;
-    if (m_udev->getohpl() && !newnm.compare(OHPlaylistSourceName)) {
+    string newtp = m_sources[sindex].first;
+    string newnm = m_sources[sindex].second;
+    if (m_udev->getohpl() && newnm == OHPlaylistSourceName) {
         m_udev->getohpl()->setActive(true);
-    } else if (m_udev->getohrcv() && !newnm.compare(OHReceiverSourceName)) {
+    } else if (m_udev->getohrcv() && newnm == OHReceiverSourceName) {
         m_udev->getohrcv()->setActive(true);
-    } else if (m_udev->getohrd() && !newnm.compare(OHRadioSourceName)) {
+    } else if (m_udev->getohrd() && newnm == OHRadioSourceName) {
         m_dev->setRadio(true);
         m_udev->getohrd()->setActive(true);
-    } else if (m_udev->getohpl() && m_udev->getsndrcv() &&
-               !newnm.compare(SndRcvPLName)) {
+    } else if (m_udev->getohpl() && m_udev->getsndrcv() && newnm == SndRcvPLName) {
         ok = m_udev->getsndrcv()->start(string(), 0 /*savedms*/);
         m_udev->getohpl()->setActive(true);
-    } else if (m_udev->getohrd() && m_udev->getsndrcv() &&
-               !newnm.compare(SndRcvRDName)) {
+    } else if (m_udev->getohrd() && m_udev->getsndrcv() && newnm == SndRcvRDName) {
         ok = m_udev->getsndrcv()->start(string());
         m_udev->getohrd()->setActive(true);
     } else {
         string sname = newtp + "-" + newnm;
-        string spath = path_cat(scripts_dir, sname);
+        string spath = path_cat(m_scripts_dir, sname);
         ok = m_udev->getsndrcv()->start(spath);
     }
     m_sourceIndex = sindex;
@@ -355,7 +339,7 @@ int OHProduct::iSetSourceIndex(int sindex)
 
 int OHProduct::setSourceIndex(const SoapIncoming& sc, SoapOutgoing&)
 {
-    LOGDEB("OHProduct::setSourceIndex" << endl);
+    LOGDEB("OHProduct::setSourceIndex" << '\n');
     int sindex;
     if (!sc.get("Value", &sindex)) {
         return UPNP_E_INVALID_PARAM;
@@ -365,12 +349,12 @@ int OHProduct::setSourceIndex(const SoapIncoming& sc, SoapOutgoing&)
 
 int OHProduct::iSetSourceIndexByName(const string& name)
 {
-    LOGDEB("OHProduct::iSetSourceIndexByName: " << name << endl);
+    LOGDEB("OHProduct::iSetSourceIndexByName: " << name << '\n');
     int i = iSrcNameToIndex(name);
     if (i >= 0) {
         return iSetSourceIndex(i);
     } 
-    LOGERR("OHProduct::iSetSourceIndexByName: no such name: " << name << endl);
+    LOGERR("OHProduct::iSetSourceIndexByName: no such name: " << name << '\n');
     return UPNP_E_INVALID_PARAM;
 }
 
@@ -378,18 +362,17 @@ int OHProduct::setSourceIndexByName(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string name;
     if (!sc.get("Value", &name)) {
-        LOGERR("OHProduct::setSourceIndexByName: no Value" << endl);
+        LOGERR("OHProduct::setSourceIndexByName: no Value" << '\n');
         return UPNP_E_INVALID_PARAM;
     }
     return iSetSourceIndexByName(name);
 }
 
-int OHProduct::setSourceBySystemName(const SoapIncoming& sc,
-                                     SoapOutgoing& data)
+int OHProduct::setSourceBySystemName(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string name;
     if (!sc.get("Value", &name)) {
-        LOGERR("OHProduct::setSourceBySystemName: no Value" << endl);
+        LOGERR("OHProduct::setSourceBySystemName: no Value" << '\n');
         return UPNP_E_INVALID_PARAM;
     }
     return iSetSourceIndexByName(name);
@@ -397,19 +380,19 @@ int OHProduct::setSourceBySystemName(const SoapIncoming& sc,
 
 int OHProduct::source(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::source" << endl);
+    LOGDEB("OHProduct::source" << '\n');
     int sindex;
     if (!sc.get("Index", &sindex)) {
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("OHProduct::source: " << sindex << endl);
-    if (sindex < 0 || sindex >= int(o_sources.size())) {
-        LOGERR("OHProduct::source: bad index: " << sindex << endl);
+    LOGDEB("OHProduct::source: " << sindex << '\n');
+    if (sindex < 0 || sindex >= int(m_sources.size())) {
+        LOGERR("OHProduct::source: bad index: " << sindex << '\n');
         return UPNP_E_INVALID_PARAM;
     }
-    data.addarg("SystemName", o_sources[sindex].second);
-    data.addarg("Type", o_sources[sindex].first);
-    data.addarg("Name", o_sources[sindex].second);
+    data.addarg("SystemName", m_sources[sindex].second);
+    data.addarg("Type", m_sources[sindex].first);
+    data.addarg("Name", m_sources[sindex].second);
     string visible = "true";
     data.addarg("Visible", visible);
     return UPNP_E_SUCCESS;
@@ -417,33 +400,31 @@ int OHProduct::source(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHProduct::attributes(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::attributes. csattrs: " << csattrs << endl);
-    data.addarg("Value", csattrs);
+    LOGDEB("OHProduct::attributes. m_csattrs: " << m_csattrs << '\n');
+    data.addarg("Value", m_csattrs);
     return UPNP_E_SUCCESS;
 }
 
 int OHProduct::sourceXMLChangeCount(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHProduct::sourceXMLChangeCount" << endl);
+    LOGDEB("OHProduct::sourceXMLChangeCount" << '\n');
     data.addarg("Value", "0");
     return UPNP_E_SUCCESS;
 }
 
-#include <sys/types.h>
-#include <dirent.h>
 
 // Script names are like Type-Name
 // Type may be Analog or Digital or Hdmi and is not specially
 // distinguished on value (but must be one of the three).
 //
 // Name is arbitrary
-static void listScripts(vector<pair<string, string> >& sources)
+void OHProduct::listScripts(vector<pair<string, string> >& sources)
 {
-    getOptionValue("ohsrc_scripts_dir", scripts_dir, path_cat(g_datadir, "src_scripts"));
+    getOptionValue("ohsrc_scripts_dir", m_scripts_dir, path_cat(g_datadir, "src_scripts"));
 
-    DIR *dirp = opendir(scripts_dir.c_str());
+    DIR *dirp = opendir(m_scripts_dir.c_str());
     if (dirp == 0) {
-        LOGSYSERR("listScripts", "opendir", scripts_dir);
+        LOGSYSERR("listScripts", "opendir", m_scripts_dir);
         return;
     }
 
@@ -457,24 +438,21 @@ static void listScripts(vector<pair<string, string> >& sources)
         if (dash == string::npos)
             continue;
 
-
         string tp(tpnm.substr(0, dash));
         string nm(tpnm.substr(dash+1));
-        if (tp.compare("Analog") && tp.compare("Digital") &&
-            tp.compare("Hdmi")) {
-            if (tp.compare("device") && tp.compare("prescript") &&
-                tp.compare("postscript"))
-                LOGERR("listScripts: bad source type: " << tp << endl);
+        if (tp.compare("Analog") && tp.compare("Digital") && tp.compare("Hdmi")) {
+            if (tp.compare("device") && tp.compare("prescript") && tp.compare("postscript")) {
+                LOGERR("listScripts: bad source type: " << tp << '\n');
+            }
             continue;
         }
 
-        if (access(path_cat(scripts_dir, tpnm).c_str(), X_OK) != 0) {
-            LOGERR("listScripts: script " << tpnm << " is not executable" <<
-                   endl);
+        if (access(path_cat(m_scripts_dir, tpnm).c_str(), X_OK) != 0) {
+            LOGERR("listScripts: script " << tpnm << " is not executable" << '\n');
             continue;
         }
 
-        sources.push_back(pair<string, string>(tp, nm));
+        sources.emplace_back(tp, nm);
     }
     closedir(dirp);
     return;

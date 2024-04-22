@@ -32,8 +32,7 @@ using namespace UPnPP;
 
 class OHProduct : public OHService {
 public:
-    OHProduct(UpMpd *dev, UpMpdOpenHome *udev,
-              ohProductDesc_t& ohProductDesc, int version);
+    OHProduct(UpMpd *dev, UpMpdOpenHome *udev, ohProductDesc_t& ohProductDesc, int version);
     virtual ~OHProduct() = default;
     
     int iSetSourceIndex(int index);
@@ -59,11 +58,21 @@ private:
     int sourceXMLChangeCount(const SoapIncoming& sc, SoapOutgoing& data);
 
     int iSrcNameToIndex(const std::string& nm);
+    void listScripts(std::vector<std::pair<std::string, std::string>>& sources);
     
     ohProductDesc_t& m_ohProductDesc;
     int m_sourceIndex;
     bool m_standby;
     std::string m_standbycmd;
+    // (Type, Name) list
+    std::vector<std::pair<std::string, std::string>> m_sources;
+    // This will be replaced by config data or default in listScripts(). Init anyway just in case.
+    std::string m_scripts_dir{DATADIR "/src_scripts"};
+    // Data for the "attributes" action. This lists the service available from this renderer (we add
+    // other available services during initialization).
+    std::string m_csattrs{"Info Time Volume"};
+    // The XML returned by the SourceXML action. Built during init.
+    std::string m_csxml;
 };
 
 #endif /* _OHPRODUCT_H_X_INCLUDED_ */
