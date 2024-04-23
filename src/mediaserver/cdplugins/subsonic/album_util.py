@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,19 +24,22 @@ from subsonic_connector.album import Album
 
 from codec_delimiter_style import CodecDelimiterStyle
 
+
 __split_characters : list[str] = [' ', '-', '_']
 
+
 def split_string(string, delimiters):
-  pattern = r'|'.join(delimiters)
-  return re.split(pattern, string)
+    pattern = r'|'.join(delimiters)
+    return re.split(pattern, string)
+
 
 class Starter(Enum):
-    
     CD = 0
     DISC = 1
     DISCO = 2
     DISK = 3
     D = 4
+
 
 def __is_int(value : str) -> bool:
     try:
@@ -45,6 +48,7 @@ def __is_int(value : str) -> bool:
         return True
     except ValueError:
         return False
+
 
 def _ignorable(last_path : str) -> bool:
     # first case: start with a starter, then there is a number without a splitter
@@ -63,11 +67,14 @@ def _ignorable(last_path : str) -> bool:
                 if __is_int(last): return True
     return False
 
+
 def get_last_path_element(path : str) -> str:
     return os.path.basename(os.path.normpath(path))
-    
-def get_dir_from_path(path : str ) -> str:
+
+
+def get_dir_from_path(path : str) -> str:
     return os.path.dirname(path)
+
 
 def get_album_base_path(path : str) -> str:
     last_path = os.path.basename(os.path.normpath(path))
@@ -75,6 +82,7 @@ def get_album_base_path(path : str) -> str:
     if last_path_ignorable:
         return os.path.split(path)[0]
     return path
+
 
 class __Decorated_Song:
 
@@ -95,6 +103,7 @@ class __Decorated_Song:
     def getDisc(self) -> int: return self._disc
     def getTrack(self) -> int: return self._track
 
+
 def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
     cmp : int
     left_album : str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
@@ -104,20 +113,22 @@ def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) 
         cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
     if cmp == 0:
         cmp = -1 if left.getDisc() < right.getDisc() else 0 if left.getDisc() == right.getDisc() else 1
-    if cmp == 0: 
+    if cmp == 0:
         cmp = -1 if left.getTrack() < right.getTrack() else 0 if left.getTrack() == right.getTrack() else 1
     return cmp
+
 
 class MultiCodecAlbum(Enum):
     NO = 0
     YES = 1
 
+
 class SortSongListResult:
 
     def __init__(
-            self, 
+            self,
             codec_set_by_path : dict[str, set[str]],
-            song_list : list[Song], 
+            song_list : list[Song],
             multi_codec_album : MultiCodecAlbum):
         self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
         self._song_list : list[Song] = song_list
@@ -128,12 +139,13 @@ class SortSongListResult:
 
     def getAlbumVersionCount(self) -> int:
         return len(self._codec_set_by_path.keys())
-    
+
     def getSongList(self) -> list[Song]:
         return copy.deepcopy(self._song_list)
-    
+
     def getMultiCodecAlbum(self) -> MultiCodecAlbum:
         return self._multi_codec_album
+
 
 def sort_song_list(song_list : list[Song]) -> SortSongListResult:
     dec_list : list[__Decorated_Song] = []
@@ -154,23 +166,24 @@ def sort_song_list(song_list : list[Song]) -> SortSongListResult:
             codec_dict[song.getSuffix()] = codec_dict[song.getSuffix()] + 1
     multi_codec = MultiCodecAlbum.YES if len(codec_dict) > 1 else MultiCodecAlbum.NO
     dec_list.sort(key = cmp_to_key(__compare_decorated_song))
-    result : list[song] = []
+    result : list[Song] = []
     current : __Decorated_Song
     for current in dec_list:
         result.append(current.getSong())
     return SortSongListResult(
         codec_set_by_path = codec_set_by_path,
-        song_list = result, 
+        song_list = result,
         multi_codec_album = multi_codec)
-    
+
+
 class AlbumTracks:
 
     def __init__(
-            self, 
+            self,
             codec_set_by_path : dict[str, set[str]],
-            album : Album, 
-            song_list : list[Song], 
-            art_uri : str, 
+            album : Album,
+            song_list : list[Song],
+            art_uri : str,
             multi_codec_album : MultiCodecAlbum):
         self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
         self._album : Album = album
@@ -183,24 +196,26 @@ class AlbumTracks:
 
     def getAlbumVersionCount(self) -> int:
         return len(self._codec_set_by_path.keys())
-    
-    def getAlbum(self) -> Album: 
+
+    def getAlbum(self) -> Album:
         return self._album
 
-    def getSongList(self) -> list[Song]: 
+    def getSongList(self) -> list[Song]:
         return copy.deepcopy(self._song_list)
 
-    def getArtUri(self) -> str: 
+    def getArtUri(self) -> str:
         return self._art_uri
 
-    def getMultiCodecAlbum(self) -> MultiCodecAlbum: 
+    def getMultiCodecAlbum(self) -> MultiCodecAlbum:
         return self._multi_codec_album
+
 
 def get_display_artist(artist : str) -> str:
     if not artist or len(artist) == 0: return ""
     artist_list : list[str] = artist.split(";")
     return ", ".join(artist_list)
-        
+
+
 def strip_substring(initial_str, pattern):
     result_str = initial_str
     match = re.search(pattern, initial_str)
@@ -212,8 +227,10 @@ def strip_substring(initial_str, pattern):
         result_str = left + right
     return result_str
 
+
 def to_codec_pattern(codec : str, style : CodecDelimiterStyle):
     return f" \\{style.get_left()}{codec}\\{style.get_right()}"
+
 
 def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
     stripped_title : str = album_title
@@ -223,32 +240,36 @@ def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
         style : CodecDelimiterStyle
         for style in CodecDelimiterStyle:
             codec_pattern : str = to_codec_pattern(
-                codecs_str, 
+                codecs_str,
                 CodecDelimiterStyle.ROUND)
             if not album_title.startswith(codec_pattern):
                 stripped_title = strip_substring(album_title, codec_pattern)
     return stripped_title
 
-import cmdtalkplugin
 
 def has_year(album : Album) -> bool:
-    original_release_date : str = str(album.getOriginalReleaseDate())
-    year : int = album.getYear()
-    return (original_release_date and len(original_release_date) > 0) or year    
+    album_year : str = get_album_year_str(album)
+    return album_year is not None and len(album_year) > 0
+
 
 def get_album_year_str(album : Album) -> str:
+    # msgproc.log(f"get_album_year_str [{album.getId()}] -> "
+    #             f"[{album.getOriginalReleaseDate()}] [{album.getYear()}]")
     ord : str = album.getOriginalReleaseDate()
-    ord = (ord[0:4] 
-        if ord and len(ord) > 4 
+    # convert to str if needed
+    if ord and isinstance(ord, int): ord = str(ord)
+    ord = (ord[0:4]
+        if ord and len(ord) >= 4
         else None)
     year : int = album.getYear()
     ord_set : bool = ord and len(ord) > 0
-    if ord_set and not year: return ord
-    if year and not ord_set: return year
-    if not year and not ord_set: return None
-    #both set
+    if ord_set and year is None: return ord
+    if year is not None and not ord_set: return str(year)
+    if year is None and not ord_set: return None
+    # both set
     if ord_set and str(year) == ord: return ord
-    return f"{ord} ({year})"
+    return f"{ord} ({str(year)})"
+
 
 # Tests
 a1d1 : str = "Disc 1 - Studio Album"
@@ -258,4 +279,3 @@ if not _ignorable(a1d1):
     raise Exception(f"Ignorable not working properly, [{a1d1}] should be ignorable")
 if not _ignorable(a1d2):
     raise Exception(f"Ignorable not working properly, [{a1d2}] should be ignorable")
-

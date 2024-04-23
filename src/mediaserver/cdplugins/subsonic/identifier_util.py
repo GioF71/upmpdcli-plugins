@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@ import codec
 
 import json
 
+
 def __escape_objid(value : str) -> str:
     return escape(value, quote = True)
+
 
 def create_objid(objid, id : str) -> str:
     return objid + "/" + __escape_objid(id)
 
+
 def create_id_from_identifier(identifier : ItemIdentifier) -> str:
     return codec.encode(json.dumps(identifier.getDictionary()))
-

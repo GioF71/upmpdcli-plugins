@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,36 +16,57 @@
 import converter
 import upmplgmodels
 
+
 def set_track_number(track_number : str, target : dict):
     target['upnp:originalTrackNumber'] = track_number
+
 
 def set_album_art_from_uri(album_art_uri : str, target : dict):
     target['upnp:albumArtURI'] = album_art_uri
 
+
 def set_album_title(album_title : str, target : dict):
     target['tt'] = album_title
+
 
 def set_album_id(album_id : str, target : dict):
     target['album_id'] = album_id
 
+
 def set_class(upnp_class : str, target : dict):
     target['upnp:class'] = upnp_class
+
 
 def set_artist(artist : str, target : dict):
     target['upnp:artist'] = artist
 
+
 def set_class_music_track(target : dict):
     target['upnp:class'] = upmplgmodels.Track.upnpclass
+
 
 def set_class_album(target : dict):
     target['upnp:class'] = upmplgmodels.Album.upnpclass
 
+
 def set_class_artist(target : dict):
     target['upnp:class'] = upmplgmodels.Artist.upnpclass
 
+
 def set_album_art_from_album_id(
-        album_id : str, 
+        album_id : str,
         target : dict[str, any]):
     art_uri : str = converter.converter_album_id_to_url(album_id) if album_id else None
     if art_uri: set_album_art_from_uri(art_uri, target)
 
+
+def set_bit_depth(bit_depth: int, target: dict):
+    target['res:bitsPerSample'] = str(bit_depth)
+
+
+def set_sample_rate(sample_rate: int, target: dict):
+    target['res:samplefreq'] = str(sample_rate)
+
+
+def set_bit_rate(bit_rate: int, target: dict):
+    target['kbs'] = str(bit_rate)

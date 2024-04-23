@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ import caching
 
 import album_util
 import config
-import connector_provider
 import art_retriever
 
 from retrieved_art import RetrievedArt
@@ -50,6 +49,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
+
 def get_random_art_by_genre(
         genre : str,
         max_items : int = 100) -> str:
@@ -62,6 +62,7 @@ def get_random_art_by_genre(
     album : Album = secrets.choice(response.getObj().getAlbums())
     if album: return album.getId()
     return None
+
 
 def get_album_tracks(album_id : str) -> album_util.AlbumTracks:
     result : list[Song] = []
@@ -81,10 +82,11 @@ def get_album_tracks(album_id : str) -> album_util.AlbumTracks:
     albumArtURI : str = connector.buildCoverArtUrl(album.getId())
     return album_util.AlbumTracks(
         codec_set_by_path = sort_song_list_result.getCodecSetByPath(),
-        album = album, 
-        song_list = result, 
+        album = album,
+        song_list = result,
         art_uri = albumArtURI,
         multi_codec_album = sort_song_list_result.getMultiCodecAlbum())
+
 
 def get_albums(query_type : str, size : int = config.items_per_page, offset : int = 0) -> list[Album]:
     connector : Connector = connector_provider.get()
@@ -101,8 +103,10 @@ def get_albums(query_type : str, size : int = config.items_per_page, offset : in
         albumListResponse = connector.getAlbumList(ltype = ListType.HIGHEST, size = size, offset = offset)
     elif TagType.FAVOURITES.getQueryType() == query_type:
         albumListResponse = connector.getAlbumList(ltype = ListType.STARRED, size = size, offset = offset)
-    if not albumListResponse.isOk(): raise Exception(f"Cannot execute query {query_type} for size {size} offset {offset}")
+    if not albumListResponse.isOk(): raise Exception(f"Cannot execute query {query_type} "
+                                                     f"for size {size} offset {offset}")
     return albumListResponse.getObj().getAlbums()
+
 
 def load_all_artists_by_genre(genre : str) -> set[str]:
     artist_id_set : set[str] = set()
@@ -110,7 +114,7 @@ def load_all_artists_by_genre(genre : str) -> set[str]:
     offset : int = 0
     while not album_list or len(album_list) == config.subsonic_max_return_size:
         album_list_response : Response[AlbumList] = connector_provider.get().getAlbumList(
-            ltype = ListType.BY_GENRE, 
+            ltype = ListType.BY_GENRE,
             genre = genre,
             offset = offset,
             size = config.subsonic_max_return_size)
@@ -120,16 +124,17 @@ def load_all_artists_by_genre(genre : str) -> set[str]:
         album : Album
         for album in album_list:
             artist_id : str = album.getArtistId()
-            if not artist_id in artist_id_set:
+            if artist_id not in artist_id_set:
                 artist_id_set.add(artist_id)
                 if not cached:
                     cache_manager_provider.get().cache_element_value(
-                        ElementType.GENRE_ARTIST_LIST, 
-                        genre, 
+                        ElementType.GENRE_ARTIST_LIST,
+                        genre,
                         album.getId())
                     cached = True
         offset += len(album_list)
     return artist_id_set
+
 
 def get_artist_art(artist_id : str, initializer_callback : Callable[[], None]) -> str:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
@@ -138,16 +143,17 @@ def get_artist_art(artist_id : str, initializer_callback : Callable[[], None]) -
     random_album_id : str = cache_manager.get_random_album_id(artist_id)
     if random_album_id: return connector_provider.get().buildCoverArtUrl(random_album_id)
     # can be new
-    if art_cache_size == 0: 
-        msgproc.log(f"get_artist_art empty cache, reloading ...")
+    if art_cache_size == 0:
+        msgproc.log("get_artist_art empty cache, reloading ...")
         initializer_callback()
-    #msgproc.log(f"get_artist_art searching artist_art for artist_id {artist_id}")
+    # msgproc.log(f"get_artist_art searching artist_art for artist_id {artist_id}")
     identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST, artist_id)
     artist_art : RetrievedArt = art_retriever.artist_art_retriever(identifier)
     return artist_art.art_url if artist_art else None
 
+
 def get_album_list_by_artist_genre(
-        artist : Artist, 
+        artist : Artist,
         genre_name : str) -> list[Album]:
     result : list[Album] = list()
     album_list : list[Album] = None
@@ -158,7 +164,8 @@ def get_album_list_by_artist_genre(
             offset = offset,
             size = config.subsonic_max_return_size,
             genre = genre_name)
-        if not album_list_response.isOk(): raise Exception(f"Failed to load albums for genre {genre_name} offset {offset}")
+        if not album_list_response.isOk(): raise Exception(f"Failed to load albums for "
+                                                           f"genre {genre_name} offset {offset}")
         album_list : list[Album] = album_list_response.getObj().getAlbums()
         current_album : Album
         for current_album in album_list if album_list and len(album_list) > 0 else []:
@@ -166,5 +173,3 @@ def get_album_list_by_artist_genre(
                 result.append(current_album)
         offset += len(album_list)
     return result
-
-

@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,8 +15,9 @@
 
 from enum import Enum
 
+
 class TagType(Enum):
-    
+
     ALBUMS = 100, "glbms", "Albums", None
     NEWEST = 110, "n", "Newest Albums", "newest"
     RECENTLY_PLAYED = 120, "rp", "Recently Played Albums", "recent"
@@ -38,10 +39,10 @@ class TagType(Enum):
     PLAYLISTS = 500, "pl", "Playlists", None
     INTERNET_RADIOS = 600, "ir", "Internet Radios", None
 
-    def __init__(self, 
-            num : int, 
-            tag_name : str, 
-            tag_title : str, 
+    def __init__(self,
+            num : int,
+            tag_name : str,
+            tag_title : str,
             query_type : str):
         self.num : int = num
         self.tag_name : str = tag_name
@@ -57,11 +58,13 @@ class TagType(Enum):
     def getQueryType(self) -> str:
         return self.query_type
 
+
 def get_tag_type_by_name(tag_name : str) -> TagType:
     for _, member in TagType.__members__.items():
         if tag_name == member.getTagName():
             return member
     raise Exception(f"get_tag_type_by_name with {tag_name} NOT found")
+
 
 # duplicate check
 name_checker_set : set[str] = set()

@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 import artist_initial_cache
 
 __cache : artist_initial_cache.ArtistInitialCache = artist_initial_cache.ArtistInitialCache()
+
 
 def get() -> artist_initial_cache.ArtistInitialCache:
     return __cache

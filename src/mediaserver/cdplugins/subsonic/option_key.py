@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
-
 from album_util import MultiCodecAlbum
+
 
 class OptionKey(Enum):
     SKIP_TRACK_NUMBER = 0, "skip-track-number", False
@@ -29,8 +29,8 @@ class OptionKey(Enum):
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
     PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE = 8, "prepend-entry-number-in-album-title", None
 
-    def __init__(self, 
-            num : int, 
+    def __init__(self,
+            num : int,
             element_name : str,
             default_value : any):
         self.num : int = num
@@ -39,9 +39,10 @@ class OptionKey(Enum):
 
     def get_name(self) -> str:
         return self.element_name
-    
+
     def get_default_value(self) -> any:
         return self.default_value
+
 
 # duplicate check
 name_checker_set : set[str] = set()

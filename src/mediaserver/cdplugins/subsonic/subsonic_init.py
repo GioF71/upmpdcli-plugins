@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,8 +35,9 @@ from msgproc_provider import msgproc
 
 import secrets
 
+
 def subsonic_init():
-    msgproc.log(f"Subsonic Initializing ...")
+    msgproc.log("Subsonic Initializing ...")
     init_success : bool = False
     try:
         initial_caching()
@@ -46,9 +47,11 @@ def subsonic_init():
         msgproc.log(f"Subsonic Initialization failed [{e}]")
     msgproc.log(f"Subsonic Initialization success: [{init_success}]")
 
+
 def check_supports():
     check_supports_highest()
     check_supports_internet_radios()
+
 
 def check_supports_highest():
     # see if there is support for highest in getAlbumLists2
@@ -60,8 +63,9 @@ def check_supports_highest():
             supported = True
     except Exception as ex:
         msgproc.log(f"check_supports_highest highest not supported [{type(ex)}] [{ex}]")
-    msgproc.log(f"highest type in getAlbumList supported: [{'yes' if supported else 'no'}]")  
+    msgproc.log(f"highest type in getAlbumList supported: [{'yes' if supported else 'no'}]")
     if not supported: config.album_list_by_highest_supported = False
+
 
 def check_supports_internet_radios():
     # see if there is support for highest in getAlbumLists2
@@ -73,14 +77,16 @@ def check_supports_internet_radios():
             supported = True
     except Exception as ex:
         msgproc.log(f"check_supports_highest highest not supported [{type(ex)}] [{ex}]")
-    msgproc.log(f"Internet Radio stations supported: [{'yes' if supported else 'no'}]")  
+    msgproc.log(f"Internet Radio stations supported: [{'yes' if supported else 'no'}]")
     if not supported: config.internet_radio_stations_supported = False
+
 
 def initial_caching():
     load_by_newest()
     load_by_artists()
     load_genres()
-    
+
+
 def load_genres():
     genres_response : Response[Genres] = connector_provider.get().getGenres()
     if not genres_response.isOk(): return
@@ -89,16 +95,17 @@ def load_genres():
         genre : str = current_genre.getName()
         if genre: load_single_genre(genre)
 
+
 def load_single_genre(genre : str):
     msgproc.log(f"Processing genre [{genre}]")
     if cache_manager_provider.get().is_element_cached(ElementType.GENRE, genre):
-        #msgproc.log(f"Genre [{genre}] already has art, skipping")
+        # msgproc.log(f"Genre [{genre}] already has art, skipping")
         return
     msgproc.log(f"Genre {genre} has not art yet, looking for an album")
     # pick an album for the genre
     album_list_res : Response[AlbumList] = connector_provider.get().getAlbumList(
-        ltype = ListType.BY_GENRE, 
-        size = config.subsonic_max_return_size, 
+        ltype = ListType.BY_GENRE,
+        size = config.subsonic_max_return_size,
         genre = genre)
     if album_list_res.isOk() and album_list_res.getObj() and len(album_list_res.getObj().getAlbums()) > 0:
         album_list : AlbumList = album_list_res.getObj()
@@ -107,13 +114,16 @@ def load_single_genre(genre : str):
         genre_list : list[str] = album.getGenres()
         cache_manager_provider.get().on_album_for_genre_list(album, genre_list)
 
+
 def load_by_newest():
-    sz : int = None
     album_list : list[Album] = None
     offset : int = 0
     total_albums : int = 0
     while not album_list or len(album_list) == config.subsonic_max_return_size:
-        album_list = subsonic_util.get_albums(TagType.NEWEST.getQueryType(), size = config.subsonic_max_return_size, offset = offset)
+        album_list = subsonic_util.get_albums(
+            query_type = TagType.NEWEST.getQueryType(),
+            size = config.subsonic_max_return_size,
+            offset = offset)
         total_albums += len(album_list)
         msgproc.log(f"loaded {total_albums} albums ...")
         album : Album
@@ -121,6 +131,7 @@ def load_by_newest():
             # for every album
             cache_manager_provider.get().on_album(album)
         offset += len(album_list)
+
 
 def load_by_artist_initial(current_artists_initial : ArtistsInitial):
     artist_list_items : list[ArtistListItem] = current_artists_initial.getArtistListItems()
@@ -134,12 +145,12 @@ def load_by_artist_initial(current_artists_initial : ArtistsInitial):
                 current_artists_initial.getName(),
                 artist_id)
 
+
 def load_by_artists():
-    #create art cache for artists by initial
+    # create art cache for artists by initial
     artists_response : Response[Artists] = connector_provider.get().getArtists()
     if not artists_response.isOk(): return
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
     for current_artists_initial in artists_initial:
         load_by_artist_initial(current_artists_initial)
-

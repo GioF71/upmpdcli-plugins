@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+
 
 class ElementType(Enum):
     TAG = 0, "tag"
@@ -38,11 +39,13 @@ class ElementType(Enum):
     RADIO = 20, "rd",
     RADIO_SONG_LIST = 21, "rd_sl",
     GENRE_ARTIST_ALBUMS = 22, "gnr_rtst_lbms"
-    #artist which appear as artistId for albums
-    ALBUM_ARTIST = 23, "lbmrtst" 
+    # artist which appear as artistId for albums
+    ALBUM_ARTIST = 23, "lbmrtst"
+    ALBUM_FOCUS = 24, "lbmfcs",
+    ARTIST_FOCUS = 25, "rstsfcs"
 
-    def __init__(self, 
-            num : int, 
+    def __init__(self,
+            num : int,
             element_name : str):
         self.num : int = num
         self.element_name : str = element_name
@@ -50,11 +53,13 @@ class ElementType(Enum):
     def getName(self):
         return self.element_name
 
+
 def get_element_type_by_name(element_name : str) -> ElementType:
     for _, member in ElementType.__members__.items():
         if element_name == member.getName():
             return member
     raise Exception(f"get_element_type_by_name with {element_name} NOT found")
+
 
 # duplicate check
 name_checker_set : set[str] = set()

@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ from subsonic_connector.connector import Connector
 from config import UpmpdcliSubsonicConfig
 
 connector : Connector = Connector(UpmpdcliSubsonicConfig())
+
 
 def get():
     return connector

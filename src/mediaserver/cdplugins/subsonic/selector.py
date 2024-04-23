@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,11 +21,13 @@ from element_type import ElementType
 
 from typing import Callable
 
+
 def __select_album_id_for_genre_artist(artist_id : str) -> str:
     artist_art : str = cache_manager_provider.get().get_cached_element(ElementType.GENRE_ARTIST, artist_id)
     if not artist_art:
         # fallback to art for artist in general
         artist_art : str = subsonic_util.get_artist_art(artist_id, subsonic_init_provider.initializer_callback)
     return artist_art
+
 
 selector_artist_id_to_album_id : Callable[[str], str] = __select_album_id_for_genre_artist

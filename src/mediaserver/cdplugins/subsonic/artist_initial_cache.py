@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,6 @@ class ArtistInitialCache:
 
     def get(self, artist_id : str) -> str:
         return self.__cache[artist_id] if artist_id in self.__cache else None
-    
+
     def set(self, artist_id : str, artist_initial : str) -> None:
         self.__cache[artist_id] = artist_initial

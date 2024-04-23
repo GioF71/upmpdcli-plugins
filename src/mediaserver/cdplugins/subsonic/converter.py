@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,10 @@ from typing import Callable
 import connector_provider
 import config
 
+
 def __album_id_converter(album_id : str) -> str:
     return connector_provider.get().buildCoverArtUrl(album_id) if album_id else None
+
 
 def __artist_id_converter(artist_id : str, albums_only : bool = False) -> RetrievedArt:
     artist_cover : ArtistCover = connector_provider.get().getCoverByArtistId(artist_id)
@@ -30,6 +32,6 @@ def __artist_id_converter(artist_id : str, albums_only : bool = False) -> Retrie
         if artist_cover.getArtistArtUrl() and config.allow_artist_art
         else RetrievedArt(cover_art = artist_cover.getAlbumId()))
 
+
 converter_album_id_to_url : Callable[[str], str] = __album_id_converter
 converter_artist_id_to_url : Callable[[str, bool], RetrievedArt] = __artist_id_converter
-

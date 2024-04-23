@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
 
 from enum import Enum
 
+
 class ItemIdentifierKey(Enum):
-    
     THING_NAME = 0, 'n'
     THING_VALUE = 1, 'v'
     GENRE_NAME = 2, 'g'
@@ -27,16 +27,17 @@ class ItemIdentifierKey(Enum):
     ALBUM_VERSION_PATH_BASE64 = 7, 'ap',
     RADIO_NAME = 8, 'rn',
     SONG_AS_ENTRY = 9, 'sntr'
-        
-    def __init__(self, 
-            num : int, 
+
+    def __init__(self,
+            num : int,
             key_name : str):
         self.num : int = num
         self.key_name : str = key_name
-    
+
     def getName(self) -> str:
         return self.key_name
-    
+
+
 # duplicate check
 name_checker_set : set[str] = set()
 id_checker_set : set[int] = set()

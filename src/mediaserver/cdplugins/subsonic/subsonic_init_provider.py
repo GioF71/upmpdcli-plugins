@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,9 @@ import subsonic_init
 
 from typing import Callable
 
+
 def __initializer_callback() -> None:
     subsonic_init.initial_caching()
+
 
 initializer_callback : Callable[[], None] = __initializer_callback

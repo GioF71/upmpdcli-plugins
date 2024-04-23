@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,9 +15,10 @@
 
 from option_key import OptionKey
 
+
 def get_option(options : dict[str, any], option_key : OptionKey) -> any:
     return options[option_key.get_name()] if option_key.get_name() in options else option_key.get_default_value()
 
+
 def set_option(options : dict[str, any], option_key : OptionKey, option_value : any) -> None:
     options[option_key.get_name()] = option_value
-
