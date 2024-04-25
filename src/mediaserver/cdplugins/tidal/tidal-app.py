@@ -2413,9 +2413,13 @@ def create_next_button(
         objid,
         element_type : ElementType,
         element_id : any,
-        next_offset : int) -> dict:
+        next_offset : int,
+        other_keys : dict[ItemIdentifierKey, any] = {}) -> dict:
     next_identifier : ItemIdentifier = ItemIdentifier(element_type.getName(), element_id)
     next_identifier.set(ItemIdentifierKey.OFFSET, next_offset)
+    k : ItemIdentifierKey
+    for k, v in other_keys.items():
+        next_identifier.set(k, v)
     next_id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(next_identifier))
@@ -2849,11 +2853,12 @@ def handler_element_albums_in_mix_or_playlist(
         item_identifier : ItemIdentifier,
         entries : list) -> list:
     mix_or_playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     underlying_type_str : str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
     underlying_type : ElementType = get_element_type_by_name(element_name = underlying_type_str)
     msgproc.log(f"handler_element_albums_in_mix_or_playlist for [{mix_or_playlist_id}] of type [{underlying_type}]")
     tidal_session : TidalSession = get_session()
-    album_set : set[str] = set()
+    album_list : list[str] = list()
     if ElementType.PLAYLIST == underlying_type:
         playlist : TidalPlaylist = tidal_session.playlist(mix_or_playlist_id)
         # navigate playlist
@@ -2861,10 +2866,10 @@ def handler_element_albums_in_mix_or_playlist(
         track : TidalTrack
         for track in tracks:
             album_id : str = track.album.id
-            if album_id in album_set:
+            if album_id in album_list:
                 # already collected
                 continue
-            album_set.add(album_id)
+            album_list.append(album_id)
     elif ElementType.MIX == underlying_type:
         mix : TidalMix = tidal_session.mix(mix_or_playlist_id)
         # navigate playlist
@@ -2873,12 +2878,18 @@ def handler_element_albums_in_mix_or_playlist(
         for track in tracks:
             if not isinstance(track, TidalTrack): continue
             album_id : str = track.album.id
-            if album_id in album_set:
+            if album_id in album_list:
                 # already collected
                 continue
-            album_set.add(album_id)
+            album_list.append(album_id)
     # create entries for albums
-    for album_id in album_set:
+    max_items_per_page : int = config.albums_per_page
+    needs_next : bool = offset + max_items_per_page < len(album_list)
+    upper : int = offset + max_items_per_page if needs_next else len(album_list)
+    msgproc.log(f"handler_element_albums_in_mix_or_playlist albums "
+                f"[{len(album_list)}] max_items_per_page [{max_items_per_page}] "
+                f"offset [{offset}] needs_next [{needs_next}] upper [{upper}]")
+    for album_id in album_list[offset:upper] if len(album_list) > offset else list():
         try:
             album : TidalAlbum = tidal_session.album(album_id)
             entries.append(album_to_album_container(
@@ -2886,6 +2897,17 @@ def handler_element_albums_in_mix_or_playlist(
                 album = album))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{album_id}] [{type(ex)}] [{ex}]")
+    if needs_next:
+        # create next
+        next_entry : dict[str, any] = create_next_button(
+            objid = objid,
+            element_type = ElementType.ALBUMS_IN_MIX_OR_PLAYLIST,
+            element_id = mix_or_playlist_id,
+            next_offset = offset + max_items_per_page,
+            other_keys = {
+                ItemIdentifierKey.UNDERLYING_TYPE: underlying_type_str
+            })
+        entries.append(next_entry)
     return entries
 
 
