@@ -16,6 +16,7 @@
 import cmdtalkplugin
 import upmplgutils
 import constants
+import config
 
 from tidalapi import Quality as TidalQuality
 from tidalapi.session import Session as TidalSession
@@ -25,6 +26,7 @@ from tidalapi.playlist import Playlist as TidalPlaylist
 from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
+from tidalapi.media import Track as TidalTrack
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -149,6 +151,72 @@ def __readable_sample_rate(sample_rate : int) -> str:
     return None
 
 
+def get_listen_queue_playlist(
+        tidal_session : TidalSession,
+        create_if_missing : bool = False) -> TidalUserPlaylist:
+    tidal_session.user.playlists()
+    user_playlists : list[TidalUserPlaylist] = tidal_session.user.playlists()
+    # look for the first playlist with the configured name
+    # if it does not exist, we create it, if we are allowed to
+    listen_queue : TidalUserPlaylist = None
+    current : TidalUserPlaylist
+    for current in user_playlists if user_playlists else list():
+        # msgproc.log(f"get_listen_queue_playlist processing [{current.name}]")
+        if current.name == config.listen_queue_playlist_name:
+            listen_queue = current
+            break
+    if not listen_queue and create_if_missing:
+        # we create the playlist
+        listen_queue = tidal_session.user.create_playlist(config.listen_queue_playlist_name)
+    return listen_queue
+
+
+def is_album_in_listen_queue(tidal_session : TidalSession, album_id : str) -> bool:
+    listen_queue : TidalUserPlaylist = get_listen_queue_playlist(tidal_session=tidal_session)
+    if not listen_queue:
+        msgproc.log(f"is_album_in_listen_queue for album_id [{album_id}] -> "
+                    f"playlist [{config.listen_queue_playlist_name}] not found")
+        return False
+    # if we find a track from that album, we return True
+    item_list : list = listen_queue.items()
+    for current in item_list if item_list else list():
+        # must be a track
+        if not isinstance(current, TidalTrack): continue
+        track : TidalTrack = current
+        if track.album.id == album_id: return True
+    return False
+
+
+def album_listen_queue_action(
+        tidal_session : TidalSession,
+        album_id : str,
+        action : str) -> TidalAlbum:
+    listen_queue : TidalUserPlaylist = get_listen_queue_playlist(
+        tidal_session=tidal_session,
+        create_if_missing=True)
+    # remove anyway, add to the end if action is add
+    item_list : list = listen_queue.items()
+    # make sure it's not empty
+    if not item_list: item_list = list()
+    remove_list : list[str] = list()
+    for current in item_list:
+        # must be a track
+        if not isinstance(current, TidalTrack): continue
+        track : TidalTrack = current
+        if track.album.id == album_id:
+            remove_list.append(track.id)
+    for track_id in remove_list:
+        listen_queue.remove_by_id(media_id=track_id)
+    album : TidalAlbum = tidal_session.album(album_id = album_id)
+    # add if needed
+    if constants.listen_queue_action_add == action:
+        # add the album tracks
+        t : TidalTrack
+        for t in album.tracks():
+            listen_queue.add([t.id])
+    return album
+
+
 def is_stereo(album : TidalAlbum) -> bool:
     # missing -> assume STEREO
     media_metadata_tags : list[str] = album.media_metadata_tags
@@ -159,6 +227,7 @@ def is_stereo(album : TidalAlbum) -> bool:
 
 def not_stereo_skipmessage(album : TidalAlbum) -> str:
     return f"Skipping album with id [{album.id}] because [{album.media_metadata_tags}]"
+
 
 def __is_mqa(media_metadata_tags : list[str]) -> bool:
     if not media_metadata_tags or len(media_metadata_tags) == 0: return False

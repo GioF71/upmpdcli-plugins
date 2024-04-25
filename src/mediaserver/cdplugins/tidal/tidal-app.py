@@ -2648,11 +2648,13 @@ def handler_element_album_container(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
     in_favorites : bool = album_id in get_favorite_album_id_list(tidal_session = tidal_session)
+    in_listen_queue : bool = tidal_util.is_album_in_listen_queue(tidal_session, album_id)
     album_entry_title : str = "Album" if config.titleless_single_album_view else album.name
     cached_tidal_quality : tidal_util.CachedTidalQuality = get_cached_audio_quality(album_id = album.id)
     badge : str = tidal_util.get_quality_badge(album = album, cached_tidal_quality = cached_tidal_quality)
     msgproc.log(f"handler_element_album_container album_id [{album_id}] "
-                f"badge [{badge}]")
+                f"badge [{badge}] in_favorites [{in_favorites}] "
+                f"in_listen_queue [{in_listen_queue}]")
     if badge:
         album_entry_title = f"{album_entry_title} [{badge}]"
     if in_favorites and config.badge_favorite_album:
@@ -2674,7 +2676,7 @@ def handler_element_album_container(
     fav_action_elem, fav_action_text = (
         (ElementType.FAV_ALBUM_DEL, "Remove from Favorites") if in_favorites else
         (ElementType.FAV_ALBUM_ADD, "Add to Favorites"))
-    msgproc.log(f"Album with id [{album_id}] name [{album_name}] is in favorites: [{'yes' if in_favorites else 'no'}]")
+    # msgproc.log(f"Album with id [{album_id}] name [{album_name}] is in favorites: [{'yes' if in_favorites else 'no'}]")
     fav_action : ItemIdentifier = ItemIdentifier(
         fav_action_elem.getName(),
         album_id)
@@ -2685,6 +2687,25 @@ def handler_element_album_container(
         objid,
         fav_action_text)
     entries.append(entry)
+    # button for listen queue action
+    listen_queue_action_dict : dict[str, str] = (constants.listen_queue_action_del_dict
+                                            if in_listen_queue
+                                            else constants.listen_queue_action_add_dict)
+    listen_queue_action : str = listen_queue_action_dict[constants.listen_queue_action_key]
+    listen_queue_button_name : str = listen_queue_action_dict[constants.listen_queue_button_title_key]
+    lqb_identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM_LISTEN_QUEUE_ACTION.getName(), album_id)
+    lqb_identifier.set(ItemIdentifierKey.LISTEN_QUEUE_ACTION, listen_queue_action)
+    lqb_id : str = identifier_util.create_objid(
+        objid = objid,
+        id = identifier_util.create_id_from_identifier(lqb_identifier))
+    lqb_entry : dict = upmplgutils.direntry(
+        lqb_id,
+        objid,
+        title = listen_queue_button_name)
+    # use same album image for this button
+    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), lqb_entry)
+    entries.append(lqb_entry)
+    # end button for listen queue
     has_been_played : bool = persistence.album_has_been_played(album_id)
     msgproc.log(f"Album with id [{album_id}] name [{album_name}] has been tracked: "
                 f"[{'yes' if has_been_played else 'no'}]")
@@ -2698,7 +2719,7 @@ def handler_element_album_container(
             id = identifier_util.create_id_from_identifier(rm_stats))
         rm_entry = upmplgutils.direntry(rm_stats_id,
             objid,
-            "Remove album from Statistics")
+            "Remove from Statistics")
         entries.append(rm_entry)
     return entries
 
@@ -3728,7 +3749,7 @@ def add_remove_track_from_stats_if_needed(objid, track : TidalTrack, entries : l
             id = identifier_util.create_id_from_identifier(rm_stats))
         rm_entry = upmplgutils.direntry(rm_stats_id,
             objid,
-            "Remove track from Statistics")
+            "Remove from Statistics")
         entries.append(rm_entry)
     return entries
 
@@ -4104,6 +4125,22 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
     return entries
 
 
+def handler_album_listen_queue_action(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    listen_queue_action : str = item_identifier.get(ItemIdentifierKey.LISTEN_QUEUE_ACTION)
+    msgproc.log(f"handler_album_listen_queue_action on [{album_id} -> [{listen_queue_action}]")
+    # perform requested action
+    tidal_session : TidalSession = get_session()
+    tidal_util.album_listen_queue_action(
+        tidal_session=tidal_session,
+        album_id=album_id,
+        action=listen_queue_action)
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.ALBUM_CONTAINER.getName(),
+        album_id)
+    return handler_element_album_container(objid, item_identifier = identifier, entries = entries)
+
+
 def choose_track_adapter(tidal_session : TidalSession, played_track : PlayedTrack) -> TrackAdapter:
     played_track_complete : bool = played_track and is_played_track_complete(played_track)
     return (PlayedTrackAdapter(played_track)
@@ -4349,7 +4386,8 @@ __elem_action_dict : dict = {
     ElementType.FAVORITE_ARTISTS_BY_NAME_ASC.getName(): handler_favorite_artists_by_name_asc,
     ElementType.FAVORITE_ARTISTS_BY_NAME_DESC.getName(): handler_favorite_artists_by_name_desc,
     ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC.getName(): handler_favorite_artists_by_user_date_added_asc,
-    ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC.getName(): handler_favorite_artists_by_user_date_added_desc
+    ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC.getName(): handler_favorite_artists_by_user_date_added_desc,
+    ElementType.ALBUM_LISTEN_QUEUE_ACTION.getName(): handler_album_listen_queue_action
 }
 
 
