@@ -3311,7 +3311,7 @@ def handler_element_artist_album_ep_singles(objid, item_identifier : ItemIdentif
     return handler_element_artist_album_catch_all(
         objid,
         item_identifier = item_identifier,
-        album_extractor = lambda x, limit, offset : x.get_albums_ep_singles(limit, offset),
+        album_extractor = lambda x, limit, offset : x.get_ep_singles(limit, offset),
         entries = entries)
 
 
@@ -3319,7 +3319,7 @@ def handler_element_artist_album_others(objid, item_identifier : ItemIdentifier,
     return handler_element_artist_album_catch_all(
         objid,
         item_identifier = item_identifier,
-        album_extractor = lambda x, limit, offset : x.get_albums_other(limit, offset),
+        album_extractor = lambda x, limit, offset : x.get_other(limit, offset),
         entries = entries)
 
 
@@ -3568,14 +3568,14 @@ def get_artist_albums_ep_singles_image_url(tidal_session : TidalSession, artist_
     return get_artist_albums_by_album_extractor_image_url(
         tidal_session = tidal_session,
         artist_id = artist_id,
-        extractor = lambda artist: artist.get_albums_ep_singles())
+        extractor = lambda artist: artist.get_ep_singles())
 
 
 def get_artist_albums_others_image_url(tidal_session : TidalSession, artist_id : str) -> str:
     return get_artist_albums_by_album_extractor_image_url(
         tidal_session = tidal_session,
         artist_id = artist_id,
-        extractor = lambda artist: artist.get_albums_other())
+        extractor = lambda artist: artist.get_other())
 
 
 def get_artist_albums_by_album_extractor_image_url(
