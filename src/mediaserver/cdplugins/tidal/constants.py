@@ -15,7 +15,21 @@
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.3.0"
+tidal_plugin_release : str = "0.4.0-trunk"
+
+listen_queue_action_key : str = "action"
+listen_queue_button_title_key : str = "button_title"
+
+listen_queue_action_add : str = "add"
+listen_queue_action_del : str = "del"
+
+listen_queue_action_add_dict : dict[str, str] = {
+    listen_queue_action_key: listen_queue_action_add,
+    listen_queue_button_title_key: "Add to Listen Queue"}
+
+listen_queue_action_del_dict : dict[str, str] = {
+    listen_queue_action_key: listen_queue_action_del,
+    listen_queue_button_title_key: "Remove from Listen Queue"}
 
 featured_type_name_playlist : str = "PLAYLIST"
 tile_image_expiration_time_sec : int = 86400
@@ -89,3 +103,5 @@ default_prepend_number_in_item_list : bool = False
 default_enable_pkce_credential_match : bool = False
 
 default_serve_mode : str = "mpd"
+
+default_listen_queue_playlist_name : str = "Listening Queue"

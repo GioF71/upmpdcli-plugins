@@ -32,6 +32,7 @@ class ItemIdentifierKey(Enum):
     MISSING_ARTIST_ART = 15, "msngrtrt"
     COUNT = 16, "cnt"
     UNDERLYING_TYPE = 17, "ut"
+    LISTEN_QUEUE_ACTION = 18, "lqctn"
 
     def __init__(self,
             num : int,

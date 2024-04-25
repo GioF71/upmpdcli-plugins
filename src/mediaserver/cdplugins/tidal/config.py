@@ -129,3 +129,7 @@ max_playlist_or_mix_items_per_page : int = getPluginOptionValue(
 auth_challenge_type : str = getPluginOptionValue(
     "authchallengetype",
     constants.default_auth_challenge_type)
+
+listen_queue_playlist_name : str = getPluginOptionValue(
+    "listenqueueplaylistname",
+    constants.default_listen_queue_playlist_name)
