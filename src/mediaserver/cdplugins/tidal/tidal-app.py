@@ -2916,11 +2916,12 @@ def handler_element_artists_in_mix_or_playlist(
         item_identifier : ItemIdentifier,
         entries : list) -> list:
     mix_or_playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     underlying_type_str : str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
     underlying_type : ElementType = get_element_type_by_name(element_name = underlying_type_str)
     msgproc.log(f"handler_element_albums_in_mix_or_playlist for [{mix_or_playlist_id}] of type [{underlying_type}]")
     tidal_session : TidalSession = get_session()
-    artist_set : set[str] = set()
+    artist_list : list[str] = list()
     if ElementType.PLAYLIST == underlying_type:
         playlist : TidalPlaylist = tidal_session.playlist(mix_or_playlist_id)
         # navigate playlist
@@ -2928,10 +2929,10 @@ def handler_element_artists_in_mix_or_playlist(
         track : TidalTrack
         for track in tracks:
             artist_id : str = track.artist.id
-            if artist_id in artist_set:
+            if artist_id in artist_list:
                 # already collected
                 continue
-            artist_set.add(artist_id)
+            artist_list.append(artist_id)
     elif ElementType.MIX == underlying_type:
         mix : TidalMix = tidal_session.mix(mix_or_playlist_id)
         # navigate playlist
@@ -2940,12 +2941,18 @@ def handler_element_artists_in_mix_or_playlist(
         for track in tracks:
             if not isinstance(track, TidalTrack): continue
             artist_id : str = track.artist.id
-            if artist_id in artist_set:
+            if artist_id in artist_list:
                 # already collected
                 continue
-            artist_set.add(artist_id)
+            artist_list.append(artist_id)
     # create entries for albums
-    for artist_id in artist_set:
+    max_items_per_page : int = config.artists_per_page
+    needs_next : bool = offset + max_items_per_page < len(artist_list)
+    upper : int = offset + max_items_per_page if needs_next else len(artist_list)
+    msgproc.log(f"handler_element_artists_in_mix_or_playlist albums "
+                f"[{len(artist_list)}] max_items_per_page [{max_items_per_page}] "
+                f"offset [{offset}] needs_next [{needs_next}] upper [{upper}]")
+    for artist_id in artist_list[offset:upper] if len(artist_list) > offset else list():
         try:
             artist : TidalArtist = tidal_session.artist(artist_id)
             entries.append(artist_to_entry(
@@ -2953,6 +2960,17 @@ def handler_element_artists_in_mix_or_playlist(
                 artist = artist))
         except Exception as ex:
             msgproc.log(f"Cannot add artist with id [{artist_id}] [{type(ex)}] [{ex}]")
+    if needs_next:
+        # create next
+        next_entry : dict[str, any] = create_next_button(
+            objid = objid,
+            element_type = ElementType.ARTISTS_IN_MIX_OR_PLAYLIST,
+            element_id = mix_or_playlist_id,
+            next_offset = offset + max_items_per_page,
+            other_keys = {
+                ItemIdentifierKey.UNDERLYING_TYPE: underlying_type_str
+            })
+        entries.append(next_entry)
     return entries
 
 
