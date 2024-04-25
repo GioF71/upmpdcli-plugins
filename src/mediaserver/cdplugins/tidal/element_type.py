@@ -70,6 +70,7 @@ class ElementType(Enum):
     ARTIST_FOCUS = 51, "rtstrl"
     ALBUMS_IN_MIX_OR_PLAYLIST = 52, "lbmnmxplst"
     ARTISTS_IN_MIX_OR_PLAYLIST = 53, "rtstnmxplst"
+    ALBUM_LISTEN_QUEUE_ACTION = 54, "lbmlqctn"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
