@@ -2676,7 +2676,8 @@ def handler_element_album_container(
     fav_action_elem, fav_action_text = (
         (ElementType.FAV_ALBUM_DEL, "Remove from Favorites") if in_favorites else
         (ElementType.FAV_ALBUM_ADD, "Add to Favorites"))
-    # msgproc.log(f"Album with id [{album_id}] name [{album_name}] is in favorites: [{'yes' if in_favorites else 'no'}]")
+    # msgproc.log(f"Album with id [{album_id}] name [{album_name}] "
+    #             f"is in favorites: [{'yes' if in_favorites else 'no'}]")
     fav_action : ItemIdentifier = ItemIdentifier(
         fav_action_elem.getName(),
         album_id)

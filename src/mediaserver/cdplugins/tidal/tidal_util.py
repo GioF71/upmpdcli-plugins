@@ -178,12 +178,29 @@ def is_album_in_listen_queue(tidal_session : TidalSession, album_id : str) -> bo
                     f"playlist [{config.listen_queue_playlist_name}] not found")
         return False
     # if we find a track from that album, we return True
-    item_list : list = listen_queue.items()
-    for current in item_list if item_list else list():
-        # must be a track
-        if not isinstance(current, TidalTrack): continue
-        track : TidalTrack = current
-        if track.album.id == album_id: return True
+    offset : int = 0
+    limit : int = 100
+    while True:
+        item_list : list = listen_queue.items(offset = offset, limit = limit)
+        msgproc.log(f"Getting [{len(item_list) if item_list else 0}] from playlist "
+                    f"[{config.listen_queue_playlist_name}] from offset [{offset}]")
+        if not item_list or len(item_list) == 0:
+            # we are finished
+            # msgproc.log(f"No more items from offset [{offset}], we are finished")
+            break
+        count : int = 0
+        for current in item_list if item_list else list():
+            count += 1
+            # must be a track
+            if not isinstance(current, TidalTrack): continue
+            track : TidalTrack = current
+            if track.album.id == album_id:
+                # msgproc.log(f"Found track [{track.id}] from album [{album_id}], returning True")
+                return True
+        if count < limit:
+            # msgproc.log(f"Found [{count}] instead of [{limit}] from offset [{offset}], we are finished")
+            break
+        offset += limit
     return False
 
 
@@ -195,16 +212,30 @@ def album_listen_queue_action(
         tidal_session=tidal_session,
         create_if_missing=True)
     # remove anyway, add to the end if action is add
-    item_list : list = listen_queue.items()
-    # make sure it's not empty
-    if not item_list: item_list = list()
     remove_list : list[str] = list()
-    for current in item_list:
-        # must be a track
-        if not isinstance(current, TidalTrack): continue
-        track : TidalTrack = current
-        if track.album.id == album_id:
-            remove_list.append(track.id)
+    offset : int = 0
+    limit : int = 100
+    while True:
+        item_list : list = listen_queue.items(offset = offset, limit = limit)
+        # msgproc.log(f"Getting [{len(item_list) if item_list else 0}] from playlist "
+        #             f"[{config.listen_queue_playlist_name}] from offset [{offset}]")
+        if not item_list or len(item_list) == 0:
+            # we are finished
+            msgproc.log(f"No more items from offset [{offset}], we are finished")
+            break
+        count : int = 0
+        for current in item_list:
+            count += 1
+            # must be a track
+            if not isinstance(current, TidalTrack): continue
+            track : TidalTrack = current
+            if track.album.id == album_id:
+                # msgproc.log(f"Found track [{track.id}] from album [{album_id}], returning True")
+                remove_list.append(track.id)
+        if count < limit:
+            # msgproc.log(f"Found [{count}] instead of [{limit}] from offset [{offset}], we are finished")
+            break
+        offset += limit
     for track_id in remove_list:
         listen_queue.remove_by_id(media_id=track_id)
     album : TidalAlbum = tidal_session.album(album_id = album_id)
