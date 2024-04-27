@@ -33,6 +33,7 @@ class ItemIdentifierKey(Enum):
     COUNT = 16, "cnt"
     UNDERLYING_TYPE = 17, "ut"
     LISTEN_QUEUE_ACTION = 18, "lqctn"
+    LAST_FOUND_ID = 19, "lfid"
 
     def __init__(self,
             num : int,

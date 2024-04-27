@@ -27,6 +27,7 @@ from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
+from typing import Callable
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -327,3 +328,62 @@ def get_quality_badge(
                 f"s:[{sample_rate}] "
                 f"mqa:[{is_mqa}] -> [{badge}]")
     return badge
+
+
+def track_only(obj : any) -> any:
+    if obj and isinstance(obj, TidalTrack): return obj
+
+
+def load_unique_ids_from_mix_or_playlist(
+        tidal_session : TidalSession,
+        mix_or_playlist_id : str,
+        tidal_obj_extractor : Callable[[TidalSession, str], TidalPlaylist | TidalMix],
+        item_extractor : Callable[[any, int, int], list[any]],
+        id_extractor : Callable[[any], str],
+        max_id_list_length : int,
+        previous_page_last_found_id : str = None,
+        item_filter : Callable[[any], any] = lambda x : track_only(x),
+        initial_offset : int = 0,
+        max_slice_size : int = 100) -> tuple[list[str], int]:
+    tidal_obj = tidal_obj_extractor(tidal_session, mix_or_playlist_id)
+    last_offset : int = initial_offset
+    id_list : list[str] = list()
+    load_count : int = 0
+    skip_count : int = 0
+    finished : bool = False
+    last_found : str = None
+    while len(id_list) < max_id_list_length:
+        max_loadable : int = max_slice_size
+        msgproc.log(f"load_mix_or_playlist_tracks mix_or_pl [{mix_or_playlist_id}] "
+                    f"loading [{max_loadable}] from offset [{last_offset}] "
+                    f"load_count [{load_count}] skip_count [{skip_count}] ...")
+        item_list : list[any] = item_extractor(tidal_obj, max_slice_size, last_offset)
+        if not item_list or len(item_list) == 0:
+            # no items, we are finished
+            finished = True
+            break
+        slice_count : int = 0
+        for i in item_list:
+            slice_count += 1
+            last_offset += 1
+            item = item_filter(i) if item_filter else i
+            if item:
+                id_value : str = id_extractor(item)
+                # already collected?
+                if (id_value and
+                    (not previous_page_last_found_id or id_value != previous_page_last_found_id) and
+                        (id_value not in id_list)):
+                    id_list.append(id_value)
+                    last_found = id_value
+                if len(id_list) == max_id_list_length:
+                    # we are finished
+                    break
+            else:
+                skip_count += 1
+        load_count += len(item_list)
+        # did we extract less than requested?
+        if len(item_list) < max_slice_size:
+            # we are finished in this case
+            finished = True
+            break
+    return id_list, last_offset, finished, last_found
