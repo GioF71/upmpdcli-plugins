@@ -243,9 +243,11 @@ def album_listen_queue_action(
     # add if needed
     if constants.listen_queue_action_add == action:
         # add the album tracks
+        media_id_list : list[str] = list()
         t : TidalTrack
         for t in album.tracks():
-            listen_queue.add([t.id])
+            media_id_list.append(t.id)
+        listen_queue.add(media_id_list)
     return album
 
 
