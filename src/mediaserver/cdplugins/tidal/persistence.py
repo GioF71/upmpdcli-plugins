@@ -38,6 +38,10 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 __table_name_played_track_v1 : str = "played_track_v1"
+__table_name_listen_album_queue_v1 : str = "listen_album_queue_v1"
+
+__field_name_created_timestamp : str = "created_timestamp"
+
 
 __most_played_albums_query : str = """
     SELECT
@@ -434,8 +438,25 @@ def do_migration_11():
     __alter_table_with_column(table_name, "sample_rate", "INTEGER")
 
 
+def do_migration_12():
+    table_name : str = __table_name_listen_album_queue_v1
+    # Creating table
+    create_table : str = f"""
+        CREATE TABLE IF NOT EXISTS {table_name}(
+        album_id VARCHAR(255) PRIMARY KEY,
+        {__field_name_created_timestamp} TIMESTAMP)
+    """
+    cursor_obj = __connection.cursor()
+    cursor_obj.execute(create_table)
+    cursor_obj.close()
+
+
 def migration_11():
     migration_template("12", do_migration_11)
+
+
+def migration_12():
+    migration_template("13", do_migration_12)
 
 
 def insert_playback(
@@ -830,6 +851,73 @@ def track_playback(played_track_request : PlayedTrackRequest):
     msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
 
 
+def is_in_album_listen_queue(album_id : str) -> bool:
+    t = (album_id, )
+    cursor = __connection.cursor()
+    cursor.execute(
+        f"SELECT album_id \
+          FROM {__table_name_listen_album_queue_v1} \
+          WHERE album_id = ?",
+        t)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows: return False
+    if len(rows) > 1:
+        raise Exception(f"Multiple {__table_name_listen_album_queue_v1} records for album_id [{album_id}]")
+    # only one record, yes, it's in listen queue
+    return True
+
+
+def get_album_listen_queue() -> list[str]:
+    cursor = __connection.cursor()
+    cursor.execute(
+        f"SELECT album_id \
+          FROM {__table_name_listen_album_queue_v1} \
+          ORDER BY {__field_name_created_timestamp}")
+    rows = cursor.fetchall()
+    cursor.close()
+    result : list[str] = list()
+    for row in rows if rows else list():
+        id : str = row[0]
+        result.append(id)
+    return result
+
+
+def add_to_album_listen_queue(album_id : str) -> bool:
+    if not is_in_album_listen_queue(album_id):
+        now : datetime.datetime = datetime.datetime.now()
+        t = (album_id, now)
+        cursor = __connection.cursor()
+        cursor.execute(
+            f"""INSERT INTO {__table_name_listen_album_queue_v1}(
+                album_id,
+                {__field_name_created_timestamp})
+                VALUES(?, ?)""",
+            t)
+        cursor.close()
+        __connection.commit()
+        return True
+    # already there
+    msgproc.log(f"Album [{album_id}] is already in {__table_name_listen_album_queue_v1}")
+    return False
+
+
+def remove_from_album_listen_queue(album_id : str) -> bool:
+    if is_in_album_listen_queue(album_id):
+        t = (album_id, )
+        cursor = __connection.cursor()
+        cursor.execute(
+            f"""DELETE FROM {__table_name_listen_album_queue_v1}
+                WHERE album_id = ?""",
+            t)
+        cursor.close()
+        __connection.commit()
+        return True
+    # not there!
+    msgproc.log(f"Album [{album_id}] is not in {__table_name_listen_album_queue_v1}")
+    return False
+
+
 __connection : sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
 
@@ -905,7 +993,10 @@ migrations : list[Migration] = [
         migration_name = "add_bd_and_sr_to_played_track_v1",
         apply_on = "11",
         migration_function = migration_11),
-]
+    Migration(
+        migration_name = "add_listen_album_queue_v1",
+        apply_on = "12",
+        migration_function = migration_12)]
 
 current_migration : Migration
 for current_migration in migrations:
