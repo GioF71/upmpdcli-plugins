@@ -2684,10 +2684,11 @@ def handler_element_album_container(
     fav_action_id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(fav_action))
-    entry = upmplgutils.direntry(fav_action_id,
+    fav_entry : dict[str, any] = upmplgutils.direntry(fav_action_id,
         objid,
         fav_action_text)
-    entries.append(entry)
+    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), fav_entry)
+    entries.append(fav_entry)
     # button for listen queue action
     listen_queue_action_dict : dict[str, str] = (constants.listen_queue_action_del_dict
                                             if in_listen_queue
@@ -2721,6 +2722,8 @@ def handler_element_album_container(
         rm_entry = upmplgutils.direntry(rm_stats_id,
             objid,
             "Remove from Statistics")
+        # use same album image for this button
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), rm_entry)
         entries.append(rm_entry)
     return entries
 
@@ -3729,10 +3732,11 @@ def handler_element_artist(objid, item_identifier : ItemIdentifier, entries : li
     fav_action_id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(fav_action))
-    entry = upmplgutils.direntry(fav_action_id,
+    fav_entry : dict[str, any] = upmplgutils.direntry(fav_action_id,
         objid,
         fav_action_text)
-    entries.append(entry)
+    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), fav_entry)
+    entries.append(fav_entry)
     return entries
 
 
