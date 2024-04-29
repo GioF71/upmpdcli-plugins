@@ -48,7 +48,9 @@ __most_played_albums_query : str = """
         played_track_v1
     WHERE
         album_duration IS NOT NULL AND
-        track_duration IS NOT NULL
+        track_duration IS NOT NULL AND
+        play_count > 0 AND
+        last_played IS NOT NULL
     GROUP BY
         album_id
     ORDER BY
@@ -225,7 +227,15 @@ def save_tile_image(
     else:
         t = (tile_type.tile_type_name, tile_id, tile_image, now)
         cursor = __connection.cursor()
-        cursor.execute("INSERT INTO tile_image_v1(tile_type, tile_id, tile_image, update_time) VALUES(?, ?, ?, ?)", t)
+        cursor.execute("INSERT INTO \
+            tile_image_v1( \
+                tile_type, \
+                tile_id, \
+                tile_image, \
+                update_time \
+            ) VALUES( \
+                ?, ?, ?, ?)",
+            t)
         cursor.close()
         __connection.commit()
 
@@ -432,6 +442,9 @@ def insert_playback(
         played_track_request : PlayedTrackRequest,
         last_played : datetime.datetime):
     play_count : int = 1 if last_played else 0
+    msgproc.log(f"insert_playback [{played_track_request.track_id}] "
+                f"with play_count [{play_count}] "
+                f"last_played [{'NOT NULL' if last_played else 'NULL'}]")
     t = (
         played_track_request.track_id,
         played_track_request.album_id,
@@ -481,6 +494,8 @@ def insert_playback(
 def update_playback(
         played_track_request : PlayedTrackRequest,
         last_played : datetime.datetime):
+    msgproc.log(f"update_playback [{played_track_request.track_id}] "
+                f"with last_played [{'NOT NULL' if last_played else 'NULL'}]")
     if last_played:
         t = (
             played_track_request.album_id,
@@ -523,7 +538,7 @@ def update_playback(
                     last_played = ? \
                     WHERE track_id = ?", t)
     else:
-        # no playback
+        # no playback -> we don't update play count and/or last_played
         t = (
             played_track_request.album_id,
             played_track_request.album_track_count,
@@ -558,8 +573,7 @@ def update_playback(
                     artist_name = ?, \
                     album_duration = ?, \
                     bit_depth = ?, \
-                    sample_rate = ?, \
-                    play_count = 0 \
+                    sample_rate = ? \
                     WHERE track_id = ?", t)
     cursor.close()
     __connection.commit()
@@ -588,8 +602,13 @@ def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[
             album_duration, \
             bit_depth, \
             sample_rate \
-          FROM played_track_v1 \
-          ORDER BY {sorting.get_field_name()} {sorting.get_field_order()} LIMIT ?"
+          FROM \
+              played_track_v1 \
+          WHERE \
+              play_count > 0 \
+              AND last_played IS NOT null \
+          ORDER BY \
+              {sorting.get_field_name()} {sorting.get_field_order()} LIMIT ?"
     cursor.execute(
         query,
         t)
@@ -787,7 +806,7 @@ def get_most_played_albums(max_albums : int = 100) -> list[PlayedAlbum]:
 
 # this will track the collected required information to the
 # played_tracks_v1 table but last_playback and play_count
-# are not set
+# are left as they are
 def track_ghost_playback(played_track_request : PlayedTrackRequest):
     if not track_has_been_played(track_id = played_track_request.track_id):
         insert_playback(
