@@ -2691,6 +2691,18 @@ def handler_element_album_container(
         album_entry_title)
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), entry)
     entries.append(entry)
+    # add Album track entry
+    album_tracks : ItemIdentifier = ItemIdentifier(
+        ElementType.ALBUM_TRACKS.getName(),
+        album_id)
+    album_tracks_id : str = identifier_util.create_objid(
+        objid = objid,
+        id = identifier_util.create_id_from_identifier(album_tracks))
+    album_tracks_entry : dict[str, any] = upmplgutils.direntry(album_tracks_id,
+        objid,
+        "Tracks")
+    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), album_tracks_entry)
+    entries.append(album_tracks_entry)
     # add Artists
     artist_list : list[TidalArtist] = get_artist_list(album.artist, album.artists)
     for current in artist_list:
@@ -4141,6 +4153,22 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
     return entries
 
 
+def handler_album_tracks_action(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    tidal_session : TidalSession = get_session()
+    album : TidalAlbum = tidal_util.try_get_album(tidal_session = tidal_session, album_id = album_id)
+    if not album: return entries
+    track : TidalTrack
+    for track in album.tracks():
+        track_entry : dict[str, any] = track_to_navigable_track(
+            objid = objid,
+            track_adapter = instance_tidal_track_adapter(
+                tidal_session = tidal_session,
+                track = track))
+        entries.append(track_entry)
+    return entries
+
+
 def handler_album_listen_queue(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     album_list : list[str] = persistence.get_album_listen_queue()
     tidal_session : TidalSession = get_session()
@@ -4432,7 +4460,8 @@ __elem_action_dict : dict = {
     ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_ASC.getName(): handler_favorite_artists_by_user_date_added_asc,
     ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC.getName(): handler_favorite_artists_by_user_date_added_desc,
     ElementType.ALBUM_LISTEN_QUEUE.getName(): handler_album_listen_queue,
-    ElementType.ALBUM_LISTEN_QUEUE_ACTION.getName(): handler_album_listen_queue_action
+    ElementType.ALBUM_LISTEN_QUEUE_ACTION.getName(): handler_album_listen_queue_action,
+    ElementType.ALBUM_TRACKS.getName(): handler_album_tracks_action
 }
 
 
