@@ -213,10 +213,7 @@ def trackuri(a):
                 f"mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] "
                 f"duration [{duration}] scrobble [{scrobble_msg}]")
     result : dict[str, str] = dict()
-    result['media_url'] = media_url
-    if mime_type: result["mimetype"] = mime_type
-    if kbs: result['kbs'] = kbs
-    if duration: result["duration"] = duration
+    result["media_url"] = media_url
     return result
 
 

@@ -34,18 +34,19 @@ import cache_manager_provider
 from msgproc_provider import msgproc
 
 import secrets
+import constants
 
 
 def subsonic_init():
-    msgproc.log("Subsonic Initializing ...")
+    msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initializing ...")
     init_success : bool = False
     try:
         initial_caching()
         check_supports()
         init_success = True
     except Exception as e:
-        msgproc.log(f"Subsonic Initialization failed [{e}]")
-    msgproc.log(f"Subsonic Initialization success: [{init_success}]")
+        msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization failed [{e}]")
+    msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization success: [{init_success}]")
 
 
 def check_supports():
