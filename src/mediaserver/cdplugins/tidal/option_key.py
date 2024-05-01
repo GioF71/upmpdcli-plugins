@@ -30,7 +30,8 @@ class OptionKey(Enum):
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
     PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME = 11, "prepend-entry-number-in-entry-name", None
     OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT = 12, "omit-rsts-nls-dffrnt", False
-    ALBUM_OMITTABLE_ARTIST_ID = 13, "omit-rtst", None
+    ALBUM_OMITTABLE_ARTIST_ID = 13, "lbm-omit-rtst", None
+    TRACK_OMITTABLE_ARTIST_NAME = 14, "trk-omit-rtst", None
 
     def __init__(self,
             num : int,

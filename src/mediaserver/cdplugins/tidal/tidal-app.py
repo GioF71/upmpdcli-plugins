@@ -999,12 +999,16 @@ def track_apply_explicit(
 def get_track_name_for_track_container(
         track_adapter: TrackAdapter,
         options : dict[str, any] = {}) -> str:
+    title : str = track_adapter.get_name()
     skip_track_artist : bool = get_option(
         options = options,
         option_key = OptionKey.SKIP_TRACK_ARTIST)
-    title : str = track_adapter.get_name()
     if not skip_track_artist:
-        title : str = f"{track_adapter.get_artist_name()} - {title}"
+        track_omittable_artist_name : str = get_option(
+            options = options,
+            option_key = OptionKey.TRACK_OMITTABLE_ARTIST_NAME)
+        if not track_omittable_artist_name or track_omittable_artist_name != track_adapter.get_artist_name():
+            title = f"{track_adapter.get_artist_name()} - {title}"
     skip_track_number : bool = get_option(
         options = options,
         option_key = OptionKey.SKIP_TRACK_NUMBER)
@@ -1015,7 +1019,7 @@ def get_track_name_for_track_container(
         track_number : str = (f"{forced_track_number:02}"
             if forced_track_number
             else get_album_track_num(track_adapter))
-        title : str = f"[{track_number}] {title}"
+        title = f"[{track_number:02}] {title}"
     title = track_apply_explicit(
         track_adapter = track_adapter,
         current_title = title,
@@ -4158,14 +4162,25 @@ def handler_album_tracks_action(objid, item_identifier : ItemIdentifier, entries
     tidal_session : TidalSession = get_session()
     album : TidalAlbum = tidal_util.try_get_album(tidal_session = tidal_session, album_id = album_id)
     if not album: return entries
+    options: dict[str, any] = dict()
+    set_option(
+        options = options,
+        option_key = OptionKey.TRACK_OMITTABLE_ARTIST_NAME,
+        option_value = album.artist.name)
     track : TidalTrack
     for track in album.tracks():
-        track_entry : dict[str, any] = track_to_navigable_track(
-            objid = objid,
-            track_adapter = instance_tidal_track_adapter(
-                tidal_session = tidal_session,
-                track = track))
-        entries.append(track_entry)
+        try:
+            track_entry : dict[str, any] = track_to_navigable_track(
+                objid = objid,
+                track_adapter = instance_tidal_track_adapter(
+                    tidal_session = tidal_session,
+                    track = track),
+                options = options)
+            if track_entry: entries.append(track_entry)
+        except Exception as ex:
+            msgproc.log(f"handler_album_tracks_action cannot load "
+                        f"track_id [{track.id}] from album_id [{album_id}] "
+                        f"[{type(ex)}] [{ex}]")
     return entries
 
 
