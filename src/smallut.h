@@ -22,12 +22,12 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <cstdint>
+#include <ctime>
 #include <functional>
 #include <map>
 #include <memory>
-#include <stdint.h>
 #include <string>
-#include <time.h>
 #include <vector>
 
 struct tm;

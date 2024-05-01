@@ -120,7 +120,7 @@
 #endif
 
 #define STAT _wstati64
-#define LSTAT _wstati64
+#define LSTAT win_wlstat
 #define STATBUF _stati64
 #define ACCESS _waccess
 #define OPENDIR ::_wopendir
@@ -147,9 +147,25 @@
 // For getpid
 #include <process.h>
 #define getpid _getpid
-
-#define PATHUT_SSIZE_T int
 #endif // _MSC_VER
+
+#ifndef _SSIZE_T_DEFINED
+#ifdef  _WIN64
+typedef __int64    ssize_t;
+#else
+typedef int   ssize_t;
+#endif
+#define _SSIZE_T_DEFINED
+#endif
+
+inline ssize_t sys_read(int fd, void* buf, size_t cnt)
+{
+    return static_cast<ssize_t>(::read(fd, buf, static_cast<int>(cnt)));
+}
+inline ssize_t sys_write(int fd, const void* buf, size_t cnt)
+{
+    return static_cast<ssize_t>(::write(fd, buf, static_cast<int>(cnt)));
+}
 
 #else /* !_WIN32 -> */
 
@@ -182,25 +198,23 @@
 
 #define SYSPATH(PATH, SPATH) const char *SPATH = PATH.c_str()
 
+#define sys_read ::read
+#define sys_write ::write
 
 #endif /* !_WIN32 */
-
-#ifndef PATHUT_SSIZE_T
-#define PATHUT_SSIZE_T ssize_t
-#endif
 
 namespace MedocUtils {
 
 #ifdef _WIN32
 
-std::string wchartoutf8(const wchar_t *in, size_t len)
+std::string wchartoutf8(const wchar_t *in, int len)
 {
     std::string out;
     wchartoutf8(in, out, len);
     return out;
 }
 
-bool wchartoutf8(const wchar_t *in, std::string& out, size_t wlen)
+bool wchartoutf8(const wchar_t *in, std::string& out, int wlen)
 {
     LOGDEB1("WCHARTOUTF8: in [" << in << "]\n");
     out.clear();
@@ -208,7 +222,10 @@ bool wchartoutf8(const wchar_t *in, std::string& out, size_t wlen)
         return true;
     }
     if (wlen == 0) {
-        wlen = wcslen(in);
+        wlen = static_cast<int>(wcslen(in));
+    }
+    if (wlen == 0) {
+        return true;
     }
     int flags = WC_ERR_INVALID_CHARS;
     int bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, nullptr, 0, nullptr, nullptr);
@@ -230,16 +247,16 @@ bool wchartoutf8(const wchar_t *in, std::string& out, size_t wlen)
     return true;
 }
 
-bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap)
+bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
 {
-    size_t wcharsavail = obytescap / sizeof(wchar_t);
+    auto wcharsavail = obytescap / sizeof(wchar_t);
     if (nullptr == out || wcharsavail < 1) {
         return false;
     }
     out[0] = 0;
-
-    int wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), in.size(), nullptr, 0);
+    int isize = static_cast<int>(in.size());
+    auto wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
     if (wcharcnt <= 0) {
         LOGERR("utf8towchar: conversion error for [" << in << "]\n");
         return false;
@@ -249,7 +266,7 @@ bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap)
         return false;
     }
     wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), in.size(), out, wcharsavail);
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, out, wcharsavail);
     if (wcharcnt <= 0) {
         LOGERR("utf8towchar: conversion error for [" << in << "]\n");
         return false;
@@ -260,12 +277,13 @@ bool utf8towchar(const std::string& in, wchar_t *out, size_t obytescap)
 
 std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 {
+    int isize = static_cast<int>(in.size());
     // Note that as we supply in.size(), mbtowch computes the size
     // without a terminating 0 (and won't write in the second call of
     // course). We take this into account by allocating one more and
     // terminating the output.
-    int wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), in.size(), nullptr, 0);
+    auto wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
     if (wcharcnt <= 0) {
         LOGERR("utf8towchar: conversion error for [" << in << "]\n");
         return std::unique_ptr<wchar_t[]>();
@@ -273,8 +291,7 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
     auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcharcnt+1]);
 
     wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), in.size(),
-        buf.get(), wcharcnt);
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, buf.get(), wcharcnt);
     if (wcharcnt <= 0) {
         LOGERR("utf8towchar: conversion error for [" << in << "]\n");
         return std::unique_ptr<wchar_t[]>();
@@ -472,10 +489,34 @@ std::string path_shortpath(const std::string& path)
     return shortpath;
 }
 
+static int win_wlstat(const wchar_t *wpath, struct _stati64 *buffer)
+{
+    DWORD attrs = GetFileAttributesW(wpath);
+    if (attrs == INVALID_FILE_ATTRIBUTES) {
+        std::string upath;
+        wchartoutf8(wpath, upath);
+        LOGERR("GetFileAttributesW failed for " << upath << '\n');
+        return -1;
+    }
+    if (attrs & FILE_ATTRIBUTE_REPARSE_POINT) {
+        // Symbolic link or other strange beast (junction, or a myriad of other strange things)
+        // Just return a bogus stat struct.
+        memset(buffer, 0, sizeof(struct _stati64));
+        // Note that tje st_mode field is a short and there is only 4
+        // bits for the mode and they're full (IFDIR, IFCHR, IFIFO,
+        // IFREG. So no place for S_IFLNK, which is currently defined
+        // as 0. So we set an impossible value, which path_fileprops
+        // will interpret specifically for win32.
+        buffer->st_mode = _S_IFIFO|_S_IFCHR;
+        return 0;
+    }
+    return _wstati64(wpath, buffer);
+}
+
 #endif /* _WIN32 */
 
 // This is only actually used on Windows currently, but compiled everywhere so that it can be
-// tested, as there are no reall windows dependencies in there.
+// tested, as there are no real Windows dependencies in there.
 // The input is a slashized UNC path (like //host/share/path), or not, which we determine, returning
 // true or false depending.
 // On return, uncvolume contains the //host/share part. We take care to reject values with empty
@@ -1204,8 +1245,17 @@ int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
     stp->pst_mode = mst.ST_MODE;
     stp->pst_mtime = mst.ST_MTIME;
     stp->pst_btime = mst.ST_BTIME;
+    switch (mst.ST_MODE & S_IFMT) {
+    case S_IFDIR: stp->pst_type = PathStat::PST_DIR;break;
+    case S_IFLNK:  stp->pst_type = PathStat::PST_SYMLINK;break;
+    case S_IFREG: stp->pst_type = PathStat::PST_REGULAR;break;
+    default: stp->pst_type = PathStat::PST_OTHER;break;
+    }
 #ifdef _WIN32
     stp->pst_ctime = mst.ST_MTIME;
+    if ((mst.ST_MODE & S_IFMT) == (_S_IFIFO|_S_IFCHR)) {
+        stp->pst_type = PathStat::PST_SYMLINK;
+    }
 #else
     stp->pst_ino = mst.ST_INO;
     stp->pst_dev = ST_DEVICE(mst);
@@ -1213,12 +1263,6 @@ int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
     stp->pst_blocks = mst.ST_BLOCKS;
     stp->pst_blksize = mst.ST_BLKSIZE;
 #endif
-    switch (mst.ST_MODE & S_IFMT) {
-    case S_IFDIR: stp->pst_type = PathStat::PST_DIR;break;
-    case S_IFLNK:  stp->pst_type = PathStat::PST_SYMLINK;break;
-    case S_IFREG: stp->pst_type = PathStat::PST_REGULAR;break;
-    default: stp->pst_type = PathStat::PST_OTHER;break;
-    }
     return 0;
 }
 
@@ -1391,7 +1435,7 @@ int Pidfile::read_pid()
     }
 
     char buf[16];
-    int i = read(fd, buf, sizeof(buf) - 1);
+    auto i = sys_read(fd, buf, sizeof(buf) - 1);
     ::close(fd);
     if (i <= 0) {
         m_reason = "Read failed: [" + m_path + "]: " + strerror(errno);
@@ -1485,8 +1529,9 @@ int Pidfile::write_pid()
     }
     char pidstr[20];
     sprintf(pidstr, "%u", int(getpid()));
+    auto lenpid = strlen(pidstr);
     ::lseek(fd, 0, 0);
-    if (::write(fd, pidstr, strlen(pidstr)) != (PATHUT_SSIZE_T)strlen(pidstr)) {
+    if (sys_write(fd, pidstr, lenpid) != static_cast<ssize_t>(lenpid)) {
         m_reason = "write failed";
         return -1;
     }

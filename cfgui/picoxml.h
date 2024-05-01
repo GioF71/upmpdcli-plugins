@@ -273,7 +273,7 @@ private:
                 return false;
             }
             characterData(data);
-            CharacterData(data.c_str(), data.size());
+            CharacterData(data.c_str(), static_cast<int>(data.size()));
         }
         return true;
     }

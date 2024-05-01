@@ -40,7 +40,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #define OPEN open
-
+#define sys_read ::read
 #endif
 
 #include <string>
@@ -130,7 +130,6 @@ public:
     FileScanSource(FileScanDo *down) {
         setDownstream(down);
     }
-    virtual ~FileScanSource() = default;
     virtual bool scan() = 0;
 };
 
@@ -383,7 +382,7 @@ public:
             if (m_cnttoread != -1) {
                 toread = (size_t)MIN(toread, (uint64_t)(m_cnttoread - totread));
             }
-            ssize_t n = static_cast<ssize_t>(read(fd, buf, toread));
+            auto n = sys_read(fd, buf, toread);
             if (n < 0) {
                 catstrerror(m_reason, "read", errno);
                 goto out;
@@ -395,7 +394,7 @@ public:
             if (curoffs - n < m_startoffs) {
                 continue;
             }
-            if (!out()->data(buf, n, m_reason)) {
+            if (!out()->data(buf, static_cast<int>(n), m_reason)) {
                 goto out;
             }
             totread += n;
@@ -510,7 +509,7 @@ public:
                 string(cp, n) << endl);
         FileScanSourceZip *ths = (FileScanSourceZip *)pOpaque;
         if (ths->out()) {
-            if (!ths->out()->data(cp, n, ths->m_reason)) {
+            if (!ths->out()->data(cp, static_cast<int>(n), ths->m_reason)) {
                 return (size_t)-1;
             }
         }
@@ -627,7 +626,7 @@ public:
             if (!out()->init(m_cnt, m_reason)) {
                 return false;
             }
-            return out()->data(m_data, m_cnt, m_reason);
+            return out()->data(m_data, static_cast<int>(m_cnt), m_reason);
         } else {
             return true;
         }

@@ -64,9 +64,8 @@ public:
      * @param lo minimum count of tasks before worker starts. Default 1.
      */
     WorkQueue(const std::string& name, size_t hi = 0, size_t lo = 1)
-        : m_name(name), m_high(hi), m_low(lo), m_workers_exited(0),
-          m_ok(true), m_clients_waiting(0), m_workers_waiting(0),
-          m_tottasks(0), m_nowake(0), m_workersleeps(0), m_clientsleeps(0) {
+        : m_name(name), m_high(hi), m_low(lo)
+    {
     }
 
     ~WorkQueue() {
@@ -364,9 +363,9 @@ private:
     size_t m_low;
 
     // Worker threads having called exit. Used to decide when we're done
-    unsigned int m_workers_exited;
+    unsigned int m_workers_exited{0};
     // Status
-    bool m_ok;
+    bool m_ok{true};
 
     // Accepting new tasks
     bool m_openforbusiness{true};
@@ -383,14 +382,14 @@ private:
     std::mutex m_mutex;
 
     // Client/Worker threads currently waiting for a job
-    unsigned int m_clients_waiting;
-    unsigned int m_workers_waiting;
+    unsigned int m_clients_waiting{0};
+    unsigned int m_workers_waiting{0};
 
     // Statistics
-    unsigned int m_tottasks;
-    unsigned int m_nowake;
-    unsigned int m_workersleeps;
-    unsigned int m_clientsleeps;
+    unsigned int m_tottasks{0};
+    unsigned int m_nowake{0};
+    unsigned int m_workersleeps{0};
+    unsigned int m_clientsleeps{0};
 };
 
 #endif /* _WORKQUEUE_H_INCLUDED_ */

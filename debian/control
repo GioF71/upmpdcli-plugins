@@ -3,11 +3,24 @@ Section: sound
 Priority: optional
 Maintainer: Jean-Francois Dockes <jf@dockes.org>
 # Also may need: qt5-default (if qmake says: could not find a Qt installation of '')
-Build-Depends: debhelper-compat (=13), python3, pkg-config,
-               libmpdclient-dev, libmicrohttpd-dev, libjsoncpp-dev,
-               libexpat1-dev, libcurl4-gnutls-dev,
-               qt5-qmake, qtbase5-dev,
-               libupnpp-dev (>= 0.26.0)
+# Note that we should not have to add libnpupnp-dev and dependants cause we don't use them directly
+# but this seems to be necessary anyway. Looks like a meson bug
+Build-Depends: debhelper-compat (=12),
+               pkg-config,
+               meson,
+               python3,
+               libmpdclient-dev,
+               libmicrohttpd-dev,
+               libjsoncpp-dev,
+               libexpat1-dev,
+               libcurl4-gnutls-dev,
+               qt5-qmake,
+               qtbase5-dev,
+               libupnpp-dev (>= 0.26.0),
+               libnpupnp-dev,
+               libexpat1-dev,
+               libmicrohttpd-dev,
+               libcurl4-gnutls-dev
 Standards-Version: 4.5.1
 Homepage: http://www.lesbonscomptes.com/upmpdcli
 Vcs-Browser: https://framagit.org/medoc92/upmpdcli

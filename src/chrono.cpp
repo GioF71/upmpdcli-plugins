@@ -78,8 +78,7 @@ int64_t Chrono::micros(bool frozen)
 int64_t Chrono::nanos(bool frozen)
 {
     if (frozen) {
-        return chrono::duration_cast<chrono::nanoseconds>
-            (o_now - m_orig).count();
+        return chrono::duration_cast<chrono::nanoseconds>(o_now - m_orig).count();
     } else {
         return chrono::duration_cast<chrono::nanoseconds>
             (chrono::steady_clock::now() - m_orig).count();
@@ -89,10 +88,9 @@ int64_t Chrono::nanos(bool frozen)
 float Chrono::secs(bool frozen)
 {
     if (frozen) {
-        return chrono::duration_cast<chrono::seconds>
-            (o_now - m_orig).count();
+        return static_cast<float>(chrono::duration_cast<chrono::seconds>(o_now - m_orig).count());
     } else {
-        return (chrono::duration_cast<chrono::seconds>
-                (chrono::steady_clock::now() - m_orig)).count();
+        return static_cast<float>((chrono::duration_cast<chrono::seconds>
+                                   (chrono::steady_clock::now() - m_orig)).count());
     }
 }

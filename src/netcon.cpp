@@ -494,6 +494,8 @@ int SelectLoop::doLoop()
 
 int SelectLoop::Internal::setselevents(int fd, int events)
 {
+    PRETEND_USE(fd);
+    PRETEND_USE(events);
 #ifdef HAVE_KQUEUE
     auto it = polldata.find(fd);
     if (it == polldata.end()) {
@@ -506,6 +508,8 @@ int SelectLoop::Internal::setselevents(int fd, int events)
 
 int SelectLoop::Internal::setselevents(NetconP& con, int events)
 {
+    PRETEND_USE(con);
+    PRETEND_USE(events);
 #ifdef HAVE_KQUEUE
     struct kevent event;
     if (events & Netcon::NETCONPOLL_READ) {

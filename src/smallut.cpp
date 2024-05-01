@@ -292,7 +292,7 @@ template <class T> void stringsToString(const T& tokens, std::string& s)
         }
         s.append(1, ' ');
     }
-    s.resize(s.size()-1);
+    s.pop_back();
 }
 
 template <class T> std::string stringsToString(const T& tokens)
