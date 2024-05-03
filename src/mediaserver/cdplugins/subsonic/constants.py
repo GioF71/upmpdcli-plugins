@@ -14,4 +14,4 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 plugin_name : str = "subsonic"
-subsonic_plugin_release : str = "0.4.1"
+subsonic_plugin_release : str = "0.5.0-trunk"
