@@ -2750,7 +2750,7 @@ def handler_element_album_container(
     entries.append(lqb_entry)
     # end button for listen queue
     has_been_played : bool = persistence.album_has_been_played(album_id)
-    msgproc.log(f"Album with id [{album_id}] name [{album_name}] has been tracked: "
+    msgproc.log(f"Album with id [{album_id}] name [{album_name}] has been played: "
                 f"[{'yes' if has_been_played else 'no'}]")
     if has_been_played:
         # add entry for removing from stats
@@ -2760,7 +2760,7 @@ def handler_element_album_container(
         rm_stats_id : str = identifier_util.create_objid(
             objid = objid,
             id = identifier_util.create_id_from_identifier(rm_stats))
-        rm_entry = upmplgutils.direntry(rm_stats_id,
+        rm_entry : dict[str, any] = upmplgutils.direntry(rm_stats_id,
             objid,
             "Remove from Statistics")
         # use same album image for this button
@@ -3087,6 +3087,26 @@ def handler_element_mix_playlist_toptrack_navigable_item(
         tidal_session = tidal_session,
         track = track,
         options = track_options))
+    # favorite?
+    in_fav : bool = is_favorite_track_id(tidal_session = tidal_session, track_id = track_id)
+    msgproc.log(f"handler_element_mix_playlist_toptrack_navigable_item track [{track_id}] "
+                f"favorite: [{in_fav}]")
+    # add button to add or remove from favorites
+    fav_button_action : str = constants.fav_action_del if in_fav else constants.fav_action_add
+    fav_button_text : str = constants.fav_action_dict[fav_button_action][constants.fav_button_title_key]
+    fav_action_identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.TRACK_FAVORITE_ACTION.getName(),
+        track_id)
+    fav_action_identifier.set(ItemIdentifierKey.FAVORITE_ACTION, fav_button_action)
+    fav_action_id : str = identifier_util.create_objid(
+        objid = objid,
+        id = identifier_util.create_id_from_identifier(fav_action_identifier))
+    fav_entry : dict[str, any] = upmplgutils.direntry(fav_action_id,
+        objid,
+        fav_button_text)
+    album : TidalAlbum = tidal_util.try_get_album(tidal_session = tidal_session, album_id = track.album.id)
+    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album) if album else None, fav_entry)
+    entries.append(fav_entry)
     # add link to artists
     artist_list : list[TidalArtist] = get_artist_list(track.artist, track.artists)
     for current in artist_list:
@@ -3095,13 +3115,16 @@ def handler_element_mix_playlist_toptrack_navigable_item(
             objid = objid,
             artist = artist))
     # add link to album
-    if track.album and track.album.id:
-        album : TidalAlbum = tidal_session.album(track.album.id)
+    if album:
         entries.append(album_to_album_container(
             objid = objid,
             album = album))
     # add remove from stats if needed
-    entries = add_remove_track_from_stats_if_needed(objid, track, entries)
+    entries = add_remove_track_from_stats_if_needed(
+        objid=objid,
+        track=track,
+        album=album,
+        entries=entries)
     return entries
 
 
@@ -3457,7 +3480,16 @@ def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdent
 
 def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     tidal_session : TidalSession = get_session()
-    items : list[TidalTrack] = tidal_session.user.favorites.tracks()
+    items : list[TidalTrack] = list()
+    offset : int = 0
+    limit : int = 100
+    while True:
+        tracks : list[TidalTrack] = tidal_session.user.favorites.tracks(offset = offset, limit = limit)
+        current : TidalTrack
+        for current in tracks if tracks else list():
+            items.append(current)
+        if not tracks or len(tracks) < limit: break
+        offset += limit
     return add_track_as_list_to_entries(
         objid = objid,
         tidal_session = tidal_session,
@@ -3528,20 +3560,55 @@ def handler_element_artist_radio_navigable(objid, item_identifier : ItemIdentifi
 
 def get_favorite_artist_id_list(tidal_session : TidalSession) -> list[str]:
     item_list : list[str] = list()
-    fav_list : list[TidalArtist] = tidal_session.user.favorites.artists()
-    current : TidalArtist
-    for current in fav_list:
-        item_list.append(current.id)
+    offset : int = 0
+    limit : int = 100
+    while True:
+        fav_list : list[TidalArtist] = tidal_session.user.favorites.artists(limit = limit, offset = offset)
+        current : TidalArtist
+        for current in fav_list:
+            item_list.append(current.id)
+        if not fav_list or len(fav_list) < limit: break
+        offset += limit
     return item_list
 
 
 def get_favorite_album_id_list(tidal_session : TidalSession) -> list[str]:
     item_list : list[str] = list()
-    fav_list : list[TidalAlbum] = tidal_session.user.favorites.albums()
-    current : TidalAlbum
-    for current in fav_list:
-        item_list.append(current.id)
+    offset : int = 0
+    limit : int = 100
+    while True:
+        fav_list : list[TidalAlbum] = tidal_session.user.favorites.albums(limit = limit, offset = offset)
+        current : TidalAlbum
+        for current in fav_list if fav_list else list():
+            item_list.append(current.id)
+        if not fav_list or len(fav_list) < limit: break
+        offset += limit
     return item_list
+
+
+def get_favorite_track_id_list(tidal_session : TidalSession) -> list[int]:
+    item_list : list[str] = list()
+    offset : int = 0
+    limit : int = 100
+    while True:
+        fav_list : list[TidalTrack] = tidal_session.user.favorites.tracks(limit = limit, offset = offset)
+        current : TidalTrack
+        for current in fav_list if fav_list else list():
+            item_list.append(current.id)
+        if not fav_list or len(fav_list) < limit: break
+        offset += limit
+    return item_list
+
+
+def is_favorite_track_id(tidal_session : TidalSession, track_id : any) -> bool:
+    if not track_id: return False
+    fav_list : list[int] = get_favorite_track_id_list(tidal_session)
+    if isinstance(track_id, int): return track_id in fav_list
+    if isinstance(track_id, str):
+        current : int
+        for current in fav_list:
+            if str(current) == track_id: return True
+    return False
 
 
 def handler_element_artist_add_to_fav(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -3767,7 +3834,11 @@ def handler_element_artist(objid, item_identifier : ItemIdentifier, entries : li
     return entries
 
 
-def add_remove_track_from_stats_if_needed(objid, track : TidalTrack, entries : list) -> list:
+def add_remove_track_from_stats_if_needed(
+        objid,
+        track : TidalTrack,
+        album: TidalAlbum,
+        entries : list) -> list:
     has_been_played : bool = persistence.track_has_been_played(track.id)
     msgproc.log(f"Track with id [{track.id}] name [{track.name}] has been tracked: "
                 f"[{'yes' if has_been_played else 'no'}]")
@@ -3779,10 +3850,11 @@ def add_remove_track_from_stats_if_needed(objid, track : TidalTrack, entries : l
         rm_stats_id : str = identifier_util.create_objid(
             objid = objid,
             id = identifier_util.create_id_from_identifier(rm_stats))
-        rm_entry = upmplgutils.direntry(rm_stats_id,
+        rm_entry : dict[str, any] = upmplgutils.direntry(rm_stats_id,
             objid,
             "Remove from Statistics")
         entries.append(rm_entry)
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album) if album else None, rm_entry)
     return entries
 
 
@@ -4068,7 +4140,7 @@ def handler_element_remove_track_from_stats(objid, item_identifier : ItemIdentif
     track_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     if not track_id: return entries
     msgproc.log(f"Removing {track_id} from playback statistics ...")
-    persistence.delete_track_from_played_tracks(track_id)
+    persistence.remove_track_from_played_tracks(track_id)
     msgproc.log(f"Removed {track_id} from playback statistics.")
     tidal_session : TidalSession = get_session()
     track : TidalTrack = tidal_session.track(track_id)
@@ -4085,7 +4157,7 @@ def handler_element_remove_album_from_stats(objid, item_identifier : ItemIdentif
     tidal_session : TidalSession = get_session()
     if not album_id: return entries
     msgproc.log(f"Removing {album_id} from playback statistics ...")
-    persistence.delete_album_from_played_tracks(album_id)
+    persistence.remove_album_from_played_tracks(album_id)
     msgproc.log(f"Removed {album_id} from playback statistics.")
     album : TidalAlbum = tidal_session.album(album_id)
     entries.append(album_to_album_container(objid = objid, album = album))
@@ -4132,10 +4204,10 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
     albums_per_page : int = config.albums_per_page
     # TODO remove hardcoded value
     max_albums : int = 1000
-    next_needed : bool = False
+    next_needed : bool = True
     items : list[PlayedAlbum] = persistence.get_most_played_albums(max_albums = max_albums)
     from_offset_album_list : list[PlayedAlbum] = items[offset:]
-    if len(from_offset_album_list) >= albums_per_page: next_needed = True
+    if len(from_offset_album_list) < albums_per_page: next_needed = False
     page_played_album_list : list[PlayedAlbum] = from_offset_album_list[0:albums_per_page]
     current : PlayedAlbum
     for current in page_played_album_list:
@@ -4211,6 +4283,23 @@ def handler_album_listen_queue_action(objid, item_identifier : ItemIdentifier, e
         ElementType.ALBUM_CONTAINER.getName(),
         album_id)
     return handler_element_album_container(objid, item_identifier = identifier, entries = entries)
+
+
+def handler_track_favorite_action(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    track_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    action : str = item_identifier.get(ItemIdentifierKey.FAVORITE_ACTION)
+    if constants.fav_action_add == action:
+        msgproc.log(f"handler_track_favorite_action adding track [{track_id}] to favorites ...")
+        get_session().user.favorites.add_track(track_id)
+    elif constants.fav_action_del == action:
+        msgproc.log(f"handler_track_favorite_action removing track [{track_id}] from favorites ...")
+        get_session().user.favorites.remove_track(track_id)
+    else:
+        msgproc.log(f"handler_track_favorite_action invalid action [{action}]")
+    identifier : ItemIdentifier = ItemIdentifier(
+        ElementType.NAVIGABLE_TRACK.getName(),
+        track_id)
+    return handler_element_navigable_track(objid, item_identifier = identifier, entries = entries)
 
 
 def choose_track_adapter(tidal_session : TidalSession, played_track : PlayedTrack) -> TrackAdapter:
@@ -4476,7 +4565,8 @@ __elem_action_dict : dict = {
     ElementType.FAVORITE_ARTISTS_BY_USER_DATE_ADDED_DESC.getName(): handler_favorite_artists_by_user_date_added_desc,
     ElementType.ALBUM_LISTEN_QUEUE.getName(): handler_album_listen_queue,
     ElementType.ALBUM_LISTEN_QUEUE_ACTION.getName(): handler_album_listen_queue_action,
-    ElementType.ALBUM_TRACKS.getName(): handler_album_tracks_action
+    ElementType.ALBUM_TRACKS.getName(): handler_album_tracks_action,
+    ElementType.TRACK_FAVORITE_ACTION.getName(): handler_track_favorite_action
 }
 
 

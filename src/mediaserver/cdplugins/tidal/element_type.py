@@ -73,6 +73,7 @@ class ElementType(Enum):
     ALBUM_LISTEN_QUEUE_ACTION = 54, "lbmlqctn"
     ALBUM_LISTEN_QUEUE = 55, "lbllstnq"
     ALBUM_TRACKS = 56, "lbmtrks"
+    TRACK_FAVORITE_ACTION = 57, "trkfvtct"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

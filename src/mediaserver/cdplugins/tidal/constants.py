@@ -20,8 +20,11 @@ tidal_plugin_release : str = "0.4.0-trunk"
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
 
-listening_queue_action_add : str = "add"
-listening_queue_action_del : str = "del"
+__add_action : str = "add"
+__del_action : str = "del"
+
+listening_queue_action_add : str = __add_action
+listening_queue_action_del : str = __del_action
 
 listening_queue_action_add_dict : dict[str, str] = {
     listening_queue_action_key: listening_queue_action_add,
@@ -30,6 +33,25 @@ listening_queue_action_add_dict : dict[str, str] = {
 listening_queue_action_del_dict : dict[str, str] = {
     listening_queue_action_key: listening_queue_action_del,
     listening_queue_button_title_key: "Remove from Listening Queue"}
+
+fav_action_key : str = "action"
+fav_button_title_key : str = "button_title"
+
+fav_action_add : str = __add_action
+fav_action_del : str = __del_action
+
+fav_action_add_dict : dict[str, str] = {
+    fav_action_key: fav_action_add,
+    fav_button_title_key: "Add to Favorites"}
+
+fav_action_del_dict : dict[str, str] = {
+    fav_action_key: fav_action_del,
+    fav_button_title_key: "Remove from Favorites"}
+
+fav_action_dict : dict[str, any] = {
+    fav_action_add : fav_action_add_dict,
+    fav_action_del : fav_action_del_dict
+}
 
 featured_type_name_playlist : str = "PLAYLIST"
 tile_image_expiration_time_sec : int = 86400

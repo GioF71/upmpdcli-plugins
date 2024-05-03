@@ -783,28 +783,30 @@ def album_has_been_played(album_id : str) -> bool:
     cursor = __connection.cursor()
     cursor.execute("SELECT album_id, COUNT(album_id) \
                 FROM played_track_v1 \
-                WHERE album_id = ? \
+                WHERE \
+                    album_id = ? AND \
+                    play_count > 0 \
                 GROUP BY album_id", t)
     rows = cursor.fetchall()
     cursor.close()
     return rows and len(rows) == 1 and int(rows[0][1]) > 0
 
 
-def delete_album_from_played_tracks(album_id : str):
+def remove_album_from_played_tracks(album_id : str):
     t = (album_id,)
     cursor = __connection.cursor()
     cursor.execute(
-        "DELETE FROM played_track_v1 WHERE album_id = ?",
+        "UPDATE played_track_v1 SET play_count = 0, last_played = NULL WHERE album_id = ?",
         t)
     cursor.close()
     __connection.commit()
 
 
-def delete_track_from_played_tracks(track_id : str):
+def remove_track_from_played_tracks(track_id : str):
     t = (track_id,)
     cursor = __connection.cursor()
     cursor.execute(
-        "DELETE FROM played_track_v1 WHERE track_id = ?",
+        "UPDATE played_track_v1 SET play_count = 0, last_played = NULL WHERE track_id = ?",
         t)
     cursor.close()
     __connection.commit()
