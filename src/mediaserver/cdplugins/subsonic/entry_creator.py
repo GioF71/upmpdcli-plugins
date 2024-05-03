@@ -530,6 +530,7 @@ def song_to_entry(
         upnp_util.set_bit_depth(song.getItem().getByName(__ITEM_KEY_BIT_DEPTH), entry)
     if song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE):
         upnp_util.set_sample_rate(song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE), entry)
+    if song.getBitRate(): upnp_util.set_bit_rate(song.getBitRate(), entry)
     return entry
 
 
