@@ -23,6 +23,7 @@ class TagType(Enum):
     FAVORITE_ARTISTS = 103, "fvrtsts", "My Artists",
     FAVORITE_ALBUMS = 104, "fvlbms", "My Albums",
     FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks",
+    LISTENING_QUEUE = 107, "lstnq", "Listening Queue",
     PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics"
 
     def __init__(self,
