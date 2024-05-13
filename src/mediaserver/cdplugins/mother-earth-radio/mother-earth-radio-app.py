@@ -61,10 +61,10 @@ def _init_mother_earth_radio():
     _g_init = True
     return True
 
-def build_intermediate_url(rp_id : int) -> str:
+def build_intermediate_url(mer_id : int) -> str:
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
-    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{str(rp_id)}"
-    msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
+    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{str(mer_id)}"
+    msgproc.log(f"intermediate_url for mer_id {mer_id} -> [{url}]")
     return url
 
 def build_streaming_url(station_id : str) -> str:
@@ -81,9 +81,9 @@ def build_streaming_url(station_id : str) -> str:
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    rp_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
-    url = build_streaming_url(rp_id) or ""
-    msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
+    mer_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
+    url = build_streaming_url(mer_id) or ""
+    msgproc.log(f"intermediate_url for mer_id {mer_id} -> [{url}]")
     return {'media_url' : url}
 
 def _returnentries(entries):
