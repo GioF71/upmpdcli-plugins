@@ -15,12 +15,24 @@
 
 class RadioStationEntry:
 
-    def __init__(self, id : int, codec : str, url : str, title : str, mimetype : str):
+    def __init__(
+            self,
+            id : int,
+            codec : str,
+            url : str,
+            title : str,
+            mimetype : str,
+            bit_depth : int,
+            sampling_rate : int,
+            channel_count : int):
         self._id : int = id
         self._title : str = title
         self._url : str = url
         self._codec : str = codec
         self._mimetype : str = mimetype
+        self._bit_depth : int = bit_depth
+        self._sampling_rate : int = sampling_rate
+        self._channel_count : int = channel_count
 
     @property
     def id(self) -> int:
@@ -41,3 +53,15 @@ class RadioStationEntry:
     @property
     def mimetype(self) -> str:
         return self._mimetype
+
+    @property
+    def bit_depth(self) -> int:
+        return self._bit_depth
+
+    @property
+    def sampling_rate(self) -> int:
+        return self._sampling_rate
+
+    @property
+    def channel_count(self) -> int:
+        return self._channel_count

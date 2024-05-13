@@ -15,4 +15,4 @@
 
 plugin_name : str = "mother-earth-radio"
 plugin_name_ext : str = "Mother Earth Radio"
-plugin_version : str = "0.0.3"
+plugin_version : str = "0.0.4"

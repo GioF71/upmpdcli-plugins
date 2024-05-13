@@ -107,6 +107,15 @@ def radio_entry_data_to_entry(objid, entry_id : str, radio_station_entry : Radio
     upnp_util.set_artist(radio_station_entry.title, entry)
     entry['upnp:album'] = radio_station_entry.codec
     entry['res:mime'] = radio_station_entry.mimetype
+    upnp_util.set_bit_depth(radio_station_entry.bit_depth, entry)
+    upnp_util.set_sample_rate(radio_station_entry.sampling_rate, entry)
+    upnp_util.set_channel_count(radio_station_entry.channel_count, entry)
+    upnp_util.set_bit_rate(
+        upnp_util.calc_bitrate(
+            radio_station_entry.channel_count,
+            radio_station_entry.bit_depth,
+            radio_station_entry.sampling_rate),
+        entry)
     return entry
 
 def radio_station_to_entry(objid, radio_station_entry : RadioStationEntry) -> dict:

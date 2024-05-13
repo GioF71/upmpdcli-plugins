@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ codec_mp3: str = "mp3"
 
 mimetype_flac: str = "audio/flac"
 mimetype_aac: str = "audio/aac"
-mimetype_mp3: str = "audio/mp3"
+mimetype_mp3: str = "audio/mpeg"
 
 title_mother_earth_radio : str = "Mother Earth Radio"
 title_mother_earth_klassik : str = "Mother Earth Klassik"
@@ -30,10 +30,24 @@ title_mother_earth_jazz : str = "Mother Earth Jazz"
 
 radio_station_list: list[RadioStationEntry] = list()
 
-def __add(codec: str, url: str, title: str, mimetype: str):
+def __add(
+        codec: str,
+        url: str,
+        title: str,
+        mimetype: str,
+        bit_depth : int,
+        sampling_rate : int,
+        channel_count : int = 2):
     id: int = len(radio_station_list) + 1
     e: RadioStationEntry = RadioStationEntry(
-        id=id, url=url, codec=codec, title=title, mimetype=mimetype
+        id=id,
+        url=url,
+        codec=codec,
+        title=title,
+        mimetype=mimetype,
+        bit_depth=bit_depth,
+        sampling_rate=sampling_rate,
+        channel_count=channel_count
     )
     radio_station_list.append(e)
 
@@ -43,70 +57,94 @@ __add(
     title=title_mother_earth_radio,
     codec=codec_flac,
     mimetype=mimetype_flac,
+    bit_depth=24,
+    sampling_rate=192000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth/motherearth.aac",
     title=title_mother_earth_radio,
     codec=codec_aac,
     mimetype=mimetype_aac,
+    bit_depth=24,
+    sampling_rate=96000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth/motherearth.mp3",
     title=title_mother_earth_radio,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
+    bit_depth=16,
+    sampling_rate=44100,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik",
     title=title_mother_earth_klassik,
     codec=codec_flac,
     mimetype=mimetype_flac,
+    bit_depth=24,
+    sampling_rate=192000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik.aac",
     title=title_mother_earth_klassik,
     codec=codec_aac,
     mimetype=mimetype_aac,
+    bit_depth=24,
+    sampling_rate=96000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_klassik/motherearth.klassik.mp3",
     title=title_mother_earth_klassik,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
+    bit_depth=16,
+    sampling_rate=44100,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental",
     title=title_mother_earth_instrumental,
     codec=codec_flac,
     mimetype=mimetype_flac,
+    bit_depth=24,
+    sampling_rate=192000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental.aac",
     title=title_mother_earth_instrumental,
     codec=codec_aac,
     mimetype=mimetype_aac,
+    bit_depth=24,
+    sampling_rate=96000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_instrumental/motherearth.instrumental.mp3",
     title=title_mother_earth_instrumental,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
+    bit_depth=16,
+    sampling_rate=44100,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz",
     title=title_mother_earth_jazz,
     codec=codec_flac,
     mimetype=mimetype_flac,
+    bit_depth=24,
+    sampling_rate=192000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz.mp4",
     title=title_mother_earth_jazz,
     codec=codec_aac,
     mimetype=mimetype_aac,
+    bit_depth=24,
+    sampling_rate=96000,
 )
 __add(
     url="https://motherearth.streamserver24.com/listen/motherearth_jazz/motherearth.jazz.mp3",
     title=title_mother_earth_jazz,
     codec=codec_mp3,
     mimetype=mimetype_mp3,
+    bit_depth=16,
+    sampling_rate=44100,
 )
