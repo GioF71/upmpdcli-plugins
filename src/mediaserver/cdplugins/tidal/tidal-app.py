@@ -868,6 +868,7 @@ def get_category_image_url(
                 f"cached [{'yes' if category_image_url else 'no'}]")
     if not category_image_url:
         # load category image
+        image_url : str = None
         if isinstance(category, TidalFeaturedItems):
             featured : TidalFeaturedItems = category
             first_featured = featured.items[0] if featured.items and len(featured.items) > 0 else None
@@ -897,7 +898,6 @@ def get_category_image_url(
             msgproc.log(f"get_category_image_url starting load process for "
                         f"category [{category.title}] type of first_item "
                         f"[{first_item_type.__name__ if first_item_type else None}]")
-            image_url : str = None
             if first_item:
                 if isinstance(first_item, TidalTrack):
                     # msgproc.log(f"  processing as Track ...")
