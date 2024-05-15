@@ -180,14 +180,14 @@ def browse(a):
     objid = a['objid']
     bflg = a['flag'] if 'flag' in a else 'children'
     
-    if re.match('0\$qobuz\$', objid) is None:
+    if re.match(r'0\$qobuz\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
     maybelogin()
 
     xbmcplugin.objid = objid
     idpath = objid.replace(qobidprefix, '', 1)
     if bflg == 'meta':
-        m = re.match('.*\$(.+)$', idpath)
+        m = re.match(r'.*\$(.+)$', idpath)
         if m:
             trackid = m.group(1)
             track = session.get_track(trackid)
@@ -382,7 +382,7 @@ def search(a):
     value = a['value']
     objkind = a['objkind'] if 'objkind' in a and a['objkind'] else None
     
-    if re.match('0\$qobuz\$', objid) is None:
+    if re.match(r'0\$qobuz\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
     xbmcplugin.objid = objid
     maybelogin()

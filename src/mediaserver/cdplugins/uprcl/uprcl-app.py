@@ -148,7 +148,7 @@ def browse(a):
 def search(a):
     msgproc.log("search: [%s]" % a)
     objid = a['objid']
-    if re.match('0\$uprcl\$', objid) is None:
+    if re.match(r'0\$uprcl\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
 
     upnps = a['origsearch']

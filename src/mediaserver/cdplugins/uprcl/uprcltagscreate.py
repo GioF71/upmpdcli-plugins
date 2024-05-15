@@ -266,9 +266,9 @@ def _tracknofordoc(doc):
 
 # Detect '[disc N]' or '(disc N)' or ' disc N' at the end of an album title
 # Groups         1   2       3                 4                      5
-_albtitdnumre = "(.*)(\[disc ([0-9]+)\]|\(disc ([0-9]+)\)|[ ]+disc[ ]+([0-9]+))[ ]*$"
+_albtitdnumre = r"(.*)(\[disc ([0-9]+)\]|\(disc ([0-9]+)\)|[ ]+disc[ ]+([0-9]+))[ ]*$"
 _albtitdnumexp = re.compile(_albtitdnumre, flags=re.IGNORECASE)
-_folderdnumre = "(cd|disc)[ ]*([0-9]+)(.*)"
+_folderdnumre = r"(cd|disc)[ ]*([0-9]+)(.*)"
 _folderdnumexp = re.compile(_folderdnumre, flags=re.IGNORECASE)
 
 # Create album record for track if needed (not already there).

@@ -36,7 +36,7 @@ plugin = Plugin('')
 import session
 
 _rootid = '0$hra$'
-_rootidre = '0\$hra\$'
+_rootidre = r'0\$hra\$'
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -102,7 +102,7 @@ def browse(a):
     xbmcplugin.objid = objid
     idpath = objid.replace(_rootid, '', 1)
     if bflg == 'meta':
-        m = re.match('.*\$(.+)$', idpath)
+        m = re.match(r'.*\$(.+)$', idpath)
         if m:
             trackid = m.group(1)
             track = sess.get_track(trackid)

@@ -199,7 +199,7 @@ def _upnpsearchtorecoll(s):
     uplog(f"_upnpsearchtorecoll:in: <{s}>")
 
     # Simplify: turn all whitespace sequences into single spaces
-    s = re.sub('[\t\n\r\f ]+', ' ', s)
+    s = re.sub(r'[\t\n\r\f ]+', ' ', s)
 
     out = []
     field = ""

@@ -493,7 +493,7 @@ def browse(a):
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
-    if re.match('0\$bbc\$', objid) is None:
+    if re.match(r'0\$bbc\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
     maybeinit()
 

@@ -93,10 +93,10 @@ def trackid_from_urlpath(pathprefix, a):
     path = a['path']
 
     # pathprefix + 'track/version/1/trackId/trackid
-    exp = posixpath.join(pathprefix, '''track/version/1/trackId/(.+)$''')
+    exp = posixpath.join(pathprefix, r'track/version/1/trackId/(.+)$')
     m = re.match(exp, path)
     if m is None:
-        exp_old = posixpath.join(pathprefix, '''track\?version=1&trackId=(.+)$''')        
+        exp_old = posixpath.join(pathprefix, r'track\?version=1&trackId=(.+)$')
         m = re.match(exp_old, path)
     if m is None:
         raise Exception(f"trackuri: path [{path}] does not match [{exp}]")

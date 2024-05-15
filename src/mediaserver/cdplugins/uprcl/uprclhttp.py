@@ -27,7 +27,7 @@ import uprclinit
 
 # DNS rebinding mitigation. We check that the HOST header is either the configured host:port (with a
 # possible domain-based host) or a numeric address.
-_hostre = re.compile('''[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+''')
+_hostre = re.compile(r'[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+')
 def _checkhost():
     httphp = uprclinit.getHttphp()
     if 'host' in bottle.request.headers:

@@ -529,7 +529,7 @@ def embedded_open(path):
 
 
 class M3u(object):
-    urlRE = re.compile(b'''[a-zA-Z]+://''')
+    urlRE = re.compile(rb"[a-zA-Z]+://")
 
     def __init__(self, fn):
         data = open(fn, 'rb').read() 
