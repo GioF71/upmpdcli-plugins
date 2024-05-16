@@ -47,6 +47,11 @@ prepend_number_in_album_list : bool = get_plugin_option_value("prependnumberinal
 __transcode_codec : str = get_plugin_option_value("transcodecodec", "")
 __transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
 
+dump_streaming_properties : bool = (
+    get_plugin_option_value(
+        "dumpstreamingproperties",
+        constants.default_dump_streaming_properties) == 1)
+
 # supported unless initializer understands it is not
 # begin
 album_list_by_highest_supported : bool = True

@@ -152,16 +152,6 @@ def build_streaming_url(track_id : str) -> str:
     return streaming_url
 
 
-mime_type_by_suffix : dict[str, str] = {
-    'flac': 'audio/flac',
-    'opus': 'audio/opus',
-    'mp3': 'audio/mp3',
-    'm4a': 'audio/aac',
-    'aac': 'audio/aac',
-    'oga': 'audio/ogg',
-    'ogg': 'audio/ogg'}
-
-
 @dispatcher.record('trackuri')
 def trackuri(a):
     msgproc.log(f"trackuri --- {a} ---")
@@ -173,6 +163,7 @@ def trackuri(a):
     res : Response[Song] = connector_provider.get().getSong(song_id = track_id)
     song : Song = res.getObj() if res else None
     if not song: return {'media_url' : ""}
+    song_suffix : str = song.getSuffix()
     # scrobble if allowed
     scrobble_msg : str = "no"
     if config.server_side_scrobbling:
@@ -190,19 +181,10 @@ def trackuri(a):
         song = song,
         format = config.get_transcode_codec(),
         max_bitrate = config.get_transcode_max_bitrate())
-    mime_type : str = (mime_type_by_suffix[config.get_transcode_codec()]
-                       if config.get_transcode_codec() else song.getContentType())
-    suffix : str = config.get_transcode_codec() if config.get_transcode_codec() else song.getSuffix()
-    if not mime_type:
-        # guess from url
-        guess_mimetype_tuple = mimetypes.guess_type(url = media_url)
-        mime_type = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
-        # msgproc.log(f"trackuri mimetype guess successful [{'yes' if mime_type else 'no'}]: [{mime_type}]")
-        if (not mime_type) and suffix:
-            mime_type = mime_type_by_suffix[suffix] if suffix in mime_type_by_suffix else None
-        elif (not mime_type):
-            # nothing to do...
-            pass
+    # media_url is now set, we can now start collecting information
+    # just to show metadata from the subsonic server
+    mime_type : str = song.getContentType()
+    suffix : str = config.get_transcode_codec() if config.get_transcode_codec() else song_suffix
     kbs : str = (str(config.get_transcode_max_bitrate())
         if config.get_transcode_max_bitrate()
         else (str(song.getBitRate())
@@ -213,6 +195,8 @@ def trackuri(a):
                 f"mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] "
                 f"duration [{duration}] scrobble [{scrobble_msg}]")
     result : dict[str, str] = dict()
+    # only media_url is necessary
+    # anything else would be ignored
     result["media_url"] = media_url
     return result
 
@@ -247,6 +231,7 @@ def _station_to_entry(
 
 
 def _song_data_to_entry(objid, entry_id : str, song : Song) -> dict:
+    msgproc.log("entering _song_data_to_entry ...")
     entry : dict = {}
     entry['id'] = entry_id
     entry['pid'] = song.getId()
@@ -329,12 +314,17 @@ def _load_albums_by_type(
         tagType.getQueryType(),
         size = size,
         offset = str(offset))
+    msgproc.log(f"Requested [{size}] albums from offset [{offset}], got [{len(albumList)}]")
     current_album : Album
     tag_cached : bool = False
     counter : int = offset
     # msgproc.log(f"_load_albums_by_type for {tagType.getQueryType()} "
     #             f"at {offset} -> {size} loaded [{len(albumList) if albumList else 0}]")
+    iteration : int = 0
     for current_album in albumList:
+        iteration += 1
+        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] album_id "
+        #             f"[{current_album.getId()}] [{current_album.getTitle()}] ...")
         counter += 1
         # msgproc.log(f"_load_albums_by_type processing album_id {current_album.getId()}")
         if config.prepend_number_in_album_list:
@@ -342,7 +332,9 @@ def _load_albums_by_type(
                 options = options,
                 option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value = counter)
+        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] onAlbum started ...")
         cache_manager_provider.get().on_album(current_album)
+        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] onAlbum finished ...")
         if tagType and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(
                 ElementType.TAG,

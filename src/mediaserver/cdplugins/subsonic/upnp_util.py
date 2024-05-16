@@ -64,6 +64,10 @@ def set_bit_depth(bit_depth: int, target: dict):
     target['res:bitsPerSample'] = str(bit_depth)
 
 
+def set_channel_count(channel_count: int, target: dict):
+    target['res:channels'] = str(channel_count)
+
+
 def set_sample_rate(sample_rate: int, target: dict):
     target['res:samplefreq'] = str(sample_rate)
 

@@ -67,15 +67,26 @@ __DICT_KEY_BITRATE : str = "BITRATE"
 
 __ITEM_KEY_BIT_DEPTH : str = "bitDepth"
 __ITEM_KEY_SAMPLING_RATE : str = "samplingRate"
+__ITEM_KEY_CHANNEL_COUNT : str = "channelCount"
 
 
 __readable_sr : dict[int, str] = {
-    44100: "44",
-    48000: "48",
-    88200: "88",
-    96000: "96",
-    176400: "176",
-    192000: "192"
+    44100: "44k",
+    48000: "48k",
+    88200: "88k",
+    96000: "96k",
+    176400: "176k",
+    192000: "192k",
+    352800: "352k",
+    384000: "384k",
+    705600: "705k",
+    768000: "768k",
+    1411200: "1411k",
+    1536000: "1536k",
+    2822400: "2.8M",
+    5644800: "5.6M",
+    11289600: "11.2M",
+    22579200: "22.4M"
 }
 
 additional_lossy_prefix_set : set[str] = {}
@@ -230,15 +241,37 @@ def __get_unique_suffix(prop_dict : dict[str, list[int]]) -> str:
     return None
 
 
-def get_album_badge(album : Album) -> str:
-    res : Response[Album] = connector_provider.get().getAlbum(albumId = album.getId())
-    reloaded : Album = res.getObj() if res and res.isOk() else None
-    return get_track_list_badge(
-        track_list = reloaded.getSongs(),
-        list_identifier = album.getId())
+def get_album_badge(album : Album, force_load : bool = False) -> str:
+    if force_load:
+        res : Response[Album] = connector_provider.get().getAlbum(albumId = album.getId())
+        reloaded : Album = res.getObj() if res and res.isOk() else None
+        return get_track_list_badge(
+            track_list = reloaded.getSongs(),
+            list_identifier = album.getId())
+    else:
+        cached : str = cache_manager_provider.get().get_cached_element(
+            element_type=ElementType.ALBUM_BADGE,
+            key=album.getId())
+        return cached
+
+
+def __store_album_badge(badge : str, album_id : str) -> str:
+    if album_id:
+        cache_manager_provider.get().cache_element_value(
+            element_type=ElementType.ALBUM_BADGE,
+            key=album_id,
+            value=badge)
+    return badge
 
 
 def get_track_list_badge(track_list : list[Song], list_identifier : str = None) -> str:
+    badge : str = __get_track_list_badge(track_list, list_identifier)
+    if badge and list_identifier:
+        __store_album_badge(badge, list_identifier)
+    return badge
+
+
+def __get_track_list_badge(track_list : list[Song], list_identifier : str = None) -> str:
     prop_dict: dict[str, list[int]] = __get_track_list_streaming_properties(track_list)
     track_info_list : list[TrackInfo] = __get_track_info_list(track_list)
     if not track_info_list or len(track_info_list) == 0:
@@ -301,14 +334,22 @@ def get_track_list_badge(track_list : list[Song], list_identifier : str = None) 
                 display_codec = f"{display_codec}@{unique_bitrate}"
             return f"{display_codec}/{sr}"
         if unique_suffix and unique_suffix in config.whitelist_codecs:
-            # we mention the suffix
-            return f"{best_bit_depth}/{sr}"
+            if best_bit_depth == 1:
+                return f"DSD {sr}"
+            else:
+                return f"{best_bit_depth}/{sr}"
         elif unique_suffix:
             # mention suffix
-            return f"{unique_suffix}@{best_bit_depth}/{sr}"
+            if best_bit_depth == 1:
+                return f"{unique_suffix}@DSD/{sr}"
+            else:
+                return f"{unique_suffix}@{best_bit_depth}/{sr}"
         else:
             # use ~ as we don't have an unique suffix
-            return f"~{best_bit_depth}/{sr}"
+            if best_bit_depth == 1:
+                return f"~DSD {sr}"
+            else:
+                return f"~{best_bit_depth}/{sr}"
     return "LOSSY"
 
 
@@ -351,7 +392,7 @@ def album_to_navigable_entry(
         id = identifier_util.create_id_from_identifier(identifier))
     if has_year(album):
         title = f"{title} [{get_album_year_str(album)}]"
-    album_badge : str = get_album_badge(album)
+    album_badge : str = get_album_badge(album=album, force_load=False)
     # msgproc.log(f"album_to_navigable_entry album [{album.getId()}] -> badge [{album_badge}]")
     if album_badge:
         title = f"{title} [{album_badge}]"
@@ -525,11 +566,28 @@ def song_to_entry(
         albumArtURI = connector_provider.get().buildCoverArtUrl(song.getId())
     upnp_util.set_album_art_from_uri(albumArtURI, entry)
     entry['duration'] = str(song.getDuration())
-    # bit depth and sample rate
-    if song.getItem().getByName(__ITEM_KEY_BIT_DEPTH):
-        upnp_util.set_bit_depth(song.getItem().getByName(__ITEM_KEY_BIT_DEPTH), entry)
-    if song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE):
-        upnp_util.set_sample_rate(song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE), entry)
+    # channel count, bit depth, sample rate and bit rate
+    cc : int = 2
+    bd : int = 0
+    sr : int = 0
+    br : int = 0
+    if song.getItem().hasName(__ITEM_KEY_CHANNEL_COUNT):
+        cc = song.getItem().getByName(__ITEM_KEY_CHANNEL_COUNT)
+        upnp_util.set_channel_count(cc, entry)
+    if song.getItem().hasName(__ITEM_KEY_BIT_DEPTH):
+        bd = song.getItem().getByName(__ITEM_KEY_BIT_DEPTH)
+        upnp_util.set_bit_depth(bd, entry)
+    if song.getItem().hasName(__ITEM_KEY_SAMPLING_RATE):
+        sr = song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE)
+        upnp_util.set_sample_rate(sr, entry)
+    br = song.getBitRate()
+    if br: upnp_util.set_bit_rate(br, entry)
+    if config.dump_streaming_properties:
+        msgproc.log(f"Song [{song.getId()}] -> bitDepth [{bd}] "
+                    f"samplingRate [{sr}] bitRate [{br}] "
+                    f"channelCount [{cc}] "
+                    f"mimetype [{song.getContentType()}] "
+                    f"duration [{song.getDuration()}]")
     return entry
 
 
@@ -563,7 +621,7 @@ def album_to_entry(
     if prepend_number: title = f"[{prepend_number:02}] {title}"
     if config.append_year_to_album == 1 and has_year(album):
         title = "{} [{}]".format(title, get_album_year_str(album))
-    album_badge : str = get_album_badge(album)
+    album_badge : str = get_album_badge(album=album, force_load=True)
     if config.append_codecs_to_album == 1:
         song_list : list[Song] = album.getSongs()
         # load album

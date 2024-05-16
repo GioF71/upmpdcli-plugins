@@ -41,8 +41,12 @@ class ElementType(Enum):
     GENRE_ARTIST_ALBUMS = 22, "gnr_rtst_lbms"
     # artist which appear as artistId for albums
     ALBUM_ARTIST = 23, "lbmrtst"
-    ALBUM_FOCUS = 24, "lbmfcs",
+    ALBUM_FOCUS = 24, "lbmfcs"
     ARTIST_FOCUS = 25, "rstsfcs"
+    # ALBUM_BADGE should not be here, but it must in order to be
+    # used in caching. This aspect should be reviewed
+    # it should not be needed that the cache type must be in this enum
+    ALBUM_BADGE = 26, "lbmbdg"
 
     def __init__(self,
             num : int,
