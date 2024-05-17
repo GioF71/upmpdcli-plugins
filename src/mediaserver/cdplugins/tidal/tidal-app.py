@@ -916,6 +916,10 @@ def get_category_image_url(
                     # msgproc.log(f"  processing as Album ...")
                     album : TidalAlbum = first_item
                     image_url = tidal_util.get_image_url(album) if album else None
+                elif isinstance(first_item, TidalArtist):
+                    # msgproc.log(f"  processing as Artist ...")
+                    artist : TidalAlbum = first_item
+                    image_url = tidal_util.get_image_url(artist) if artist else None
                 elif isinstance(first_item, TidalPageLink):
                     # msgproc.log(f"  processing as <PageLink> ...")
                     page_link : TidalPageLink = first_item
@@ -3951,6 +3955,9 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 options : dict[str, any] = dict()
                 entries.append(album_to_album_container(objid, album = album))
+            elif isinstance(item, TidalArtist):
+                # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
+                entries.append(artist_to_entry(objid, artist = item))
             else:
                 msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] "
                             f"[{item_name}] was not handled!")
