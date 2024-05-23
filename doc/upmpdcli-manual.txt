@@ -946,13 +946,22 @@ Just visit the link, authenticate and authorize. The plugin will save a json fil
 credentials.json in the plugin cache folder.
 If you need to re-authenticate, just delete the credentials.json file in the plugin cache folder.
 
+If you want, you can use the `-f` argument and specify the target file. You can use this
+feature and have your credentials file written directly by the get_credentials.py program.
+Example:
+
+....
+sudo python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
+  -f /var/cache/upmpdcli/tidal/credentials.json
+....
+
 PKCE Mode:
 
 Things are a bit more complicated for PKCE mode. In order to obtain the credentials,
-you need to launch the python script:
+you need to launch the python script using the `-t` argument set to `pkce`:
 
 ....
-python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials_pkce.py
+python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py -t pkce
 ....
 
 Open the link, authenticate and authorize.
@@ -963,6 +972,17 @@ You will be presented with the contents of the file that you will have to save a
 pkce-credentials.json in the tidal plugin cache folder. 
 The script will also present, as an alternative, the corresponding set of variable to set
 in the upmpdcli.conf, but I recommend the approach described in the previous paragraph.
+
+If you want, you can also use the `-f` argument and specify the target file. You can use this
+feature and have your credentials file written directly by the get_credentials.py program.
+Example:
+
+....
+sudo python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
+  -t pkce \
+  -f /var/cache/upmpdcli/tidal/pkce-credentials.json
+....
+
 
 Also, the PKCE mode requires the `webserverdocumentroot` to be enabled in upmpdcli.conf.
 Set it to a value like `/var/cache/upmpdcli/public`.

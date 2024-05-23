@@ -38,7 +38,25 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 __table_name_played_track_v1 : str = "played_track_v1"
+
 __table_name_listen_album_queue_v1 : str = "listen_album_queue_v1"
+__table_name_listen_artist_queue_v1 : str = "listen_artist_queue_v1"
+__table_name_listen_track_queue_v1 : str = "listen_track_queue_v1"
+
+__table_name_album_metadata_cache_v1 : str = "album_metadata_cache_v1"
+
+__field_name_album_id : str = "album_id"
+__field_name_artist_id : str = "artist_id"
+__field_name_artist_name : str = "artist_name"
+__field_name_explicit : str = "explicit"
+__field_name_release_date : str = "release_date"
+__field_name_available_release_date : str = "available_release_date"
+__field_name_image_url : str = "image_url"
+__field_name_audio_modes : str = "audio_modes"
+__field_name_audio_quality : str = "audio_quality"
+__field_name_media_metadata_tags : str = "media_metadata_tags"
+__field_name_track_id : str = "track_id"
+__field_name_name : str = "name"
 
 __field_name_created_timestamp : str = "created_timestamp"
 
@@ -60,6 +78,24 @@ __most_played_albums_query : str = """
     ORDER BY
         album_played_counter DESC, last_played DESC
     """
+
+
+class AlbumMetadata:
+
+    album_id: str = None
+    album_name: str = None
+    artist_id: str = None
+    artist_name: str = None
+    explicit: int = None
+    release_date: datetime = None
+    available_release_date: datetime = None
+    image_url: str = None
+    # comma separated values
+    audio_modes: str = None
+    audio_quality: str = None
+    # comma separated values
+    media_metadata_tags: str = None
+    created_timestamp : datetime = None
 
 
 class PlayedTracksSorting(Enum):
@@ -375,10 +411,10 @@ def migration_5():
 
 
 def migration_template(new_version : str, migration_function : Callable):
-    msgproc.log("Creating db version {new_version} ...")
+    msgproc.log(f"Creating db version {new_version} ...")
     migration_function()
     __store_db_version(new_version)
-    msgproc.log("Updated db to version {new_version}.")
+    msgproc.log(f"Updated db to version {new_version}.")
 
 
 def do_migration_6():
@@ -438,12 +474,50 @@ def do_migration_11():
     __alter_table_with_column(table_name, "sample_rate", "INTEGER")
 
 
-def do_migration_12():
-    table_name : str = __table_name_listen_album_queue_v1
+def __do_migration_listen_queue(table_name : str, field_name : str):
     # Creating table
     create_table : str = f"""
         CREATE TABLE IF NOT EXISTS {table_name}(
-        album_id VARCHAR(255) PRIMARY KEY,
+        {field_name} VARCHAR(255) PRIMARY KEY,
+        {__field_name_created_timestamp} TIMESTAMP)
+    """
+    cursor_obj = __connection.cursor()
+    cursor_obj.execute(create_table)
+    cursor_obj.close()
+
+
+def do_migration_12():
+    __do_migration_listen_queue(
+        table_name=__table_name_listen_album_queue_v1,
+        field_name=__field_name_album_id)
+
+
+def do_migration_13():
+    __do_migration_listen_queue(
+        table_name=__table_name_listen_artist_queue_v1,
+        field_name=__field_name_artist_id)
+
+
+def do_migration_14():
+    __do_migration_listen_queue(
+        table_name=__table_name_listen_track_queue_v1,
+        field_name=__field_name_track_id)
+
+
+def do_migration_15():
+    create_table : str = f"""
+        CREATE TABLE IF NOT EXISTS {__table_name_album_metadata_cache_v1}(
+        {__field_name_album_id} VARCHAR(255) PRIMARY KEY,
+        {__field_name_name} VARCHAR(255),
+        {__field_name_artist_id} VARCHAR(255),
+        {__field_name_artist_name} VARCHAR(255),
+        {__field_name_explicit} INTEGER,
+        {__field_name_release_date} TIMESTAMP,
+        {__field_name_available_release_date} TIMESTAMP,
+        {__field_name_image_url} VARCHAR(255),
+        {__field_name_audio_modes} VARCHAR(255),
+        {__field_name_audio_quality} VARCHAR(255),
+        {__field_name_media_metadata_tags} VARCHAR(255),
         {__field_name_created_timestamp} TIMESTAMP)
     """
     cursor_obj = __connection.cursor()
@@ -459,13 +533,25 @@ def migration_12():
     migration_template("13", do_migration_12)
 
 
+def migration_13():
+    migration_template("14", do_migration_13)
+
+
+def migration_14():
+    migration_template("15", do_migration_14)
+
+
+def migration_15():
+    migration_template("16", do_migration_15)
+
+
 def insert_playback(
         played_track_request : PlayedTrackRequest,
         last_played : datetime.datetime):
     play_count : int = 1 if last_played else 0
-    msgproc.log(f"insert_playback [{played_track_request.track_id}] "
-                f"with play_count [{play_count}] "
-                f"last_played [{'NOT NULL' if last_played else 'NULL'}]")
+    # msgproc.log(f"insert_playback [{played_track_request.track_id}] "
+    #             f"with play_count [{play_count}] "
+    #             f"last_played [{'NOT NULL' if last_played else 'NULL'}]")
     t = (
         played_track_request.track_id,
         played_track_request.album_id,
@@ -853,28 +939,54 @@ def track_playback(played_track_request : PlayedTrackRequest):
     msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
 
 
-def is_in_album_listen_queue(album_id : str) -> bool:
-    t = (album_id, )
+def __is_in_listen_queue(
+        obj_id : str,
+        key_field_name : str,
+        table_name : str) -> bool:
+    t = (obj_id, )
     cursor = __connection.cursor()
     cursor.execute(
-        f"SELECT album_id \
-          FROM {__table_name_listen_album_queue_v1} \
-          WHERE album_id = ?",
+        f"SELECT {key_field_name} \
+          FROM {table_name} \
+          WHERE {key_field_name} = ?",
         t)
     rows = cursor.fetchall()
     cursor.close()
     if not rows: return False
     if len(rows) > 1:
-        raise Exception(f"Multiple {__table_name_listen_album_queue_v1} records for album_id [{album_id}]")
+        raise Exception(f"Multiple {table_name} records for id [{obj_id}]")
     # only one record, yes, it's in listen queue
     return True
 
 
-def get_album_listen_queue() -> list[str]:
+def is_in_track_listen_queue(track_id : str) -> bool:
+    return __is_in_listen_queue(
+        obj_id=track_id,
+        key_field_name=__field_name_track_id,
+        table_name=__table_name_listen_track_queue_v1)
+
+
+def is_in_album_listen_queue(album_id : str) -> bool:
+    return __is_in_listen_queue(
+        obj_id=album_id,
+        key_field_name=__field_name_album_id,
+        table_name=__table_name_listen_album_queue_v1)
+
+
+def is_in_artist_listen_queue(artist_id : str) -> bool:
+    return __is_in_listen_queue(
+        obj_id=artist_id,
+        key_field_name=__field_name_artist_id,
+        table_name=__table_name_listen_artist_queue_v1)
+
+
+def __get_listen_queue(
+        table_name : str,
+        key_field_name : str) -> list[str]:
     cursor = __connection.cursor()
     cursor.execute(
-        f"SELECT album_id \
-          FROM {__table_name_listen_album_queue_v1} \
+        f"SELECT {key_field_name} \
+          FROM {table_name} \
           ORDER BY {__field_name_created_timestamp}")
     rows = cursor.fetchall()
     cursor.close()
@@ -885,14 +997,38 @@ def get_album_listen_queue() -> list[str]:
     return result
 
 
-def add_to_album_listen_queue(album_id : str) -> bool:
-    if not is_in_album_listen_queue(album_id):
+def get_album_listen_queue() -> list[str]:
+    return __get_listen_queue(
+        table_name=__table_name_listen_album_queue_v1,
+        key_field_name=__field_name_album_id)
+
+
+def get_artist_listen_queue() -> list[str]:
+    return __get_listen_queue(
+        table_name=__table_name_listen_artist_queue_v1,
+        key_field_name=__field_name_artist_id)
+
+
+def get_track_listen_queue() -> list[str]:
+    return __get_listen_queue(
+        table_name=__table_name_listen_track_queue_v1,
+        key_field_name=__field_name_track_id)
+
+
+def __add_to_listen_queue(
+        obj_id : str,
+        table_name : str,
+        key_field_name : str) -> bool:
+    if not __is_in_listen_queue(
+            obj_id=obj_id,
+            key_field_name=key_field_name,
+            table_name=table_name):
         now : datetime.datetime = datetime.datetime.now()
-        t = (album_id, now)
+        t = (obj_id, now)
         cursor = __connection.cursor()
         cursor.execute(
-            f"""INSERT INTO {__table_name_listen_album_queue_v1}(
-                album_id,
+            f"""INSERT INTO {table_name}(
+                {key_field_name},
                 {__field_name_created_timestamp})
                 VALUES(?, ?)""",
             t)
@@ -900,24 +1036,177 @@ def add_to_album_listen_queue(album_id : str) -> bool:
         __connection.commit()
         return True
     # already there
-    msgproc.log(f"Album [{album_id}] is already in {__table_name_listen_album_queue_v1}")
+    msgproc.log(f"Object [{obj_id}] is already in {table_name}")
     return False
 
 
-def remove_from_album_listen_queue(album_id : str) -> bool:
-    if is_in_album_listen_queue(album_id):
-        t = (album_id, )
+def add_to_album_listen_queue(album_id : str) -> bool:
+    return __add_to_listen_queue(
+        obj_id=album_id,
+        table_name=__table_name_listen_album_queue_v1,
+        key_field_name=__field_name_album_id)
+
+
+def add_to_artist_listen_queue(artist_id : str) -> bool:
+    return __add_to_listen_queue(
+        obj_id=artist_id,
+        table_name=__table_name_listen_artist_queue_v1,
+        key_field_name=__field_name_artist_id)
+
+
+def add_to_track_listen_queue(track_id : str) -> bool:
+    return __add_to_listen_queue(
+        obj_id=track_id,
+        table_name=__table_name_listen_track_queue_v1,
+        key_field_name=__field_name_track_id)
+
+
+def __remove_from_listen_queue(
+        obj_id : str,
+        table_name : str,
+        key_field_name : str) -> bool:
+    if __is_in_listen_queue(
+            obj_id=obj_id,
+            table_name=table_name,
+            key_field_name=key_field_name):
+        t = (obj_id, )
         cursor = __connection.cursor()
         cursor.execute(
-            f"""DELETE FROM {__table_name_listen_album_queue_v1}
-                WHERE album_id = ?""",
+            f"""DELETE FROM {table_name}
+                WHERE {key_field_name} = ?""",
             t)
         cursor.close()
         __connection.commit()
         return True
     # not there!
-    msgproc.log(f"Album [{album_id}] is not in {__table_name_listen_album_queue_v1}")
+    msgproc.log(f"Object [{obj_id}] is not in {table_name}")
     return False
+
+
+def remove_from_album_listen_queue(album_id : str) -> bool:
+    return __remove_from_listen_queue(
+        obj_id=album_id,
+        table_name=__table_name_listen_album_queue_v1,
+        key_field_name=__field_name_album_id)
+
+
+def remove_from_artist_listen_queue(artist_id : str) -> bool:
+    return __remove_from_listen_queue(
+        obj_id=artist_id,
+        table_name=__table_name_listen_artist_queue_v1,
+        key_field_name=__field_name_artist_id)
+
+
+def remove_from_track_listen_queue(track_id : str) -> bool:
+    return __remove_from_listen_queue(
+        obj_id=track_id,
+        table_name=__table_name_listen_track_queue_v1,
+        key_field_name=__field_name_track_id)
+
+
+def get_album_metadata(album_id : str) -> AlbumMetadata:
+    t = (album_id, )
+    cursor = __connection.cursor()
+    cursor.execute(f"""
+            SELECT
+                {__field_name_album_id},
+                {__field_name_name},
+                {__field_name_artist_id},
+                {__field_name_artist_name},
+                {__field_name_explicit},
+                {__field_name_release_date},
+                {__field_name_available_release_date},
+                {__field_name_image_url},
+                {__field_name_audio_modes},
+                {__field_name_audio_quality},
+                {__field_name_media_metadata_tags},
+                {__field_name_created_timestamp}
+            FROM
+                {__table_name_album_metadata_cache_v1}
+            WHERE {__field_name_album_id} = ?""",
+        t)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows: return None
+    if len(rows) > 1:
+        raise Exception(f"Multiple {__table_name_album_metadata_cache_v1} records for [{album_id}]")
+    row = rows[0]
+    result : AlbumMetadata = AlbumMetadata()
+    result.album_id = row[0]
+    result.album_name = row[1]
+    result.artist_id = row[2]
+    result.artist_name = row[3]
+    result.explicit = row[4]
+    result.release_date = row[5]
+    result.available_release_date = row[6]
+    result.image_url = row[7]
+    result.audio_modes = row[8]
+    result.audio_quality = row[9]
+    result.media_metadata_tags = row[10]
+    result.created_timestamp = row[11]
+    return result
+
+
+def __insert_album_metadata(album : AlbumMetadata, commit : bool = False):
+    t = (
+        album.album_id,
+        album.album_name,
+        album.artist_id,
+        album.artist_name,
+        album.explicit,
+        album.release_date,
+        album.available_release_date,
+        album.image_url,
+        album.audio_modes,
+        album.audio_quality,
+        album.media_metadata_tags,
+        album.created_timestamp)
+    cursor = __connection.cursor()
+    cursor.execute(f"""
+            INSERT INTO {__table_name_album_metadata_cache_v1}(
+                {__field_name_album_id},
+                {__field_name_name},
+                {__field_name_artist_id},
+                {__field_name_artist_name},
+                {__field_name_explicit},
+                {__field_name_release_date},
+                {__field_name_available_release_date},
+                {__field_name_image_url},
+                {__field_name_audio_modes},
+                {__field_name_audio_quality},
+                {__field_name_media_metadata_tags},
+                {__field_name_created_timestamp}
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+        """,
+        t)
+    cursor.close()
+    if commit: __connection.commit()
+
+
+def __delete_album_metadata(album_id : str, commit : bool = False):
+    t = (album_id, )
+    cursor = __connection.cursor()
+    cursor.execute(
+        f"""DELETE FROM {__table_name_album_metadata_cache_v1}
+            WHERE {__field_name_album_id} = ?""",
+        t)
+    cursor.close()
+    if commit: __connection.commit()
+
+
+def store_album_metadata(album_metadata : AlbumMetadata):
+    if get_album_metadata(album_id = album_metadata.album_id):
+        # we want to overwrite so we delete first
+        __delete_album_metadata(
+            album_id=album_metadata.album_id,
+            commit=False)
+    # now we can always insert
+    __insert_album_metadata(
+        album=album_metadata,
+        commit=True)
+    pass
 
 
 __connection : sqlite3.Connection = __get_connection()
@@ -998,7 +1287,19 @@ migrations : list[Migration] = [
     Migration(
         migration_name = "add_listen_album_queue_v1",
         apply_on = "12",
-        migration_function = migration_12)]
+        migration_function = migration_12),
+    Migration(
+        migration_name = "add_listen_artist_queue_v1",
+        apply_on = "13",
+        migration_function = migration_13),
+    Migration(
+        migration_name = "add_listen_track_queue_v1",
+        apply_on = "14",
+        migration_function = migration_14),
+    Migration(
+        migration_name = "add_album_metadata_v1",
+        apply_on = "15",
+        migration_function = migration_15)]
 
 current_migration : Migration
 for current_migration in migrations:

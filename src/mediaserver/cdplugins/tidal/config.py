@@ -61,6 +61,7 @@ allow_guess_stream_info_from_other_album_track : bool = getPluginOptionValue(
     "allowguessstreaminfofromotheralbumtrack",
     constants.default_allow_guess_stream_info_from_other_album_track)
 
+
 max_file_age_seconds : bool = getPluginOptionValue(
     "maxfileageseconds",
     constants.default_max_file_age_seconds)
@@ -110,26 +111,42 @@ log_intermediate_url : bool = getPluginOptionValue(
     "logintermediateurl",
     constants.default_log_intermediate_url)
 
+
 prepend_number_in_album_list : bool = getPluginOptionValue(
     "prependnumberinitemlist",
     constants.default_prepend_number_in_item_list)
+
 
 enable_pkce_credential_match : bool = getPluginOptionValue(
     "enablepkcecredentialmatch",
     constants.default_enable_pkce_credential_match)
 
+
 serve_mode : str = getPluginOptionValue(
     "servemode",
     constants.default_serve_mode)
+
 
 max_playlist_or_mix_items_per_page : int = getPluginOptionValue(
     "maxplaylistitemsperpage",
     constants.default_max_playlist_or_mix_items_per_page)
 
+
 auth_challenge_type : str = getPluginOptionValue(
     "authchallengetype",
     constants.default_auth_challenge_type)
 
+
 listen_queue_playlist_name : str = getPluginOptionValue(
     "listenqueueplaylistname",
     constants.default_listen_queue_playlist_name)
+
+
+display_quality_badge : bool = getPluginOptionValue(
+    "displayqualitybadge",
+    constants.default_display_quality_badge)
+
+
+enable_image_caching : bool = getPluginOptionValue(
+    "enableimagecaching",
+    constants.default_enable_image_caching)

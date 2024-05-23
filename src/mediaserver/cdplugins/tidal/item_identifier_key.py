@@ -35,6 +35,7 @@ class ItemIdentifierKey(Enum):
     LISTEN_QUEUE_ACTION = 18, "lqctn"
     LAST_FOUND_ID = 19, "lfid"
     FAVORITE_ACTION = 20, "fvctn"
+    RANDOM_VALUE = 21, "rnd"
 
     def __init__(self,
             num : int,

@@ -462,11 +462,6 @@
 # <var name="tidaluser" type="string"><brief>Bogus user name variable.</brief>
 # <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
 #tidaluser = tidal
-# <var name="tidalenablepkce" type="bool">
-# <brief>Enable pkce authentication</brief>
-# <descr>Enables pkce mode authentication,
-# defaults to 0.</descr></var>
-#tidalenablepkce = 0
 # <var name="tidaltokentype" type="string"><brief>Oath2 authentication token type.</brief>
 # <descr>The type of token used for OAUTH2 authentication, typically Bearer.</descr></var>
 #tidaltokentype = Bearer
@@ -507,6 +502,11 @@
 # <descr>Kodi always tries to sort things, with this parameter we force it to show
 # the entries in the desired order.</descr></var>
 #tidalprependnumberinitemlist = 0
+# <var name="tidalimagecaching" type="bool">
+# <brief>Enables image caching, requires webdocumentroot</brief>
+# <descr>Allows the plugin to cache images for Artists and Albums, requires
+# webdocumentroot and some disk space</descr></var>
+#tidalimagecaching = 0
 
 # <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 

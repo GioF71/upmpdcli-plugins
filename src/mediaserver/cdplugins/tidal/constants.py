@@ -15,7 +15,7 @@
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.4.1"
+tidal_plugin_release : str = "0.5.0"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -28,14 +28,26 @@ listening_queue_action_del : str = __del_action
 
 listening_queue_action_add_dict : dict[str, str] = {
     listening_queue_action_key: listening_queue_action_add,
-    listening_queue_button_title_key: "Add to Listening Queue"}
+    listening_queue_button_title_key: "Add to Bookmarks"}
 
 listening_queue_action_del_dict : dict[str, str] = {
     listening_queue_action_key: listening_queue_action_del,
-    listening_queue_button_title_key: "Remove from Listening Queue"}
+    listening_queue_button_title_key: "Rmv from Bookmarks"}
 
 fav_action_key : str = "action"
 fav_button_title_key : str = "button_title"
+
+button_title_add_to_favorites : str = "Add to Favorites"
+button_title_remove_from_favorites : str = "Rmv from Favorites"
+
+button_title_add_album_to_favorites : str = button_title_add_to_favorites
+button_title_remove_album_from_favorites : str = button_title_remove_from_favorites
+
+button_title_add_artist_to_favorites : str = button_title_add_to_favorites
+button_title_remove_artist_from_favorites : str = button_title_remove_from_favorites
+
+button_title_add_song_to_favorites : str = button_title_add_to_favorites
+button_title_remove_song_from_favorites : str = button_title_remove_from_favorites
 
 fav_action_add : str = __add_action
 fav_action_del : str = __del_action
@@ -46,7 +58,7 @@ fav_action_add_dict : dict[str, str] = {
 
 fav_action_del_dict : dict[str, str] = {
     fav_action_key: fav_action_del,
-    fav_button_title_key: "Remove from Favorites"}
+    fav_button_title_key: "Rmv from Favorites"}
 
 fav_action_dict : dict[str, any] = {
     fav_action_add : fav_action_add_dict,
@@ -127,3 +139,7 @@ default_enable_pkce_credential_match : bool = False
 default_serve_mode : str = "mpd"
 
 default_listen_queue_playlist_name : str = "Listening Queue"
+
+default_display_quality_badge : bool = False
+
+default_enable_image_caching : bool = False

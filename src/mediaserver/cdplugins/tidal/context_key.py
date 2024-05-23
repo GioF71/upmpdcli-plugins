@@ -31,6 +31,7 @@ class ContextKey(Enum):
     GET_STREAM_COUNT = 11, "get-stream-count", 0
     IS_PLAYLIST = 12, "is-playlist", False
     IS_MIX = 13, "is-mix", False
+    IS_TRACK = 19, "is-track", False
     ASSUMED_BY_MAX_AUDIO_QUALITY_COUNT = 14, "assumed-by-max-audio-quality-count", 0
     KNOWN_TRACK_DICT = 15, "known-track-dict", None
     ASSUMED_FROM_FIRST_ALBUM_TRACK_DICT = 16, "assumed-from-first-album-track-dict", None

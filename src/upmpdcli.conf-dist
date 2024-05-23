@@ -185,8 +185,6 @@
 
 # Bogus user name variable.
 #tidaluser = tidal
-# Enable pkce authentication
-#tidalenablepkce = 0
 # Oath2 authentication token type.
 #tidaltokentype = Bearer
 # Access Token.
@@ -209,6 +207,8 @@
 #tidaltitle = Tidal
 # Use item numbers in album lists for kodi compatibility
 #tidalprependnumberinitemlist = 0
+# Enables tidal image caching
+#tidalimagecaching = 0
 
 # UPRCL Local Media Server parameters
 

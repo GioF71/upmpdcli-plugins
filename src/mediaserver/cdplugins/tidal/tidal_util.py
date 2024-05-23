@@ -17,6 +17,8 @@ import cmdtalkplugin
 import upmplgutils
 import constants
 import config
+import requests
+import os
 
 from tidalapi import Quality as TidalQuality
 from tidalapi.session import Session as TidalSession
@@ -31,6 +33,8 @@ from typing import Callable
 
 from element_type import ElementType
 from element_type import get_element_type_by_name
+
+from album_sort_criteria import AlbumSortCriteria
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -50,6 +54,44 @@ default_image_sz_by_type[TidalMix.__name__] = [1500, 640, 320]
 default_image_sz_by_type[TidalUserPlaylist.__name__] = default_image_sz_by_type[TidalPlaylist.__name__]
 
 
+class FavoriteAlbumsMode:
+
+    __element_type: ElementType
+    __display_name: str
+    __sort_criteria_builder: Callable[[bool], list[AlbumSortCriteria]]
+    __descending: bool
+
+    @classmethod
+    def create(
+            cls,
+            element_type: ElementType,
+            display_name: str,
+            sort_criteria_builder: Callable[[bool], list[AlbumSortCriteria]],
+            descending: bool = False):
+        obj : FavoriteAlbumsMode = FavoriteAlbumsMode()
+        obj.__element_type = element_type
+        obj.__display_name = display_name
+        obj.__sort_criteria_builder = sort_criteria_builder
+        obj.__descending = descending
+        return obj
+
+    @property
+    def element_type(self) -> ElementType:
+        return self.__element_type
+
+    @property
+    def display_name(self) -> str:
+        return self.__display_name
+
+    @property
+    def sort_criteria_builder(self) -> Callable[[bool], list[AlbumSortCriteria]]:
+        return self.__sort_criteria_builder
+
+    @property
+    def descending(self) -> bool:
+        return self.__descending
+
+
 def get_image_dimension_list(obj : any) -> list[int]:
     key = type(obj).__name__
     return default_image_sz_by_type[key] if key in default_image_sz_by_type else list()
@@ -63,7 +105,31 @@ def get_name_or_title(obj : any) -> str:
     return None
 
 
-def get_image_url(obj : any) -> str:
+def get_image_url(obj : any, refresh: bool = False) -> str:
+    if not config.enable_image_caching: return __get_image_url(obj)
+    document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
+    # webserverdocumentroot is required
+    if not document_root_dir: return __get_image_url(obj)
+    if type(obj) not in [TidalAlbum, TidalArtist]:
+        return __get_image_url(obj)
+    sub_dir_list : list[str] = [constants.plugin_name, "images", type(obj).__name__]
+    image_dir : str = ensure_directory(document_root_dir, sub_dir_list)
+    image_url : str = __get_image_url(obj=obj)
+    cached_file: str = f"{str(obj.id)}.jpg"
+    dest_file: str = os.path.join(image_dir, cached_file)
+    if not os.path.exists(dest_file) or refresh:
+        # msgproc.log(f"get_image_url saving to [{image_dir}] [{dest_file}]")
+        img_data : bytes = requests.get(image_url).content
+        with open(dest_file, 'wb') as handler:
+            handler.write(img_data)
+    path : list[str] = list()
+    path.extend(sub_dir_list)
+    path.append(cached_file)
+    cached_image_url: str = compose_docroot_url("/".join(path))
+    return cached_image_url
+
+
+def __get_image_url(obj : any) -> str:
     dimension_list : list[int] = get_image_dimension_list(obj)
     if not dimension_list or len(dimension_list) == 0:
         msgproc.log(f"Type [{type(obj).__name__}] does not have an image sizes list!")
@@ -100,6 +166,15 @@ def is_multidisc_album(album : TidalAlbum) -> bool:
     return album.num_volumes and album.num_volumes > 1
 
 
+def try_get_track(tidal_session : TidalSession, track_id : str) -> TidalTrack:
+    track : TidalTrack = None
+    try:
+        track = tidal_session.track(track_id)
+    except Exception as ex:
+        msgproc.log(f"try_get_track failed for track_id [{track_id}] [{type(ex)}] [{ex}]")
+    return track
+
+
 def try_get_album(tidal_session : TidalSession, album_id : str) -> TidalAlbum:
     album : TidalAlbum = None
     try:
@@ -107,6 +182,15 @@ def try_get_album(tidal_session : TidalSession, album_id : str) -> TidalAlbum:
     except Exception as ex:
         msgproc.log(f"try_get_album failed for album_id [{album_id}] [{type(ex)}] [{ex}]")
     return album
+
+
+def try_get_artist(tidal_session : TidalSession, artist_id : str) -> TidalArtist:
+    artist : TidalArtist = None
+    try:
+        artist = tidal_session.artist(artist_id)
+    except Exception as ex:
+        msgproc.log(f"try_get_artist failed for artist_id [{artist_id}] [{type(ex)}] [{ex}]")
+    return artist
 
 
 class CachedTidalQuality:
@@ -289,16 +373,47 @@ def __get_best_quality(media_metadata_tags : list[str]) -> str:
     return None
 
 
+def try_get_all_favorites(tidal_session: TidalSession) -> list[TidalAlbum]:
+    favorite_list: list[TidalAlbum] = list()
+    offset : int = 0
+    limit : int = 100
+    while True:
+        some : list[TidalAlbum] = None
+        try:
+            some : list[TidalAlbum] = tidal_session.user.favorites.albums(limit=limit, offset=offset)
+        except Exception as ex:
+            msg: str = f"Cannot get favorite albums from offset [{offset}] [{type(ex)}] [{ex}]"
+            raise Exception(msg)
+        some_len: int = len(some) if some else 0
+        if some_len > 0: favorite_list.extend(some)
+        if some_len < limit:
+            break
+        # another slice maybe
+        offset += limit
+    return favorite_list
+
+
 def get_quality_badge(
         album : TidalAlbum,
         cached_tidal_quality : CachedTidalQuality) -> str:
-    audio_modes : list[str] = album.audio_modes
+    return get_quality_badge_raw(
+        audio_modes=album.audio_modes,
+        media_metadata_tags=album.media_metadata_tags,
+        audio_quality=album.audio_quality,
+        cached_tidal_quality=cached_tidal_quality)
+
+
+def get_quality_badge_raw(
+        audio_modes : list[str],
+        media_metadata_tags: list[str],
+        audio_quality : str,
+        cached_tidal_quality : CachedTidalQuality) -> str:
+    # msgproc.log(f"get_quality_badge type(audio_modes) -> {type(audio_modes) if audio_modes else 'none'}")
     # TODO maybe map DOLBY_ATMOS to say Atmos
     if audio_modes and audio_modes[0] != "STEREO": return audio_modes[0]
-    media_metadata_tags : list[str] = album.media_metadata_tags
     tidal_quality : TidalQuality = __get_best_quality(media_metadata_tags)
     is_mqa : bool = __is_mqa(media_metadata_tags)
-    if not tidal_quality: tidal_quality = album.audio_quality
+    if not tidal_quality: tidal_quality = audio_quality
     stream_info_available : bool = (cached_tidal_quality and
                 cached_tidal_quality.bit_depth and
                 cached_tidal_quality.sample_rate)
@@ -336,10 +451,11 @@ def get_quality_badge(
         badge = "Low/320"
     elif TidalQuality.low_96k == tidal_quality:
         badge = "Low/96"
-    msgproc.log(f"get_quality_badge q:[{tidal_quality}] "
-                f"b:[{bit_depth}] "
-                f"s:[{sample_rate}] "
-                f"mqa:[{is_mqa}] -> [{badge}]")
+    if config.display_quality_badge:
+        msgproc.log(f"get_quality_badge q:[{tidal_quality}] "
+                    f"b:[{bit_depth}] "
+                    f"s:[{sample_rate}] "
+                    f"mqa:[{is_mqa}] -> [{badge}]")
     return badge
 
 
@@ -430,3 +546,25 @@ def load_unique_ids_from_mix_or_playlist(
             finished = True
             break
     return id_list, last_offset, finished, last_found
+
+
+def ensure_directory(base_dir : str, sub_dir_list : list[str]) -> str:
+    curr_sub_dir : str
+    curr_dir : str = base_dir
+    for curr_sub_dir in sub_dir_list:
+        new_dir : str = os.path.join(curr_dir, curr_sub_dir)
+        # msgproc.log(f"checking dir [{new_dir}] ...")
+        if not os.path.exists(new_dir):
+            msgproc.log(f"creating dir [{new_dir}] ...")
+            os.mkdir(new_dir)
+        # else:
+        #     msgproc.log(f"dir [{new_dir}] already exists.")
+        curr_dir = new_dir
+    return curr_dir
+
+
+def compose_docroot_url(right : str) -> str:
+    host_port : str = os.environ['UPMPD_UPNPHOSTPORT']
+    doc_root : str = os.environ['UPMPD_UPNPDOCROOT']
+    if not host_port and not doc_root: return None
+    return f"http://{host_port}/{right}"
