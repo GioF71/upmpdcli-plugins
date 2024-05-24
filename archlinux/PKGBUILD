@@ -1,45 +1,47 @@
-# Contributor: Markus M. May <triplem@javafreedom.org>
-
+#
 pkgname=upmpdcli
-pkgver=0.5
+pkgver=1.8.11
 pkgrel=1
-pkgdesc="an UPnP front-end to the Music Player Daemon"
-license="GPL"
-depends=('libupnp')
-builddepends=(autoconf)
-arch=(i686 x86_64)
-
-source=("http://github.com/medoc92/upmpdcli/archive/v0.5.tar.gz")
-md5sums=('0e6623503f18eb7230aef8334084af4e')
-
-backup=()
+pkgdesc="A UPnP Media Renderer front-end for the Music Player Daemon (MPD)"
+arch=('x86_64' 'armv7h' 'aarch64')
 url="http://www.lesbonscomptes.com/upmpdcli/"
+license=('LGPL-2.1-or-later')
+depends=('python' 'libmpdclient' 'libupnpp' 'jsoncpp' )
+makedepends=('meson' 'python-setuptools' 'libmpdclient' 'libupnpp>=0.17.0' 'libmicrohttpd' 'jsoncpp' 'python-requests' 'recoll' 'python-bottle' 'python-mutagen' 'aspell-en' 'id3lib' 'python-waitress' 'sqlite' 'automake' 'autoconf' 'libtool')
+optdepends=('python: OpenHome radio service'
+	    'pyradios: enable radio browser'
+	    'python-requests: enable search'
+	    'recoll: enable search'
+	    'python-bottle: enable uprcl media server'
+	    'python-mutagen: enable uprcl media server'
+	    'mutagen: enable uprcl media server'
+	    'aspell-en'
+	    'id3lib'
+	    'python-waitress: enable uprcl media server'
+	    'sqlite')
 
+source=(http://www.lesbonscomptes.com/upmpdcli/downloads/$pkgname-$pkgver.tar.gz
+	'tmpfiles.d'
+	'sysusers.d')
+sha256sums=('d715120b869382ea701f07baa604c77b7895537e0655e1ed4dfa68d986d6a59f'
+            '901d3b3fa4b7acd5e10162e16bd537c08a55a0d370444ae0f6e98f645b0af7d6'
+            'a923a132b77b87b2e80ee0c40a8f8edfbab9e3b3df4eaef5eb8c5440ba02ed86')
 
-build() {
+backup=('etc/upmpdcli.conf')
 
-  cd ${srcdir}/${pkgname}-${pkgver}
-
-  # this is temporary - should be fixed in the git repo
-  chmod u+x autogen.sh
-
-  msg "Run autogen.sh"
-  ./autogen.sh
-
-  msg "Run configure"
-  ./configure --prefix=/usr
-
-  msg "Run make"
-  make
+build(){
+  arch-meson $pkgname-$pkgver build
+  meson compile -C build
 }
 
-package() {
+package(){
+  meson install -C build --destdir "$pkgdir"
 
-  msg "Make install"
-  cd ${srcdir}/${pkgname}-${pkgver}
+  install -Dm644 "$pkgname-$pkgver/COPYING"                  "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$pkgname-$pkgver/systemd/upmpdcli.service" "${pkgdir}"/usr/lib/systemd/system/upmpdcli.service
+  install -Dm644 tmpfiles.d                                  "${pkgdir}"/usr/lib/tmpfiles.d/upmpdcli.conf
+  install -Dm644 sysusers.d                                  "${pkgdir}"/usr/lib/sysusers.d/upmpdcli.conf
 
-  msg "pkgdir: ${pkgdir}"
-  make DESTDIR="${pkgdir}/" install
-
+  sed -i '/\[Service\]/a User=upmpdcli' "${pkgdir}"/usr/lib/systemd/system/upmpdcli.service
+  chmod go+r "${pkgdir}"/etc/upmpdcli.conf
 }
-# :mode=shellscript:
