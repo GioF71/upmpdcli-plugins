@@ -4,6 +4,8 @@ COPYING
 README.asc
 archlinux/
 archlinux/PKGBUILD
+archlinux/sysusers.d
+archlinux/tmpfiles.d
 cfgui/
 cfgui/confgui.cpp
 cfgui/confgui.h
@@ -19,6 +21,10 @@ man/upmpdcli.conf-trailer.5
 man/upmpdcli.conf.5
 meson.build
 meson_options.txt
+qmk/
+qmk/config-macos.h
+qmk/mkinstdir.sh
+qmk/upmpdcli.pro
 rdpl2stream/
 rdpl2stream/AUTHORS
 rdpl2stream/AsfPlaylistDecoder.py
@@ -191,6 +197,7 @@ src/mediaserver/cdplugins/subsonic/subsonic_util.py
 src/mediaserver/cdplugins/subsonic/tag_type.py
 src/mediaserver/cdplugins/subsonic/upnp_util.py
 src/mediaserver/cdplugins/tidal/
+src/mediaserver/cdplugins/tidal/album_adapter.py
 src/mediaserver/cdplugins/tidal/album_sort_criteria.py
 src/mediaserver/cdplugins/tidal/artist_sort_criteria.py
 src/mediaserver/cdplugins/tidal/authentication.py
@@ -317,6 +324,13 @@ src/upmpdutils.hxx
 src/urlmorph.cxx
 src/urlmorph.hxx
 src/workqueue.h
+sysdeps/
+sysdeps/jsoncpp/
+sysdeps/jsoncpp/00README.jfd
+sysdeps/jsoncpp/json/
+sysdeps/jsoncpp/json/json-forwards.h
+sysdeps/jsoncpp/json/json.h
+sysdeps/jsoncpp/jsoncpp.cpp
 systemd/
 systemd/upmpdcli.service
 tools/

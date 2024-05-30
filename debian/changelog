@@ -1,3 +1,10 @@
+upmpdcli (1.8.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Updates to the Tidal plugin
+  * qmake-based MacOS build
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Thu, 30 May 2024 17:22:00 +0200
+
 upmpdcli (1.8.11-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Updates to the Tidal and Subsonic Media Server plugins.
