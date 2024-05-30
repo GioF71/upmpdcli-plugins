@@ -515,6 +515,110 @@ static int win_wlstat(const wchar_t *wpath, struct _stati64 *buffer)
 
 #endif /* _WIN32 */
 
+#ifdef _WIN32
+#include <Shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
+
+string path_thisexecdir()
+{
+    wchar_t text[MAX_PATH];
+    GetModuleFileNameW(NULL, text, MAX_PATH);
+#ifdef NTDDI_WIN8_future
+    PathCchRemoveFileSpec(text, MAX_PATH);
+#else
+    PathRemoveFileSpecW(text);
+#endif
+    string path;
+    wchartoutf8(text, path);
+    if (path.empty()) {
+        path = "c:/";
+    }
+
+    return path;
+}
+
+#elif defined(__APPLE__)
+
+#include <mach-o/dyld.h>
+
+std::string path_thisexecdir()
+{
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+    char *path= (char*)malloc(size+1);
+    _NSGetExecutablePath(path, &size);
+    std::string ret = path_getfather(path);
+    free(path);
+    return ret;
+}
+
+#else
+
+static std::string argv0;
+void pathut_setargv0(const char *a0)
+{
+    if (a0)
+        argv0 = a0;
+}
+
+std::string path_which(const std::string& cmdname)
+{
+    auto cpathenv = getenv("PATH");
+    if (cpathenv != nullptr) {
+        // Need writable buffer
+        auto pathenv = strdup(cpathenv);
+        for (char *trdir = strtok(pathenv, ":"); trdir != 0; trdir = strtok(0, ":")) {
+            auto path = path_cat(trdir, cmdname);
+            auto candidate = path.c_str();
+            struct stat fin;
+            /* XXX work around access(2) false positives for superuser */
+            if (access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 && S_ISREG(fin.st_mode) &&
+                (getuid() != 0 ||  (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
+                free(pathenv);
+                return path;
+            }
+        }
+        free(pathenv);
+    }
+    return std::string();
+}
+
+// https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
+std::string path_thisexecdir()
+{
+    char pathbuf[PATH_MAX];
+    /* Works on Linux */
+    if (ssize_t buff_len = readlink("/proc/self/exe", pathbuf, PATH_MAX - 1); buff_len != -1) {
+        return path_getfather(std::string(pathbuf, buff_len));
+    }
+
+    /* If argv0 is null we're doomed: execve("foobar", nullptr, nullptr) */
+    if (argv0.empty()) {
+        return std::string();
+    }
+
+    // Try argv0 as relative path
+    if (nullptr != realpath(argv0.c_str(), pathbuf) && access(pathbuf, F_OK) == 0) {
+        return path_getfather(pathbuf);
+    }
+
+    /* Current path ?? This would seem to assume that . is in the PATH so would be covered
+       later. Not sure I understand the case */
+    std::string cmdname = path_getsimple(argv0);
+    std::string path = path_cat(path_cwd(), cmdname);
+    if (access(path.c_str(), F_OK) == 0) {
+        return path_getfather(path);
+    }
+
+    /* Try the PATH. */
+    path = path_which(cmdname);
+    if (!path.empty())
+        return path_getfather(path);
+    return std::string();
+}
+#endif // !_WIN32 && !__APPLE__
+
+
 // This is only actually used on Windows currently, but compiled everywhere so that it can be
 // tested, as there are no real Windows dependencies in there.
 // The input is a slashized UNC path (like //host/share/path), or not, which we determine, returning

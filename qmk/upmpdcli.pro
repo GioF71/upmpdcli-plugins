@@ -50,13 +50,13 @@ mac {
 
   # Using libmpdclient from macports and installing there too. Change the
   # following to /usr/local if using, e.g. homebrew
-  INCLUDEPATH += /opt/local/include/
-  LIBMPDCLIENT = -L/opt/local/lib -lmpdclient
-  DEFINES += DATADIR=\\\"/opt/local/share/upmpdcli\\\"
+  INCLUDEPATH += $$PWD/../../libmpdclient-2.20/include
+  LIBMPDCLIENT = $$PWD/../../libmpdclient-2.20/build/libmpdclient.a
+  # Portable install: use an empty datadir
+  DEFINES += DATADIR=\\\"\\\"
   
   QCBUILDLOC=Qt_6_4_2_for_macOS
-  # Can't do this until we have an universal build for libmicrohttpd
-  # QMAKE_APPLE_DEVICE_ARCHS = x86_64 arm64
+  QMAKE_APPLE_DEVICE_ARCHS = x86_64 arm64
   QMAKE_CXXFLAGS += -Wno-unused-parameter
 
   INCLUDEPATH += ../../libupnpp/libupnpp/ ../../libupnpp/

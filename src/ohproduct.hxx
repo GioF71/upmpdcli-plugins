@@ -66,8 +66,8 @@ private:
     std::string m_standbycmd;
     // (Type, Name) list
     std::vector<std::pair<std::string, std::string>> m_sources;
-    // This will be replaced by config data or default in listScripts(). Init anyway just in case.
-    std::string m_scripts_dir{DATADIR "/src_scripts"};
+    // This will be replaced by config data or default in listScripts().
+    std::string m_scripts_dir;
     // Data for the "attributes" action. This lists the service available from this renderer (we add
     // other available services during initialization).
     std::string m_csattrs{"Info Time Volume"};

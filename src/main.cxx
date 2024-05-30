@@ -137,7 +137,7 @@ ohProductDesc_t ohProductDesc = {
 static vector<UpnpDevice *> devs;
 static MPDCli *mpdclip{nullptr};
 
-string g_datadir(DATADIR "/");
+string g_datadir;
 string g_cachedir("/var/cache/upmpdcli");
 
 // Global
@@ -360,16 +360,20 @@ int main(int argc, char *argv[])
         opts.options &= ~UpMpd::upmpdNoContentFormatCheck;
     }
     bool ohmetapersist = getBoolOptionValue("ohmetapersist", true);
-    string iconpath(DATADIR "/icon.png");
-    string presentationhtml(DATADIR "/presentation.html");
-    if (getOptionValue("pkgdatadir", g_datadir, DATADIR "/")) {
-        path_catslash(g_datadir);
-        iconpath = path_cat(g_datadir, "icon.png");
-        if (!path_exists(iconpath)) {
-            iconpath.clear();
-        }
-        presentationhtml = path_cat(g_datadir, "presentation.html");
+
+    getOptionValue("pkgdatadir", g_datadir, DATADIR);
+    if (g_datadir.empty()) {
+        // Built as portable install. Use the executable name to compute a likely location
+        auto bindir = path_thisexecdir();
+        g_datadir = path_cat(path_getfather(bindir), {"share", "upmpdcli"});
     }
+    path_catslash(g_datadir);
+    string iconpath = path_cat(g_datadir, "icon.png");
+    if (!path_exists(iconpath)) {
+        iconpath.clear();
+    }
+    string presentationhtml = path_cat(g_datadir, "presentation.html");
+
     getOptionValue("iconpath", iconpath);
     getOptionValue("presentationhtml", presentationhtml);
     getOptionValue("cachedir", opts.cachedir);

@@ -8,17 +8,21 @@ fatal()
 }
 Usage()
 {
-    fatal 'mkinstdir.sh <prefix>' # e.g. /opt/local
+    fatal 'mkinstdir.sh <targetdir>'
 }
 
 test $# -eq 1 || Usage
 
-PREFIX=$1
+TARGETDIR=$1
+
+test -f upmpdcli.pro || fatal must be run in the qmk/ directory
 
 QCBUILDLOC=Qt_6_4_2_for_macOS
 
-DATADIR=$PREFIX/share/upmpdcli
+DATADIR=$TARGETDIR/share/upmpdcli
 test -d $DATADIR || mkdir -p $DATADIR || fatal cant create $DATADIR
+BINDIR=$TARGETDIR/bin
+test -d $BINDIR || mkdir -p $BINDIR || fatal cant create $BINDIR
 
 plugins=`ls -F ../src/mediaserver/cdplugins | grep -E '/$' | grep -v attic/`
 
@@ -47,7 +51,10 @@ cp -rp ../rdpl2stream $DATADIR || exit 1
 mkdir -p $DATADIR/src_scripts
 cp -p ../samplescripts/* $DATADIR/src_scripts
 
-cp -p build/${QCBUILDLOC}-Release/upmpdcli $PREFIX/bin
+cp -p build/${QCBUILDLOC}-Release/upmpdcli $TARGETDIR/bin
+
+mkdir -p $TARGETDIR/etc
+cp -p ../src/upmpdcli.conf-dist $TARGETDIR/etc/upmpdcli.conf
 
 
 
