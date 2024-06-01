@@ -82,6 +82,9 @@ __most_played_albums_query : str = """
 
 class AlbumMetadata:
 
+    def __init__(self):
+        self.created_timestamp = datetime.datetime.now()
+
     album_id: str = None
     album_name: str = None
     artist_id: str = None

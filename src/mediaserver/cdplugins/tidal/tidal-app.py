@@ -4437,7 +4437,8 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
             if success_count == config.albums_per_page:
                 break
         except Exception as ex:
-            msgproc.log(f"handler_element_bookmark_artists cannot load [{type(tidal_obj)}] [{obj_id}] [{type(ex)}] [{ex}]")
+            msgproc.log(f"handler_element_bookmark_artists cannot load [{type(tidal_obj)}] "
+                        f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
         next_button = create_next_button(
             objid = objid,
@@ -4470,7 +4471,8 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
             if success_count == config.albums_per_page:
                 break
         except Exception as ex:
-            msgproc.log(f"handler_element_bookmark_albums cannot load [{type(tidal_obj)}] [{obj_id}] [{type(ex)}] [{ex}]")
+            msgproc.log(f"handler_element_bookmark_albums cannot load [{type(tidal_obj)}] "
+                        f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
         next_button = create_next_button(
             objid = objid,
@@ -4507,7 +4509,8 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
             if success_count == config.albums_per_page:
                 break
         except Exception as ex:
-            msgproc.log(f"handler_element_bookmark_tracks cannot load [{type(tidal_obj)}] [{obj_id}] [{type(ex)}] [{ex}]")
+            msgproc.log(f"handler_element_bookmark_tracks cannot load [{type(tidal_obj)}] "
+                        f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
         next_button = create_next_button(
             objid = objid,
