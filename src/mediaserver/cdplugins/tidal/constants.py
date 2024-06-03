@@ -15,7 +15,7 @@
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.5.0"
+tidal_plugin_release : str = "0.5.1"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
