@@ -17,7 +17,7 @@ TARGETDIR=$1
 
 test -f upmpdcli.pro || fatal must be run in the qmk/ directory
 
-QCBUILDLOC=Qt_6_4_2_for_macOS
+QCBUILDLOC=Qt_6_6_3_for_macOS
 
 DATADIR=$TARGETDIR/share/upmpdcli
 test -d $DATADIR || mkdir -p $DATADIR || fatal cant create $DATADIR

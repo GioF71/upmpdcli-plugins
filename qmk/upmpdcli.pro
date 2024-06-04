@@ -55,7 +55,7 @@ mac {
   # Portable install: use an empty datadir
   DEFINES += DATADIR=\\\"\\\"
   
-  QCBUILDLOC=Qt_6_4_2_for_macOS
+  QCBUILDLOC=Qt_6_6_3_for_macOS
   QMAKE_APPLE_DEVICE_ARCHS = x86_64 arm64
   QMAKE_CXXFLAGS += -Wno-unused-parameter
 
@@ -68,8 +68,8 @@ mac {
             
   SOURCES += ../sysdeps/jsoncpp/jsoncpp.cpp
 
-  LIBS += $$PWD/../../libupnpp/build-libupnpp-$$QCBUILDLOC-Release/libupnpp.a
-  LIBS += $$PWD/../../npupnp/build-libnpupnp-$$QCBUILDLOC-Release/libnpupnp.a
+  LIBS += $$PWD/../../npupnp/qmk/build/$$QCBUILDLOC-Release/libnpupnp.a
+  LIBS += $$PWD/../../libupnpp/qmk/build/$$QCBUILDLOC-Release/libupnpp.a
   LIBS += $$PWD/../../libmicrohttpd-0.9.71/src/microhttpd/.libs/libmicrohttpd.a
   LIBS += $$LIBMPDCLIENT
   LIBS += -lexpat -lcurl
