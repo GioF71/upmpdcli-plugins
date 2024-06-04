@@ -88,6 +88,14 @@ extern std::string stringtoupper(const std::string& io);
 extern bool beginswith(const std::string& b, const std::string& sml);
 extern bool endswith(const std::string& bg, const std::string& sml);
 
+#ifdef _WIN32
+// Conversion between utf-8 and wide char file names.
+bool wchartoutf8(const wchar_t *in, std::string& out, int len = 0);
+std::string wchartoutf8(const wchar_t *in, int len = 0);
+bool utf8towchar(const std::string& in, wchar_t *out, int obytescap);
+std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
+#endif // _WIN32
+
 /** Note for all templated functions:
  * By default, smallut.cpp has explicit instantiations for common
  * containers (list, vector, set, etc.). If this is not enough, or

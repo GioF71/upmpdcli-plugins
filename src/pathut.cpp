@@ -96,11 +96,13 @@
 #define NOGDI
 #include <windows.h>
 #include <io.h>
+#include <Shlobj.h>
+#include <Shlwapi.h>
+#include <Stringapiset.h>
+
+#include <sys/utime.h>
 #include <sys/stat.h>
 #include <direct.h>
-#include <Shlobj.h>
-#include <Stringapiset.h>
-#include <sys/utime.h>
 
 #if !defined(S_IFLNK)
 #define S_IFLNK 0
@@ -206,99 +208,6 @@ inline ssize_t sys_write(int fd, const void* buf, size_t cnt)
 namespace MedocUtils {
 
 #ifdef _WIN32
-
-std::string wchartoutf8(const wchar_t *in, int len)
-{
-    std::string out;
-    wchartoutf8(in, out, len);
-    return out;
-}
-
-bool wchartoutf8(const wchar_t *in, std::string& out, int wlen)
-{
-    LOGDEB1("WCHARTOUTF8: in [" << in << "]\n");
-    out.clear();
-    if (nullptr == in) {
-        return true;
-    }
-    if (wlen == 0) {
-        wlen = static_cast<int>(wcslen(in));
-    }
-    if (wlen == 0) {
-        return true;
-    }
-    int flags = WC_ERR_INVALID_CHARS;
-    int bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, nullptr, 0, nullptr, nullptr);
-    if (bytes <= 0) {
-        LOGERR("wchartoutf8: conversion error1\n");
-        fwprintf(stderr, L"wchartoutf8: conversion error1 for [%s]\n", in);
-        return false;
-    }
-    DirtySmartBuf buffer(bytes+1);
-    bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, buffer.buf(), bytes, nullptr, nullptr);
-    if (bytes <= 0) {
-        LOGERR("wchartoutf8: CONVERSION ERROR2\n");
-        return false;
-    }
-    buffer.buf()[bytes] = 0;
-    out = buffer.buf();
-    //fwprintf(stderr, L"wchartoutf8: in: [%s]\n", in);
-    //fprintf(stderr, "wchartoutf8: out:  [%s]\n", out.c_str());
-    return true;
-}
-
-bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
-{
-    auto wcharsavail = obytescap / sizeof(wchar_t);
-    if (nullptr == out || wcharsavail < 1) {
-        return false;
-    }
-    out[0] = 0;
-    int isize = static_cast<int>(in.size());
-    auto wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
-    if (wcharcnt <= 0) {
-        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
-        return false;
-    }
-    if (wcharcnt + 1 >  int(wcharsavail)) {
-        LOGERR("utf8towchar: not enough space\n");
-        return false;
-    }
-    wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, out, wcharsavail);
-    if (wcharcnt <= 0) {
-        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
-        return false;
-    }
-    out[wcharcnt] = 0;
-    return true;
-}
-
-std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
-{
-    int isize = static_cast<int>(in.size());
-    // Note that as we supply in.size(), mbtowch computes the size
-    // without a terminating 0 (and won't write in the second call of
-    // course). We take this into account by allocating one more and
-    // terminating the output.
-    auto wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
-    if (wcharcnt <= 0) {
-        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
-        return std::unique_ptr<wchar_t[]>();
-    }
-    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcharcnt+1]);
-
-    wcharcnt = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, buf.get(), wcharcnt);
-    if (wcharcnt <= 0) {
-        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
-        return std::unique_ptr<wchar_t[]>();
-    }
-    buf.get()[wcharcnt] = 0;
-    return buf;
-}
 
 /// Convert \ separators to /
 void path_slashize(std::string& s)
@@ -515,11 +424,18 @@ static int win_wlstat(const wchar_t *wpath, struct _stati64 *buffer)
 
 #endif /* _WIN32 */
 
-#ifdef _WIN32
-#include <Shlwapi.h>
-#pragma comment(lib, "shlwapi.lib")
 
-string path_thisexecdir()
+// Note: this is actually only used on Linux, but it's no big deal to
+// implement it everywhere to avoid more ifdefs.
+static std::string argv0;
+void pathut_setargv0(const char *a0)
+{
+    if (a0)
+        argv0 = a0;
+}
+
+#ifdef _WIN32
+std::string path_thisexecdir()
 {
     wchar_t text[MAX_PATH];
     GetModuleFileNameW(NULL, text, MAX_PATH);
@@ -528,7 +444,7 @@ string path_thisexecdir()
 #else
     PathRemoveFileSpecW(text);
 #endif
-    string path;
+    std::string path;
     wchartoutf8(text, path);
     if (path.empty()) {
         path = "c:/";
@@ -553,13 +469,6 @@ std::string path_thisexecdir()
 }
 
 #else
-
-static std::string argv0;
-void pathut_setargv0(const char *a0)
-{
-    if (a0)
-        argv0 = a0;
-}
 
 std::string path_which(const std::string& cmdname)
 {

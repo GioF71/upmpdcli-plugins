@@ -113,13 +113,6 @@ bool path_readable(const std::string& path);
 #    define F_OK 0
 #  endif
 
-// Conversion between utf-8 and wide char file names.
-
-bool wchartoutf8(const wchar_t *in, std::string& out, int len = 0);
-std::string wchartoutf8(const wchar_t *in, int len = 0);
-bool utf8towchar(const std::string& in, wchar_t *out, int obytescap);
-std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
-
 // Convert between slash and backslash separators.
 void path_slashize(std::string& s);
 void path_backslashize(std::string& s);

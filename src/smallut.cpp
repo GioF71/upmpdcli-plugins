@@ -44,16 +44,137 @@
 #include <regex>
 #endif
 
+
+#ifdef _WIN32
 #ifdef _MSC_VER
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 #define localtime_r(a,b) localtime_s(b,a)
 #endif // _MSC_VER
 
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#include <windows.h>
+#include <stringapiset.h>
+
+#endif // _WIN32
+
+#ifdef MDU_INCLUDE_LOG
+#include MDU_INCLUDE_LOG
+#else
+#include "log.h"
+#endif
 
 using namespace std::placeholders;
 
 namespace MedocUtils {
+
+#ifdef _WIN32
+
+std::string wchartoutf8(const wchar_t *in, int len)
+{
+    std::string out;
+    wchartoutf8(in, out, len);
+    return out;
+}
+
+bool wchartoutf8(const wchar_t *in, std::string& out, int wlen)
+{
+    out.clear();
+    if (nullptr == in) {
+        return true;
+    }
+    if (wlen == 0) {
+        wlen = static_cast<int>(wcslen(in));
+    }
+    if (wlen == 0) {
+        return true;
+    }
+    int flags = WC_ERR_INVALID_CHARS;
+    int bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, nullptr, 0, nullptr, nullptr);
+    if (bytes <= 0) {
+#ifdef LOGERR
+        LOGERR("wchartoutf8: conversion error1\n");
+#endif
+        fwprintf(stderr, L"wchartoutf8: conversion error1 for [%s]\n", in);
+        return false;
+    }
+    DirtySmartBuf buffer(bytes+1);
+    bytes = ::WideCharToMultiByte(CP_UTF8, flags, in, wlen, buffer.buf(), bytes, nullptr, nullptr);
+    if (bytes <= 0) {
+#ifdef LOGERR
+        LOGERR("wchartoutf8: CONVERSION ERROR2\n");
+#endif
+        return false;
+    }
+    buffer.buf()[bytes] = 0;
+    out = buffer.buf();
+    //fwprintf(stderr, L"wchartoutf8: in: [%s]\n", in);
+    //fprintf(stderr, "wchartoutf8: out:  [%s]\n", out.c_str());
+    return true;
+}
+
+bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
+{
+    auto wcharsavail = obytescap / sizeof(wchar_t);
+    if (nullptr == out || wcharsavail < 1) {
+        return false;
+    }
+    out[0] = 0;
+    int isize = static_cast<int>(in.size());
+    auto wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
+    if (wcharcnt <= 0) {
+#ifdef LOGERR
+        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
+#endif
+        return false;
+    }
+    if (wcharcnt + 1 >  int(wcharsavail)) {
+        LOGERR("utf8towchar: not enough space\n");
+        return false;
+    }
+    wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, out, wcharsavail);
+    if (wcharcnt <= 0) {
+#ifdef LOGERR
+        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
+#endif
+        return false;
+    }
+    out[wcharcnt] = 0;
+    return true;
+}
+
+std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
+{
+    int isize = static_cast<int>(in.size());
+    // Note that as we supply in.size(), mbtowch computes the size
+    // without a terminating 0 (and won't write in the second call of
+    // course). We take this into account by allocating one more and
+    // terminating the output.
+    auto wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, nullptr, 0);
+    if (wcharcnt <= 0) {
+#ifdef LOGERR
+        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
+#endif
+        return std::unique_ptr<wchar_t[]>();
+    }
+    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcharcnt+1]);
+
+    wcharcnt = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, buf.get(), wcharcnt);
+    if (wcharcnt <= 0) {
+#ifdef LOGERR
+        LOGERR("utf8towchar: conversion error for [" << in << "]\n");
+#endif
+        return std::unique_ptr<wchar_t[]>();
+    }
+    buf.get()[wcharcnt] = 0;
+    return buf;
+}
+#endif // _WIN32
 
 int stringicmp(const std::string& s1, const std::string& s2)
 {
