@@ -16,6 +16,7 @@
 
 import subsonic_init
 import subsonic_util
+import request_cache
 
 import json
 import html
@@ -62,6 +63,7 @@ import identifier_util
 import upnp_util
 import entry_creator
 import constants
+import persistence
 
 from album_util import sort_song_list
 from album_util import get_album_base_path
@@ -91,6 +93,7 @@ from radio_entry_type import RadioEntryType
 import secrets
 import mimetypes
 import time
+from typing import Callable
 
 from msgproc_provider import msgproc
 from msgproc_provider import dispatcher
@@ -106,9 +109,10 @@ __tag_initial_page_enabled_default : dict[str, bool] = {
     TagType.MOST_PLAYED.getTagName(): False,
     TagType.RANDOM.getTagName(): False,
     TagType.FAVOURITES.getTagName(): False,
-    TagType.ARTISTS_ALL.getTagName(): False,
-    TagType.ARTISTS_PAGINATED.getTagName(): False,
-    TagType.ARTISTS_INDEXED.getTagName(): False,
+    TagType.ALL_ARTISTS.getTagName(): False,
+    TagType.ALBUM_ARTISTS.getTagName(): False,
+    TagType.ALBUM_ARTISTS_INDEXED.getTagName(): False,
+    TagType.ALL_ARTISTS_INDEXED.getTagName(): False,
     TagType.FAVOURITE_ARTISTS.getTagName(): False,
     TagType.RANDOM_SONGS.getTagName(): False,
     TagType.RANDOM_SONGS_LIST.getTagName(): False,
@@ -118,10 +122,22 @@ __tag_initial_page_enabled_default : dict[str, bool] = {
 }
 
 
+def __tag_playlists_precondition() -> bool:
+    if config.show_empty_playlists: return True
+    response : Response[Playlists] = connector_provider.get().getPlaylists()
+    if not response or not response.isOk(): return False
+    return len(response.getObj().getPlaylists()) > 0
+
+
+__tag_show_precondition: dict[str, Callable[[], bool]] = {
+    TagType.PLAYLISTS.getTagName(): __tag_playlists_precondition
+}
+
+
 def tag_enabled_in_initial_page(tag_type : TagType) -> bool:
     enabled_default : bool = (__tag_initial_page_enabled_default[tag_type.getTagName()]
                               if tag_type.getTagName() in __tag_initial_page_enabled_default else True)
-    msgproc.log(f"Tag enabling key for {tag_type}: [{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}]")
+    # msgproc.log(f"Tag enabling key for {tag_type}: [{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}]")
     enabled_int : int = (int(upmplgutils.getOptionValue(
         f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}",
         "1" if enabled_default else "0")))
@@ -201,9 +217,9 @@ def trackuri(a):
     return result
 
 
-def _returnentries(entries):
+def _returnentries(entries, no_cache : bool = False):
     """Helper function: build plugin browse or search return value from items list"""
-    return {"entries" : json.dumps(entries), "nocache" : "0"}
+    return {"entries" : json.dumps(entries), "nocache" : "1" if no_cache else "0"}
 
 
 def _station_to_entry(
@@ -259,6 +275,12 @@ def _load_album_tracks(
         entries : list) -> list:
     # msgproc.log(f"_load_album_tracks with album_version_path [{album_version_path}]")
     album_tracks : AlbumTracks = get_album_tracks(album_id)
+    album_quality_badge: str = entry_creator.get_track_list_badge(album_tracks.getSongList(), list_identifier=album_id)
+    msgproc.log(f"Quality badge for [{album_id}] -> [{album_quality_badge}]")
+    if album_quality_badge:
+        persistence.save_quality_badge(
+            album_id=album_id,
+            quality_badge=album_quality_badge)
     album : Album = album_tracks.getAlbum()
     song_list : list[Song] = album_tracks.getSongList()
     albumArtURI : str = album_tracks.getArtUri()
@@ -367,13 +389,9 @@ def _albums_by_artist_to_entries(
         entries : list) -> list:
     cache_manager : caching.CacheManager = cache_manager_provider.get()
     current_album : Album
-    artist_tag_cached : bool = False
     counter : int = offset
     for current_album in album_list:
         counter += 1
-        if not artist_tag_cached:
-            cache_manager.cache_element_value(ElementType.TAG, TagType.ARTISTS_ALL.getTagName(), current_album.getId())
-            artist_tag_cached = True
         if current_album.getArtistId():
             cache_manager_provider.get().on_album(current_album)
         genre_list : list[str] = current_album.getGenres()
@@ -399,22 +417,37 @@ def _albums_by_artist_to_entries(
     return entries
 
 
-def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> list:
+def __load_artists_by_initial(
+        objid,
+        artist_initial : str,
+        entries : list,
+        element_type : ElementType,
+        options : dict[str, any] = {}) -> list:
+    offset : int = option_util.get_option(options=options, option_key=OptionKey.OFFSET)
+    counter : int = 0
     cache_manager : caching.CacheManager = cache_manager_provider.get()
     # caching disabled, too slow
     # art_by_artist_id : dict[str, str] = __create_art_by_artist_id_cache()
-    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_INITIAL)
+    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_BY_INITIAL)
     # msgproc.log(f"__load_artists_by_initial art_cache_size {art_cache_size}")
     if art_cache_size == 0: subsonic_init.initial_caching()
-    artists_response : Response[Artists] = connector_provider.get().getArtists()
+    artists_response : Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
+    broke_out : bool = False
+    album_artists_only: bool = option_util.get_option(
+        options=options,
+        option_key=OptionKey.ALBUM_ARTISTS_ONLY)
     for current_artists_initial in artists_initial:
         if current_artists_initial.getName() == artist_initial:
             current_artist : ArtistListItem
             for current_artist in current_artists_initial.getArtistListItems():
-                if not cache_manager_provider.get().is_album_artist(current_artist.getId()): continue
+                if (album_artists_only and (
+                    not current_artist.getId()
+                        or not cache_manager_provider.get().is_album_artist(current_artist.getId()))):
+                    # not an album artist
+                    continue
                 artist_initial_cache_provider.get().set(
                     artist_id = current_artist.getId(),
                     artist_initial = current_artists_initial.getName())
@@ -423,15 +456,34 @@ def __load_artists_by_initial(objid, artist_initial : str, entries : list) -> li
                     artist_id = current_artist.getId(),
                     entry_name = current_artist.getName())
                 # if artist has art, set that art for artists by initial tile
+                if counter < offset:
+                    counter += 1
+                    continue
+                if counter >= offset + config.items_per_page:
+                    broke_out = True
+                    break
+                counter += 1
                 entries.append(entry)
+    if broke_out:
+        next_identifier : ItemIdentifier = ItemIdentifier(
+            element_type.getName(),
+            codec.encode(artist_initial))
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
+        next_identifier.set(ItemIdentifierKey.ALBUM_ARTISTS_ONLY, album_artists_only)
+        next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
+        next_entry : dict = upmplgutils.direntry(
+            next_id,
+            objid,
+            title = "Next")
+        entries.append(next_entry)
     return entries
 
 
 def _create_list_of_genres(objid, entries : list) -> list:
-    art_cache_size : int = cache_manager_provider.get().get_cache_size(ElementType.ARTIST_INITIAL)
+    art_cache_size : int = cache_manager_provider.get().get_cache_size(ElementType.ARTIST_BY_INITIAL)
     msgproc.log(f"_create_list_of_genres art_cache_size {art_cache_size}")
     if art_cache_size == 0: subsonic_init.initial_caching()
-    genres_response : Response[Genres] = connector_provider.get().getGenres()
+    genres_response : Response[Genres] = request_cache.get_genres()
     if not genres_response.isOk(): return entries
     genre_list = genres_response.getObj().getGenres()
     genre_list.sort(key = lambda x: x.getName())
@@ -446,30 +498,35 @@ def _create_list_of_genres(objid, entries : list) -> list:
     return entries
 
 
-def _get_list_of_artists(
+def __load_artists(
         objid,
         entries : list,
+        tag: TagType,
         options : dict[str, any] = {}) -> list:
-    paginated : bool = option_util.get_option(options = options, option_key = OptionKey.PAGINATED)
     offset : int = option_util.get_option(options = options, option_key = OptionKey.OFFSET)
     counter : int = 0
     art_cache_size : int = cache_manager_provider.get().get_cache_size(ElementType.ALBUM_ARTIST)
     if art_cache_size == 0: subsonic_init.initial_caching()
-    artists_response : Response[Artists] = connector_provider.get().getArtists()
+    artists_response : Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk(): return entries
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial : ArtistsInitial
     broke_out : bool = False
+    album_artists_only: bool = option_util.get_option(
+        options=options,
+        option_key=OptionKey.ALBUM_ARTISTS_ONLY)
     for current_artists_initial in artists_initial:
         current_artist : ArtistListItem
         for current_artist in current_artists_initial.getArtistListItems():
-            if not current_artist.getId() or not cache_manager_provider.get().is_album_artist(current_artist.getId()):
+            if (album_artists_only and (
+                not current_artist.getId()
+                    or not cache_manager_provider.get().is_album_artist(current_artist.getId()))):
                 # not an album artist
                 continue
-            if paginated and counter < offset:
+            if counter < offset:
                 counter += 1
                 continue
-            if paginated and counter >= offset + config.items_per_page:
+            if counter >= offset + config.items_per_page:
                 broke_out = True
                 break
             counter += 1
@@ -484,7 +541,7 @@ def _get_list_of_artists(
     if broke_out:
         next_entry : dict[str, any] = _create_tag_next_entry(
             objid = objid,
-            tag = TagType.ARTISTS_PAGINATED,
+            tag = tag,
             offset = offset + config.items_per_page)
         entries.append(next_entry)
     return entries
@@ -553,14 +610,19 @@ def _create_list_of_playlist_entries(objid, playlist_id : str, entries : list) -
     return entries
 
 
-def _create_list_of_artist_initials(objid, entries : list) -> list:
+def _create_list_of_artist_initials(
+        objid,
+        entries : list,
+        options: dict[str, any] = dict()) -> list:
+    album_artists_only: bool = option_util.get_option(options=options, option_key=OptionKey.ALBUM_ARTISTS_ONLY)
+    msgproc.log(f"_create_list_of_artist_initials album_artists_only: [{album_artists_only}]")
     cache_manager : caching.CacheManager = cache_manager_provider.get()
-    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_INITIAL)
+    art_cache_size : int = cache_manager.get_cache_size(ElementType.ARTIST_BY_INITIAL)
     msgproc.log(f"_create_list_of_artist_initials art_cache_size {art_cache_size}")
     if art_cache_size == 0:
         msgproc.log("_create_list_of_artist_initials empty cache, reloading ...")
         subsonic_init.initial_caching()
-    artists_response : Response[Artists] = connector_provider.get().getArtists()
+    artists_response : Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk(): return entries
     # msgproc.log(f"_create_list_of_artist_initials artists loaded ...")
     artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
@@ -568,8 +630,9 @@ def _create_list_of_artist_initials(objid, entries : list) -> list:
     for current_artists_initial in artists_initial:
         # msgproc.log(f"_create_list_of_artist_initials processing [{current_artists_initial.getName()}] ...")
         entry : dict = entry_creator.artist_initial_to_entry(
-            objid = objid,
-            artist_initial = current_artists_initial.getName())
+            objid=objid,
+            artist_initial=current_artists_initial.getName(),
+            options=options)
         entries.append(entry)
         # populate cache of artist by initial
     return entries
@@ -822,7 +885,9 @@ def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries
     entries.append(song_entry)
     msgproc.log(f"_handler_element_song_entry start song_id {song_id} go on with album")
     album : Album = connector_provider.get().getAlbum(song.getAlbumId()).getObj()
-    entries.append(entry_creator.album_to_entry(objid = objid, album = album))
+    options: dict[str, any] = dict()
+    option_util.set_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE, option_value=True)
+    entries.append(entry_creator.album_to_entry(objid=objid, album=album, options=options))
     artist_id : str = song.getArtistId() if song.getArtistId() else album.getArtistId()
     if not artist_id: msgproc.log(f"_handler_element_song_entry artist_id not found for "
                                   f"song_id {song.getId()} album_id {song.getAlbumId()} "
@@ -845,7 +910,7 @@ def _handler_element_song_entry(objid, item_identifier : ItemIdentifier, entries
 def _get_favourite_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     song_as_entry : bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    response : Response[Starred] = connector_provider.get().getStarred()
+    response : Response[Starred] = request_cache.get_starred()
     if not response.isOk(): raise Exception("Cannot retrieve starred items")
     song_list : list[Song] = response.getObj().getSongs()
     need_next : bool = song_list and len(song_list) > (offset + config.items_per_page)
@@ -960,26 +1025,48 @@ def _handler_element_genre(objid, item_identifier : ItemIdentifier, entries : li
 
 
 def _handler_element_genre_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    genre : str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
+    genre: str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     # get all albums by genre and collect a set of artists
-    artist_id_set : set[str] = subsonic_util.load_all_artists_by_genre(genre)
+    artist_id_set: set[str] = subsonic_util.load_all_artists_by_genre(genre)
     # present the list of artists
-    artists_response : Response[Artists] = connector_provider.get().getArtists()
+    artists_response: Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk(): return entries
-    artists_initial : list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
-    current_artists_initial : ArtistsInitial
+    artists_initial: list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
+    current_artists_initial: ArtistsInitial
+    current_offset: int = 0
+    item_count: int = 0
+    needs_next: bool = False
     for current_artists_initial in artists_initial:
         artist_list_items : list[ArtistListItem] = current_artists_initial.getArtistListItems()
         current : ArtistListItem
         for current in artist_list_items:
             artist_id : str = current.getId()
             if artist_id in artist_id_set:
-                # can add
-                entries.append(entry_creator.genre_artist_to_entry(
-                    objid = objid,
-                    genre = genre,
-                    artist_id = artist_id,
-                    artist_name = current.getName()))
+                current_offset += 1
+                if current_offset >= offset:
+                    # can add
+                    entries.append(entry_creator.genre_artist_to_entry(
+                        objid = objid,
+                        genre = genre,
+                        artist_id = artist_id,
+                        artist_name = current.getName()))
+                    item_count += 1
+                    if item_count >= config.max_artists_per_page:
+                        # we *probably* need the next button
+                        needs_next = True
+                        break
+    if needs_next:
+        # add the next button
+        next_identifier : ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.getName(), artist_id)
+        next_identifier.set(ItemIdentifierKey.OFFSET, current_offset)
+        next_identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
+        next_id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
+        next_entry : dict = upmplgutils.direntry(
+            next_id,
+            objid,
+            title = "Next")
+        entries.append(next_entry)
     return entries
 
 
@@ -1069,8 +1156,8 @@ def _handler_element_genre_album_list(objid, item_identifier : ItemIdentifier, e
     return entries
 
 
-def _handler_tag_artists_paginated(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    # all artists, paginated -> no skip art
+def _handler_tag_all_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    # all album artists, paginated -> no skip art
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     options : dict[str, any] = dict()
     option_util.set_option(
@@ -1079,34 +1166,45 @@ def _handler_tag_artists_paginated(objid, item_identifier : ItemIdentifier, entr
         option_value = False)
     option_util.set_option(
         options = options,
-        option_key = OptionKey.PAGINATED,
-        option_value = True)
-    option_util.set_option(
-        options = options,
         option_key = OptionKey.OFFSET,
         option_value = offset)
-    return _get_list_of_artists(
+    option_util.set_option(
+        options = options,
+        option_key = OptionKey.ALBUM_ARTISTS_ONLY,
+        option_value = False)
+    return __load_artists(
         objid = objid,
+        tag = TagType.ALL_ARTISTS,
         entries = entries,
         options = options)
 
 
-def _handler_tag_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    # all artist -> skip art
+def _handler_tag_album_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    # all album artists, paginated -> no skip art
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     options : dict[str, any] = dict()
     option_util.set_option(
         options = options,
         option_key = OptionKey.SKIP_ART,
         option_value = False)
-    return _get_list_of_artists(
+    option_util.set_option(
+        options = options,
+        option_key = OptionKey.OFFSET,
+        option_value = offset)
+    option_util.set_option(
+        options = options,
+        option_key = OptionKey.ALBUM_ARTISTS_ONLY,
+        option_value = True)
+    return __load_artists(
         objid = objid,
+        tag = TagType.ALBUM_ARTISTS,
         entries = entries,
         options = options)
 
 
 def _handler_tag_artists_favourite(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    response : Response[Starred] = connector_provider.get().getStarred()
+    response : Response[Starred] = request_cache.get_starred()
     if not response.isOk(): raise Exception("Cannot retrieve starred items")
     artist_list : list[Artist] = response.getObj().getArtists()
     need_next : bool = artist_list and len(artist_list) > (offset + config.items_per_page)
@@ -1132,8 +1230,16 @@ def _handler_tag_artists_favourite(objid, item_identifier : ItemIdentifier, entr
     return entries
 
 
-def _handler_tag_artists_indexed(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return _create_list_of_artist_initials(objid, entries)
+def _handler_tag_album_artists_indexed(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    options: dict[str, any] = dict()
+    option_util.set_option(options=options, option_key=OptionKey.ALBUM_ARTISTS_ONLY, option_value=True)
+    return _create_list_of_artist_initials(objid, entries, options=options)
+
+
+def _handler_tag_all_artists_indexed(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    options: dict[str, any] = dict()
+    option_util.set_option(options=options, option_key=OptionKey.ALBUM_ARTISTS_ONLY, option_value=False)
+    return _create_list_of_artist_initials(objid, entries, options=options)
 
 
 def _handler_tag_playlists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1149,9 +1255,27 @@ def _handler_element_playlist(objid, item_identifier : ItemIdentifier, entries :
     return _create_list_of_playlist_entries(objid, playlist_id, entries)
 
 
-def _handler_element_artist_initial(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    artist_initial : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    entries = __load_artists_by_initial(objid, artist_initial, entries)
+def _handler_element_artists_by_initial(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    encoded_artist_initial: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    artist_initial: str = codec.decode(encoded_artist_initial)
+    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    # load album artists only flag from identifier and put in options
+    album_artists_only: bool = item_identifier.get(ItemIdentifierKey.ALBUM_ARTISTS_ONLY, 1) == 1
+    options: dict[str, any] = dict()
+    option_util.set_option(
+        options=options,
+        option_key=OptionKey.OFFSET,
+        option_value=offset)
+    option_util.set_option(
+        options=options,
+        option_key=OptionKey.ALBUM_ARTISTS_ONLY,
+        option_value=album_artists_only)
+    entries = __load_artists_by_initial(
+        objid=objid,
+        artist_initial=artist_initial,
+        element_type=ElementType.ARTIST_BY_INITIAL,
+        entries=entries,
+        options=options)
     return entries
 
 
@@ -1378,8 +1502,8 @@ def _handler_element_navigable_album(
     if has_year(album):
         title = f"{title} [{get_album_year_str(album)}]"
     # badge if available
-    album_badge : str = entry_creator.get_album_badge(album)
-    if album_badge: title = f"{title} [{album_badge}]"
+    album_quality_badge : str = entry_creator.get_album_quality_badge(album=album, force_load=True)
+    if album_quality_badge: title = f"{title} [{album_quality_badge}]"
     title = f"Album: {title}"
     upnp_util.set_album_title(title, album_entry)
     entries.append(album_entry)
@@ -1594,8 +1718,16 @@ def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries :
         TagType.RECENTLY_PLAYED,
         TagType.HIGHEST_RATED,
         TagType.MOST_PLAYED,
-        TagType.RANDOM,
-        TagType.FAVOURITES]
+        TagType.RANDOM]
+    add_fav: bool = config.show_empty_favorites
+    if not add_fav:
+        res: Response[Starred] = request_cache.get_starred()
+        if res.isOk:
+            fav_albums : list[Album] = res.getObj().getAlbums()
+            if fav_albums and len(fav_albums) > 0:
+                # add fav tags
+                add_fav = True
+    if add_fav: tag_list.append(TagType.FAVOURITES)
     current : TagType
     for current in tag_list:
         if config.is_tag_supported(current):
@@ -1614,9 +1746,10 @@ def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries :
 
 def _handler_tag_group_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     tag_list : list[TagType] = [
-        TagType.ARTISTS_ALL,
-        TagType.ARTISTS_PAGINATED,
-        TagType.ARTISTS_INDEXED]
+        TagType.ALBUM_ARTISTS,
+        TagType.ALL_ARTISTS,
+        TagType.ALBUM_ARTISTS_INDEXED,
+        TagType.ALL_ARTISTS_INDEXED]
     current_tag : TagType
     for current_tag in tag_list:
         entry : dict[str, any] = create_entry_for_tag(objid, current_tag)
@@ -1628,32 +1761,49 @@ def _handler_tag_group_artists(objid, item_identifier : ItemIdentifier, entries 
             album_id = album_id,
             target = entry)
         entries.append(entry)
-    fav_artist_entry : dict[str, any] = create_entry_for_tag(objid, TagType.FAVOURITE_ARTISTS)
-    fav_artists : list[Artist] = connector_provider.get().getStarred().getObj().getArtists()
-    select_fav : Artist = secrets.choice(fav_artists) if fav_artists and len(fav_artists) > 0 else None
-    if select_fav:
-        msgproc.log(f"_handler_tag_group_artists fav_artist [{select_fav.getId()}] [{select_fav.getName()}]")
-        # select random album
-        art : RetrievedArt = art_retriever.get_artist_art(artist_id = select_fav.getId())
-        msgproc.log(f"_handler_tag_group_artists   art: [{art.cover_art}] [{art.art_url}]")
-        if art and art.cover_art:
-            upnp_util.set_album_art_from_album_id(
-                album_id = art.cover_art,
-                target = fav_artist_entry)
-    entries.append(fav_artist_entry)
+    fav_artists: list[Artist] = list()
+    select_fav: Artist = None
+    add_fav: bool = config.show_empty_favorites
+    if not add_fav:
+        fav_res: Response[Starred] = request_cache.get_starred()
+        fav_artists : list[Artist] = fav_res.getObj().getArtists() if fav_res and fav_res.isOk() else None
+        select_fav : Artist = secrets.choice(fav_artists) if fav_artists and len(fav_artists) > 0 else None
+        add_fav = select_fav is not None
+    if add_fav:
+        fav_artist_entry : dict[str, any] = create_entry_for_tag(objid, TagType.FAVOURITE_ARTISTS)
+        if select_fav:
+            msgproc.log(f"_handler_tag_group_artists fav_artist [{select_fav.getId()}] "
+                        f"[{select_fav.getName() if select_fav else None}]")
+            # select random album
+            art : RetrievedArt = art_retriever.get_artist_art(artist_id = select_fav.getId()) if select_fav else None
+            if art and art.cover_art:
+                upnp_util.set_album_art_from_album_id(
+                    album_id = art.cover_art,
+                    target = fav_artist_entry)
+        entries.append(fav_artist_entry)
     return entries
 
 
 def _handler_tag_group_songs(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    tag_list: list[TagType] = [
+        TagType.RANDOM_SONGS,
+        TagType.RANDOM_SONGS_LIST]
+    add_fav: bool = config.show_empty_favorites
+    if not add_fav:
+        res: Response[Starred] = request_cache.get_starred()
+        if res.isOk:
+            fav_songs : list[Album] = res.getObj().getAlbums()
+            if fav_songs and len(fav_songs) > 0:
+                # add fav tags
+                add_fav = True
+    if add_fav:
+        tag_list.extend([
+            TagType.FAVOURITE_SONGS,
+            TagType.FAVOURITE_SONGS_LIST])
     entry_list : list[dict[str, any]] = tag_list_to_entries(
         objid,
-        [
-            TagType.RANDOM_SONGS,
-            TagType.RANDOM_SONGS_LIST,
-            TagType.FAVOURITE_SONGS,
-            TagType.FAVOURITE_SONGS_LIST
-        ])
-    entries = entries + entry_list
+        tag_list)
+    entries.extend(entry_list)
     return entries
 
 
@@ -1668,9 +1818,10 @@ __tag_action_dict : dict = {
     TagType.FAVOURITES.getTagName(): _handler_tag_favourites,
     TagType.RANDOM.getTagName(): _handler_tag_random,
     TagType.GENRES.getTagName(): _handler_tag_genres,
-    TagType.ARTISTS_ALL.getTagName(): _handler_tag_artists,
-    TagType.ARTISTS_PAGINATED.getTagName(): _handler_tag_artists_paginated,
-    TagType.ARTISTS_INDEXED.getTagName(): _handler_tag_artists_indexed,
+    TagType.ALBUM_ARTISTS.getTagName(): _handler_tag_album_artists,
+    TagType.ALL_ARTISTS.getTagName(): _handler_tag_all_artists,
+    TagType.ALBUM_ARTISTS_INDEXED.getTagName(): _handler_tag_album_artists_indexed,
+    TagType.ALL_ARTISTS_INDEXED.getTagName(): _handler_tag_all_artists_indexed,
     TagType.FAVOURITE_ARTISTS.getTagName(): _handler_tag_artists_favourite,
     TagType.PLAYLISTS.getTagName(): _handler_tag_playlists,
     TagType.INTERNET_RADIOS.getTagName(): _handler_tag_internet_radios,
@@ -1682,7 +1833,7 @@ __tag_action_dict : dict = {
 
 __elem_action_dict : dict = {
     ElementType.GENRE.getName(): _handler_element_genre,
-    ElementType.ARTIST_INITIAL.getName(): _handler_element_artist_initial,
+    ElementType.ARTIST_BY_INITIAL.getName(): _handler_element_artists_by_initial,
     ElementType.ARTIST.getName(): _handler_element_artist,
     ElementType.ARTIST_FOCUS.getName(): _handler_element_artist_focus,
     ElementType.GENRE_ARTIST.getName(): _handler_element_genre_artist,
@@ -1736,8 +1887,8 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
             retrieved_art = tag_art_retriever[tagname]()
         except Exception as ex:
             msgproc.log(f"Cannot retrieve art for tag [{tagname}] [{type(ex)}] [{ex}]")
-    msgproc.log(f"tag_to_entry [{get_tag_type_by_name(tag.getTagName())}] "
-                f"got a [{type(retrieved_art) if retrieved_art else None}]")
+    # msgproc.log(f"tag_to_entry [{get_tag_type_by_name(tag.getTagName())}] "
+    #             f"got a [{type(retrieved_art) if retrieved_art else None}]")
     if retrieved_art and retrieved_art.cover_art:
         upnp_util.set_album_art_from_album_id(
             retrieved_art.cover_art,
@@ -1754,11 +1905,16 @@ def _show_tags(objid, entries : list) -> list:
         if config.is_tag_supported(tag):
             if tag_enabled_in_initial_page(tag):
                 start_time : float = time.time()
-                entries.append(tag_to_entry(objid, tag))
+                # is there a precondition?
+                precondition: Callable[[], bool] = (__tag_show_precondition[tag.getTagName()]
+                    if tag.getTagName() in __tag_show_precondition
+                    else None)
+                do_show: bool = not precondition or precondition()
+                if do_show: entries.append(tag_to_entry(objid, tag))
                 elapsed : float = time.time() - start_time
                 msgproc.log(f"Tag {tag} took [{elapsed:.3f}]")
-        else:
-            msgproc.log(f"_show_tags skipping unsupported [{tag}]")
+        # else:
+        #     msgproc.log(f"_show_tags skipping unsupported [{tag}]")
     return entries
 
 
@@ -1788,6 +1944,7 @@ def browse(a):
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags
         entries = _show_tags(objid, entries)
+        return _returnentries(entries, no_cache=True)
     else:
         # decode
         decoded_path : str = codec.decode(last_path_item)
@@ -1813,7 +1970,7 @@ def browse(a):
                 entries = elem_handler(objid, item_identifier, entries)
             else:
                 msgproc.log(f"browse: element handler for: --{thing_name}-- not found")
-    return _returnentries(entries)
+        return _returnentries(entries)
 
 
 def _objidtopath(objid):

@@ -59,15 +59,12 @@ from msgproc_provider import msgproc
 import secrets
 import os
 
+import persistence
 
 __DICT_KEY_BITDEPTH : str = "BIT_DEPTH"
 __DICT_KEY_SAMPLERATE : str = "SAMPLE_RATE"
 __DICT_KEY_SUFFIX : str = "SUFFIX"
 __DICT_KEY_BITRATE : str = "BITRATE"
-
-__ITEM_KEY_BIT_DEPTH : str = "bitDepth"
-__ITEM_KEY_SAMPLING_RATE : str = "samplingRate"
-__ITEM_KEY_CHANNEL_COUNT : str = "channelCount"
 
 
 __readable_sr : dict[int, str] = {
@@ -169,8 +166,8 @@ def __get_track_info_list(track_list : list[Song]) -> list[TrackInfo]:
     result : list[TrackInfo] = list()
     song : Song
     for song in track_list:
-        bit_depth : int = song.getItem().getByName(__ITEM_KEY_BIT_DEPTH)
-        sampling_rate : int = song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE)
+        bit_depth : int = song.getItem().getByName(constants.item_key_bit_depth)
+        sampling_rate : int = song.getItem().getByName(constants.item_key_sampling_rate)
         suffix : int = song.getSuffix()
         bitrate : int = song.getBitRate()
         current : TrackInfo = TrackInfo()
@@ -194,10 +191,10 @@ def __get_track_list_streaming_properties(track_list : list[Song]) -> dict[str, 
     song : Song
     for song in track_list:
         # bit depth
-        bit_depth : int = song.getItem().getByName(__ITEM_KEY_BIT_DEPTH)
+        bit_depth : int = song.getItem().getByName(constants.item_key_bit_depth)
         __maybe_append_to_dict_list(result, __DICT_KEY_BITDEPTH, bit_depth)
         # sampling rate
-        sampling_rate : int = song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE)
+        sampling_rate : int = song.getItem().getByName(constants.item_key_sampling_rate)
         __maybe_append_to_dict_list(result, __DICT_KEY_SAMPLERATE, sampling_rate)
         # suffix
         suffix : int = song.getSuffix()
@@ -241,34 +238,31 @@ def __get_unique_suffix(prop_dict : dict[str, list[int]]) -> str:
     return None
 
 
-def get_album_badge(album : Album, force_load : bool = False) -> str:
+def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
     if force_load:
         res : Response[Album] = connector_provider.get().getAlbum(albumId = album.getId())
         reloaded : Album = res.getObj() if res and res.isOk() else None
-        return get_track_list_badge(
+        if not reloaded: raise Exception(f"Cannot find {Album.__name__} with album_id [{album.getId()}]")
+        quality_badge: str = get_track_list_badge(
             track_list = reloaded.getSongs(),
             list_identifier = album.getId())
+        return quality_badge
     else:
-        cached : str = cache_manager_provider.get().get_cached_element(
-            element_type=ElementType.ALBUM_BADGE,
-            key=album.getId())
-        return cached
+        album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
+        if album_metadata: return album_metadata.quality_badge
 
 
-def __store_album_badge(badge : str, album_id : str) -> str:
+def __store_album_badge(album_id : str, quality_badge : str) -> str:
     if album_id:
-        cache_manager_provider.get().cache_element_value(
-            element_type=ElementType.ALBUM_BADGE,
-            key=album_id,
-            value=badge)
-    return badge
+        persistence.save_quality_badge(album_id=album_id, quality_badge=quality_badge)
+    return quality_badge
 
 
 def get_track_list_badge(track_list : list[Song], list_identifier : str = None) -> str:
-    badge : str = __get_track_list_badge(track_list, list_identifier)
-    if badge and list_identifier:
-        __store_album_badge(badge, list_identifier)
-    return badge
+    quality_badge : str = __get_track_list_badge(track_list, list_identifier)
+    if quality_badge and list_identifier:
+        __store_album_badge(album_id=list_identifier, quality_badge=quality_badge)
+    return quality_badge
 
 
 def __get_track_list_badge(track_list : list[Song], list_identifier : str = None) -> str:
@@ -392,7 +386,7 @@ def album_to_navigable_entry(
         id = identifier_util.create_id_from_identifier(identifier))
     if has_year(album):
         title = f"{title} [{get_album_year_str(album)}]"
-    album_badge : str = get_album_badge(album=album, force_load=False)
+    album_badge : str = get_album_quality_badge(album=album, force_load=False)
     # msgproc.log(f"album_to_navigable_entry album [{album.getId()}] -> badge [{album_badge}]")
     if album_badge:
         title = f"{title} [{album_badge}]"
@@ -494,13 +488,19 @@ def artist_to_entry(
 
 def artist_initial_to_entry(
         objid,
-        artist_initial : str) -> direntry:
+        artist_initial : str,
+        options: dict[str, any] = dict()) -> direntry:
+    album_artists_only: bool = get_option(
+        options = options,
+        option_key = OptionKey.ALBUM_ARTISTS_ONLY)
+    encoded_artist_initial: str = codec.encode(artist_initial)
     identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.ARTIST_INITIAL.getName(),
-        artist_initial)
+        ElementType.ARTIST_BY_INITIAL.getName(),
+        encoded_artist_initial)
+    identifier.set(ItemIdentifierKey.ALBUM_ARTISTS_ONLY, 1 if album_artists_only else 0)
     id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     artist_set : set[str] = cache_manager_provider.get().get_cached_element(
-        ElementType.ARTIST_INITIAL,
+        ElementType.ARTIST_BY_INITIAL,
         artist_initial)
     msgproc.log(f"artist_initial_to_entry initial [{artist_initial}] "
                 f"set length [{len(artist_set) if artist_set else 0}]")
@@ -571,14 +571,14 @@ def song_to_entry(
     bd : int = 0
     sr : int = 0
     br : int = 0
-    if song.getItem().hasName(__ITEM_KEY_CHANNEL_COUNT):
-        cc = song.getItem().getByName(__ITEM_KEY_CHANNEL_COUNT)
+    if song.getItem().hasName(constants.item_key_channel_count):
+        cc = song.getItem().getByName(constants.item_key_channel_count)
         upnp_util.set_channel_count(cc, entry)
-    if song.getItem().hasName(__ITEM_KEY_BIT_DEPTH):
-        bd = song.getItem().getByName(__ITEM_KEY_BIT_DEPTH)
+    if song.getItem().hasName(constants.item_key_bit_depth):
+        bd = song.getItem().getByName(constants.item_key_bit_depth)
         upnp_util.set_bit_depth(bd, entry)
-    if song.getItem().hasName(__ITEM_KEY_SAMPLING_RATE):
-        sr = song.getItem().getByName(__ITEM_KEY_SAMPLING_RATE)
+    if song.getItem().hasName(constants.item_key_sampling_rate):
+        sr = song.getItem().getByName(constants.item_key_sampling_rate)
         upnp_util.set_sample_rate(sr, entry)
     br = song.getBitRate()
     if br: upnp_util.set_bit_rate(br, entry)
@@ -621,7 +621,8 @@ def album_to_entry(
     if prepend_number: title = f"[{prepend_number:02}] {title}"
     if config.append_year_to_album == 1 and has_year(album):
         title = "{} [{}]".format(title, get_album_year_str(album))
-    album_badge : str = get_album_badge(album=album, force_load=True)
+    force_load: bool = get_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE)
+    album_badge : str = get_album_quality_badge(album=album, force_load=force_load)
     if config.append_codecs_to_album == 1:
         song_list : list[Song] = album.getSongs()
         # load album
@@ -648,7 +649,7 @@ def album_to_entry(
             if len(codecs) == 1:
                 title = strip_codec_from_album(title, codecs)
             codecs_str : str = ",".join(codecs)
-            # add codecs if more than one or there is no badge
+            # add codecs if more than one or there is no quality_badge
             if (len(codecs) > 1) or (not album_badge or len(album_badge) == 0):
                 title = "{} [{}]".format(title, codecs_str)
     # msgproc.log(f"album_to_entry album [{album.getId()}] -> badge [{album_badge}]")
@@ -660,7 +661,7 @@ def album_to_entry(
     artist_initial : str = artist_initial_cache_provider.get().get(album.getArtistId())
     if artist_initial and album.getArtistId():
         cache_manager.cache_element_multi_value(
-            ElementType.ARTIST_INITIAL,
+            ElementType.ARTIST_BY_INITIAL,
             artist_initial,
             album.getArtistId())
     identifier : ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
@@ -753,7 +754,7 @@ def album_version_to_entry(
         artist_initial : str = artist_initial_cache_provider.get().get(current_album.getArtistId())
         if artist_initial and current_album.getArtistId():
             cache_manager.cache_element_multi_value(
-                ElementType.ARTIST_INITIAL,
+                ElementType.ARTIST_BY_INITIAL,
                 artist_initial,
                 current_album.getArtistId())
     entry : dict = direntry(id,

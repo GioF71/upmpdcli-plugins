@@ -13,7 +13,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-plugin_name : str = "subsonic"
-subsonic_plugin_release : str = "0.5.0"
+plugin_name: str = "subsonic"
+subsonic_plugin_release: str = "0.6.0"
 
-default_dump_streaming_properties : int = 0
+subsonic_max_return_size : int = 500  # hard limit
+
+default_dump_streaming_properties: int = 0
+
+item_key_bit_depth: str = "bitDepth"
+item_key_sampling_rate: str = "samplingRate"
+item_key_channel_count: str = "channelCount"
+
+default_max_artists_per_page: int = 25
+default_show_empty_favorites: int = 0
+default_show_empty_playlists: int = 0
+default_items_per_page: int = 25
+default_cached_request_timeout_sec: int = 600
+fallback_transcode_codec : str = "ogg"

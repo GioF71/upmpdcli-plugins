@@ -28,6 +28,7 @@ from element_type import ElementType
 
 from item_identifier import ItemIdentifier
 
+import request_cache
 import connector_provider
 import cache_manager_provider
 import caching
@@ -41,6 +42,7 @@ from retrieved_art import RetrievedArt
 import cmdtalkplugin
 
 import secrets
+import constants
 
 from typing import Callable
 
@@ -94,7 +96,7 @@ def get_albums(query_type : str, size : int = config.items_per_page, offset : in
     if TagType.NEWEST.getQueryType() == query_type:
         albumListResponse = connector.getNewestAlbumList(size = size, offset = offset)
     elif TagType.RANDOM.getQueryType() == query_type:
-        albumListResponse = connector.getRandomAlbumList(size = size, offset = offset)
+        albumListResponse = request_cache.get_random_album_list(size = size, offset = offset)
     elif TagType.RECENTLY_PLAYED.getQueryType() == query_type:
         albumListResponse = connector.getAlbumList(ltype = ListType.RECENT, size = size, offset = offset)
     elif TagType.MOST_PLAYED.getQueryType() == query_type:
@@ -108,16 +110,17 @@ def get_albums(query_type : str, size : int = config.items_per_page, offset : in
     return albumListResponse.getObj().getAlbums()
 
 
+# this can be slow with large libraries
 def load_all_artists_by_genre(genre : str) -> set[str]:
     artist_id_set : set[str] = set()
     album_list : list[Album] = None
     offset : int = 0
-    while not album_list or len(album_list) == config.subsonic_max_return_size:
+    while not album_list or len(album_list) == constants.subsonic_max_return_size:
         album_list_response : Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype = ListType.BY_GENRE,
             genre = genre,
             offset = offset,
-            size = config.subsonic_max_return_size)
+            size = constants.subsonic_max_return_size)
         if not album_list_response.isOk(): return set()
         album_list : list[Album] = album_list_response.getObj().getAlbums()
         cached : bool = False
@@ -158,11 +161,11 @@ def get_album_list_by_artist_genre(
     result : list[Album] = list()
     album_list : list[Album] = None
     offset : int = 0
-    while not album_list or len(album_list) == config.subsonic_max_return_size:
+    while not album_list or len(album_list) == constants.subsonic_max_return_size:
         album_list_response : Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype = ListType.BY_GENRE,
             offset = offset,
-            size = config.subsonic_max_return_size,
+            size = constants.subsonic_max_return_size,
             genre = genre_name)
         if not album_list_response.isOk(): raise Exception(f"Failed to load albums for "
                                                            f"genre {genre_name} offset {offset}")

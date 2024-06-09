@@ -26,9 +26,10 @@ class TagType(Enum):
     MOST_PLAYED = 150, "mp", "Most Played Albums", "frequent"
     RANDOM = 160, "r", "Random Albums", "random"
     ARTISTS = 200, "grtsts", "Artists", None
-    ARTISTS_ALL = 210, "a_all", "Artists (All)", None
-    ARTISTS_PAGINATED = 211, "a_pg", "Artists (Paginated)", None
-    ARTISTS_INDEXED = 220, "a_ndx", "Artists (By Initial)", None
+    ALBUM_ARTISTS = 211, "lbmrtsts", "Album Artists", None
+    ALL_ARTISTS = 212, "llrtsts", "All Artists", None
+    ALBUM_ARTISTS_INDEXED = 220, "lbm_ndx", "Album Artists (By Initial)", None
+    ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial)", None
     FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,
     RANDOM_SONGS = 310, "rs", "Random Songs", None,

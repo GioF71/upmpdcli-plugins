@@ -29,9 +29,15 @@ def get_plugin_option_value(nm, dflt = None):
     return upmplgutils.getOptionValue(plugin_config_variable_name(nm), dflt)
 
 
-subsonic_max_return_size : int = 500  # hard limit
+items_per_page : int = min(
+    constants.subsonic_max_return_size,
+    get_plugin_option_value("itemsperpage", constants.default_items_per_page))
 
-items_per_page : int = min(subsonic_max_return_size, int(get_plugin_option_value("itemsperpage", "36")))
+cached_request_timeout_sec : int = min(
+    constants.subsonic_max_return_size,
+    get_plugin_option_value("cachedrequesttimeoutsec", constants.default_cached_request_timeout_sec))
+
+
 append_year_to_album : int = int(get_plugin_option_value("appendyeartoalbum", "1"))
 append_codecs_to_album : int = int(get_plugin_option_value("appendcodecstoalbum", "1"))
 whitelist_codecs : list[str] = str(get_plugin_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
@@ -44,8 +50,14 @@ skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0
 allow_artist_art : bool = get_plugin_option_value("allowartistart", "0") == "1"
 server_side_scrobbling : bool = get_plugin_option_value("serversidescrobbling", "0") == "1"
 prepend_number_in_album_list : bool = get_plugin_option_value("prependnumberinalbumlist", "0") == "1"
-__transcode_codec : str = get_plugin_option_value("transcodecodec", "")
-__transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
+
+configured_transcode_codec : str = get_plugin_option_value("transcodecodec", "")
+configured_transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
+
+max_artists_per_page: int = get_plugin_option_value("maxartistsperpage", constants.default_max_artists_per_page)
+
+show_empty_favorites: bool = get_plugin_option_value("showemptyfavorites", constants.default_show_empty_favorites) == 1
+show_empty_playlists: bool = get_plugin_option_value("showemptyplaylists", constants.default_show_empty_playlists) == 1
 
 dump_streaming_properties : bool = (
     get_plugin_option_value(
@@ -58,22 +70,20 @@ album_list_by_highest_supported : bool = True
 internet_radio_stations_supported : bool = True
 # end
 
-__fallback_transcode_codec : str = "ogg"
 
-
-def __is_transcode_enabled() -> bool:
-    return __transcode_codec or __transcode_max_bitrate
+def is_transcode_enabled() -> bool:
+    return configured_transcode_codec or configured_transcode_max_bitrate
 
 
 def get_transcode_codec() -> str:
-    if __transcode_codec: return __transcode_codec
-    if __is_transcode_enabled(): return __fallback_transcode_codec
+    if configured_transcode_codec: return configured_transcode_codec
+    if is_transcode_enabled(): return constants.fallback_transcode_codec
     return None
 
 
 def get_transcode_max_bitrate() -> int:
-    if __transcode_max_bitrate: return int(__transcode_max_bitrate)
-    if __transcode_codec: return 320
+    if configured_transcode_max_bitrate: return int(configured_transcode_max_bitrate)
+    if configured_transcode_codec: return 320
     return None
 
 

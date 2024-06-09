@@ -18,6 +18,7 @@ from element_type import ElementType
 
 import config
 import subsonic_util
+import request_cache
 
 from subsonic_connector.response import Response
 from subsonic_connector.list_type import ListType
@@ -35,18 +36,71 @@ from msgproc_provider import msgproc
 
 import secrets
 import constants
+import upmplgutils
+import persistence
 
 
 def subsonic_init():
     msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initializing ...")
     init_success : bool = False
     try:
+        cache_dir : str = upmplgutils.getcachedir(constants.plugin_name)
+        msgproc.log(f"Cache dir for [{constants.plugin_name}] is [{cache_dir}]")
+        msgproc.log(f"DB version for [{constants.plugin_name}] is [{persistence.get_db_version()}]")
         initial_caching()
         check_supports()
+        detect_anomalies()
         init_success = True
     except Exception as e:
         msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization failed [{e}]")
     msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization success: [{init_success}]")
+
+
+def detect_anomalies():
+    detect_multiple_artists()
+
+
+class ArtistOccurrence:
+    artist_id: str
+    mb_id: str
+    artist_name: str
+
+
+def detect_multiple_artists():
+    res: Response[Artists] = request_cache.get_artists()
+    initial_list: list[ArtistsInitial] = res.getObj().getArtistListInitials() if res and res.isOk() else None
+    if initial_list is None:
+        msgproc.log(f"No [{ArtistsInitial.__name__}]")
+        return
+    artist_dict: dict[str, list[ArtistOccurrence]] = dict()
+    curr_initial: ArtistsInitial
+    for curr_initial in initial_list:
+        msgproc.log(f"Processing [{ArtistsInitial.__name__}] [{curr_initial.getName()}]")
+        ali_list: list[ArtistListItem] = curr_initial.getArtistListItems()
+        curr_artist: ArtistListItem
+        for curr_artist in ali_list:
+            artist_id: str = curr_artist.getId()
+            artist_name: str = curr_artist.getName().lower()
+            mb_id = curr_artist.getItem().getByName("musicBrainzId")
+            existing: list[ArtistOccurrence] = artist_dict[artist_name] if artist_name in artist_dict else list()
+            # there must not be artist_id duplicates!
+            if artist_id in existing:
+                raise Exception(f"Multiple artist_id [{artist_id}]")
+            occ: ArtistOccurrence = ArtistOccurrence()
+            occ.artist_id = artist_id
+            occ.artist_name = artist_name
+            occ.mb_id = mb_id
+            existing.append(occ)
+            artist_dict[artist_name] = existing
+    # count by name
+    k: str
+    v_occ_list: list[ArtistOccurrence]
+    for k, v_occ_list in artist_dict.items():
+        if len(v_occ_list) > 1:
+            msgproc.log(f"Duplicate artists for artist_name:[{k}]")
+            occ: ArtistOccurrence
+            for occ in v_occ_list:
+                msgproc.log(f"\tartist_id:[{occ.artist_id}] mb_id:[{occ.mb_id}]")
 
 
 def check_supports():
@@ -89,7 +143,7 @@ def initial_caching():
 
 
 def load_genres():
-    genres_response : Response[Genres] = connector_provider.get().getGenres()
+    genres_response : Response[Genres] = request_cache.get_genres()
     if not genres_response.isOk(): return
     genre_list = genres_response.getObj().getGenres()
     for current_genre in genre_list if genre_list and len(genre_list) > 0 else list():
@@ -106,7 +160,7 @@ def load_single_genre(genre : str):
     # pick an album for the genre
     album_list_res : Response[AlbumList] = connector_provider.get().getAlbumList(
         ltype = ListType.BY_GENRE,
-        size = config.subsonic_max_return_size,
+        size = constants.subsonic_max_return_size,
         genre = genre)
     if album_list_res.isOk() and album_list_res.getObj() and len(album_list_res.getObj().getAlbums()) > 0:
         album_list : AlbumList = album_list_res.getObj()
@@ -120,10 +174,10 @@ def load_by_newest():
     album_list : list[Album] = None
     offset : int = 0
     total_albums : int = 0
-    while not album_list or len(album_list) == config.subsonic_max_return_size:
+    while not album_list or len(album_list) == constants.subsonic_max_return_size:
         album_list = subsonic_util.get_albums(
             query_type = TagType.NEWEST.getQueryType(),
-            size = config.subsonic_max_return_size,
+            size = constants.subsonic_max_return_size,
             offset = offset)
         total_albums += len(album_list)
         msgproc.log(f"loaded {total_albums} albums ...")
@@ -142,7 +196,7 @@ def load_by_artist_initial(current_artists_initial : ArtistsInitial):
         artist_id : str = current.getId()
         if cache_manager_provider.get().is_album_artist(artist_id):
             cache_manager_provider.get().cache_element_multi_value(
-                ElementType.ARTIST_INITIAL,
+                ElementType.ARTIST_BY_INITIAL,
                 current_artists_initial.getName(),
                 artist_id)
 

@@ -15,9 +15,15 @@
 
 from item_identifier_key import ItemIdentifierKey
 import copy
+import random
+import string
 
 
 class ItemIdentifier:
+
+    def randomword(self, length) -> str:
+        letters : str = string.ascii_lowercase
+        return ''.join(random.choice(letters) for i in range(length))
 
     @classmethod
     def from_dict(cls, id_dict : dict[str, any]):
@@ -39,6 +45,8 @@ class ItemIdentifier:
         if not value: raise Exception("value cannot be empty")
         self.set(ItemIdentifierKey.THING_NAME, name)
         self.set(ItemIdentifierKey.THING_VALUE, value)
+        random_value : str = self.randomword(6)
+        self.set(ItemIdentifierKey.RANDOM_VALUE, random_value)
 
     def getDictionary(self):
         return copy.deepcopy(self.__dict)
