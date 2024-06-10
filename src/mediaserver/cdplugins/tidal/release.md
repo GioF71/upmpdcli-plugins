@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.6.0-worktree
+
+- work in progress
+
 ## 0.5.1
 
 - timestamp was not save in metadata cache table
