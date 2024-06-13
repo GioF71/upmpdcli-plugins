@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,9 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from tidalapi import Quality as TidalQuality
+
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.5.1"
+tidal_plugin_release : str = "0.6.0"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -105,6 +107,7 @@ default_max_playlist_or_mix_items_per_page : int = 25
 default_enable_read_stream_metadata : int = 0
 default_enable_assume_bitdepth : int = 1
 default_playlist_items_per_page : int = 25
+default_tracks_per_page : int = 25
 default_mix_items_per_page : int = 25
 default_albums_per_page : int = 25
 default_artists_per_page : int = 25
@@ -118,9 +121,9 @@ default_max_file_age_seconds : int = 3600
 
 default_max_get_stream_info_mix_or_playlist : int = 5
 
-default_max_audio_quality : str = "LOSSLESS"
+default_max_audio_quality : str = TidalQuality.high_lossless
 
-default_session_max_duration_sec : int = 120
+default_session_max_duration_sec : int = 300
 
 default_show_album_id : bool = True
 
@@ -143,3 +146,5 @@ default_listen_queue_playlist_name : str = "Listening Queue"
 default_display_quality_badge : bool = False
 
 default_enable_image_caching : bool = False
+
+default_search_limit: int = 15
