@@ -220,6 +220,7 @@ src/mediaserver/cdplugins/tidal/played_album.py
 src/mediaserver/cdplugins/tidal/played_track.py
 src/mediaserver/cdplugins/tidal/played_track_adapter.py
 src/mediaserver/cdplugins/tidal/played_track_request.py
+src/mediaserver/cdplugins/tidal/release.md
 src/mediaserver/cdplugins/tidal/search_type.py
 src/mediaserver/cdplugins/tidal/streaming_info.py
 src/mediaserver/cdplugins/tidal/tag_type.py

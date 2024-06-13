@@ -15,6 +15,7 @@
 
 import upmplgutils
 import constants
+from tidalapi import Quality as TidalQuality
 
 
 def getPluginOptionValue(option_key : str, dflt = None):
@@ -40,6 +41,11 @@ enable_read_stream_metadata : bool = __getPluginOptionAsBool(
 enable_assume_bitdepth : bool = __getPluginOptionAsBool(
     "enableassumebitdepth",
     constants.default_enable_assume_bitdepth)
+
+
+tracks_per_page : int = getPluginOptionValue(
+    "tracksperpage",
+    constants.default_tracks_per_page)
 
 
 mix_items_per_page : int = getPluginOptionValue(
@@ -73,7 +79,7 @@ max_get_stream_info_mix_or_playlist : bool = getPluginOptionValue(
 
 
 albums_per_page : int = getPluginOptionValue(
-    "recentlyplayedalbumsperpage",
+    "albumsperpage",
     constants.default_albums_per_page)
 
 
@@ -150,3 +156,22 @@ display_quality_badge : bool = getPluginOptionValue(
 enable_image_caching : bool = getPluginOptionValue(
     "enableimagecaching",
     constants.default_enable_image_caching)
+
+
+search_limit : int = getPluginOptionValue(
+    "searchlimit",
+    constants.default_search_limit)
+
+
+__fallback_for_missing_quality: dict[str, str] = {
+    TidalQuality.hi_res_lossless: TidalQuality.high_lossless,
+    TidalQuality.hi_res: TidalQuality.high_lossless,
+    TidalQuality.high_lossless: TidalQuality.high_lossless,
+    TidalQuality.low_320k: TidalQuality.low_320k,
+    TidalQuality.low_96k: TidalQuality.low_96k
+}
+
+
+def get_fallback_quality_when_missing() -> str:
+    if not max_audio_quality or max_audio_quality not in __fallback_for_missing_quality: return None
+    return __fallback_for_missing_quality[max_audio_quality]

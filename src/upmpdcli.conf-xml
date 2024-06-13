@@ -505,8 +505,13 @@
 # <var name="tidalimagecaching" type="bool">
 # <brief>Enables image caching, requires webdocumentroot</brief>
 # <descr>Allows the plugin to cache images for Artists and Albums, requires
-# webdocumentroot and some disk space</descr></var>
+# webdocumentroot and some disk space, recommended</descr></var>
 #tidalimagecaching = 0
+# <var name="tidalsearchlimit" type="int">
+# <brief>Tidal search limit</brief>
+# <descr>Set the maximum numbers of item returned by
+# search, defaults to 15</descr></var>
+#tidalsearchlimit = 15
 
 # <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 

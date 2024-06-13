@@ -752,11 +752,15 @@ def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[
 
 
 def get_last_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
-    return _get_played_tracks(sorting = PlayedTracksSorting.LAST_PLAYED_FIRST, max_tracks = max_tracks)
+    return _get_played_tracks(
+        sorting = PlayedTracksSorting.LAST_PLAYED_FIRST,
+        max_tracks = max_tracks)
 
 
 def get_most_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
-    return _get_played_tracks(sorting = PlayedTracksSorting.MOST_PLAYED_FIRST, max_tracks = max_tracks)
+    return _get_played_tracks(
+        sorting = PlayedTracksSorting.MOST_PLAYED_FIRST,
+        max_tracks = max_tracks)
 
 
 def get_played_track_entry(track_id : str) -> PlayedTrack:

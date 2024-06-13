@@ -32,6 +32,7 @@ class OptionKey(Enum):
     OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT = 12, "omit-rsts-nls-dffrnt", False
     ALBUM_OMITTABLE_ARTIST_ID = 13, "lbm-omit-rtst", None
     TRACK_OMITTABLE_ARTIST_NAME = 14, "trk-omit-rtst", None
+    INITIAL_TRACK_NUMBER = 15, "ntl-trkn", 1
 
     def __init__(self,
             num : int,

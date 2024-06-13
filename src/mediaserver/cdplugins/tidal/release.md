@@ -1,12 +1,21 @@
 # Tidal Plugin Release notes
 
-## 0.6.0-worktree
+## 0.6.0 (2024-06-13)
 
-- work in progress
+- Use album art caching more extensively
+- Limit search limit to 15 items by default, configurable (tidalsearchlimit)
+- Favorite Tracks (List) is paginated
+- Recently/Most Played Tracks (List) are paginated
+- Most Played Tracks is paginated
+- Similar Artists is paginated
+- Artist Radio (List) is paginated
+- Artist Radio (Navigable) is paginated
+- Artist Top tracks (list mode) is paginated
+- Avoid unknown file type as seen in Linn Kazoo
 
-## 0.5.1
+## 0.5.1 (2024-06-01)
 
-- timestamp was not save in metadata cache table
+- timestamp was not saved in metadata cache table
 - collecting release notes (this file)
 
 ## 0.5.0 (2024-05-23)
@@ -16,7 +25,7 @@
 - Updated get_credentials.py program
 - Fixed bug in single track view
 - Various fixes and performance optimizations
-- Introduced optional image caching, for Artists and Albums
+- Introduced optional image caching, for Artists and Albums (tidalimagecaching)
 
 ## 0.4.1 (Hotfix) (2024-05-17)
 

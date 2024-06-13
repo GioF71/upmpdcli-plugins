@@ -209,6 +209,8 @@
 #tidalprependnumberinitemlist = 0
 # Enables tidal image caching
 #tidalimagecaching = 0
+# Tidal search limit, set to 15 items by default
+#tidalsearchlimit = 15
 
 # UPRCL Local Media Server parameters
 

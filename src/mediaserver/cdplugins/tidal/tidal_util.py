@@ -19,6 +19,7 @@ import constants
 import config
 import requests
 import os
+import upnp_util
 
 from tidalapi import Quality as TidalQuality
 from tidalapi.session import Session as TidalSession
@@ -105,6 +106,34 @@ def get_name_or_title(obj : any) -> str:
     return None
 
 
+def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entry: dict):
+    album_art_url: str = get_album_url_by_id(album_id=album_id, tidal_session=tidal_session)
+    upnp_util.set_album_art_from_uri(album_art_url, entry)
+
+
+def get_album_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
+    if config.enable_image_caching:
+        # try cached!
+        document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
+        if document_root_dir:
+            sub_dir_list: list[str] = [constants.plugin_name, "images", TidalAlbum.__name__]
+            image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
+            cached_file_name: str = f"{str(album_id)}.jpg"
+            cached_file: str = os.path.join(image_dir, cached_file_name)
+            if os.path.exists(cached_file):
+                # use cached file
+                path: list[str] = list()
+                path.extend(sub_dir_list)
+                path.append(cached_file_name)
+                cached_image_url: str = compose_docroot_url("/".join(path))
+                # msgproc.log(f"get_album_url_by_id returning [{cached_image_url}] for [{album_id}]")
+                return cached_image_url
+    # if we are are, we fallback to normal
+    # msgproc.log(f"get_album_url_by_id returning falling back for [{album_id}]")
+    album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
+    return get_image_url(obj=album)
+
+
 def get_image_url(obj : any, refresh: bool = False) -> str:
     if not config.enable_image_caching: return __get_image_url(obj)
     document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
@@ -114,17 +143,17 @@ def get_image_url(obj : any, refresh: bool = False) -> str:
         return __get_image_url(obj)
     sub_dir_list : list[str] = [constants.plugin_name, "images", type(obj).__name__]
     image_dir : str = ensure_directory(document_root_dir, sub_dir_list)
-    image_url : str = __get_image_url(obj=obj)
-    cached_file: str = f"{str(obj.id)}.jpg"
-    dest_file: str = os.path.join(image_dir, cached_file)
-    if not os.path.exists(dest_file) or refresh:
+    cached_file_name: str = f"{str(obj.id)}.jpg"
+    cached_file: str = os.path.join(image_dir, cached_file_name)
+    if refresh or not os.path.exists(cached_file):
+        image_url : str = __get_image_url(obj=obj)
         # msgproc.log(f"get_image_url saving to [{image_dir}] [{dest_file}]")
         img_data : bytes = requests.get(image_url).content
-        with open(dest_file, 'wb') as handler:
+        with open(cached_file, 'wb') as handler:
             handler.write(img_data)
     path : list[str] = list()
     path.extend(sub_dir_list)
-    path.append(cached_file)
+    path.append(cached_file_name)
     cached_image_url: str = compose_docroot_url("/".join(path))
     return cached_image_url
 
