@@ -26,20 +26,50 @@ from html import escape as htmlescape, unescape as htmlunescape
 import pyradios
 from pyradios import facets
 
-from upmplgutils import uplog, setidprefix, direntry
+from urllib.request import urlopen
+import re as r
+
+from upmplgutils import uplog, setidprefix, direntry, getOptionValue
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
-_g_myprefix = "0$radio-browser$"
-setidprefix("radio-browser")
+__plugin_name = "radio-browser"
+_g_myprefix = f"0${__plugin_name}$"
+setidprefix(__plugin_name)
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
+
+def _get_public_ip() -> str:
+    d = str(urlopen('http://checkip.dyndns.com/').read())
+    return r.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(d).group(1)
+
+
+def _get_country_code() -> str:
+    cfg_country = getOptionValue(f"{__plugin_name}country")
+    if cfg_country: return cfg_country
+    token = getOptionValue(f"{__plugin_name}ipinfotoken")
+    if not token: return None
+    public_ip = _get_public_ip()
+    if not public_ip: return None
+    url = f"https://www.ipinfo.io/{public_ip}?token={token}"
+    # call the API and save the response
+    with urlopen(url) as response:
+        response_content = response.read()
+    # parsing the response 
+    data = json.loads(response_content)
+    country = data["country"] if "country" in data else None
+    msgproc.log(f"country: [{country}]")
+    return country
+    
+
 _g_rb = None
+_g_country = None
 def _initradios():
     global _g_rb
+    global _g_country
     if not _g_rb:
         _g_rb = pyradios.RadioBrowser()
         global _ccodetoc
@@ -47,7 +77,8 @@ def _initradios():
         countries = _g_rb.countries()
         for c in countries:
             _ccodetoc[c["iso_3166_1"]] = c["name"]
-
+    if not _g_country:
+        _g_country = _get_country_code()
 
 def _radiotoentry(pid, id, radio):
     """Translate radio record from radio-browser into plugin output item"""
@@ -202,6 +233,11 @@ def browse(a):
             if not tagname in setcrits:
                 id = objid + "/" + tagname
                 entries.append(direntry(id, objid, _crittotitle(tagname)))
+        # add a shortcut to local radio
+        # if _g_country is available
+        if _g_country and (not setcrits or len(setcrits) == 0):
+            id = objid + "/countrycodes/" + _g_country
+            entries.append(direntry(id, objid, "local"))
 
     # Link to the available radios at this stage. In root, we don't build the filter, so don't have
     # data here at the top level (don't want to show 30k radios).
