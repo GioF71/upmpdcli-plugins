@@ -1032,14 +1032,16 @@ Then enable the function by installing the upmpdcli radio-browser module (which 
 package), and uncommenting the bogus setting for the `radio-browseruser` variable in the upmpdcli
 configuration file.
 
-A few configuration parameters are available for radio-browser.
+There is an option to enable local radios. So, instead of navigating to `countries` and then
+select your country, you can also have direct access to a `local` entry, which will represent
+a convenient shortcut.
 
-If you specify `radio-browseripinfotoken`, you will get access to the local radios,
-based on the current country. You will need to obtain a token from link:https://ipinfo.io/[ipinfo].
+You can enable this feature using either the parameter `radio-browsercountry` and setting it to
+the 2-digit country code of your choice (`FR`, `IT`, etc) or you can configure the parameter
+`radio-browseripinfotoken` to the token you can obtain registering to link:https://ipinfo.io/[ipinfo].
+In the latter case, the country will be selected according to the country of your internet service provider.
 
-Alternatively to `radio-browseripinfotoken`, you can specify your preferred
-country using `radio-browsercountry`, using a two-letter country code like
-`FR`, `IT`, etc.
+The `radio-browsercountry` parameter has the priority on the `radio-browseripinfotoken` parameter.
 
 The plugin arguments are listed in the
 <<radio-browseruser,configuration section>>.  
