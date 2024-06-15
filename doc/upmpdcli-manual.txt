@@ -6,7 +6,7 @@
 This manual is about link:https://www.lesbonscomptes.com/upmpdcli:[Upmpdcli], a combined UPnP
 Media Renderer and Media Server program.
 
-The two functions, as Renderer or Server, are completely independant, and any instance can be
+The two functions, as Renderer or Server, are completely independent, and any instance can be
 configured to run as one, or the other, or both. The reason that they are implemented in a single
 program is mostly historical, and also justified by the shared UPnP libraries. In any case, if you
 are only interested in one aspect, you can completely ignore the sections of this document which
@@ -19,7 +19,7 @@ mpd.
 Do not scrap your old amp yet, with 100 Euros (a Raspberry Pi and a high quality DAC I2S
 daugtherboard) you can transform it into a state of the art network streamer.
 
-As a Media Server, upmpdcli implements its functions through independant plugins. One of these will
+As a Media Server, upmpdcli implements its functions through independent plugins. One of these will
 make local audio files accessible through UPnP, and some others will turn upmpdcli into a proxy for
 a number of streaming services, exposing their catalog and streams to the UPnP side. Some other
 plugins implement miscellaneous functions, mostly dealing with radio stations or catalogs.
@@ -201,7 +201,7 @@ Additionally:
 
 - The *upmpdcli* program also implements a xref:UPMPDCLI-MS[Media Server]. This function is hosted
   in the same program (and usually runs in separate threads of the same process), but it is
-  completely independant: *upmpdcli* can run as Renderer only, or Media Server only, or both, and
+  completely independent: *upmpdcli* can run as Renderer only, or Media Server only, or both, and
   the Media Server can be accessed by any Control Point and serve streams to any Renderer, not only
   to its co-hosted one. The Upmpdcli Media Server implements gateways to external streaming services
   (Highresaudio, Qobuz, Tidal...), and also includes the xref:UPMPDCLI-MS-UPRCL[*uprcl*]
@@ -593,7 +593,7 @@ must be configured to play directly to the audio driver with `scplaymethod
 = alsa`. See the xref:sclogfilename[configuration section].
 
 Longer version: *Songcast* is a real-time audio stream. As the Sender and
-Receiver sample clocks (the 44.1 or 48 KHz clocks) are independant, audio
+Receiver sample clocks (the 44.1 or 48 KHz clocks) are independent, audio
 reproduction on the two systems will slowly drift. If nothing is done,
 after a time, the Receiver will have to skip samples or add a period of
 silence (depending if its clock is slower or faster), which is quite
@@ -612,7 +612,7 @@ This is not specific to *Songcast* of course, all real time audio network
 transports have to do something similar (e.g. Roon does individual stream
 adjustments on the server).
 
-Independantly of the clock issue, all Receivers should use approximately
+Independently of the clock issue, all Receivers should use approximately
 the same amount of buffering for the audio to be reasonably synchronous
 (with no more shifts than moving around would produce anyway). This is
 impossible to achieve when going through *mpd*, and the second reason why
@@ -1187,7 +1187,7 @@ or download the release tar files from the the
 link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli
 download page]
 
-The upmpdcli build has one optional target, which needs the installation of additional dependancies
+The upmpdcli build has one optional target, which needs the installation of additional dependencies
 (the Qt development packages), for building the upmpdcli-config GUI configuration file editor. This
 is set with _--enable-confgui_ when using the autotools build, or with _-Dconfgui=true_ with the
 *meson* build.
@@ -1499,7 +1499,7 @@ feature is active, it actually prevents Lumin from discovering upmpdcli at all, 
 configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
 
 Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
-dependancy, so you should check that it is installed. 
+dependency, so you should check that it is installed. 
 
 The media service icons will appear in the Control Point interface, and the service will be
 accessible after entering the login and password.
@@ -1534,7 +1534,7 @@ constantly).
 There are well-known problems with multicast and WIFI (see for example
 http://superuser.com/questions/730288/why-do-some-wifi-routers-block-multicast-packets-going-from-wired-to-wireless[this
 superuser.com question] 
-for detailed explanations). This seems to be dependant on the WIFI hardware
+for detailed explanations). This seems to be dependent on the WIFI hardware
 (router/access points) used, so maybe you will have more luck than me.
 
 If some of your Receivers use WIFI, and you experience sound issues, check
