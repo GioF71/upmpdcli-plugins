@@ -1,5 +1,9 @@
 # Subsonic Plugin Release notes
 
+## Release 0.6.1
+
+- Fixed missing art for Favorite Albums
+
 ## Release 0.6.0
 
 - Introduced persistency (local sqlite3 database)

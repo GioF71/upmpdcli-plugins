@@ -138,7 +138,7 @@ def get_artist_art(artist_id : str) -> RetrievedArt:
 
 def favourite_albums_art_retriever() -> RetrievedArt:
     fav: RetrievedArt = __favourite_albums_art_retriever()
-    if fav is None: return random_albums_art_retriever()
+    return fav if fav else random_albums_art_retriever()
 
 
 def __favourite_albums_art_retriever() -> RetrievedArt:

@@ -629,6 +629,14 @@ upradiostitle = Upmpdcli Radio List
 # will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
 #radio-browsertitle = Radio Browser
+# <var name="radio-browseripinfotoken" type="string"> <brief>IPInfo token.</brief><descr>Set your ipinfo
+# token in order to have the shortcut to the local radios.</descr></var>
+#radio-browseripinfotoken = your-ipinfo-token
+# <var name="radio-browsercountry" type="string"> <brief>The preferred country.</brief><descr>Set this
+# to the preferred country in order to have the shortcut to the local radios.
+# This is alternative to using the ipinfo token.
+# The values is to be specified in the form of a country code, e.g. `FR`, `IT`, etc.</descr></var>
+#radio-browsercountry = your-ipinfo-token
 
 # <grouptitle>Radio Paradise (https://www.radioparadise.com/) plugin parameters</grouptitle>
 

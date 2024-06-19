@@ -15,6 +15,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *   02110-1301 USA
  */
+#ifdef BUILDING_RECOLL
+#include "autoconfig.h"
+#else
+#include "config.h"
+#endif
+
 #include "smallut.h"
 
 #include <algorithm>
