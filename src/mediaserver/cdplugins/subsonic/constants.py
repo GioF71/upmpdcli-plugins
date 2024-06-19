@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 plugin_name: str = "subsonic"
-subsonic_plugin_release: str = "0.6.1"
+subsonic_plugin_release: str = "0.7.0-trunk"
 
 subsonic_max_return_size : int = 500  # hard limit
 

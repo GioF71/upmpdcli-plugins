@@ -176,7 +176,7 @@ def load_by_newest():
     total_albums : int = 0
     while not album_list or len(album_list) == constants.subsonic_max_return_size:
         album_list = subsonic_util.get_albums(
-            query_type = TagType.NEWEST.getQueryType(),
+            query_type = TagType.RECENTLY_ADDED_ALBUMS.getQueryType(),
             size = constants.subsonic_max_return_size,
             offset = offset)
         total_albums += len(album_list)

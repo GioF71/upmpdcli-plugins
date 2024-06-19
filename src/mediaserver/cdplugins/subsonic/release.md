@@ -1,5 +1,11 @@
 # Subsonic Plugin Release notes
 
+## Release 0.6.2
+
+- Implemented Newest Albums using byYear type
+- Renamed old "Newest Albums" to "Recently Added Albums"
+- TagType naming review (not a feature)
+
 ## Release 0.6.1
 
 - Fixed missing art for Favorite Albums

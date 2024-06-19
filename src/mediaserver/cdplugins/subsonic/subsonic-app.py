@@ -93,6 +93,7 @@ from radio_entry_type import RadioEntryType
 import secrets
 import mimetypes
 import time
+import datetime
 from typing import Callable
 
 from msgproc_provider import msgproc
@@ -103,12 +104,13 @@ _g_myprefix = f"0${constants.plugin_name}$"
 upmplgutils.setidprefix(constants.plugin_name)
 
 __tag_initial_page_enabled_default : dict[str, bool] = {
-    TagType.NEWEST.getTagName(): False,
-    TagType.RECENTLY_PLAYED.getTagName(): False,
-    TagType.HIGHEST_RATED.getTagName(): False,
-    TagType.MOST_PLAYED.getTagName(): False,
+    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): False,
+    TagType.NEWEST_ALBUMS.getTagName(): False,
+    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): False,
+    TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
+    TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
     TagType.RANDOM.getTagName(): False,
-    TagType.FAVOURITES.getTagName(): False,
+    TagType.FAVOURITE_ALBUMS.getTagName(): False,
     TagType.ALL_ARTISTS.getTagName(): False,
     TagType.ALBUM_ARTISTS.getTagName(): False,
     TagType.ALBUM_ARTISTS_INDEXED.getTagName(): False,
@@ -325,17 +327,21 @@ def _load_album_tracks(
 
 
 def _load_albums_by_type(
-        objid,
-        entries : list,
-        tagType : TagType,
-        offset : int = 0,
-        size : int = config.items_per_page,
+        objid: any,
+        entries: list,
+        tagType: TagType,
+        offset: int = 0,
+        size: int = config.items_per_page,
+        fromYear:any = None,
+        toYear: any = None,
         options : dict[str, any] = dict()) -> list:
     # msgproc.log(f"_load_albums_by_type for {tagType.getQueryType()} at {offset} -> {size}")
     albumList : list[Album] = subsonic_util.get_albums(
         tagType.getQueryType(),
         size = size,
-        offset = str(offset))
+        offset = str(offset),
+        fromYear=fromYear,
+        toYear=toYear)
     msgproc.log(f"Requested [{size}] albums from offset [{offset}], got [{len(albumList)}]")
     current_album : Album
     tag_cached : bool = False
@@ -672,15 +678,17 @@ def __handler_tag_album_listype(objid, item_identifier : ItemIdentifier, tag_typ
         options : dict[str, any] = dict()
         if config.prepend_number_in_album_list:
             option_util.set_option(
-                options = options,
-                option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
-                option_value = counter)
+                options=options,
+                option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
+                option_value=counter)
         entries = _load_albums_by_type(
-            objid = objid,
-            entries = entries,
-            tagType = tag_type,
-            offset = offset,
-            options = options)
+            objid=objid,
+            entries=entries,
+            tagType=tag_type,
+            offset=offset,
+            fromYear=datetime.datetime.now().year,
+            toYear=0,
+            options=options)
         # offset is: current offset + the entries length
         if (len(entries) == config.items_per_page):
             next_page : dict = _create_tag_next_entry(
@@ -694,24 +702,28 @@ def __handler_tag_album_listype(objid, item_identifier : ItemIdentifier, tag_typ
         return list()
 
 
-def _handler_tag_newest(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST, entries)
+def _handler_tag_recently_added_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.RECENTLY_ADDED_ALBUMS, entries)
+
+
+def _handler_tag_newest_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST_ALBUMS, entries)
 
 
 def _handler_tag_most_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.MOST_PLAYED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.MOST_PLAYED_ALBUMS, entries)
 
 
 def _handler_tag_favourites(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.FAVOURITES, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.FAVOURITE_ALBUMS, entries)
 
 
 def _handler_tag_highest_rated(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.HIGHEST_RATED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.HIGHEST_RATED_ALBUMS, entries)
 
 
 def _handler_tag_recently_played(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.RECENTLY_PLAYED, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.RECENTLY_PLAYED_ALBUMS, entries)
 
 
 def _handler_tag_random(objid, item_identifier : ItemIdentifier, entries : list) -> list:
@@ -1714,10 +1726,11 @@ def _handler_element_track(objid, item_identifier : ItemIdentifier, entries : li
 
 def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     tag_list : list[TagType] = [
-        TagType.NEWEST,
-        TagType.RECENTLY_PLAYED,
-        TagType.HIGHEST_RATED,
-        TagType.MOST_PLAYED,
+        TagType.NEWEST_ALBUMS,
+        TagType.RECENTLY_ADDED_ALBUMS,
+        TagType.RECENTLY_PLAYED_ALBUMS,
+        TagType.HIGHEST_RATED_ALBUMS,
+        TagType.MOST_PLAYED_ALBUMS,
         TagType.RANDOM]
     add_fav: bool = config.show_empty_favorites
     if not add_fav:
@@ -1727,7 +1740,7 @@ def _handler_tag_group_albums(objid, item_identifier : ItemIdentifier, entries :
             if fav_albums and len(fav_albums) > 0:
                 # add fav tags
                 add_fav = True
-    if add_fav: tag_list.append(TagType.FAVOURITES)
+    if add_fav: tag_list.append(TagType.FAVOURITE_ALBUMS)
     current : TagType
     for current in tag_list:
         if config.is_tag_supported(current):
@@ -1811,11 +1824,12 @@ __tag_action_dict : dict = {
     TagType.ALBUMS.getTagName(): _handler_tag_group_albums,
     TagType.ARTISTS.getTagName(): _handler_tag_group_artists,
     TagType.SONGS.getTagName(): _handler_tag_group_songs,
-    TagType.NEWEST.getTagName(): _handler_tag_newest,
-    TagType.RECENTLY_PLAYED.getTagName(): _handler_tag_recently_played,
-    TagType.HIGHEST_RATED.getTagName(): _handler_tag_highest_rated,
-    TagType.MOST_PLAYED.getTagName(): _handler_tag_most_played,
-    TagType.FAVOURITES.getTagName(): _handler_tag_favourites,
+    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): _handler_tag_recently_added_albums,
+    TagType.NEWEST_ALBUMS.getTagName(): _handler_tag_newest_albums,
+    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): _handler_tag_recently_played,
+    TagType.HIGHEST_RATED_ALBUMS.getTagName(): _handler_tag_highest_rated,
+    TagType.MOST_PLAYED_ALBUMS.getTagName(): _handler_tag_most_played,
+    TagType.FAVOURITE_ALBUMS.getTagName(): _handler_tag_favourites,
     TagType.RANDOM.getTagName(): _handler_tag_random,
     TagType.GENRES.getTagName(): _handler_tag_genres,
     TagType.ALBUM_ARTISTS.getTagName(): _handler_tag_album_artists,

@@ -19,11 +19,12 @@ from enum import Enum
 class TagType(Enum):
 
     ALBUMS = 100, "glbms", "Albums", None
-    NEWEST = 110, "n", "Newest Albums", "newest"
-    RECENTLY_PLAYED = 120, "rp", "Recently Played Albums", "recent"
-    HIGHEST_RATED = 130, "hr", "Highest Rated Albums", "highest"
-    FAVOURITES = 140, "fav", "Favourite Albums", "starred"
-    MOST_PLAYED = 150, "mp", "Most Played Albums", "frequent"
+    RECENTLY_ADDED_ALBUMS = 110, "n", "Recently Added Albums", "newest"
+    RECENTLY_PLAYED_ALBUMS = 120, "rp", "Recently Played Albums", "recent"
+    HIGHEST_RATED_ALBUMS = 130, "hr", "Highest Rated Albums", "highest"
+    FAVOURITE_ALBUMS = 140, "fav", "Favourite Albums", "starred"
+    MOST_PLAYED_ALBUMS = 150, "mp", "Most Played Albums", "frequent"
+    NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
     RANDOM = 160, "r", "Random Albums", "random"
     ARTISTS = 200, "grtsts", "Artists", None
     ALBUM_ARTISTS = 211, "lbmrtsts", "Album Artists", None

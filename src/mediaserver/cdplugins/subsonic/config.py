@@ -89,7 +89,7 @@ def get_transcode_max_bitrate() -> int:
 
 def is_tag_supported(tag : TagType) -> bool:
     # true unless there are exceptions ...
-    if tag == TagType.HIGHEST_RATED:
+    if tag == TagType.HIGHEST_RATED_ALBUMS:
         return album_list_by_highest_supported
     elif tag == TagType.INTERNET_RADIOS:
         return internet_radio_stations_supported

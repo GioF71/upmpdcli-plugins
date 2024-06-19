@@ -95,12 +95,12 @@ def get_artists() -> Response[Artists]:
 
 
 def get_random_album_list(
-        size = 10,
-        offset = 0,
-        fromYear = None,
-        toYear = None,
-        genre = None,
-        musicFolderId = None) -> Response[AlbumList]:
+        size=10,
+        offset=0,
+        fromYear=None,
+        toYear=None,
+        genre=None,
+        musicFolderId=None) -> Response[AlbumList]:
     # cache first page
     if not (
             size == config.items_per_page and
