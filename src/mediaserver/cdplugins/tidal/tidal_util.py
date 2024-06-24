@@ -597,3 +597,19 @@ def compose_docroot_url(right : str) -> str:
     doc_root : str = os.environ['UPMPD_UPNPDOCROOT']
     if not host_port and not doc_root: return None
     return f"http://{host_port}/{right}"
+
+
+def get_oauth2_credentials_file_name() -> str:
+    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.oauth2_credentials_file_name)
+
+
+def oauth2_credential_file_exists() -> bool:
+    return os.path.exists(get_oauth2_credentials_file_name())
+
+
+def get_pkce_credentials_file_name() -> str:
+    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.pkce_credentials_file_name)
+
+
+def pkce_credential_file_exists() -> bool:
+    return os.path.exists(get_pkce_credentials_file_name())

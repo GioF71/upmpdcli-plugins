@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.7.0-trunk
+
+- Moved some methods related to credential files to tidal_util
+
 ## 0.6.0 (2024-06-13)
 
 - Use album art caching more extensively

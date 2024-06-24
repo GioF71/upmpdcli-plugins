@@ -162,14 +162,6 @@ def mp3_only() -> bool:
     return tidal_util.is_mp3(q)
 
 
-def __get_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.credentials_file_name)
-
-
-def __get_pkce_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.pkce_credentials_file_name)
-
-
 def load_json(file_name : str):
     try:
         with open(file_name, 'r') as cred_file:
@@ -190,12 +182,12 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
     oauth2_static_loaded : bool = False
     pkce_static_loaded : bool = False
     res_dict : dict[str, str] = dict()
-    if os.path.exists(__get_pkce_credentials_file_name()):
+    if tidal_util.pkce_credential_file_exists():
         msgproc.log("get_credentials_from_config_or_files pkce file available, using it")
         res_dict[constants.key_authentication_type] = AuthenticationType.PKCE.auth_type
         res_dict[constants.key_file_available] = True
         # READ contents of file
-        pkce_json_dict : dict[str, any] = load_json(__get_pkce_credentials_file_name())
+        pkce_json_dict : dict[str, any] = load_json(tidal_util.get_pkce_credentials_file_name())
         # check pkce credentials are here
         file_pkce_token_type : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_token_type_json)
         file_pkce_access_token : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_access_token_json)
@@ -264,8 +256,8 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
         # TODO if file does not exists, create it
     # something missing? try json files
     if not oauth2_static_loaded:
-        oauth2_cred_file_name : str = __get_credentials_file_name()
-        if os.path.exists(oauth2_cred_file_name):
+        oauth2_cred_file_name: str = tidal_util.get_oauth2_credentials_file_name()
+        if tidal_util.oauth2_credential_file_exists():
             try:
                 with open(oauth2_cred_file_name, 'r') as cred_file:
                     oauth_dict = json.load(cred_file)
@@ -276,8 +268,8 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
         else:
             msgproc.log(f"File {oauth2_cred_file_name} not found")
     if not pkce_static_loaded:
-        pkce_cred_file_name : str = __get_pkce_credentials_file_name()
-        if os.path.exists(pkce_cred_file_name):
+        pkce_cred_file_name : str = tidal_util.get_pkce_credentials_file_name()
+        if tidal_util.pkce_credential_file_exists():
             try:
                 with open(pkce_cred_file_name, 'r') as cred_file:
                     pkce_dict = json.load(cred_file)
@@ -411,16 +403,16 @@ def load_credentials() -> dict[str, str]:
     # msgproc.log(f"load_credentials static pkce - is_pkce [{pkce_is_pkce}]")
     if pkce_token_type and pkce_access_token and pkce_refresh_token and pkce_session_id:
         # save credentials file if it does not exist
-        if not os.path.exists(__get_pkce_credentials_file_name()):
+        if not tidal_util.pkce_credential_file_exists():
             pkce_credentials_json_dict : dict[str, str] = get_pkce_credentials_dict_for_json(
                 pkce_token_type = pkce_token_type,
                 pkce_access_token = pkce_access_token,
                 pkce_refresh_token = pkce_refresh_token,
                 pkce_session_id = pkce_session_id,
                 pkce_is_pkce = pkce_is_pkce)
-            with open(__get_pkce_credentials_file_name(), 'w') as wcf:
+            with open(tidal_util.get_pkce_credentials_file_name(), 'w') as wcf:
                 json.dump(pkce_credentials_json_dict, wcf, indent = 4)
-            msgproc.log(f"PKCE credentials stored to [{__get_pkce_credentials_file_name()}]")
+            msgproc.log(f"PKCE credentials stored to [{tidal_util.get_pkce_credentials_file_name()}]")
         return {
             constants.key_authentication_type: AuthenticationType.PKCE.auth_type,
             constants.key_pkce_token_type: pkce_token_type,
@@ -466,7 +458,7 @@ def load_credentials() -> dict[str, str]:
             constants.key_refresh_token : refresh_token,
             constants.key_expiry_time_timestamp_str : storable_expiry_time
         }
-        with open(__get_credentials_file_name(), 'w') as wcf:
+        with open(tidal_util.get_oauth2_credentials_file_name(), 'w') as wcf:
             json.dump(new_oauth2_credentials, wcf, indent = 4)
         return new_oauth2_credentials
     else:
@@ -485,7 +477,7 @@ def load_credentials() -> dict[str, str]:
             constants.key_pkce_session_id : pkce_session_id,
             constants.key_pkce_is_pkce : pkce_is_pkce
         }
-        with open(__get_pkce_credentials_file_name(), 'w') as wcf:
+        with open(tidal_util.get_pkce_credentials_file_name(), 'w') as wcf:
             pkce_credentials_json_dict : dict[str, str] = get_pkce_credentials_dict_for_json(
                 pkce_token_type = pkce_token_type,
                 pkce_access_token = pkce_access_token,
@@ -510,9 +502,9 @@ def build_session() -> TidalSession:
         if constants.key_file_available in credentials_dict
         else False)
     if file_available and AuthenticationType.PKCE == auth_type:
-        msgproc.log(f"PKCE file [{__get_pkce_credentials_file_name()}] available, building a new session ...")
+        msgproc.log(f"PKCE file [{tidal_util.get_pkce_credentials_file_name()}] available, building a new session ...")
         # return pkce session
-        session_file = Path(__get_pkce_credentials_file_name())
+        session_file = Path(tidal_util.get_pkce_credentials_file_name())
         session : TidalSession = TidalSession()
         # Load session from file; create a new session if necessary
         res : bool = session.login_session_file(session_file, do_pkce = True)
@@ -543,7 +535,7 @@ def build_session() -> TidalSession:
         return session
     else:
         # return pkce session
-        session_file = Path(__get_pkce_credentials_file_name())
+        session_file = Path(tidal_util.get_pkce_credentials_file_name())
         session : TidalSession = TidalSession()
         # Load session from file; create a new session if necessary
         res : bool = session.login_session_file(session_file, do_pkce=True)
@@ -641,7 +633,8 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
                 f"streamtype [{'MPD' if stream.is_MPD else 'BTS'}] title [{track.name}] "
                 f"from [{track.album.name}] by [{track.artist.name}] -> "
                 f"[{streaming_url}] Q:[{quality}] M:[{audio_mode}] "
-                f"MT:[{mimetype}] SR:[{sample_rate}] B:[{bit_depth}]")
+                f"MT:[{mimetype}] Codecs:[{codecs}] "
+                f"SR:[{sample_rate}] B:[{bit_depth}]")
     return result
 
 
@@ -658,8 +651,8 @@ def calc_bitrate(tidal_quality : TidalQuality, bit_depth : int, sample_rate : in
 @dispatcher.record('trackuri')
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
-    msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
+    msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}]")
     tidal_session : TidalSession = get_session()
     streaming_info : StreamingInfo = build_streaming_url(
         tidal_session = tidal_session,

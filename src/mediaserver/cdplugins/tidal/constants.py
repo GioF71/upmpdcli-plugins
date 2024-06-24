@@ -17,7 +17,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.6.0"
+tidal_plugin_release : str = "0.7.0-trunk"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -75,7 +75,7 @@ auth_challenge_type_pkce : str = "pkce"
 
 default_auth_challenge_type : str = auth_challenge_type_oauth2
 
-credentials_file_name : str = "credentials.json"
+oauth2_credentials_file_name : str = "credentials.json"
 pkce_credentials_file_name : str = "pkce.credentials.json"
 
 key_authentication_type : str = "authentication_type"
