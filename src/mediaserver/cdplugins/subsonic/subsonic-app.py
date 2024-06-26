@@ -277,8 +277,11 @@ def _load_album_tracks(
         entries : list) -> list:
     # msgproc.log(f"_load_album_tracks with album_version_path [{album_version_path}]")
     album_tracks : AlbumTracks = get_album_tracks(album_id)
-    album_quality_badge: str = entry_creator.get_track_list_badge(album_tracks.getSongList(), list_identifier=album_id)
-    msgproc.log(f"Quality badge for [{album_id}] -> [{album_quality_badge}]")
+    album_quality_badge: str = entry_creator.get_track_list_badge(
+        track_list=album_tracks.getSongList(),
+        list_identifier=album_id)
+    if config.debug_badge_mngmt:
+        msgproc.log(f"Quality badge for [{album_id}] -> [{album_quality_badge}]")
     if album_quality_badge:
         persistence.save_quality_badge(
             album_id=album_id,
@@ -329,44 +332,40 @@ def _load_album_tracks(
 def _load_albums_by_type(
         objid: any,
         entries: list,
-        tagType: TagType,
+        tag_type: TagType,
         offset: int = 0,
         size: int = config.items_per_page,
-        fromYear:any = None,
+        fromYear: any = None,
         toYear: any = None,
         options : dict[str, any] = dict()) -> list:
-    # msgproc.log(f"_load_albums_by_type for {tagType.getQueryType()} at {offset} -> {size}")
+    use_last_for_next: bool = option_util.get_option(options=options, option_key=OptionKey.USE_LAST_FOR_NEXT)
+    request_size: int = size + 1 if use_last_for_next else size
     albumList : list[Album] = subsonic_util.get_albums(
-        tagType.getQueryType(),
-        size = size,
+        tag_type.getQueryType(),
+        size = request_size,
         offset = str(offset),
         fromYear=fromYear,
         toYear=toYear)
-    msgproc.log(f"Requested [{size}] albums from offset [{offset}], got [{len(albumList)}]")
+    msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}]")
     current_album : Album
     tag_cached : bool = False
     counter : int = offset
-    # msgproc.log(f"_load_albums_by_type for {tagType.getQueryType()} "
-    #             f"at {offset} -> {size} loaded [{len(albumList) if albumList else 0}]")
+    to_show: list[Album] = albumList[0:min(len(albumList), size)]
+    add_next: bool = len(albumList) == request_size
     iteration : int = 0
-    for current_album in albumList:
+    for current_album in to_show:
         iteration += 1
-        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] album_id "
-        #             f"[{current_album.getId()}] [{current_album.getTitle()}] ...")
         counter += 1
-        # msgproc.log(f"_load_albums_by_type processing album_id {current_album.getId()}")
         if config.prepend_number_in_album_list:
             option_util.set_option(
                 options = options,
                 option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value = counter)
-        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] onAlbum started ...")
         cache_manager_provider.get().on_album(current_album)
-        # msgproc.log(f"Processing [{iteration}] of [{len(albumList)}] onAlbum finished ...")
-        if tagType and (not tag_cached) and (offset == 0):
+        if tag_type and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(
                 ElementType.TAG,
-                tagType.getTagName(),
+                tag_type.getTagName(),
                 current_album.getId())
             tag_cached = True
         if config.disable_navigable_album == 1:
@@ -379,6 +378,16 @@ def _load_albums_by_type(
                 objid = objid,
                 album = current_album,
                 options = options))
+    if add_next:
+        for_next: Album = albumList[len(albumList) - 1]
+        next_page: dict = _create_tag_next_entry(
+            objid = objid,
+            tag = tag_type,
+            offset = offset + len(entries))
+        upnp_util.set_album_art_from_album_id(
+            album_id=for_next.getId(),
+            target=next_page)
+        entries.append(next_page)
     return entries
 
 
@@ -411,12 +420,16 @@ def _albums_by_artist_to_entries(
             options = options,
             option_key = OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE,
             option_value = False)
+        option_util.set_option(
+            options = options,
+            option_key = OptionKey.SKIP_ARTIST,
+            option_value = True)
         if config.prepend_number_in_album_list:
             option_util.set_option(
                 options = options,
                 option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value = counter)
-        entries.append(entry_creator.album_to_entry(
+        entries.append(entry_creator.album_to_navigable_entry(
             objid = objid,
             album = current_album,
             options = options))
@@ -681,21 +694,25 @@ def __handler_tag_album_listype(objid, item_identifier : ItemIdentifier, tag_typ
                 options=options,
                 option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value=counter)
+        option_util.set_option(
+            options=options,
+            option_key=OptionKey.USE_LAST_FOR_NEXT,
+            option_value=True)
         entries = _load_albums_by_type(
             objid=objid,
             entries=entries,
-            tagType=tag_type,
+            tag_type=tag_type,
             offset=offset,
             fromYear=datetime.datetime.now().year,
             toYear=0,
             options=options)
         # offset is: current offset + the entries length
-        if (len(entries) == config.items_per_page):
-            next_page : dict = _create_tag_next_entry(
-                objid = objid,
-                tag = tag_type,
-                offset = offset + len(entries))
-            entries.append(next_page)
+        # if (len(entries) == config.items_per_page):
+        #     next_page : dict = _create_tag_next_entry(
+        #         objid = objid,
+        #         tag = tag_type,
+        #         offset = offset + len(entries))
+        #     entries.append(next_page)
         return entries
     except Exception as ex:
         msgproc.log(f"Cannot handle tag [{tag_type.getTagName()}] [{type(ex)}] [{ex}]")
@@ -1292,41 +1309,47 @@ def _handler_element_artists_by_initial(objid, item_identifier : ItemIdentifier,
 
 
 def _handler_element_artist_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} offset {offset}")
-    album_list : list[Album]
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    if config.debug_artist_albums:
+        msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} offset {offset}")
+    album_list: list[Album]
     try:
         album_list = _load_albums_by_artist(artist_id)
     except Exception as ex:
         msgproc.log(f"Cannot get albums for artistId {artist_id} [{type(ex)}] [{ex}]")
         album_list = list()
         cache_manager_provider.get().on_missing_artist_id(artist_id)
-        pass
-    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} found {len(album_list)} albums")
-    next_needed : bool = len(album_list) > (config.items_per_page + offset)
-    num_albums_to_show : int = (config.items_per_page
-                                if next_needed or len(album_list) == config.items_per_page
-                                else len(album_list) % config.items_per_page)
-    msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} "
-                f"next_needed {next_needed} num_albums_to_show {num_albums_to_show}")
+    if config.debug_artist_albums:
+        msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} found {len(album_list)} albums")
+    next_needed: bool = len(album_list) > (config.items_per_page + offset)
+    num_albums_to_show: int = (config.items_per_page
+                               if next_needed or len(album_list) == config.items_per_page
+                               else len(album_list) % config.items_per_page)
+    if config.debug_artist_albums:
+        msgproc.log(f"_handler_element_artist_albums artist_id {artist_id} "
+                    f"next_needed {next_needed} num_albums_to_show {num_albums_to_show}")
     if num_albums_to_show > 0:
+        to_show: list[Album] = album_list[offset : offset + num_albums_to_show]
         entries = _albums_by_artist_to_entries(
-            objid = objid,
-            album_list = album_list[offset : offset + num_albums_to_show],
-            offset = offset,
-            entries = entries)
-        msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
+            objid=objid,
+            album_list=to_show,
+            offset=offset,
+            entries=entries)
+        if config.debug_artist_albums:
+            msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
         if next_needed:
-            next_identifier : ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
+            next_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
             next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.items_per_page)
-            next_id : str = identifier_util.create_objid(
+            next_id: str = identifier_util.create_objid(
                 objid,
                 identifier_util.create_id_from_identifier(next_identifier))
-            next_entry : dict = upmplgutils.direntry(
+            next_entry: dict = upmplgutils.direntry(
                 next_id,
                 objid,
-                title = "Next")
+                title="Next")
+            next_album: Album = album_list[offset + num_albums_to_show]
+            upnp_util.set_album_art_from_album_id(album_id=next_album.getId(), target=next_entry)
             entries.append(next_entry)
     return entries
 
@@ -1519,13 +1542,17 @@ def _handler_element_navigable_album(
     title = f"Album: {title}"
     upnp_util.set_album_title(title, album_entry)
     entries.append(album_entry)
-    if album.getArtistId():
+    # add artist if needed
+    skip_artist: bool = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST, 0) == 1
+    if not skip_artist and album.getArtistId():
         artist_entry : dict[str, any] = _artist_entry_for_album(objid, album)
         entries.append(artist_entry)
     else:
-        msgproc.log(f"_handler_element_navigable_album no artistId for "
-                    f"album [{album.getId()}] [{album.getTitle()}], "
-                    "not creating artist entry")
+        if not album.getArtistId():
+            # we skip the artist because we have no artist_id
+            msgproc.log(f"_handler_element_navigable_album no artistId for "
+                        f"album [{album.getId()}] [{album.getTitle()}], "
+                        "not creating artist entry")
     entries.append(entry_creator.album_id_to_album_focus(
         objid,
         album_id = album.getId()))

@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 plugin_name: str = "subsonic"
-subsonic_plugin_release: str = "0.7.0-trunk"
+subsonic_plugin_release: str = "0.6.3"
 
 subsonic_max_return_size : int = 500  # hard limit
 
@@ -30,3 +30,5 @@ default_show_empty_playlists: int = 0
 default_items_per_page: int = 25
 default_cached_request_timeout_sec: int = 600
 fallback_transcode_codec : str = "ogg"
+default_debug_badge_mngmt: int = 0
+default_debug_artist_albums: int = 0

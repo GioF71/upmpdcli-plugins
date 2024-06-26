@@ -21,6 +21,7 @@ from typing import Callable
 import cmdtalkplugin
 import upmplgutils
 import constants
+import config
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -92,10 +93,12 @@ def save_quality_badge(album_id: str, quality_badge: str):
         to_update: bool = quality_badge != album_metadata.quality_badge
         # msgproc.log(f"{AlbumMetadata.__name__} exists for album_id {album_id}, updating: [{to_update}] ...")
         if to_update:
-            msgproc.log(f"{AlbumMetadata.__name__} exists for album_id {album_id}, needs updating ...")
+            if config.debug_badge_mngmt:
+                msgproc.log(f"{AlbumMetadata.__name__} exists for album_id {album_id}, "
+                            f"needs updating to [{quality_badge}]...")
             # this implementation does NOT change if we add more fields to AlbumMetadata
             now: datetime.datetime = datetime.datetime.now()
-            update_values = (album_metadata.quality_badge, now, album_metadata.album_id)
+            update_values = (quality_badge, now, album_metadata.album_id)
             update_sql: str = f"""
                 UPDATE
                     {__table_name_album_metadata_v1}
@@ -105,8 +108,13 @@ def save_quality_badge(album_id: str, quality_badge: str):
                 WHERE {__field_name_album_id} = ?
             """
             __execute_update(update_sql, update_values)
+        else:
+            if config.debug_badge_mngmt:
+                msgproc.log(f"save_quality_badge not updating for album_id [{album_id}]")
     else:
-        msgproc.log(f"{AlbumMetadata.__name__} not found for album_id {album_id}, inserting ...")
+        if config.debug_badge_mngmt:
+            msgproc.log(f"{AlbumMetadata.__name__} not found for "
+                        f"album_id {album_id}, inserting ...")
         # just create a new AlbumMetaData with just the quality badge and save it
         album_metadata = AlbumMetadata()
         album_metadata.album_id = album_id
@@ -138,8 +146,9 @@ def save_album_metadata(album_metadata : AlbumMetadata):
 
 
 def insert_album_metadata(album_metadata: AlbumMetadata):
-    msgproc.log(f"insert_album_metadata for album_id: {album_metadata.album_id} "
-                f"quality_badge: {album_metadata.quality_badge}")
+    if config.debug_badge_mngmt:
+        msgproc.log(f"insert_album_metadata for album_id: {album_metadata.album_id} "
+                    f"quality_badge: {album_metadata.quality_badge}")
     now: datetime.datetime = datetime.datetime.now()
     insert_values = (album_metadata.album_id, album_metadata.quality_badge, now, now)
     insert_sql: str = f"""

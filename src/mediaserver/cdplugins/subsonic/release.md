@@ -1,4 +1,12 @@
-# Subsonic Plugin Release notes
+# Subsonic Plugin Release Notes
+
+## Release 0.6.3
+
+- Don't present Artist again from items in Artist Albums view
+- Don't force expensive album/track loading for artist albums view
+- Reduce default logging
+- Use subsequent album as album art for "Next" in some album lists
+- Bug: Changed album badge would not be saved to db
 
 ## Release 0.6.2
 

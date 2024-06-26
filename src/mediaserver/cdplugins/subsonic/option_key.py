@@ -29,6 +29,8 @@ class OptionKey(Enum):
     PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE = 8, "prepend-entry-number-in-album-title", None
     FORCE_LOAD_QUALITY_BADGE = 9, "force-load-quality-badge", False
     ALBUM_ARTISTS_ONLY = 10, "album-artists-only", True
+    USE_LAST_FOR_NEXT = 11, "use-last-for-next", False
+    SKIP_ARTIST = 12, "skip-artist", False
 
     def __init__(self,
             num : int,

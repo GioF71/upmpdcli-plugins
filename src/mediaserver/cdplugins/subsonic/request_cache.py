@@ -111,7 +111,7 @@ def get_random_album_list(
             musicFolderId is None):
         msgproc.log(f"request_cache.get_random_album_list cannot be cached "
                     f"size:[{size}] [{size == config.items_per_page}] "
-                    f"offset:[{offset}] [{int(offset) == 0}]"
+                    f"offset:[{offset}] [{int(offset) == 0}] "
                     f"fromYear:[{fromYear}] [{fromYear is None}] "
                     f"toYear:[{toYear}] [{toYear is None}] "
                     f"genre:[{genre}] [{genre is None}] "
