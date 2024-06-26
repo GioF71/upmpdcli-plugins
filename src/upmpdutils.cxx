@@ -21,7 +21,6 @@
 // not linking to Qt or glib just to get path-concatenating
 // functions...
 
-#define UPMPDCLI_NEED_PACKAGE_VERSION
 #include "config.h"
 
 #include "upmpdutils.hxx"
@@ -60,6 +59,7 @@
 #include "smallut.h"
 #include "pathut.h"
 #include "conftree.h"
+#include "main.hxx"
 
 using namespace std;
 using namespace UPnPP;
@@ -372,7 +372,7 @@ bool ensureconfreadable(const char *fn, const char *user, uid_t uid, gid_t gid)
 
 std::string upmpdcliVersionInfo()
 {
-    return std::string("Upmpdcli ") + UPMPDCLI_PACKAGE_VERSION + " " + LibUPnP::versionString();
+    return std::string("Upmpdcli ") + g_upmpdcli_package_version + " " + LibUPnP::versionString();
 }
 
 static std::string fnameSubst(const std::string& key)

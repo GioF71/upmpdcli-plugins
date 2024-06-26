@@ -16,7 +16,6 @@
  */
 /////////////////////////////////////////////////////////////////////
 // Main program
-#define UPMPDCLI_NEED_PACKAGE_VERSION
 #include "config.h"
 
 #include <errno.h>             
@@ -51,8 +50,7 @@
 using namespace std;
 using namespace UPnPP;
 
-// Can't remember why it's static in config.h and don't want to try change
-const string g_upmpdcli_package_version{UPMPDCLI_PACKAGE_VERSION};
+const string g_upmpdcli_package_version{UPMPDCLI_VERSION};
 
 static char *thisprog;
 
@@ -127,7 +125,7 @@ ohProductDesc_t ohProductDesc = {
     // Product
     {
         "Upmpdcli",                                 // name
-        UPMPDCLI_PACKAGE_VERSION,                   // info
+        g_upmpdcli_package_version,                   // info
         "",                                         // url
         ""                                          // imageUri
     }

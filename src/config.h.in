@@ -1,3 +1,5 @@
+#ifndef _UPMPDCLICONFIG_H_INCLUDED
+#define _UPMPDCLICONFIG_H_INCLUDED
 
 /* Define to 1 if you have the 'exp10' function */
 #undef HAVE_EXP10
@@ -5,4 +7,7 @@
 /* Define to the version of this package. */
 #define UPMPDCLI_VERSION @UPMPDCLI_VERSION@
 
-#include "src/conf_post.h"
+#define UPMPDCLI_SOURCE
+
+#endif // _UPMPCLICONFIG_H_INCLUDED
+
