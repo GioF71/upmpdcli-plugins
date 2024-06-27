@@ -232,13 +232,6 @@ void  ExecCmd::putenv(const string& name, const string& value)
     putenv(ea);
 }
 
-static void msleep(int millis)
-{
-    struct timespec spec;
-    spec.tv_sec = millis / 1000;
-    spec.tv_nsec = (millis % 1000) * 1000000;
-    nanosleep(&spec, nullptr);
-}
 
 /** A resource manager to ensure that execcmd cleans up if an exception is
  *  raised in the callback, or at different places on errors occurring
@@ -284,7 +277,7 @@ public:
                 int ms_slept{0};
                 for (int i = 0; ; i++) {
                     int tosleep = i == 0 ? 5 : (i == 1 ? 100 : 1000);
-                    msleep(tosleep);
+                    millisleep(tosleep);
                     ms_slept += tosleep;
                     int status;
                     (void)waitpid(m_parent->m_pid, &status, WNOHANG);
@@ -1042,6 +1035,16 @@ std::string ExecCmd::waitStatusAsString(int wstatus)
         }
     }
     return oss.str();
+}
+
+bool ExecCmd::status_exited(int status)
+{
+    return WIFEXITED(status);
+}
+
+int ExecCmd::status_exitstatus(int status)
+{
+    return WEXITSTATUS(status);
 }
 
 

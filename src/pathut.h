@@ -156,6 +156,7 @@ struct PathStat {
     int64_t pst_btime;
 };
 extern int path_fileprops(const std::string path, struct PathStat *stp, bool follow = true);
+extern int path_fileprops(int fd, struct PathStat *stp);
 
 /// Return separator for PATH environment variable
 extern const std::string& path_PATHsep();
