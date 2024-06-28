@@ -122,6 +122,7 @@
 #endif
 
 #define STAT _wstati64
+#define FSTAT _fstati64
 #define LSTAT win_wlstat
 #define STATBUF _stati64
 #define ACCESS _waccess
@@ -182,6 +183,7 @@ inline ssize_t sys_write(int fd, const void* buf, size_t cnt)
 
 #define STAT stat
 #define LSTAT lstat
+#define FSTAT fstat
 #define STATBUF stat
 #define ACCESS access
 #define OPENDIR ::opendir
@@ -1208,6 +1210,18 @@ static int lstatx(const char *filename, struct statx *buffer)
     return ret;
 }
 
+static int fstatx(int fd, struct statx *buffer)
+{
+    int ret, atflag = AT_EMPTY_PATH;
+    unsigned int mask = STATX_BASIC_STATS | STATX_BTIME;
+
+    ret = _statx(fd, "", atflag, mask,  buffer);
+    if (ret < 0) {
+        perror("fstatx");
+    }
+    return ret;
+}
+
 #define ST_SIZE stx_size
 #define ST_MODE stx_mode
 #define ST_MTIME stx_mtime.tv_sec
@@ -1220,6 +1234,7 @@ static int lstatx(const char *filename, struct statx *buffer)
 #define ST_MODE stx_mode
 #define STATXSTRUCT statx
 #define STATXCALL statx
+#define FSTATXCALL fstatx
 #define LSTATXCALL lstatx
 
 #else /* -> !defined(STATX_TYPE) */
@@ -1237,23 +1252,14 @@ static int lstatx(const char *filename, struct statx *buffer)
 #define ST_MODE st_mode
 #define STATXSTRUCT STATBUF
 #define STATXCALL STAT
+#define FSTATXCALL FSTAT
 #define LSTATXCALL LSTAT
 
 #endif  /* Not using statx */
 
-int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
+
+static void copystat(struct PathStat *stp, struct STATXSTRUCT& mst)
 {
-    if (nullptr == stp) {
-        return -1;
-    }
-    *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0,0};
-    struct STATXSTRUCT mst;
-    SYSPATH(path, syspath);
-    int ret = follow ? STATXCALL(syspath, &mst) : LSTATXCALL(syspath, &mst);
-    if (ret != 0) {
-        stp->pst_type = PathStat::PST_INVALID;
-        return ret;
-    }
     stp->pst_size = mst.ST_SIZE;
     stp->pst_mode = mst.ST_MODE;
     stp->pst_mtime = mst.ST_MTIME;
@@ -1276,8 +1282,41 @@ int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
     stp->pst_blocks = mst.ST_BLOCKS;
     stp->pst_blksize = mst.ST_BLKSIZE;
 #endif
+}
+
+int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
+{
+    if (nullptr == stp) {
+        return -1;
+    }
+    *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0,0};
+    struct STATXSTRUCT mst;
+    SYSPATH(path, syspath);
+    int ret = follow ? STATXCALL(syspath, &mst) : LSTATXCALL(syspath, &mst);
+    if (ret != 0) {
+        stp->pst_type = PathStat::PST_INVALID;
+        return ret;
+    }
+    copystat(stp, mst);
     return 0;
 }
+
+int path_fileprops(int fd, struct PathStat *stp)
+{
+    if (nullptr == stp) {
+        return -1;
+    }
+    *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0,0};
+    struct STATXSTRUCT mst;
+    int ret = FSTATXCALL(fd, &mst);
+    if (ret != 0) {
+        stp->pst_type = PathStat::PST_INVALID;
+        return ret;
+    }
+    copystat(stp, mst);
+    return 0;
+}
+
 
 bool path_exists(const std::string& path)
 {

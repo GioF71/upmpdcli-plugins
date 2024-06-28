@@ -240,6 +240,7 @@ def __get_unique_suffix(prop_dict : dict[str, list[int]]) -> str:
 
 def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
     if force_load:
+        msgproc.log(f"get_album_quality_badge for album_id: [{album.getId()}] force_load: [{force_load}]")
         res : Response[Album] = connector_provider.get().getAlbum(albumId = album.getId())
         reloaded : Album = res.getObj() if res and res.isOk() else None
         if not reloaded: raise Exception(f"Cannot find {Album.__name__} with album_id [{album.getId()}]")
@@ -381,6 +382,9 @@ def album_to_navigable_entry(
     if prepend_number: title = f"[{prepend_number:02}] {title}"
     artist : str = album.getArtist()
     identifier : ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.getName(), album.getId())
+    # ask to skip artist?
+    skip_artist: bool = get_option(options = options, option_key = OptionKey.SKIP_ARTIST)
+    identifier.set(ItemIdentifierKey.SKIP_ARTIST, 1 if skip_artist else 0)
     id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
@@ -623,7 +627,8 @@ def album_to_entry(
         title = "{} [{}]".format(title, get_album_year_str(album))
     force_load: bool = get_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE)
     album_badge : str = get_album_quality_badge(album=album, force_load=force_load)
-    if config.append_codecs_to_album == 1:
+    if force_load and config.append_codecs_to_album == 1:
+        msgproc.log(f"album_to_entry for album_id: [{album.getId()}] loading songs ...")
         song_list : list[Song] = album.getSongs()
         # load album
         album_tracks : AlbumTracks = subsonic_util.get_album_tracks(album.getId())

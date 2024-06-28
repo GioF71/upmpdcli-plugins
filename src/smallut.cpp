@@ -52,11 +52,6 @@
 
 
 #ifdef _WIN32
-#ifdef _MSC_VER
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-#define localtime_r(a,b) localtime_s(b,a)
-#endif // _MSC_VER
 
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
@@ -952,8 +947,12 @@ static void unsetenv(const char* name)
 {
     _putenv_s(name, "");
 }
-#endif
-
+#ifdef _MSC_VER
+time_t portable_timegm(struct tm *tm)
+{
+    return _mkgmtime(tm);
+}
+#else
 time_t portable_timegm(struct tm *tm)
 {
     time_t ret;
@@ -971,6 +970,14 @@ time_t portable_timegm(struct tm *tm)
     tzset();
     return ret;
 }
+#endif // End Windows not msvc
+#else // -> !Windows
+time_t portable_timegm(struct tm *tm)
+{
+    return timegm(tm);
+}
+#endif
+
 
 std::string hexprint(const std::string& in, char separ)
 {
@@ -1267,6 +1274,18 @@ bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, i
         done = comma == std::string::npos;
     }
     return true;
+}
+
+void millisleep(int millis)
+{
+#ifdef _WIN32
+    Sleep(millis);
+#else
+    struct timespec spec;
+    spec.tv_sec = millis / 1000;
+    spec.tv_nsec = (millis % 1000) * 1000000;
+    nanosleep(&spec, nullptr);
+#endif
 }
 
 // Initialization for static stuff to be called from main thread before going

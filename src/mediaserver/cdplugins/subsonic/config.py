@@ -21,46 +21,54 @@ from subsonic_connector.configuration import ConfigurationInterface
 from tag_type import TagType
 
 
-def plugin_config_variable_name(name : str) -> str:
+def get_plugin_config_variable_name(name : str) -> str:
     return f"{constants.plugin_name}{name}"
 
 
-def get_plugin_option_value(nm, dflt = None):
-    return upmplgutils.getOptionValue(plugin_config_variable_name(nm), dflt)
+def get_option_value_as_bool(nm: str, default_value: int):
+    get_option_value(nm, default_value) == 1
+
+
+def get_option_value(nm, dflt = None):
+    return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
 items_per_page : int = min(
     constants.subsonic_max_return_size,
-    get_plugin_option_value("itemsperpage", constants.default_items_per_page))
+    get_option_value("itemsperpage", constants.default_items_per_page))
 
 cached_request_timeout_sec : int = min(
     constants.subsonic_max_return_size,
-    get_plugin_option_value("cachedrequesttimeoutsec", constants.default_cached_request_timeout_sec))
+    get_option_value("cachedrequesttimeoutsec", constants.default_cached_request_timeout_sec))
 
 
-append_year_to_album : int = int(get_plugin_option_value("appendyeartoalbum", "1"))
-append_codecs_to_album : int = int(get_plugin_option_value("appendcodecstoalbum", "1"))
-whitelist_codecs : list[str] = str(get_plugin_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
-allow_blacklisted_codec_in_song : int = int(get_plugin_option_value("allowblacklistedcodecinsong", "1"))
-disable_navigable_album : int = int(get_plugin_option_value("disablenavigablealbumview", "0"))
-tag_initial_page_enabled_prefix : str = plugin_config_variable_name("taginitialpageenabled")
-autostart : int = int(get_plugin_option_value("autostart", "0"))
-log_intermediate_url : bool = get_plugin_option_value("logintermediateurl", "0") == "1"
-skip_intermediate_url : bool = get_plugin_option_value("skipintermediateurl", "0") == "1"
-allow_artist_art : bool = get_plugin_option_value("allowartistart", "0") == "1"
-server_side_scrobbling : bool = get_plugin_option_value("serversidescrobbling", "0") == "1"
-prepend_number_in_album_list : bool = get_plugin_option_value("prependnumberinalbumlist", "0") == "1"
+append_year_to_album : int = int(get_option_value("appendyeartoalbum", "1"))
+append_codecs_to_album : int = int(get_option_value("appendcodecstoalbum", "1"))
+whitelist_codecs : list[str] = str(get_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
+allow_blacklisted_codec_in_song : int = int(get_option_value("allowblacklistedcodecinsong", "1"))
+disable_navigable_album : int = int(get_option_value("disablenavigablealbumview", "0"))
+tag_initial_page_enabled_prefix : str = get_plugin_config_variable_name("taginitialpageenabled")
+autostart : int = int(get_option_value("autostart", "0"))
+log_intermediate_url : bool = get_option_value("logintermediateurl", "0") == "1"
+skip_intermediate_url : bool = get_option_value("skipintermediateurl", "0") == "1"
+allow_artist_art : bool = get_option_value("allowartistart", "0") == "1"
+server_side_scrobbling : bool = get_option_value("serversidescrobbling", "0") == "1"
+prepend_number_in_album_list : bool = get_option_value("prependnumberinalbumlist", "0") == "1"
 
-configured_transcode_codec : str = get_plugin_option_value("transcodecodec", "")
-configured_transcode_max_bitrate : str = get_plugin_option_value("transcodemaxbitrate", "")
+configured_transcode_codec : str = get_option_value("transcodecodec", "")
+configured_transcode_max_bitrate : str = get_option_value("transcodemaxbitrate", "")
 
-max_artists_per_page: int = get_plugin_option_value("maxartistsperpage", constants.default_max_artists_per_page)
+max_artists_per_page: int = get_option_value("maxartistsperpage", constants.default_max_artists_per_page)
 
-show_empty_favorites: bool = get_plugin_option_value("showemptyfavorites", constants.default_show_empty_favorites) == 1
-show_empty_playlists: bool = get_plugin_option_value("showemptyplaylists", constants.default_show_empty_playlists) == 1
+
+show_empty_favorites: bool = get_option_value_as_bool("showemptyfavorites", constants.default_show_empty_favorites)
+show_empty_playlists: bool = get_option_value_as_bool("showemptyplaylists", constants.default_show_empty_playlists)
+debug_badge_mngmt: bool = get_option_value_as_bool("debugbadgemanagement", constants.default_debug_badge_mngmt)
+debug_artist_albums: bool = get_option_value_as_bool("debugartistalbums", constants.default_debug_artist_albums)
+
 
 dump_streaming_properties : bool = (
-    get_plugin_option_value(
+    get_option_value(
         "dumpstreamingproperties",
         constants.default_dump_streaming_properties) == 1)
 
@@ -89,7 +97,7 @@ def get_transcode_max_bitrate() -> int:
 
 def is_tag_supported(tag : TagType) -> bool:
     # true unless there are exceptions ...
-    if tag == TagType.HIGHEST_RATED:
+    if tag == TagType.HIGHEST_RATED_ALBUMS:
         return album_list_by_highest_supported
     elif tag == TagType.INTERNET_RADIOS:
         return internet_radio_stations_supported
@@ -98,19 +106,20 @@ def is_tag_supported(tag : TagType) -> bool:
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
 
-    def getBaseUrl(self) -> str: return get_plugin_option_value("baseurl")
+    def getBaseUrl(self) -> str: return get_option_value("baseurl")
 
-    def getPort(self) -> int: return get_plugin_option_value("port")
+    def getPort(self) -> int: return get_option_value("port")
 
-    def getUserName(self) -> str: return get_plugin_option_value("user")
+    def getUserName(self) -> str: return get_option_value("user")
 
-    def getPassword(self) -> str: return get_plugin_option_value("password")
+    def getPassword(self) -> str: return get_option_value("password")
 
     def getLegacyAuth(Self) -> bool:
-        legacy_auth_enabled_str : str = get_plugin_option_value("legacyauth", "false")
+        legacy_auth_enabled_str : str = get_option_value("legacyauth", "false")
         if not legacy_auth_enabled_str.lower() in ["true", "false", "1", "0"]:
             raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
         return legacy_auth_enabled_str in ["true", "1"]
 
     def getApiVersion(self) -> str: return libsonic.API_VERSION
     def getAppName(self) -> str: return "upmpdcli"
+

@@ -95,12 +95,12 @@ def get_artists() -> Response[Artists]:
 
 
 def get_random_album_list(
-        size = 10,
-        offset = 0,
-        fromYear = None,
-        toYear = None,
-        genre = None,
-        musicFolderId = None) -> Response[AlbumList]:
+        size=10,
+        offset=0,
+        fromYear=None,
+        toYear=None,
+        genre=None,
+        musicFolderId=None) -> Response[AlbumList]:
     # cache first page
     if not (
             size == config.items_per_page and
@@ -111,7 +111,7 @@ def get_random_album_list(
             musicFolderId is None):
         msgproc.log(f"request_cache.get_random_album_list cannot be cached "
                     f"size:[{size}] [{size == config.items_per_page}] "
-                    f"offset:[{offset}] [{int(offset) == 0}]"
+                    f"offset:[{offset}] [{int(offset) == 0}] "
                     f"fromYear:[{fromYear}] [{fromYear is None}] "
                     f"toYear:[{toYear}] [{toYear is None}] "
                     f"genre:[{genre}] [{genre is None}] "
