@@ -80,6 +80,8 @@ pkce_credentials_file_name : str = "pkce.credentials.json"
 
 key_authentication_type : str = "authentication_type"
 key_file_available : str = "file_available"
+key_pkce_file_available : str = "pkce_file_available"
+key_oauth2_file_available : str = "oauth2_file_available"
 
 key_token_type : str = "tokentype"
 key_access_token : str = "accesstoken"

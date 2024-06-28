@@ -186,6 +186,7 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
         msgproc.log("get_credentials_from_config_or_files pkce file available, using it")
         res_dict[constants.key_authentication_type] = AuthenticationType.PKCE.auth_type
         res_dict[constants.key_file_available] = True
+        res_dict[constants.key_pkce_file_available] = True
         # READ contents of file
         pkce_json_dict : dict[str, any] = load_json(tidal_util.get_pkce_credentials_file_name())
         # check pkce credentials are here
@@ -254,7 +255,7 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
         res_dict[constants.key_pkce_session_id] = conf_pkce_session_id
         res_dict[constants.key_pkce_is_pkce] = conf_pkce_is_pkce
         # TODO if file does not exists, create it
-    # something missing? try json files
+    # something missing? try json file for oauth2
     if not oauth2_static_loaded:
         oauth2_cred_file_name: str = tidal_util.get_oauth2_credentials_file_name()
         if tidal_util.oauth2_credential_file_exists():
@@ -262,6 +263,8 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
                 with open(oauth2_cred_file_name, 'r') as cred_file:
                     oauth_dict = json.load(cred_file)
                     res_dict = {**res_dict, **oauth_dict}
+                res_dict[constants.key_file_available] = True
+                res_dict[constants.key_oauth2_file_available] = True
                 msgproc.log(f"Loaded: [{oauth2_cred_file_name}]")
             except Exception as ex:
                 msgproc.log(f"Error loading configuration: [{ex}]")
@@ -326,25 +329,17 @@ def get_pkce_credentials_from_config_file() -> dict[str, any]:
     } if pkce_is_pkce else None)
 
 
-def log_mismatch_file_vs_static(what : str):
-    log_mismatch(what = what, where1 = "file", where2 = "static configuration")
-
-
-def log_mismatch(what : str, where1 : str, where2 : str):
-    msgproc.log(f"Mismatched [{what}] between [{where1}] and [{where2}]")
-
-
 def load_credentials() -> dict[str, str]:
     # best first
     cred_dict : dict[str, str] = get_credentials_from_config_or_files()
     # is there a pkce file?
-    file_available : bool = (cred_dict[constants.key_file_available]
-        if constants.key_file_available in cred_dict
+    pkce_file_available: bool = (cred_dict[constants.key_pkce_file_available]
+        if constants.key_pkce_file_available in cred_dict
         else False)
-    if file_available:
+    if pkce_file_available:
         # authentication type must be set
         auth_type : AuthenticationType = convert_authentication_type(cred_dict[constants.key_authentication_type])
-        # is pkce?
+        # is pkce? this is just a consistency check right now
         if AuthenticationType.PKCE == auth_type: return cred_dict
     # Static PKCE? (meaning that the credentials have NOT been loaded from the file)
     pkce_token_type : str = get_cred_value(cred_dict, constants.key_pkce_token_type)
@@ -423,7 +418,7 @@ def load_credentials() -> dict[str, str]:
             json.dump(new_oauth2_credentials, wcf, indent = 4)
         return new_oauth2_credentials
     else:
-        # PKCE
+        # PKCE challenge
         new_session.login_pkce(fn_print = msgproc.log)
         pkce_token_type : str = new_session.token_type
         pkce_access_token : str = new_session.access_token
@@ -446,8 +441,9 @@ def load_credentials() -> dict[str, str]:
                 pkce_session_id = pkce_session_id,
                 pkce_is_pkce = pkce_is_pkce)
             json.dump(pkce_credentials_json_dict, wcf, indent = 4)
-        # inform that file is available!
+        # inform that pkce file is available!
         new_pkce_credentials[constants.key_file_available] = True
+        new_pkce_credentials[constants.key_pkce_file_available] = True
         return new_pkce_credentials
 
 
@@ -458,11 +454,14 @@ def build_session() -> TidalSession:
         credentials_dict = load_credentials()
         msgproc.log("Credentials loaded")
     # msgproc.log(f"build_session Configuration loaded")
-    auth_type : AuthenticationType = convert_authentication_type(credentials_dict[constants.key_authentication_type])
-    file_available : bool = (credentials_dict[constants.key_file_available]
-        if constants.key_file_available in credentials_dict
+    auth_type: AuthenticationType = convert_authentication_type(credentials_dict[constants.key_authentication_type])
+    pkce_file_available: bool = (credentials_dict[constants.key_pkce_file_available]
+        if constants.key_pkce_file_available in credentials_dict
         else False)
-    if file_available and AuthenticationType.PKCE == auth_type:
+    # oauth2_file_available : bool = (credentials_dict[constants.key_oauth2_file_available]
+    #     if constants.key_oauth2_file_available in credentials_dict
+    #     else False)
+    if pkce_file_available and AuthenticationType.PKCE == auth_type:
         msgproc.log(f"PKCE file [{tidal_util.get_pkce_credentials_file_name()}] available, building a new session ...")
         # return pkce session
         session_file = Path(tidal_util.get_pkce_credentials_file_name())
