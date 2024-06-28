@@ -185,7 +185,6 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
     if tidal_util.pkce_credential_file_exists():
         msgproc.log("get_credentials_from_config_or_files pkce file available, using it")
         res_dict[constants.key_authentication_type] = AuthenticationType.PKCE.auth_type
-        res_dict[constants.key_file_available] = True
         res_dict[constants.key_pkce_file_available] = True
         # READ contents of file
         pkce_json_dict : dict[str, any] = load_json(tidal_util.get_pkce_credentials_file_name())
@@ -263,7 +262,6 @@ def get_credentials_from_config_or_files() -> dict[str, str]:
                 with open(oauth2_cred_file_name, 'r') as cred_file:
                     oauth_dict = json.load(cred_file)
                     res_dict = {**res_dict, **oauth_dict}
-                res_dict[constants.key_file_available] = True
                 res_dict[constants.key_oauth2_file_available] = True
                 msgproc.log(f"Loaded: [{oauth2_cred_file_name}]")
             except Exception as ex:
@@ -442,7 +440,6 @@ def load_credentials() -> dict[str, str]:
                 pkce_is_pkce = pkce_is_pkce)
             json.dump(pkce_credentials_json_dict, wcf, indent = 4)
         # inform that pkce file is available!
-        new_pkce_credentials[constants.key_file_available] = True
         new_pkce_credentials[constants.key_pkce_file_available] = True
         return new_pkce_credentials
 
