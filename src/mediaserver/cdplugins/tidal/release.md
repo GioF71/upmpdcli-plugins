@@ -3,6 +3,7 @@
 ## 0.7.0-trunk
 
 - Moved some methods related to credential files to tidal_util
+- Removed unnecessay check of static pkce credentials with credential file  
 
 ## 0.6.0 (2024-06-13)
 

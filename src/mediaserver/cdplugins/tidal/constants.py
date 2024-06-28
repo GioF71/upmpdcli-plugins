@@ -137,8 +137,6 @@ default_log_intermediate_url : bool = False
 
 default_prepend_number_in_item_list : bool = False
 
-default_enable_pkce_credential_match : bool = False
-
 default_serve_mode : str = "mpd"
 
 default_listen_queue_playlist_name : str = "Listening Queue"

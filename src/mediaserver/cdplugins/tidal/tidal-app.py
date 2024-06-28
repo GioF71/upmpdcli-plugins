@@ -345,46 +345,7 @@ def load_credentials() -> dict[str, str]:
         # authentication type must be set
         auth_type : AuthenticationType = convert_authentication_type(cred_dict[constants.key_authentication_type])
         # is pkce?
-        if AuthenticationType.PKCE == auth_type:
-            if not config.enable_pkce_credential_match: return cred_dict
-            msgproc.log("Comparing pkce credentials from file to static configuration ...")
-            # must match credentials in configuration file, if set
-            pkce_cred_from_conf : dict[str, any] = get_pkce_credentials_from_config_file()
-            # not set, ok to use the file
-            if not pkce_cred_from_conf:
-                msgproc.log("No static configuration, ok to use the pkce credentials file.")
-                return cred_dict
-            # if set, they must match
-            conf_file_pkce_token_type : str = get_cred_value(pkce_cred_from_conf, constants.key_pkce_token_type)
-            conf_file_pkce_access_token  : str = get_cred_value(pkce_cred_from_conf, constants.key_pkce_access_token)
-            conf_file_pkce_refresh_token : str = get_cred_value(pkce_cred_from_conf, constants.key_pkce_refresh_token)
-            conf_file_pkce_session_id : str = get_cred_value(pkce_cred_from_conf, constants.key_pkce_session_id)
-            conf_file_pkce_is_pkce : str = get_cred_value(pkce_cred_from_conf, constants.key_pkce_is_pkce)
-            all_match : bool = True
-            if not (conf_file_pkce_token_type == get_cred_value(cred_dict, constants.key_pkce_token_type)):
-                log_mismatch_file_vs_static("token_type")
-                all_match = False
-            if (all_match and not (
-                    conf_file_pkce_access_token == get_cred_value(cred_dict, constants.key_pkce_access_token))):
-                log_mismatch_file_vs_static("access_token")
-                all_match = False
-            if (all_match and not (
-                    conf_file_pkce_refresh_token == get_cred_value(cred_dict, constants.key_pkce_refresh_token))):
-                log_mismatch_file_vs_static("refresh_token")
-                all_match = False
-            if (all_match and not (
-                    conf_file_pkce_session_id == get_cred_value(cred_dict, constants.key_pkce_session_id))):
-                log_mismatch_file_vs_static("session_id")
-                all_match = False
-            if (all_match and not (
-                    conf_file_pkce_is_pkce == get_cred_value(cred_dict, constants.key_pkce_is_pkce))):
-                log_mismatch_file_vs_static("is_pkce")
-                all_match = False
-            if all_match:
-                msgproc.log("Credentials from pkce file match static configuration, the file is good to go!")
-                return cred_dict
-            else:
-                msgproc.log("Credentials from pkce file don't match static configuration, the file is NOT good to go")
+        if AuthenticationType.PKCE == auth_type: return cred_dict
     # Static PKCE? (meaning that the credentials have NOT been loaded from the file)
     pkce_token_type : str = get_cred_value(cred_dict, constants.key_pkce_token_type)
     pkce_access_token : str = get_cred_value(cred_dict, constants.key_pkce_access_token)
