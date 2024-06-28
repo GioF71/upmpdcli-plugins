@@ -28,16 +28,13 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include <fcntl.h>
 #ifdef _WIN32
-#include "safefcntl.h"
-#include "safesysstat.h"
 #include "safeunistd.h"
 #define OPEN _wopen
 
 #else
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #define OPEN open
 #define sys_read ::read
@@ -327,9 +324,9 @@ public:
         bool ret = false;
         bool noclosing = true;
         int fd = 0;
-        struct stat st;
+        struct PathStat st;
         // Initialize st_size: if fn.empty() , the fstat() call won't happen.
-        st.st_size = 0;
+        st.pst_size = 0;
 
         // If we have a file name, open it, else use stdin.
         if (!m_fn.empty()) {
@@ -340,7 +337,7 @@ public:
             auto realpath = m_fn.c_str();
 #endif
             fd = OPEN(realpath, O_RDONLY | O_BINARY);
-            if (fd < 0 || fstat(fd, &st) < 0) {
+            if (fd < 0 || path_fileprops(fd, &st) < 0) {
                 catstrerror(m_reason, "open/stat", errno);
                 return false;
             }
@@ -355,8 +352,8 @@ public:
         if (out()) {
             if (m_cnttoread != -1 && m_cnttoread) {
                 out()->init(m_cnttoread + 1, m_reason);
-            } else if (st.st_size > 0) {
-                out()->init(st.st_size + 1, m_reason);
+            } else if (st.pst_size > 0) {
+                out()->init(st.pst_size + 1, m_reason);
             } else {
                 out()->init(0, m_reason);
             }

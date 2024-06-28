@@ -41,6 +41,7 @@ import secrets
 from typing import Callable
 
 import cmdtalkplugin
+import datetime
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -87,6 +88,15 @@ def group_songs_art_retriever() -> RetrievedArt:
 
 
 def newest_albums_art_retriever() -> RetrievedArt:
+    response : Response[AlbumList] = connector_provider.get().getAlbumList(
+        ltype=ListType.BY_YEAR,
+        size = 1,
+        fromYear=datetime.datetime.now().year,
+        toYear=0)
+    return __get_cover_art_from_res_album_list(response=response)
+
+
+def recently_added_albums_art_retriever() -> RetrievedArt:
     response : Response[AlbumList] = connector_provider.get().getNewestAlbumList(size = 1)
     return __get_cover_art_from_res_album_list(response=response)
 
@@ -164,7 +174,7 @@ def __favourite_artist_art_retriever() -> RetrievedArt:
 
 def favourite_song_retriever() -> RetrievedArt:
     fav: RetrievedArt = __favourite_song_retriever()
-    if fav is None: return random_albums_art_retriever()
+    return fav if fav else random_albums_art_retriever()
 
 
 def __favourite_song_retriever() -> RetrievedArt:
@@ -199,11 +209,12 @@ tag_art_retriever : dict[str, Callable[[], RetrievedArt]] = {
     TagType.ALBUMS.getTagName(): group_albums_art_retriever,
     TagType.ARTISTS.getTagName(): group_artists_art_retriever,
     TagType.SONGS.getTagName(): group_songs_art_retriever,
-    TagType.NEWEST.getTagName(): newest_albums_art_retriever,
-    TagType.RECENTLY_PLAYED.getTagName(): recently_played_albums_art_retriever,
-    TagType.HIGHEST_RATED.getTagName(): highest_rated_albums_art_retriever,
-    TagType.FAVOURITES.getTagName(): favourite_albums_art_retriever,
-    TagType.MOST_PLAYED.getTagName(): most_played_albums_art_retriever,
+    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): recently_added_albums_art_retriever,
+    TagType.NEWEST_ALBUMS.getTagName(): newest_albums_art_retriever,
+    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): recently_played_albums_art_retriever,
+    TagType.HIGHEST_RATED_ALBUMS.getTagName(): highest_rated_albums_art_retriever,
+    TagType.FAVOURITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
+    TagType.MOST_PLAYED_ALBUMS.getTagName(): most_played_albums_art_retriever,
     TagType.RANDOM.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,

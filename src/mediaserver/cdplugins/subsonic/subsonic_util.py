@@ -90,21 +90,49 @@ def get_album_tracks(album_id : str) -> album_util.AlbumTracks:
         multi_codec_album = sort_song_list_result.getMultiCodecAlbum())
 
 
-def get_albums(query_type : str, size : int = config.items_per_page, offset : int = 0) -> list[Album]:
+def get_albums(
+        query_type: str,
+        size: int = config.items_per_page,
+        offset: int = 0,
+        fromYear=None,
+        toYear=None) -> list[Album]:
     connector : Connector = connector_provider.get()
     albumListResponse : Response[AlbumList]
-    if TagType.NEWEST.getQueryType() == query_type:
-        albumListResponse = connector.getNewestAlbumList(size = size, offset = offset)
+    if TagType.RECENTLY_ADDED_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getNewestAlbumList(
+            size=size,
+            offset=offset)
+    elif TagType.NEWEST_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.BY_YEAR,
+            size=size,
+            offset=offset,
+            fromYear=fromYear,
+            toYear=toYear)
     elif TagType.RANDOM.getQueryType() == query_type:
-        albumListResponse = request_cache.get_random_album_list(size = size, offset = offset)
-    elif TagType.RECENTLY_PLAYED.getQueryType() == query_type:
-        albumListResponse = connector.getAlbumList(ltype = ListType.RECENT, size = size, offset = offset)
-    elif TagType.MOST_PLAYED.getQueryType() == query_type:
-        albumListResponse = connector.getAlbumList(ltype = ListType.FREQUENT, size = size, offset = offset)
-    elif TagType.HIGHEST_RATED.getQueryType() == query_type:
-        albumListResponse = connector.getAlbumList(ltype = ListType.HIGHEST, size = size, offset = offset)
-    elif TagType.FAVOURITES.getQueryType() == query_type:
-        albumListResponse = connector.getAlbumList(ltype = ListType.STARRED, size = size, offset = offset)
+        albumListResponse = request_cache.get_random_album_list(
+            size=size,
+            offset=offset)
+    elif TagType.RECENTLY_PLAYED_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.RECENT,
+            size=size,
+            offset=offset)
+    elif TagType.MOST_PLAYED_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.FREQUENT,
+            size=size,
+            offset=offset)
+    elif TagType.HIGHEST_RATED_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.HIGHEST,
+            size=size,
+            offset=offset)
+    elif TagType.FAVOURITE_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.STARRED,
+            size=size,
+            offset = offset)
     if not albumListResponse.isOk(): raise Exception(f"Cannot execute query {query_type} "
                                                      f"for size {size} offset {offset}")
     return albumListResponse.getObj().getAlbums()

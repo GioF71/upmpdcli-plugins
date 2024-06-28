@@ -193,6 +193,9 @@ public:
     @param O: status, the wait(2) call's status value */
     bool maybereap(int *status);
 
+    static bool status_exited(int status);
+    static int status_exitstatus(int status);
+
     pid_t getChildPid();
 
     /**

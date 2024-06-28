@@ -94,6 +94,10 @@ bool wchartoutf8(const wchar_t *in, std::string& out, int len = 0);
 std::string wchartoutf8(const wchar_t *in, int len = 0);
 bool utf8towchar(const std::string& in, wchar_t *out, int obytescap);
 std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in);
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#define localtime_r(a,b) localtime_s(b,a)
+#define strtok_r strtok_s
 #endif // _WIN32
 
 /** Note for all templated functions:
@@ -285,6 +289,8 @@ extern std::string pc_decode(const std::string&);
 /// wherever a part of a range is absent: either for a missing end or for a suffix range (absent
 /// start meaning count from the end).
 bool parseHTTPRanges(const std::string& ranges, std::vector<std::pair<int64_t, int64_t>>& oranges);
+
+void millisleep(int millis);
 
 
 } // End namespace MedocUtils
