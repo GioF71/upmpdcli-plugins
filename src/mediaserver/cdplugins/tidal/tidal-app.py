@@ -4456,12 +4456,12 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
 
 
 def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    tidal_session : TidalSession = get_session()
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    tidal_session: TidalSession = get_session()
     albums_per_page : int = config.albums_per_page
     # TODO remove hardcoded value
-    max_albums : int = 1000
-    next_needed : bool = True
+    max_albums: int = 1000
+    next_needed: bool = True
     items : list[PlayedAlbum] = persistence.get_most_played_albums(max_albums = max_albums)
     from_offset_album_list : list[PlayedAlbum] = items[offset:]
     if len(from_offset_album_list) < albums_per_page: next_needed = False
@@ -4469,11 +4469,15 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
     current : PlayedAlbum
     for current in page_played_album_list:
         try:
-            album : TidalAlbum = tidal_session.album(current.album_id)
-            if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(album):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album.id, album.media_metadata_tags))
+            album_adapter: AlbumAdapter = album_adapter_by_album_id(
+                album_id=current.album_id,
+                tidal_album_loader=get_tidal_album_loader())
+            if config.skip_non_stereo and not tidal_util.is_stereo(album_adapter.media_metadata_tags):
+                msgproc.log(tidal_util.not_stereo_skipmessage(album_adapter.id, album_adapter.media_metadata_tags))
                 continue
-            entries.append(album_to_album_container(objid = objid, album = album))
+            entries.append(album_adapter_to_album_container(
+                objid = objid,
+                album_adapter=album_adapter))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current.album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
@@ -4482,6 +4486,13 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
             element_type = ElementType.MOST_PLAYED_ALBUMS,
             element_id = ElementType.MOST_PLAYED_ALBUMS.getName(),
             next_offset = offset + albums_per_page)
+        # get the cover for the Next button
+        next_album: PlayedAlbum = from_offset_album_list[albums_per_page]
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_album.album_id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 

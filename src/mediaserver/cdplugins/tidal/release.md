@@ -2,8 +2,10 @@
 
 ## 0.7.0-trunk
 
+- Most Played Albums uses metadata cache (faster)
+- Cover image for Next button in Most Played Albums
 - Better management of non stereo albums
-- Recently Played Albums uses metadata cache
+- Recently Played Albums uses metadata cache (faster)
 - Misc code cleanup and refactoring
 - Cover image for Next button in Recently Played Albums
 - Moved some methods related to credential files to tidal_util
