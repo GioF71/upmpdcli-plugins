@@ -793,7 +793,7 @@ def get_category_image_url(
                 if isinstance(first_item, TidalTrack):
                     # msgproc.log(f"  processing as Track ...")
                     track: TidalTrack = first_item
-                    image_url = (tidal_util.get_album_url_by_id(album_id=track.album.id, tidal_session=tidal_session)
+                    image_url = (tidal_util.get_album_art_url_by_id(album_id=track.album.id, tidal_session=tidal_session)
                                  if track and track.album else None)
                 elif isinstance(first_item, TidalMix):
                     # msgproc.log(f"  processing as Mix ...")
@@ -1028,7 +1028,7 @@ def track_to_track_container(
         objid,
         title)
     upnp_util.set_album_art_from_uri(
-        tidal_util.get_album_url_by_id(
+        tidal_util.get_album_art_url_by_id(
             album_id=track.album.id,
             tidal_session=tidal_session),
         track_entry)
@@ -2222,7 +2222,7 @@ def handler_tag_favorite_tracks(objid, item_identifier : ItemIdentifier, entries
         fav_tracks : list[TidalTrack] = tidal_session.user.favorites.tracks(limit = 10)
         random_track: TidalTrack = secrets.choice(fav_tracks) if fav_tracks else None
         upnp_util.set_album_art_from_uri(
-            tidal_util.get_album_url_by_id(
+            tidal_util.get_album_art_url_by_id(
                 album_id=random_track.album.id,
                 tidal_session=tidal_session)
             if random_track and random_track.album else None,
@@ -2276,7 +2276,7 @@ def handler_tag_playback_statistics(
         secrets.choice(most_played_albums)
         if most_played_albums and len(most_played_albums) > 0
         else None)
-    most_played_album_url : str = (tidal_util.get_album_url_by_id(
+    most_played_album_url : str = (tidal_util.get_album_art_url_by_id(
         album_id=random_most_played_album.album_id,
         tidal_session=tidal_session)
         if random_most_played_album else None)
@@ -2284,13 +2284,13 @@ def handler_tag_playback_statistics(
     random_last_played_album_id : str = (secrets.choice(last_played_albums)
         if last_played_albums and len(last_played_albums) > 0
         else None)
-    random_last_played_album_url : str = (tidal_util.get_album_url_by_id(
+    random_last_played_album_url : str = (tidal_util.get_album_art_url_by_id(
         album_id=random_last_played_album_id,
         tidal_session=tidal_session)
         if random_last_played_album_id
         else None)
     get_url_of_random : Callable[[list[PlayedTrack]], str] = (lambda album_list:
-        tidal_util.get_album_url_by_id(album_id=secrets.choice(album_list).album_id, tidal_session=tidal_session)
+        tidal_util.get_album_art_url_by_id(album_id=secrets.choice(album_list).album_id, tidal_session=tidal_session)
         if album_list and len(album_list) > 0 else None)
     tuple_array = [
         (
@@ -2342,7 +2342,7 @@ def song_listening_queue_art_retriever() -> str:
 
 def album_listening_queue_art_retriever() -> str:
     select_album_id : str = __get_random_album_id_from_listen_queue()
-    return (tidal_util.get_album_url_by_id(
+    return (tidal_util.get_album_art_url_by_id(
             album_id=select_album_id,
             tidal_session=get_session())
             if select_album_id else None)
@@ -3834,7 +3834,7 @@ def get_artist_top_tracks_image_url(tidal_session : TidalSession, artist_id : st
         artist: TidalArtist = tidal_session.artist(artist_id)
         tracks: list[TidalTrack] = artist.get_top_tracks() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
-        return tidal_util.get_album_url_by_id(album_id=select.album.id, tidal_session=tidal_session)
+        return tidal_util.get_album_art_url_by_id(album_id=select.album.id, tidal_session=tidal_session)
     except Exception:
         msgproc.log(f"Cannot get top tracks image for artist_id [{artist.id}]")
 
@@ -3844,7 +3844,7 @@ def get_artist_radio_image_url(tidal_session : TidalSession, artist_id : str) ->
         artist: TidalArtist = tidal_session.artist(artist_id)
         tracks: list[TidalTrack] = artist.get_radio() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
-        return (tidal_util.get_album_url_by_id(
+        return (tidal_util.get_album_art_url_by_id(
                 album_id=select.album.id,
                 tidal_session=tidal_session)
                 if select and select.album
@@ -4441,7 +4441,7 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
         # get the cover for the Next button
         cover_album_id: str = from_offset_album_id_list[albums_per_page]
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
                 album_id=cover_album_id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -4832,7 +4832,7 @@ def image_retriever_favorite_tracks(
         tag_type : TagType) -> str:
     items: list[TidalTrack] = tidal_session.user.favorites.tracks(limit = 1, offset = 0)
     first: TidalTrack = items[0] if items and len(items) > 0 else None
-    return (tidal_util.get_album_url_by_id(
+    return (tidal_util.get_album_art_url_by_id(
             album_id=first.album.id,
             tidal_session=tidal_session)
             if first and first.album else None)
@@ -4843,7 +4843,7 @@ def image_retriever_playback_statistics(
         tag_type : TagType) -> str:
     items: list[PlayedTrack] = persistence.get_last_played_tracks(max_tracks = 10)
     first: PlayedTrack = secrets.choice(items) if items and len(items) > 0 else None
-    return (tidal_util.get_album_url_by_id(
+    return (tidal_util.get_album_art_url_by_id(
             album_id=first.album_id,
             tidal_session=tidal_session)
             if first else None)
@@ -4868,7 +4868,7 @@ def image_retriever_listen_queue(
         tidal_session : TidalSession,
         tag_type : TagType) -> str:
     select_album_id: str = __get_random_album_id_from_listen_queue()
-    return (tidal_util.get_album_url_by_id(
+    return (tidal_util.get_album_art_url_by_id(
         album_id=select_album_id,
         tidal_session=tidal_session)
         if select_album_id else None)

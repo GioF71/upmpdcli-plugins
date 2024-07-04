@@ -107,11 +107,11 @@ def get_name_or_title(obj : any) -> str:
 
 
 def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entry: dict):
-    album_art_url: str = get_album_url_by_id(album_id=album_id, tidal_session=tidal_session)
+    album_art_url: str = get_album_art_url_by_id(album_id=album_id, tidal_session=tidal_session)
     upnp_util.set_album_art_from_uri(album_art_url, entry)
 
 
-def get_album_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
+def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
     if config.enable_image_caching:
         # try cached!
         document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
@@ -126,10 +126,10 @@ def get_album_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
                 path.extend(sub_dir_list)
                 path.append(cached_file_name)
                 cached_image_url: str = compose_docroot_url("/".join(path))
-                # msgproc.log(f"get_album_url_by_id returning [{cached_image_url}] for [{album_id}]")
+                # msgproc.log(f"get_album_art_url_by_id returning [{cached_image_url}] for [{album_id}]")
                 return cached_image_url
     # if we are are, we fallback to normal
-    # msgproc.log(f"get_album_url_by_id returning falling back for [{album_id}]")
+    # msgproc.log(f"get_album_art_url_by_id returning falling back for [{album_id}]")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
     return get_image_url(obj=album)
 

@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Misc code cleanup and refactoring
 - Cover image for Next button in Recently Played Albums
 - Moved some methods related to credential files to tidal_util
 - Removed unnecessay check of static pkce credentials with credential file  
