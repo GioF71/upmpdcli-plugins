@@ -3711,12 +3711,14 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     tidal_session: TidalSession = get_session()
-    artist : TidalArtist = tidal_session.artist(artist_id)
-    items: list[TidalTrack] = get_top_tracks(artist)
-    # apply offset
-    items = items[offset:] if len(items) > offset else ()
+    artist: TidalArtist = tidal_session.artist(artist_id)
+    items: list[TidalTrack] = get_top_tracks(
+        artist=artist,
+        offset=offset,
+        limit=config.tracks_per_page + 1)
     # needs next?
-    next_needed: bool = len(items) > config.tracks_per_page
+    next_track: TidalTrack = items[config.tracks_per_page] if len(items) == config.tracks_per_page + 1 else None
+    items = items[0:config.tracks_per_page] if next_track else items
     options: dict[str, any] = dict()
     set_option(options=options, option_key=OptionKey.SKIP_TRACK_NUMBER, option_value=True)
     set_option(options=options, option_key=OptionKey.TRACK_OMITTABLE_ARTIST_NAME, option_value=artist.name)
@@ -3728,13 +3730,17 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
             tidal_session=tidal_session,
             track=current,
             options=options))
-    if next_needed:
+    if next_track:
         next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.ARTIST_TOP_TRACKS_LIST,
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
-        # TODO set art for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
