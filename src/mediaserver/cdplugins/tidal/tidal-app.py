@@ -3602,7 +3602,7 @@ def add_track_as_list_to_entries(
 
 def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    max_items: int = 50
+    max_items: int = config.tracks_per_page
     tidal_session: TidalSession = get_session()
     items: list[TidalTrack] = tidal_session.user.favorites.tracks(
         limit=max_items + 1,
@@ -3676,7 +3676,7 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
 
 def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    max_items: int = 50
+    max_items: int = config.artists_per_page
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session: TidalSession = get_session()
     artist: TidalArtist = tidal_session.artist(artist_id)
@@ -4671,7 +4671,7 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
                 artist_id=obj_id)
             success_count += 1
             entries.append(artist_to_entry(objid, tidal_obj))
-            if success_count == config.albums_per_page:
+            if success_count == config.artists_per_page:
                 break
         except Exception as ex:
             msgproc.log(f"handler_element_bookmark_artists cannot load [{type(tidal_obj)}] "
@@ -4755,7 +4755,7 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
                 track_adapter = instance_tidal_track_adapter(
                     tidal_session=tidal_session,
                     track=tidal_obj)))
-            if success_count == config.albums_per_page:
+            if success_count == config.tracks_per_page:
                 break
         except Exception as ex:
             msgproc.log(f"handler_element_bookmark_tracks cannot load [{type(tidal_obj)}] "
