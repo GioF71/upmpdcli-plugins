@@ -3675,27 +3675,34 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
 
 
 def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    max_items : int = 50
-    artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session : TidalSession = get_session()
-    artist : TidalArtist = tidal_session.artist(artist_id)
-    items : list[TidalTrack] = get_top_tracks(
-        artist = artist,
-        limit = max_items,
-        offset = offset)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items: int = 50
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    tidal_session: TidalSession = get_session()
+    artist: TidalArtist = tidal_session.artist(artist_id)
+    items: list[TidalTrack] = get_top_tracks(
+        artist=artist,
+        limit=max_items + 1,
+        offset=offset)
+    next_track: TidalTrack = items[max_items] if len(items) == max_items + 1 else None
+    # shrink
+    items = items[0:max_items] if next_track else items
     entries = add_tracks_to_navigable_entries(
-        objid = objid,
-        tidal_session = tidal_session,
-        items = items,
-        entries = entries)
-    if len(items) == max_items:
+        objid=objid,
+        tidal_session=tidal_session,
+        items=items,
+        entries=entries)
+    if next_track:
         next_button: dict[str, any] = create_next_button(
-            objid = objid,
-            element_type = ElementType.ARTIST_TOP_TRACKS_NAVIGABLE,
-            element_id = artist_id,
-            next_offset = offset + max_items)
-        # TODO set art for next button
+            objid=objid,
+            element_type=ElementType.ARTIST_TOP_TRACKS_NAVIGABLE,
+            element_id=artist_id,
+            next_offset=offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 
