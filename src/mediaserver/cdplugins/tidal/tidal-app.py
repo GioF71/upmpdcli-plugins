@@ -3539,18 +3539,22 @@ def handler_element_similar_artists(objid, item_identifier : ItemIdentifier, ent
     items = items[offset:] if len(items) > offset else ()
     # needs next?
     next_needed: bool = len(items) > config.artists_per_page
+    next_artist: TidalArtist = items[config.artists_per_page] if next_needed else None
     items = items[0:config.artists_per_page] if len(items) > config.artists_per_page else items
     current: TidalArtist
     for current in items if items else list():
         entries.append(artist_to_entry(
             objid = objid,
             artist = current))
-    if next_needed:
+    if next_artist:
         next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.SIMILAR_ARTISTS,
             element_id=artist_id,
             next_offset=offset + config.artists_per_page)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(obj=next_artist),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
