@@ -30,6 +30,8 @@ from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
+from tidalapi.media import AudioMode as TidalAudioMode
+
 from typing import Callable
 
 from element_type import ElementType
@@ -107,11 +109,11 @@ def get_name_or_title(obj : any) -> str:
 
 
 def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entry: dict):
-    album_art_url: str = get_album_url_by_id(album_id=album_id, tidal_session=tidal_session)
+    album_art_url: str = get_album_art_url_by_id(album_id=album_id, tidal_session=tidal_session)
     upnp_util.set_album_art_from_uri(album_art_url, entry)
 
 
-def get_album_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
+def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
     if config.enable_image_caching:
         # try cached!
         document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
@@ -126,10 +128,10 @@ def get_album_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
                 path.extend(sub_dir_list)
                 path.append(cached_file_name)
                 cached_image_url: str = compose_docroot_url("/".join(path))
-                # msgproc.log(f"get_album_url_by_id returning [{cached_image_url}] for [{album_id}]")
+                # msgproc.log(f"get_album_art_url_by_id returning [{cached_image_url}] for [{album_id}]")
                 return cached_image_url
     # if we are are, we fallback to normal
-    # msgproc.log(f"get_album_url_by_id returning falling back for [{album_id}]")
+    # msgproc.log(f"get_album_art_url_by_id returning falling back for [{album_id}]")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
     return get_image_url(obj=album)
 
@@ -375,16 +377,42 @@ def album_playlist_action(
     return album
 
 
-def is_stereo(album : TidalAlbum) -> bool:
+def is_tidal_album_stereo(album : TidalAlbum) -> bool:
     # missing -> assume STEREO
-    media_metadata_tags : list[str] = album.media_metadata_tags
+    media_metadata_tags: list[str] = album.media_metadata_tags
+    return is_stereo(media_metadata_tags)
+
+
+def __audio_modes_has_stereo(audio_modes: list[str]) -> bool:
+    if not audio_modes or len(audio_modes) == 0: return False
+    current: str
+    for current in audio_modes:
+        if TidalAudioMode.stereo == current: return True
+    return False
+
+
+def is_stereo(media_metadata_tags : list[str]) -> bool:
+    # nothing available -> assume STEREO
     if not media_metadata_tags or len(media_metadata_tags) == 0: return True
-    return (TidalMediaMetadataTags.sony_360 not in media_metadata_tags and
-            TidalMediaMetadataTags.dolby_atmos not in media_metadata_tags)
+    # return (TidalMediaMetadataTags.sony_360 not in media_metadata_tags and
+    #         TidalMediaMetadataTags.dolby_atmos not in media_metadata_tags)
+    return not __only_of(
+        media_metadata_tags=media_metadata_tags,
+        hit=[
+            TidalMediaMetadataTags.sony_360,
+            TidalMediaMetadataTags.dolby_atmos])
 
 
-def not_stereo_skipmessage(album : TidalAlbum) -> str:
-    return f"Skipping album with id [{album.id}] because [{album.media_metadata_tags}]"
+def __only_of(media_metadata_tags : list[str], hit: list[str]) -> bool:
+    if not media_metadata_tags or len(media_metadata_tags) == 0: return False
+    current: str
+    for current in media_metadata_tags:
+        if current not in hit: return False
+    return True
+
+
+def not_stereo_skipmessage(album_id: str, media_metadata_tags : list[str]) -> str:
+    return f"Skipping album with id [{album_id}] because [{media_metadata_tags}]"
 
 
 def __is_mqa(media_metadata_tags : list[str]) -> bool:
@@ -439,8 +467,8 @@ def get_quality_badge_raw(
         cached_tidal_quality : CachedTidalQuality) -> str:
     # msgproc.log(f"get_quality_badge type(audio_modes) -> {type(audio_modes) if audio_modes else 'none'}")
     # TODO maybe map DOLBY_ATMOS to say Atmos
-    if audio_modes and audio_modes[0] != "STEREO": return audio_modes[0]
-    tidal_quality : TidalQuality = __get_best_quality(media_metadata_tags)
+    if audio_modes and not __audio_modes_has_stereo(audio_modes): return ",".join(audio_modes)
+    tidal_quality: TidalQuality = __get_best_quality(media_metadata_tags)
     is_mqa : bool = __is_mqa(media_metadata_tags)
     if not tidal_quality: tidal_quality = audio_quality
     stream_info_available : bool = (cached_tidal_quality and
@@ -524,7 +552,7 @@ def load_unique_ids_from_mix_or_playlist(
         previous_page_last_found_id : str = None,
         item_filter : Callable[[any], any] = lambda x : track_only(x),
         initial_offset : int = 0,
-        max_slice_size : int = 100) -> tuple[list[str], int]:
+        max_slice_size : int = 100) -> tuple[list[str], int, bool, str]:
     # msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_playlist_id [{tidal_obj_id}] "
     #             f"tidal_obj_type [{tidal_obj_type}] "
     #             f"initial_offset [{initial_offset}] max_slice_size [{max_slice_size}]")
@@ -597,3 +625,19 @@ def compose_docroot_url(right : str) -> str:
     doc_root : str = os.environ['UPMPD_UPNPDOCROOT']
     if not host_port and not doc_root: return None
     return f"http://{host_port}/{right}"
+
+
+def get_oauth2_credentials_file_name() -> str:
+    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.oauth2_credentials_file_name)
+
+
+def oauth2_credential_file_exists() -> bool:
+    return os.path.exists(get_oauth2_credentials_file_name())
+
+
+def get_pkce_credentials_file_name() -> str:
+    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.pkce_credentials_file_name)
+
+
+def pkce_credential_file_exists() -> bool:
+    return os.path.exists(get_pkce_credentials_file_name())

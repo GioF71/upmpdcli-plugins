@@ -123,11 +123,6 @@ prepend_number_in_album_list : bool = getPluginOptionValue(
     constants.default_prepend_number_in_item_list)
 
 
-enable_pkce_credential_match : bool = getPluginOptionValue(
-    "enablepkcecredentialmatch",
-    constants.default_enable_pkce_credential_match)
-
-
 serve_mode : str = getPluginOptionValue(
     "servemode",
     constants.default_serve_mode)

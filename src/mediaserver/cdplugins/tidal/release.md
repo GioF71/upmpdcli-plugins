@@ -1,5 +1,35 @@
 # Tidal Plugin Release notes
 
+## 0.7.0
+
+- Cover image for Next button in Bookmarks
+- Cover image for Next button in Navigable Artist Radio
+- Cover image for Next button in List of Artist Radio
+- Cover image for Next button in List of Artist Top Tracks
+- Cover image for Next button in Navigable Artist Top Tracks
+- Cover image for Next button in List of Favorite Tracks
+- Cover image for Next button in Navigable Favorite Tracks
+- Cover image for Next button in Similar Artists
+- Cover image for Next button in Albums from Playlist
+- Cover image for Next button in Artists from Playlist
+- Cover image for Next button in Favorite Artists (all flavors)
+- Bug: only first page of all playlists was correctly presented
+- Cover image for Next button in Navigable Tracks from a Mix
+- Cover image for Next button in Artist Albums (all types)
+- Cover image for Next button in Favorite Albums (all flavors)
+- Cover image for Next button in List of Recently Played Tracks
+- Cover image for Next button in List of Most Played Tracks
+- Cover image for Next button in Navigable Recently Played Tracks
+- Cover image for Next button in Navigable Most Played Tracks
+- Most Played Albums uses metadata cache (faster)
+- Cover image for Next button in Most Played Albums
+- Better management of non stereo albums
+- Recently Played Albums uses metadata cache (faster)
+- Misc code cleanup and refactoring
+- Cover image for Next button in Recently Played Albums
+- Moved some methods related to credential files to tidal_util
+- Removed unnecessay check of static pkce credentials with credential file  
+
 ## 0.6.0 (2024-06-13)
 
 - Use album art caching more extensively
