@@ -1,6 +1,6 @@
 # Tidal Plugin Release notes
 
-## 0.7.0-trunk
+## 0.7.0
 
 - Cover image for Next button in Bookmarks
 - Cover image for Next button in Navigable Artist Radio
