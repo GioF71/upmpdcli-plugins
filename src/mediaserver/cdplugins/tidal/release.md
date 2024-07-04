@@ -2,6 +2,8 @@
 
 ## 0.7.0-trunk
 
+- Cover image for Next button in Navigable Recently Played Tracks
+- Cover image for Next button in Navigable Most Played Tracks
 - Most Played Albums uses metadata cache (faster)
 - Cover image for Next button in Most Played Albums
 - Better management of non stereo albums
