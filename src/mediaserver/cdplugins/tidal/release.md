@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Cover image for Next button in Navigable Favorite Tracks
 - Cover image for Next button in Similar Artists
 - Cover image for Next button in Albums from Playlist
 - Cover image for Next button in Artists from Playlist

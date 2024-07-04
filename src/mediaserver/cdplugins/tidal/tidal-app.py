@@ -3605,19 +3605,27 @@ def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdent
     max_items: int = 50
     tidal_session: TidalSession = get_session()
     items: list[TidalTrack] = tidal_session.user.favorites.tracks(
-        limit=max_items,
+        limit=max_items + 1,
         offset=offset)
+    next_track: TidalTrack = items[max_items] if len(items) == max_items + 1 else None
+    # shrink
+    items = items[0:max_items] if next_track else items
     entries = add_tracks_to_navigable_entries(
         objid=objid,
         tidal_session=tidal_session,
         items=items,
         entries=entries)
-    if len(items) == max_items:
+    if next_track:
         next_button: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.FAVORITE_TRACKS_NAVIGABLE,
             element_id=ElementType.FAVORITE_TRACKS_NAVIGABLE.getName(),
             next_offset=offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 
