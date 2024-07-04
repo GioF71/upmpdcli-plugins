@@ -3665,6 +3665,7 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
             element_type = ElementType.FAVORITE_TRACKS_LIST,
             element_id = ElementType.FAVORITE_TRACKS_LIST.getName(),
             next_offset = offset + config.tracks_per_page)
+        # TODO set art for next button
         entries.append(next_entry)
     return entries
 
@@ -3690,6 +3691,7 @@ def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIde
             element_type = ElementType.ARTIST_TOP_TRACKS_NAVIGABLE,
             element_id = artist_id,
             next_offset = offset + max_items)
+        # TODO set art for next button
         entries.append(next_button)
     return entries
 
@@ -3721,6 +3723,7 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
             element_type=ElementType.ARTIST_TOP_TRACKS_LIST,
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
+        # TODO set art for next button
         entries.append(next_entry)
     return entries
 
@@ -3751,6 +3754,7 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
             element_type=ElementType.ARTIST_RADIO_LIST,
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
+        # TODO set art for next button
         entries.append(next_entry)
     return entries
 
@@ -3782,6 +3786,7 @@ def handler_element_artist_radio_navigable(objid, item_identifier : ItemIdentifi
             element_type=ElementType.ARTIST_RADIO_NAVIGABLE,
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
+        # TODO set art for next button
         entries.append(next_entry)
     return entries
 
@@ -4653,6 +4658,7 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
             element_type = ElementType.BOOKMARK_ARTISTS,
             element_id = ElementType.BOOKMARK_ARTISTS.getName(),
             next_offset = offset + counter)
+        # TODO set art for next button
         entries.append(next_button)
     return entries
 
@@ -4687,6 +4693,7 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
             element_type = ElementType.BOOKMARK_ALBUMS,
             element_id = ElementType.BOOKMARK_ALBUMS.getName(),
             next_offset = offset + counter)
+        # TODO set art for next button
         entries.append(next_button)
     return entries
 
@@ -4725,6 +4732,7 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
             element_type = ElementType.BOOKMARK_TRACKS,
             element_id = ElementType.BOOKMARK_TRACKS.getName(),
             next_offset = offset + counter)
+        # TODO set art for next button
         entries.append(next_button)
     return entries
 
