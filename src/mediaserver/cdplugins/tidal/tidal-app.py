@@ -3637,10 +3637,10 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
     # in order to understand if next is needed, we ask one more track
     tracks: list[TidalTrack] = tidal_session.user.favorites.tracks(offset=offset, limit=limit + 1)
     needs_next: bool = tracks and len(tracks) > limit
-    if needs_next:
-        # trim to the limit
-        tracks = tracks[0:limit]
-    options : dict[str, any] = dict()
+    next_track: TidalTrack = tracks[limit] if needs_next else None
+    # shrink if needed
+    tracks = tracks[0:limit] if needs_next else tracks
+    options: dict[str, any] = dict()
     track_number: int = offset + 1
     current: TidalTrack
     for current in tracks:
@@ -3658,14 +3658,18 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
             msgproc.log(f"handler_element_favorite_tracks_list cannot add track with id {current.id} "
                         f"due to [{type(ex)}] [{ex}]")
         track_number += 1
-    if needs_next:
+    if next_track:
         # create next
         next_entry : dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.FAVORITE_TRACKS_LIST,
             element_id = ElementType.FAVORITE_TRACKS_LIST.getName(),
             next_offset = offset + config.tracks_per_page)
-        # TODO set art for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
