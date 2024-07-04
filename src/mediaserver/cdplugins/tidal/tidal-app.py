@@ -2990,46 +2990,52 @@ def handler_element_albums_in_mix_or_playlist(
         objid,
         item_identifier : ItemIdentifier,
         entries : list) -> list:
-    mix_or_playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    initial_offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    prev_page_last_found_id : int = item_identifier.get(ItemIdentifierKey.LAST_FOUND_ID, None)
-    underlying_type_str : str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
-    underlying_type : ElementType = get_element_type_by_name(element_name = underlying_type_str)
-    max_items_per_page : int = config.artists_per_page
+    mix_or_playlist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    initial_offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    prev_page_last_found_id: int = item_identifier.get(ItemIdentifierKey.LAST_FOUND_ID, None)
+    underlying_type_str: str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
+    underlying_type: ElementType = get_element_type_by_name(element_name = underlying_type_str)
+    # max_items_per_page: int = config.albums_per_page
     msgproc.log(f"handler_element_albums_in_mix_or_playlist for [{mix_or_playlist_id}] "
                 f"of type [{underlying_type}] from offset [{initial_offset}]")
-    tidal_session : TidalSession = get_session()
-    tidal_obj : any = (tidal_session.playlist(mix_or_playlist_id)
+    tidal_session: TidalSession = get_session()
+    tidal_obj: any = (tidal_session.playlist(mix_or_playlist_id)
         if ElementType.PLAYLIST == underlying_type
         else tidal_session.mix(mix_or_playlist_id))
     msgproc.log(f"handler_element_albums_in_mix_or_playlist tidal_obj [{type(tidal_obj)}]")
-    id_extractor : Callable[[any], str] = lambda x : x.album.id if x and x.album else None
-    album_list : list[str]
-    last_offset : int
-    finished : bool
-    last_found_id : str
+    id_extractor: Callable[[any], str] = lambda x : x.album.id if x and x.album else None
+    album_list: list[str]
+    last_offset: int
+    finished: bool
+    last_found_id: str
     album_list, last_offset, finished, last_found_id = tidal_util.load_unique_ids_from_mix_or_playlist(
         tidal_session = tidal_session,
         tidal_obj_id = mix_or_playlist_id,
         tidal_obj_type = underlying_type_str,
         id_extractor = id_extractor,
-        max_id_list_length = max_items_per_page,
+        max_id_list_length = config.albums_per_page + 1,
         previous_page_last_found_id = prev_page_last_found_id,
         initial_offset = initial_offset)
-    needs_next : bool = not finished
+    # needs_next : bool = not finished
+    needs_next: bool = len(album_list) == config.albums_per_page + 1
+    next_album_id: str = album_list[config.albums_per_page] if needs_next else None
+    # shrink
+    album_list = album_list[0:config.albums_per_page] if needs_next else album_list
     msgproc.log(f"handler_element_albums_in_mix_or_playlist for [{mix_or_playlist_id}] "
                 f"of type [{underlying_type}] from offset [{initial_offset}] "
                 f"got [{len(album_list)}] albums (needs_next [{needs_next}])")
+    last_displayed_album_id: str = None
     # create entries for albums
     for album_id in album_list:
+        last_displayed_album_id = album_id
         try:
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=album_id,
                 tidal_album_loader=get_tidal_album_loader())
             if album_adapter:
                 entries.append(album_adapter_to_album_container(
-                    objid = objid,
-                    album_adapter = album_adapter))
+                    objid=objid,
+                    album_adapter=album_adapter))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{album_id}] [{type(ex)}] [{ex}]")
     if needs_next:
@@ -3038,11 +3044,15 @@ def handler_element_albums_in_mix_or_playlist(
             objid = objid,
             element_type = ElementType.ALBUMS_IN_MIX_OR_PLAYLIST,
             element_id = mix_or_playlist_id,
-            next_offset = last_offset + 1,
+            next_offset = last_offset,
             other_keys = {
                 ItemIdentifierKey.UNDERLYING_TYPE: underlying_type_str,
-                ItemIdentifierKey.LAST_FOUND_ID: last_found_id
-            })
+                ItemIdentifierKey.LAST_FOUND_ID: last_displayed_album_id})
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_album_id,
+                tidal_session=tidal_session),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 

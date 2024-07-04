@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Cover image for Next button in Albums from Playlist
 - Cover image for Next button in Artists from Playlist
 - Cover image for Next button in Favorite Artists (all flavors)
 - Bug: only first page of all playlists was correctly presented
