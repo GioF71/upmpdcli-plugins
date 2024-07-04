@@ -3754,7 +3754,6 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
     # apply offset
     items = items[offset:] if len(items) > offset else list()
     # needs next?
-    # next_needed: bool = len(items) > config.tracks_per_page
     next_track: TidalTrack = items[config.tracks_per_page] if len(items) > config.tracks_per_page else None
     options: dict[str, any] = dict()
     set_option(options=options, option_key=OptionKey.SKIP_TRACK_NUMBER, option_value=True)
