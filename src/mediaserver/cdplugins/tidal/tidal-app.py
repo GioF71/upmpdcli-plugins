@@ -794,7 +794,9 @@ def get_category_image_url(
                 if isinstance(first_item, TidalTrack):
                     # msgproc.log(f"  processing as Track ...")
                     track: TidalTrack = first_item
-                    image_url = (tidal_util.get_album_art_url_by_id(album_id=track.album.id, tidal_session=tidal_session)
+                    image_url = (tidal_util.get_album_art_url_by_id(
+                                 album_id=track.album.id,
+                                 tidal_session=tidal_session)
                                  if track and track.album else None)
                 elif isinstance(first_item, TidalMix):
                     # msgproc.log(f"  processing as Mix ...")
@@ -2157,19 +2159,25 @@ def handler_favorite_artists_common(
         objid,
         item_identifier : ItemIdentifier,
         entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    tidal_session : TidalSession = get_session()
-    max_items : int = config.artists_per_page
-    items : list[TidalArtist] = list_retriever(tidal_session, descending, max_items, offset)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    tidal_session: TidalSession = get_session()
+    max_items: int = config.artists_per_page
+    items: list[TidalArtist] = list_retriever(tidal_session, descending, max_items + 1, offset)
+    next_artist: TidalArtist = items[config.artists_per_page] if len(items) == config.artists_per_page + 1 else None
+    # shrink
+    items = items[0:min(len(items), config.artists_per_page)] if len(items) > 0 else list()
     current : TidalArtist
     for current in items:
-        entries.append(artist_to_entry(objid, artist = current))
-    if len(items) >= max_items:
+        entries.append(artist_to_entry(objid=objid, artist=current))
+    if next_artist:
         next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = element_type,
             element_id = element_type.getName(),
             next_offset = offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(obj=next_artist),
+            target=next_button)
         entries.append(next_button)
     return entries
 
