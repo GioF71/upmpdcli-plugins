@@ -3051,34 +3051,38 @@ def handler_element_artists_in_mix_or_playlist(
         objid,
         item_identifier : ItemIdentifier,
         entries : list) -> list:
-    mix_or_playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    initial_offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    prev_page_last_found_id : int = item_identifier.get(ItemIdentifierKey.LAST_FOUND_ID, None)
-    underlying_type_str : str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
-    underlying_type : ElementType = get_element_type_by_name(element_name = underlying_type_str)
-    max_items_per_page : int = config.artists_per_page
-    msgproc.log(f"handler_element_albums_in_mix_or_playlist for [{mix_or_playlist_id}] "
+    mix_or_playlist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    initial_offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    prev_page_last_found_id: int = item_identifier.get(ItemIdentifierKey.LAST_FOUND_ID, None)
+    underlying_type_str: str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
+    underlying_type: ElementType = get_element_type_by_name(element_name = underlying_type_str)
+    msgproc.log(f"handler_element_artists_in_mix_or_playlist for [{mix_or_playlist_id}] "
                 f"of type [{underlying_type}] from offset [{initial_offset}]")
-    tidal_session : TidalSession = get_session()
-    id_extractor : Callable[[any], str] = lambda x : x.artist.id if x and x.artist else None
-    artist_list : list[str]
-    last_offset : int
-    finished : bool
-    last_found_id : str
+    tidal_session: TidalSession = get_session()
+    id_extractor: Callable[[any], str] = lambda x : x.artist.id if x and x.artist else None
+    artist_list: list[str]
+    last_offset: int
+    finished: bool
+    last_found_id: str
     artist_list, last_offset, finished, last_found_id = tidal_util.load_unique_ids_from_mix_or_playlist(
-        tidal_session = tidal_session,
-        tidal_obj_id = mix_or_playlist_id,
-        tidal_obj_type = underlying_type_str,
-        id_extractor = id_extractor,
-        max_id_list_length = max_items_per_page,
-        previous_page_last_found_id = prev_page_last_found_id,
+        tidal_session=tidal_session,
+        tidal_obj_id=mix_or_playlist_id,
+        tidal_obj_type=underlying_type_str,
+        id_extractor=id_extractor,
+        max_id_list_length=config.artists_per_page + 1,
+        previous_page_last_found_id=prev_page_last_found_id,
         initial_offset = initial_offset)
-    needs_next : bool = not finished
+    needs_next: bool = len(artist_list) == config.artists_per_page + 1
+    next_artist_id: str = artist_list[config.artists_per_page] if needs_next else None
+    # shrink
+    artist_list = artist_list[0:config.artists_per_page] if needs_next else artist_list
     msgproc.log(f"handler_element_artists_in_mix_or_playlist for [{mix_or_playlist_id}] "
                 f"of type [{underlying_type}] from offset [{initial_offset}] "
                 f"got [{len(artist_list)}] artists (needs_next [{needs_next}])")
+    last_displayed_artist_id: str = None
     # create entries for artists
     for artist_id in artist_list:
+        last_displayed_artist_id = artist_id
         try:
             artist : TidalArtist = tidal_session.artist(artist_id)
             entries.append(artist_to_entry(
@@ -3087,16 +3091,22 @@ def handler_element_artists_in_mix_or_playlist(
         except Exception as ex:
             msgproc.log(f"Cannot add artist with id [{artist_id}] [{type(ex)}] [{ex}]")
     if needs_next:
-        # create next
+        # create next button
         next_entry : dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.ARTISTS_IN_MIX_OR_PLAYLIST,
             element_id = mix_or_playlist_id,
-            next_offset = last_offset + 1,
+            next_offset = last_offset,
             other_keys = {
                 ItemIdentifierKey.UNDERLYING_TYPE: underlying_type_str,
-                ItemIdentifierKey.LAST_FOUND_ID: last_found_id
+                ItemIdentifierKey.LAST_FOUND_ID: last_displayed_artist_id
             })
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(
+                tidal_util.try_get_artist(
+                    tidal_session=tidal_session,
+                    artist_id=next_artist_id)),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 

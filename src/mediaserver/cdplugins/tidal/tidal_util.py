@@ -552,7 +552,7 @@ def load_unique_ids_from_mix_or_playlist(
         previous_page_last_found_id : str = None,
         item_filter : Callable[[any], any] = lambda x : track_only(x),
         initial_offset : int = 0,
-        max_slice_size : int = 100) -> tuple[list[str], int]:
+        max_slice_size : int = 100) -> tuple[list[str], int, bool, str]:
     # msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_playlist_id [{tidal_obj_id}] "
     #             f"tidal_obj_type [{tidal_obj_type}] "
     #             f"initial_offset [{initial_offset}] max_slice_size [{max_slice_size}]")
