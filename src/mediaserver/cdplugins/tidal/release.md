@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Cover image for Next button in Navigable Artist Radio
 - Cover image for Next button in List of Artist Radio
 - Cover image for Next button in List of Artist Top Tracks
 - Cover image for Next button in Navigable Artist Top Tracks
