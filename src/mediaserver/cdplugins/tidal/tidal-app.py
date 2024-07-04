@@ -4654,12 +4654,11 @@ def handler_album_tracks_action(objid, item_identifier : ItemIdentifier, entries
 
 
 def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    obj_list : list[str] = persistence.get_artist_listen_queue()
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    counter : int = offset
+    obj_list: list[str] = persistence.get_artist_listen_queue()
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    counter: int = offset
     # start from the offset (slice obj_list)
     obj_list = obj_list[offset:] if len(obj_list) > offset else list()
-    # msgproc.log(f"handler_element_bookmark_artists offset [{offset}] len [{len(obj_list)}]")
     tidal_session : TidalSession = get_session()
     counter : int = 0
     success_count : int = 0
@@ -4667,7 +4666,7 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
     for obj_id in obj_list:
         counter += 1
         try:
-            tidal_obj : TidalArtist = tidal_util.try_get_artist(
+            tidal_obj: TidalArtist = tidal_util.try_get_artist(
                 tidal_session=tidal_session,
                 artist_id=obj_id)
             success_count += 1
@@ -4678,27 +4677,32 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
             msgproc.log(f"handler_element_bookmark_artists cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
+        next_artist_id: str = obj_list[counter]
         next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_ARTISTS,
             element_id = ElementType.BOOKMARK_ARTISTS.getName(),
             next_offset = offset + counter)
-        # TODO set art for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(
+                obj=tidal_util.try_get_artist(
+                    tidal_session=tidal_session,
+                    artist_id=next_artist_id)),
+            target=next_button)
         entries.append(next_button)
     return entries
 
 
 def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    obj_list : list[str] = persistence.get_album_listen_queue()
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    counter : int = offset
+    obj_list: list[str] = persistence.get_album_listen_queue()
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    counter: int = offset
     # start from the offset (slice obj_list)
     obj_list = obj_list[offset:] if len(obj_list) > offset else list()
-    # msgproc.log(f"handler_element_bookmark_albums offset [{offset}] len [{len(obj_list)}]")
-    tidal_session : TidalSession = get_session()
-    counter : int = 0
-    success_count : int = 0
-    obj_id : str
+    tidal_session: TidalSession = get_session()
+    counter: int = 0
+    success_count: int = 0
+    obj_id: str
     for obj_id in obj_list:
         counter += 1
         try:
@@ -4713,12 +4717,17 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
             msgproc.log(f"handler_element_bookmark_albums cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
+        next_album_id: str = obj_list[counter]
         next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_ALBUMS,
             element_id = ElementType.BOOKMARK_ALBUMS.getName(),
             next_offset = offset + counter)
-        # TODO set art for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_album_id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 
@@ -4752,12 +4761,21 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
             msgproc.log(f"handler_element_bookmark_tracks cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
+        next_track_id: str = obj_list[counter]
         next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_TRACKS,
             element_id = ElementType.BOOKMARK_TRACKS.getName(),
             next_offset = offset + counter)
-        # TODO set art for next button
+        next_track: TidalTrack = tidal_util.try_get_track(
+            tidal_session=tidal_session,
+            track_id=next_track_id)
+        if next_track:
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=tidal_util.get_album_art_url_by_id(
+                    album_id=next_track.album.id,
+                    tidal_session=tidal_session),
+                target=next_button)
         entries.append(next_button)
     return entries
 
