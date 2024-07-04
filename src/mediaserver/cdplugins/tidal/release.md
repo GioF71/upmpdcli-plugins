@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Bug: only first page of all playlists was correctly presented
 - Cover image for Next button in Navigable Tracks from a Mix
 - Cover image for Next button in Artist Albums (all types)
 - Cover image for Next button in Favorite Albums (all flavors)

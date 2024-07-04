@@ -1942,11 +1942,11 @@ def __handler_element_favorite_albums_common(
             album = current,
             options = options))
     if len(items) >= max_items:
-        next_button = create_next_button(
-            objid = objid,
-            element_type = element_type,
-            element_id = element_type.getName(),
-            next_offset = offset + max_items)
+        next_button: dict[str, any] = create_next_button(
+            objid=objid,
+            element_type=element_type,
+            element_id=element_type.getName(),
+            next_offset=offset + max_items)
         upnp_util.set_album_art_from_uri(
             album_art_uri=tidal_util.get_album_art_url_by_id(
                 album_id=next_album.id,
@@ -2165,7 +2165,7 @@ def handler_favorite_artists_common(
     for current in items:
         entries.append(artist_to_entry(objid, artist = current))
     if len(items) >= max_items:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = element_type,
             element_id = element_type.getName(),
@@ -2242,11 +2242,16 @@ def handler_tag_favorite_tracks(objid, item_identifier : ItemIdentifier, entries
 
 
 def handler_tag_all_playlists(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    tidal_session : TidalSession = get_session()
-    max_items : int = config.playlist_items_per_page
-    playlists : list[TidalPlaylist] = tidal_session.user.playlist_and_favorite_playlists(offset = offset)
-    current : TidalPlaylist
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    tidal_session: TidalSession = get_session()
+    max_items: int = config.playlist_items_per_page
+    playlists: list[TidalPlaylist] = tidal_session.user.playlist_and_favorite_playlists(offset=offset)
+    next_playlist: TidalPlaylist = (playlists[config.playlist_items_per_page]
+                                    if len(playlists) > config.playlist_items_per_page
+                                    else None)
+    playlists = (playlists[0:min(len(playlists), config.playlist_items_per_page)]
+                 if len(playlists) > 0 else list())
+    current: TidalPlaylist
     for current in playlists:
         try:
             entries.append(playlist_to_playlist_container(
@@ -2254,12 +2259,16 @@ def handler_tag_all_playlists(objid, item_identifier : ItemIdentifier, entries :
                 playlist = current))
         except Exception as ex:
             msgproc.log(f"Cannot create playlist entry for playlist_id [{current.id}] Exception [{ex}]")
-    if len(playlists) >= max_items:
-        create_next_button(
-            objid = objid,
-            element_type = ElementType.TAG,
-            element_id = TagType.ALL_PLAYLISTS.getTagName(),
-            next_offset = offset + max_items)
+    if next_playlist:
+        next_button: dict[str, any] = create_next_button(
+            objid=objid,
+            element_type=ElementType.TAG,
+            element_id=TagType.ALL_PLAYLISTS.getTagName(),
+            next_offset=offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(obj=next_playlist),
+            target=next_button)
+        entries.append(next_button)
     return entries
 
 
@@ -2944,7 +2953,9 @@ def handle_element_mix_or_playlist_container(
             if tile_idx == 0:
                 # prepare tile_0_track_list
                 item_list : list[TidalTrack | TidalVideo] = mix.items()
-                item_list = item_list[0:min(max_items, len(item_list))] if item_list else list()
+                item_list = (item_list[0:min(max_items, len(item_list))]
+                             if item_list and len(item_list) > 0
+                             else list())
                 for item in item_list:
                     if isinstance(item, TidalTrack):
                         tile_0_track_list.append(item)
@@ -3429,7 +3440,7 @@ def handler_element_artist_album_catch_all(
             options = options))
     if album_list and len(album_list) == max_items:
         # add next button
-        next_button: dict = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid=objid,
             element_type=get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME)),
             element_id=item_identifier.get(ItemIdentifierKey.THING_VALUE),
@@ -3514,7 +3525,7 @@ def handler_element_similar_artists(objid, item_identifier : ItemIdentifier, ent
             objid = objid,
             artist = current))
     if next_needed:
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.SIMILAR_ARTISTS,
             element_id=artist_id,
@@ -3565,21 +3576,23 @@ def add_track_as_list_to_entries(
 
 
 def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    max_items : int = 50
-    tidal_session : TidalSession = get_session()
-    items : list[TidalTrack] = tidal_session.user.favorites.tracks(limit = max_items, offset = offset)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items: int = 50
+    tidal_session: TidalSession = get_session()
+    items: list[TidalTrack] = tidal_session.user.favorites.tracks(
+        limit=max_items,
+        offset=offset)
     entries = add_tracks_to_navigable_entries(
-        objid = objid,
-        tidal_session = tidal_session,
-        items = items,
-        entries = entries)
+        objid=objid,
+        tidal_session=tidal_session,
+        items=items,
+        entries=entries)
     if len(items) == max_items:
-        next_button = create_next_button(
-            objid = objid,
-            element_type = ElementType.FAVORITE_TRACKS_NAVIGABLE,
-            element_id = ElementType.FAVORITE_TRACKS_NAVIGABLE.getName(),
-            next_offset = offset + max_items)
+        next_button: dict[str, any] = create_next_button(
+            objid=objid,
+            element_type=ElementType.FAVORITE_TRACKS_NAVIGABLE,
+            element_id=ElementType.FAVORITE_TRACKS_NAVIGABLE.getName(),
+            next_offset=offset + max_items)
         entries.append(next_button)
     return entries
 
@@ -3639,7 +3652,7 @@ def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIde
         items = items,
         entries = entries)
     if len(items) == max_items:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.ARTIST_TOP_TRACKS_NAVIGABLE,
             element_id = artist_id,
@@ -3670,7 +3683,7 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
             track=current,
             options=options))
     if next_needed:
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.ARTIST_TOP_TRACKS_LIST,
             element_id=artist_id,
@@ -3700,7 +3713,7 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
             track=current,
             options=options))
     if next_needed:
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.ARTIST_RADIO_LIST,
             element_id=artist_id,
@@ -3731,7 +3744,7 @@ def handler_element_artist_radio_navigable(objid, item_identifier : ItemIdentifi
                 track = current),
             options=options))
     if next_needed:
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=ElementType.ARTIST_RADIO_NAVIGABLE,
             element_id=artist_id,
@@ -4342,7 +4355,7 @@ def played_track_list_to_entries(
         entries=entries)
     if next_needed:
         element_type: ElementType = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME))
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=element_type,
             element_id=element_type.getName(),
@@ -4387,7 +4400,7 @@ def played_track_list_to_list_entries(
         entries = entries)
     if next_needed:
         element_type: ElementType = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME))
-        next_entry = create_next_button(
+        next_entry: dict[str, any] = create_next_button(
             objid=objid,
             element_type=element_type,
             element_id=element_type.getName(),
@@ -4492,7 +4505,7 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current_album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.RECENTLY_PLAYED_ALBUMS,
             element_id = ElementType.RECENTLY_PLAYED_ALBUMS.getName(),
@@ -4534,7 +4547,7 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current.album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.MOST_PLAYED_ALBUMS,
             element_id = ElementType.MOST_PLAYED_ALBUMS.getName(),
@@ -4602,7 +4615,7 @@ def handler_element_bookmark_artists(objid, item_identifier : ItemIdentifier, en
             msgproc.log(f"handler_element_bookmark_artists cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_ARTISTS,
             element_id = ElementType.BOOKMARK_ARTISTS.getName(),
@@ -4636,7 +4649,7 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
             msgproc.log(f"handler_element_bookmark_albums cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_ALBUMS,
             element_id = ElementType.BOOKMARK_ALBUMS.getName(),
@@ -4674,7 +4687,7 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
             msgproc.log(f"handler_element_bookmark_tracks cannot load [{type(tidal_obj)}] "
                         f"[{obj_id}] [{type(ex)}] [{ex}]")
     if len(obj_list) > counter:
-        next_button = create_next_button(
+        next_button: dict[str, any] = create_next_button(
             objid = objid,
             element_type = ElementType.BOOKMARK_TRACKS,
             element_id = ElementType.BOOKMARK_TRACKS.getName(),
