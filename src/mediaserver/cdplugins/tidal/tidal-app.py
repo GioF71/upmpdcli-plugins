@@ -4282,9 +4282,8 @@ def played_track_list_to_entries(
     # apply offset
     played_tracks = played_tracks[offset:] if len(played_tracks) > offset else ()
     # needs next?
-    next_track: PlayedTrack = None
     next_needed: bool = len(played_tracks) > config.tracks_per_page
-    if next_needed: next_track = played_tracks[config.tracks_per_page]
+    next_track: PlayedTrack = played_tracks[config.tracks_per_page] if next_needed else None
     played_tracks = (played_tracks[0:config.tracks_per_page]
                      if len(played_tracks) > config.tracks_per_page
                      else played_tracks)
@@ -4329,6 +4328,7 @@ def played_track_list_to_list_entries(
     played_tracks = played_tracks[offset:] if len(played_tracks) > offset else ()
     # needs next?
     next_needed: bool = len(played_tracks) > config.tracks_per_page
+    next_track: PlayedTrack = played_tracks[config.tracks_per_page] if next_needed else None
     played_tracks = (played_tracks[0:config.tracks_per_page]
                      if len(played_tracks) > config.tracks_per_page
                      else played_tracks)
@@ -4353,6 +4353,12 @@ def played_track_list_to_list_entries(
             element_type=element_type,
             element_id=element_type.getName(),
             next_offset=offset + config.tracks_per_page)
+        # cover for next track
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album_id,
+                tidal_session=get_session()),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
