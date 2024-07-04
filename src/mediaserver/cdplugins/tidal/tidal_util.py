@@ -30,6 +30,8 @@ from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
+from tidalapi.media import AudioMode as TidalAudioMode
+
 from typing import Callable
 
 from element_type import ElementType
@@ -375,16 +377,42 @@ def album_playlist_action(
     return album
 
 
-def is_stereo(album : TidalAlbum) -> bool:
+def is_tidal_album_stereo(album : TidalAlbum) -> bool:
     # missing -> assume STEREO
-    media_metadata_tags : list[str] = album.media_metadata_tags
+    media_metadata_tags: list[str] = album.media_metadata_tags
+    return is_stereo(media_metadata_tags)
+
+
+def __audio_modes_has_stereo(audio_modes: list[str]) -> bool:
+    if not audio_modes or len(audio_modes) == 0: return False
+    current: str
+    for current in audio_modes:
+        if TidalAudioMode.stereo == current: return True
+    return False
+
+
+def is_stereo(media_metadata_tags : list[str]) -> bool:
+    # nothing available -> assume STEREO
     if not media_metadata_tags or len(media_metadata_tags) == 0: return True
-    return (TidalMediaMetadataTags.sony_360 not in media_metadata_tags and
-            TidalMediaMetadataTags.dolby_atmos not in media_metadata_tags)
+    # return (TidalMediaMetadataTags.sony_360 not in media_metadata_tags and
+    #         TidalMediaMetadataTags.dolby_atmos not in media_metadata_tags)
+    return not __only_of(
+        media_metadata_tags=media_metadata_tags,
+        hit=[
+            TidalMediaMetadataTags.sony_360,
+            TidalMediaMetadataTags.dolby_atmos])
 
 
-def not_stereo_skipmessage(album : TidalAlbum) -> str:
-    return f"Skipping album with id [{album.id}] because [{album.media_metadata_tags}]"
+def __only_of(media_metadata_tags : list[str], hit: list[str]) -> bool:
+    if not media_metadata_tags or len(media_metadata_tags) == 0: return False
+    current: str
+    for current in media_metadata_tags:
+        if current not in hit: return False
+    return True
+
+
+def not_stereo_skipmessage(album_id: str, media_metadata_tags : list[str]) -> str:
+    return f"Skipping album with id [{album_id}] because [{media_metadata_tags}]"
 
 
 def __is_mqa(media_metadata_tags : list[str]) -> bool:
@@ -439,8 +467,8 @@ def get_quality_badge_raw(
         cached_tidal_quality : CachedTidalQuality) -> str:
     # msgproc.log(f"get_quality_badge type(audio_modes) -> {type(audio_modes) if audio_modes else 'none'}")
     # TODO maybe map DOLBY_ATMOS to say Atmos
-    if audio_modes and audio_modes[0] != "STEREO": return audio_modes[0]
-    tidal_quality : TidalQuality = __get_best_quality(media_metadata_tags)
+    if audio_modes and not __audio_modes_has_stereo(audio_modes): return ",".join(audio_modes)
+    tidal_quality: TidalQuality = __get_best_quality(media_metadata_tags)
     is_mqa : bool = __is_mqa(media_metadata_tags)
     if not tidal_quality: tidal_quality = audio_quality
     stream_info_available : bool = (cached_tidal_quality and

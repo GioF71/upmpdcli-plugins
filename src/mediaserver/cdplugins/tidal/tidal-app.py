@@ -61,6 +61,7 @@ from tidalapi.playlist import Playlist as TidalPlaylist
 from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.media import Track as TidalTrack
 from tidalapi.media import Video as TidalVideo
+from tidalapi.media import AudioMode as TidalAudioMode
 from tidalapi.page import Page as TidalPage
 from tidalapi.page import PageItem as TidalPageItem
 from tidalapi.page import ItemList as TidalItemList
@@ -1929,8 +1930,8 @@ def __handler_element_favorite_albums_common(
                 options = options,
                 option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME,
                 option_value = counter)
-        if config.skip_non_stereo and not tidal_util.is_stereo(current):
-            msgproc.log(tidal_util.not_stereo_skipmessage(current))
+        if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(current):
+            msgproc.log(tidal_util.not_stereo_skipmessage(current.id, current.media_metadata_tags))
             continue
         entries.append(album_to_album_container(
             objid = objid,
@@ -2523,12 +2524,13 @@ def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list
                 objid = objid,
                 playlist = page_item))
         elif isinstance(page_item, TidalAlbum):
-            if config.skip_non_stereo and not tidal_util.is_stereo(page_item):
-                msgproc.log(tidal_util.not_stereo_skipmessage(page_item))
+            album: TidalAlbum = page_item
+            if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(album):
+                msgproc.log(tidal_util.not_stereo_skipmessage(album.id, album.media_metadata_tags))
                 continue
             entries.append(album_to_album_container(
                 objid = objid,
-                album = page_item))
+                album = album))
         else:
             msgproc.log(f"handler_element_page: page_item of type [{type(page_item)}] not handled")
     return entries
@@ -2609,13 +2611,13 @@ def get_first_not_stereo(audio_modes) -> str:
         m : str
         for m in ml if len(ml) > 0 else []:
             msgproc.log(f"  array comparing with {m} ...")
-            if m != "STEREO":
-                msgproc.log(f"  {m} different from 'STEREO'")
+            if m != TidalAudioMode.stereo:
+                msgproc.log(f"  {m} different from '{TidalAudioMode.stereo}'")
                 return m
         return None
     # else it's a string
     msgproc.log(f"audio_modes is string {audio_modes}")
-    return audio_modes if "STEREO" != audio_modes else None
+    return audio_modes if TidalAudioMode.stereo != audio_modes else None
 
 
 def handler_element_album_container(
@@ -2993,9 +2995,9 @@ def handler_element_albums_in_mix_or_playlist(
     # create entries for albums
     for album_id in album_list:
         try:
-            album_adapter : AlbumAdapter = album_adapter_by_album_id(
-                album_id = album_id,
-                tidal_album_loader = get_tidal_album_loader())
+            album_adapter: AlbumAdapter = album_adapter_by_album_id(
+                album_id=album_id,
+                tidal_album_loader=get_tidal_album_loader())
             if album_adapter:
                 entries.append(album_adapter_to_album_container(
                     objid = objid,
@@ -3386,8 +3388,8 @@ def handler_element_artist_album_catch_all(
         option_key = OptionKey.ALBUM_OMITTABLE_ARTIST_ID,
         option_value = artist_id)
     for current in album_list:
-        if config.skip_non_stereo and not tidal_util.is_stereo(current):
-            msgproc.log(tidal_util.not_stereo_skipmessage(current))
+        if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(current):
+            msgproc.log(tidal_util.not_stereo_skipmessage(current.id, current.media_metadata_tags))
             continue
         entries.append(album_to_album_container(
             objid = objid,
@@ -4409,27 +4411,31 @@ def handler_element_remove_album_from_stats(objid, item_identifier : ItemIdentif
 
 
 def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    tidal_session : TidalSession = get_session()
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    tidal_session: TidalSession = get_session()
     # TODO remove hardcoded value
-    max_tracks : int = 10000
-    albums_per_page : int = config.albums_per_page
-    next_needed : bool = False
-    album_id_list : list[str] = get_last_played_album_id_list(max_tracks = max_tracks)
+    max_tracks: int = 10000
+    albums_per_page: int = config.albums_per_page
+    next_needed: bool = False
+    album_id_list: list[str] = get_last_played_album_id_list(max_tracks = max_tracks)
     from_offset_album_id_list : list[str] = album_id_list[offset:]
     if len(from_offset_album_id_list) >= albums_per_page: next_needed = True
     page_album_id_list : list[str] = from_offset_album_id_list[0:albums_per_page]
-    current_album_id : str
+    current_album_id: str
     for current_album_id in page_album_id_list:
         try:
-            album : TidalAlbum = tidal_session.album(current_album_id)
+            album_adapter: AlbumAdapter = album_adapter_by_album_id(
+                album_id=current_album_id,
+                tidal_album_loader=get_tidal_album_loader())
             if (config.skip_non_stereo and
-                    not tidal_util.is_stereo(album)):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album))
+                    not tidal_util.is_stereo(album_adapter.media_metadata_tags)):
+                msgproc.log(tidal_util.not_stereo_skipmessage(
+                    album_adapter.id,
+                    album_adapter.media_metadata_tags))
                 continue
-            entries.append(album_to_album_container(
+            entries.append(album_adapter_to_album_container(
                 objid = objid,
-                album = album))
+                album_adapter=album_adapter))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current_album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
@@ -4464,8 +4470,8 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
     for current in page_played_album_list:
         try:
             album : TidalAlbum = tidal_session.album(current.album_id)
-            if config.skip_non_stereo and not tidal_util.is_stereo(album):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album))
+            if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(album):
+                msgproc.log(tidal_util.not_stereo_skipmessage(album.id, album.media_metadata_tags))
                 continue
             entries.append(album_to_album_container(objid = objid, album = album))
         except Exception as ex:
