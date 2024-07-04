@@ -3379,15 +3379,19 @@ def handler_element_artist_album_catch_all(
         item_identifier : ItemIdentifier,
         album_extractor : Callable[[Optional[int], int], list[TidalAlbum]],
         entries : list) -> list:
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    max_items : int = config.albums_per_page
-    artist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session : TidalSession = get_session()
-    artist : TidalArtist = tidal_session.artist(artist_id)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_items: int = config.albums_per_page
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    tidal_session: TidalSession = get_session()
+    artist: TidalArtist = tidal_session.artist(artist_id)
     if not artist: msgproc.log(f"Artist with id {artist_id} not found")
-    current : TidalAlbum
-    album_list : list[TidalAlbum] = album_extractor(artist, max_items, offset)
-    options : dict[str, any] = dict()
+    current: TidalAlbum
+    album_list: list[TidalAlbum] = album_extractor(artist, max_items + 1, offset)
+    # is there a next album?
+    next_album: TidalAlbum = album_list[max_items] if len(album_list) == max_items + 1 else None
+    # shrink if needed
+    album_list = album_list[0:max_items] if len(album_list) == max_items + 1 else album_list
+    options: dict[str, any] = dict()
     set_option(
         options = options,
         option_key = OptionKey.OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT,
@@ -3406,11 +3410,18 @@ def handler_element_artist_album_catch_all(
             options = options))
     if album_list and len(album_list) == max_items:
         # add next button
-        entries.append(create_next_button(
-            objid = objid,
-            element_type = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME)),
-            element_id = item_identifier.get(ItemIdentifierKey.THING_VALUE),
-            next_offset = offset + max_items))
+        next_button: dict = create_next_button(
+            objid=objid,
+            element_type=get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME)),
+            element_id=item_identifier.get(ItemIdentifierKey.THING_VALUE),
+            next_offset=offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_album.id,
+                tidal_session=tidal_session),
+            target=next_button)
+        entries.append(next_button)
+        # set album art for next button
     return entries
 
 
