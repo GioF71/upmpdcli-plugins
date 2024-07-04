@@ -3226,38 +3226,48 @@ def handler_element_playlist_navigable(
         objid,
         item_identifier : ItemIdentifier,
         entries : list) -> list:
-    tidal_session : TidalSession = get_session()
-    playlist_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    playlist : TidalPlaylist = tidal_session.playlist(playlist_id)
-    tracks : list[TidalTrack] = playlist.tracks()
-    max_items_per_page : int = config.mix_items_per_page
-    remaining_tracks = tracks[offset:]
-    msgproc.log(f"handler_element_playlist_navigable count from offset [{offset}] is: [{len(remaining_tracks)}]")
-    tracks = remaining_tracks[0:max_items_per_page]
-    track_number : int = offset + 1
-    for track in tracks:
-        options : dict[str, any] = dict()
+    tidal_session: TidalSession = get_session()
+    playlist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    playlist: TidalPlaylist = tidal_session.playlist(playlist_id)
+    tracks: list[TidalTrack] = playlist.tracks(
+        limit=config.mix_items_per_page + 1,
+        offset=offset)
+    to_display: list[TidalTrack] = (tracks[0:config.mix_items_per_page]
+                                    if len(tracks) == config.mix_items_per_page + 1
+                                    else tracks)
+    next_track: TidalTrack = tracks[config.mix_items_per_page] if len(tracks) == config.mix_items_per_page + 1 else None
+    msgproc.log(f"handler_element_playlist_navigable available from offset [{offset}] "
+                f"is [{len(to_display)}] "
+                f"last [{'yes' if len(tracks) <= config.mix_items_per_page else 'no'}]")
+    track_number: int = offset + 1
+    for track in to_display:
+        options: dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
         track_entry : dict = None
         try:
             track_entry = track_to_navigable_playlist_item(
-                objid,
-                tidal_session = tidal_session,
-                track = track,
-                options = options)
+                objid=objid,
+                tidal_session=tidal_session,
+                track=track,
+                options=options)
         except Exception as ex:
             msgproc.log(f"handler_element_playlist_navigable Cannot create track entry for track_id [{track.id}] "
                         f"num [{track_number}] [{track.name}] [{track.album.id}] "
                         f"[{track.album.name}] Exception [{ex}]")
         track_number += 1
         if track_entry: entries.append(track_entry)
-    if (len(remaining_tracks) > max_items_per_page):
-        next_entry : dict[str, any] = create_next_button(
-            objid = objid,
-            element_type = ElementType.PLAYLIST_NAVIGABLE,
-            element_id = playlist_id,
-            next_offset = offset + max_items_per_page)
+    if next_track:
+        next_entry: dict[str, any] = create_next_button(
+            objid=objid,
+            element_type=ElementType.PLAYLIST_NAVIGABLE,
+            element_id=playlist_id,
+            next_offset=offset + config.mix_items_per_page)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 

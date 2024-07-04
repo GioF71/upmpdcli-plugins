@@ -2,6 +2,7 @@
 
 ## 0.7.0-trunk
 
+- Cover image for Next button in Navigable Tracks from a Mix
 - Cover image for Next button in Artist Albums (all types)
 - Cover image for Next button in Favorite Albums (all flavors)
 - Cover image for Next button in List of Recently Played Tracks
