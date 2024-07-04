@@ -4438,6 +4438,13 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
             element_type = ElementType.RECENTLY_PLAYED_ALBUMS,
             element_id = ElementType.RECENTLY_PLAYED_ALBUMS.getName(),
             next_offset = offset + albums_per_page)
+        # get the cover for the Next button
+        cover_album_id: str = from_offset_album_id_list[albums_per_page]
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_url_by_id(
+                album_id=cover_album_id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 
