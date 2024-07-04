@@ -3193,31 +3193,40 @@ def handler_element_mix_navigable(
         objid,
         item_identifier : ItemIdentifier,
         entries : list) -> list:
-    mix_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    tidal_session : TidalSession = get_session()
-    mix : TidalMix = tidal_session.mix(mix_id)
-    tracks : list[TidalTrack] = mix.items()
-    max_items_per_page : int = config.mix_items_per_page
-    remaining_tracks = tracks[offset:]
-    tracks = remaining_tracks[0:max_items_per_page]
-    track_number : int = offset + 1
+    mix_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    tidal_session: TidalSession = get_session()
+    mix: TidalMix = tidal_session.mix(mix_id)
+    tracks: list[TidalTrack] = mix.items()
+    # apply offset
+    tracks = tracks[offset:] if len(tracks) > offset else list()
+    next_track: TidalTrack = (tracks[config.mix_items_per_page]
+                              if len(tracks) > config.mix_items_per_page else None)
+    # display count
+    display_count: int = min(len(tracks), config.mix_items_per_page)
+    tracks = tracks[0:display_count] if len(tracks) >= display_count else list()
+    track_number: int = offset + 1
     for track in tracks:
-        options : dict[str, any] = dict()
+        options: dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
         track_entry = track_to_navigable_mix_item(
-            objid,
-            tidal_session = tidal_session,
-            track = track,
-            options = options)
+            objid=objid,
+            tidal_session=tidal_session,
+            track=track,
+            options=options)
         track_number += 1
         entries.append(track_entry)
-    if (len(remaining_tracks) > max_items_per_page):
-        next_entry : dict[str, any] = create_next_button(
-            objid = objid,
-            element_type = ElementType.MIX_NAVIGABLE,
-            element_id = mix_id,
-            next_offset = offset + max_items_per_page)
+    if next_track:
+        next_entry: dict[str, any] = create_next_button(
+            objid=objid,
+            element_type=ElementType.MIX_NAVIGABLE,
+            element_id=mix_id,
+            next_offset=offset + config.mix_items_per_page)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_track.album.id,
+                tidal_session=tidal_session),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
