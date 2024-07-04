@@ -1920,7 +1920,11 @@ def __handler_element_favorite_albums_common(
     tidal_session : TidalSession = get_session()
     counter : int = offset
     max_items : int = config.albums_per_page
-    items : list[TidalAlbum] = list_retriever(tidal_session, descending, max_items, offset)
+    # one over the max so I have the art for next
+    items : list[TidalAlbum] = list_retriever(tidal_session, descending, max_items + 1, offset)
+    # back to the target size
+    next_album: TidalAlbum = items[max_items] if len(items) == max_items + 1 else None
+    items = items[0:max_items] if len(items) == max_items + 1 else items
     current : TidalAlbum
     for current in items:
         counter += 1
@@ -1943,6 +1947,11 @@ def __handler_element_favorite_albums_common(
             element_type = element_type,
             element_id = element_type.getName(),
             next_offset = offset + max_items)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_id=next_album.id,
+                tidal_session=tidal_session),
+            target=next_button)
         entries.append(next_button)
     return entries
 
