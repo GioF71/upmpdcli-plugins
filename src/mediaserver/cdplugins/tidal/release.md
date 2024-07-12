@@ -2,7 +2,7 @@
 
 ## 0.7.1 (2024-07-12)
 
-- Fixed album image caching (some albums would not have their cover)
+- Fixed album image caching for Recently Played Albums
 
 ## 0.7.0 (2024-07-04)
 
