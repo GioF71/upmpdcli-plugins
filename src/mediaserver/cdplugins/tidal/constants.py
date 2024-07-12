@@ -17,7 +17,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.7.0"
+tidal_plugin_release : str = "0.7.1"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -147,3 +147,5 @@ default_display_quality_badge : bool = False
 default_enable_image_caching : bool = False
 
 default_search_limit: int = 15
+
+default_dump_image_caching: bool = False

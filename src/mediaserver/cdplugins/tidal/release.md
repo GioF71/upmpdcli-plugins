@@ -1,6 +1,10 @@
 # Tidal Plugin Release notes
 
-## 0.7.0
+## 0.7.1 (2024-07-12)
+
+- Fixed album image caching for Recently Played Albums
+
+## 0.7.0 (2024-07-04)
 
 - Cover image for Next button in Bookmarks
 - Cover image for Next button in Navigable Artist Radio
@@ -174,4 +178,4 @@ This has been the first release note, so it briefly reports a summary of the fea
 
 ### Scrobbling limitations
 
-Also, we cannot require something like 50% playback time or minimum playback time before considering a track as "played" because the server has no control on the actual player. So these statistic are a mere approximation of the reality. I believe it is better than nothing, but I am will to hear comments, suggestions and critics.
+Also, we cannot require something like 50% playback time or minimum playback time before considering a track as "played" because the server has no control on the actual player. So these statistic are a mere approximation of the reality. I believe it is better than nothing, but I am open to hear comments, suggestions and critics.

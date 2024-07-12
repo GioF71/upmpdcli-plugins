@@ -1601,7 +1601,11 @@ def album_adapter_to_entry(
         title = album_title,
         artist = album_adapter.artist_name)
     if not as_container: upnp_util.set_class_album(entry)
-    upnp_util.set_album_art_from_uri(album_adapter.image_url, entry)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_id=album_adapter.id,
+            tidal_session=get_session()),
+        target=entry)
     return entry
 
 

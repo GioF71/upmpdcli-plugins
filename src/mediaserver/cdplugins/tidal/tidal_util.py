@@ -128,12 +128,17 @@ def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
                 path.extend(sub_dir_list)
                 path.append(cached_file_name)
                 cached_image_url: str = compose_docroot_url("/".join(path))
-                # msgproc.log(f"get_album_art_url_by_id returning [{cached_image_url}] for [{album_id}]")
+                if config.dump_image_caching:
+                    msgproc.log(f"get_album_art_url_by_id [{album_id}] -> [{cached_image_url}]")
                 return cached_image_url
+            else:
+                if config.dump_image_caching:
+                    msgproc.log(f"get_album_art_url_by_id [{album_id}] -> cache miss")
     # if we are are, we fallback to normal
-    # msgproc.log(f"get_album_art_url_by_id returning falling back for [{album_id}]")
+    if config.dump_image_caching:
+        msgproc.log(f"get_album_art_url_by_id [{album_id}] -> loading from upstream service is required")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
-    return get_image_url(obj=album)
+    return get_image_url(obj=album, refresh=True)
 
 
 def get_image_url(obj : any, refresh: bool = False) -> str:
