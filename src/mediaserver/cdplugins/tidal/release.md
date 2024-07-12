@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.7.2
+
+- Misc code corrections, cleanup and refactoring
+
 ## 0.7.1 (2024-07-12)
 
 - Fixed album image caching for Recently Played Albums
