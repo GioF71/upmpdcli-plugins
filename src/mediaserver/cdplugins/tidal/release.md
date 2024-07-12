@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.7.1 (2024-07-12)
+
+- Fixed album image caching (some albums would not have their cover)
+
 ## 0.7.0 (2024-07-04)
 
 - Cover image for Next button in Bookmarks

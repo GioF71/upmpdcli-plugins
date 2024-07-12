@@ -170,3 +170,8 @@ __fallback_for_missing_quality: dict[str, str] = {
 def get_fallback_quality_when_missing() -> str:
     if not max_audio_quality or max_audio_quality not in __fallback_for_missing_quality: return None
     return __fallback_for_missing_quality[max_audio_quality]
+
+
+dump_image_caching: bool = getPluginOptionValue(
+    "dumpimagecaching",
+    constants.default_dump_image_caching)
