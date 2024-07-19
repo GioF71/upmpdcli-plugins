@@ -989,19 +989,22 @@ def track_to_navigable_track_by_element_type(
     id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
-    overridden_track_name : str = get_option(
+    overridden_track_name: str = get_option(
         options = options,
         option_key = OptionKey.OVERRIDDEN_TRACK_NAME)
     if overridden_track_name:
         title = overridden_track_name
     else:
         title = get_track_name_for_track_container(
-            track_adapter = track_adapter,
-            options = options)
+            track_adapter=track_adapter,
+            options=options)
     track_entry = upmplgutils.direntry(id,
         objid,
         title)
-    upnp_util.set_album_art_from_uri(track_adapter.get_image_url(), track_entry)
+    image_url: str = tidal_util.get_album_art_url_by_id(
+        album_id=track_adapter.get_album_id(),
+        tidal_session=get_session())
+    upnp_util.set_album_art_from_uri(image_url, track_entry)
     return track_entry
 
 
@@ -1079,8 +1082,16 @@ def track_to_entry(
         art_url : str = get_option(
             options = options,
             option_key = OptionKey.OVERRIDDEN_ART_URI)
-        if not art_url: art_url = track_adapter.get_image_url()
+        if not art_url: art_url = tidal_util.get_album_art_url_by_id(
+            album_id=track_adapter.get_album_id(),
+            tidal_session=get_session())
+        msgproc.log(f"track_to_entry [{track_adapter.get_id()}] -> [{art_url}]")
         upnp_util.set_album_art_from_uri(art_url, entry)
+    else:
+        msgproc.log(f"Skipping art for track_id [{track_adapter.get_id()}] "
+                    f"title [{track_adapter.get_name()}] "
+                    f"by [{track_adapter.get_artist_name()}] "
+                    f"from [{track_adapter.get_album_name()}]")
     upnp_util.set_duration(track_adapter.get_duration(), entry)
     set_track_stream_information(
         entry = entry,
@@ -2771,7 +2782,10 @@ def _add_album_artists_entries(
         objid,
         album: TidalAlbum,
         entries: list):
-    artist_list : list[TidalArtist] = get_artist_list(album.artist, album.artists)
+    artist_list : list[TidalArtist] = get_artist_list(
+        artist=album.artist,
+        artists=album.artists,
+        tracks=album.tracks())
     for current in artist_list:
         artist : TidalArtist = get_session().artist(current.id)
         entries.append(artist_to_entry(objid = objid, artist = artist))
@@ -3119,16 +3133,29 @@ def handler_element_artists_in_mix_or_playlist(
 
 
 def get_artist_list(
-        artist : TidalArtist,
-        artists : list[TidalArtist]) -> list[TidalArtist]:
-    result : list[TidalArtist] = list()
-    artist_id_set : set[str] = set()
+        artist: TidalArtist,
+        artists: list[TidalArtist],
+        tracks: list[TidalTrack] = list()) -> list[TidalArtist]:
+    result: list[TidalArtist] = list()
+    artist_id_set: set[str] = set()
     result.append(artist)
     artist_id_set.add(artist.id)
     for other in artists if artists else list():
-        if other.id in artist_id_set: break
+        if other.id in artist_id_set: continue
         result.append(other)
         artist_id_set.add(other.id)
+    track: TidalTrack
+    track_artist: TidalArtist
+    for track in tracks if tracks else list():
+        track_artist = track.artist
+        if track_artist.id in artist_id_set: continue
+        result.append(track_artist)
+        artist_id_set.add(track_artist.id)
+        track_artists: list[TidalArtist] = track.artists
+        for track_artist in track_artists if track_artists else list():
+            if track_artist.id in artist_id_set: continue
+            result.append(track_artist)
+            artist_id_set.add(track_artist.id)
     return result
 
 
@@ -3205,7 +3232,9 @@ def handler_element_mix_playlist_toptrack_navigable_item(
         track=track,
         entries=entries)
     # add link to artists
-    artist_list : list[TidalArtist] = get_artist_list(track.artist, track.artists)
+    artist_list : list[TidalArtist] = get_artist_list(
+        artist=track.artist,
+        artists=track.artists)
     for current in artist_list:
         artist : TidalArtist = tidal_session.artist(current.id)
         entries.append(artist_to_entry(
@@ -4358,10 +4387,10 @@ def played_track_list_to_entries_raw(
     max_reload_count : int = 10
     reload_count : int = 0
     for current in played_tracks if played_tracks else list():
-        track_adapter : TrackAdapter = (
+        track_adapter: TrackAdapter = (
             choose_track_adapter(
-                tidal_session = tidal_session,
-                played_track = current)
+                tidal_session=tidal_session,
+                played_track=current)
             if reload_count < max_reload_count
             else PlayedTrackAdapter(current))
         if isinstance(track_adapter, TidalTrackAdapter):
@@ -4377,16 +4406,16 @@ def played_track_list_to_entries_raw(
             option_key = OptionKey.ENTRY_AS_CONTAINER)
         if as_container:
             track_entry : dict = track_to_navigable_track(
-                objid = objid,
-                track_adapter = track_adapter,
-                options = out_options)
+                objid=objid,
+                track_adapter=track_adapter,
+                options=out_options)
             entries.append(track_entry)
         else:
-            track_entry : dict = track_to_entry(
-                objid = objid,
-                track_adapter = track_adapter,
-                options = out_options,
-                context = context)
+            track_entry: dict = track_to_entry(
+                objid=objid,
+                track_adapter=track_adapter,
+                options=out_options,
+                context=context)
             entries.append(track_entry)
         track_num += 1
     return entries
@@ -4560,12 +4589,6 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current_album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            if (config.skip_non_stereo and
-                    not tidal_util.is_stereo(album_adapter.media_metadata_tags)):
-                msgproc.log(tidal_util.not_stereo_skipmessage(
-                    album_adapter.id,
-                    album_adapter.media_metadata_tags))
-                continue
             entries.append(album_adapter_to_album_container(
                 objid = objid,
                 album_adapter=album_adapter))
@@ -4605,9 +4628,6 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current.album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            if config.skip_non_stereo and not tidal_util.is_stereo(album_adapter.media_metadata_tags):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album_adapter.id, album_adapter.media_metadata_tags))
-                continue
             entries.append(album_adapter_to_album_container(
                 objid = objid,
                 album_adapter=album_adapter))
