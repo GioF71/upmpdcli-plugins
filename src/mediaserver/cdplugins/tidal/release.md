@@ -2,6 +2,8 @@
 
 ## 0.7.2
 
+- Add artists from individual tracks in Album view
+- Fixed silly bug which would prevent to show additional album artists in most cases
 - Misc code corrections, cleanup and refactoring
 
 ## 0.7.1 (2024-07-12)

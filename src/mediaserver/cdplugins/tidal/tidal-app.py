@@ -2771,7 +2771,10 @@ def _add_album_artists_entries(
         objid,
         album: TidalAlbum,
         entries: list):
-    artist_list : list[TidalArtist] = get_artist_list(album.artist, album.artists)
+    artist_list : list[TidalArtist] = get_artist_list(
+        artist=album.artist,
+        artists=album.artists,
+        tracks=album.tracks())
     for current in artist_list:
         artist : TidalArtist = get_session().artist(current.id)
         entries.append(artist_to_entry(objid = objid, artist = artist))
@@ -3119,16 +3122,29 @@ def handler_element_artists_in_mix_or_playlist(
 
 
 def get_artist_list(
-        artist : TidalArtist,
-        artists : list[TidalArtist]) -> list[TidalArtist]:
-    result : list[TidalArtist] = list()
-    artist_id_set : set[str] = set()
+        artist: TidalArtist,
+        artists: list[TidalArtist],
+        tracks: list[TidalTrack] = list()) -> list[TidalArtist]:
+    result: list[TidalArtist] = list()
+    artist_id_set: set[str] = set()
     result.append(artist)
     artist_id_set.add(artist.id)
     for other in artists if artists else list():
-        if other.id in artist_id_set: break
+        if other.id in artist_id_set: continue
         result.append(other)
         artist_id_set.add(other.id)
+    track: TidalTrack
+    track_artist: TidalArtist
+    for track in tracks if tracks else list():
+        track_artist = track.artist
+        if track_artist.id in artist_id_set: continue
+        result.append(track_artist)
+        artist_id_set.add(track_artist.id)
+        track_artists: list[TidalArtist] = track.artists
+        for track_artist in track_artists if track_artists else list():
+            if track_artist.id in artist_id_set: continue
+            result.append(track_artist)
+            artist_id_set.add(track_artist.id)
     return result
 
 
@@ -3205,7 +3221,9 @@ def handler_element_mix_playlist_toptrack_navigable_item(
         track=track,
         entries=entries)
     # add link to artists
-    artist_list : list[TidalArtist] = get_artist_list(track.artist, track.artists)
+    artist_list : list[TidalArtist] = get_artist_list(
+        artist=track.artist,
+        artists=track.artists)
     for current in artist_list:
         artist : TidalArtist = tidal_session.artist(current.id)
         entries.append(artist_to_entry(
