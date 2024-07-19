@@ -2,6 +2,7 @@
 
 ## 0.7.2
 
+- Non-stereo Albums from playback statistics are not skipped
 - Add artists from individual tracks in Album view
 - Fixed silly bug which would prevent to show additional album artists in most cases
 - Misc code corrections, cleanup and refactoring

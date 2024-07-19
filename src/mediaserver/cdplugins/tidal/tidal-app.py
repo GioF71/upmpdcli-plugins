@@ -4578,12 +4578,6 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current_album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            if (config.skip_non_stereo and
-                    not tidal_util.is_stereo(album_adapter.media_metadata_tags)):
-                msgproc.log(tidal_util.not_stereo_skipmessage(
-                    album_adapter.id,
-                    album_adapter.media_metadata_tags))
-                continue
             entries.append(album_adapter_to_album_container(
                 objid = objid,
                 album_adapter=album_adapter))
@@ -4623,9 +4617,6 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current.album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            if config.skip_non_stereo and not tidal_util.is_stereo(album_adapter.media_metadata_tags):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album_adapter.id, album_adapter.media_metadata_tags))
-                continue
             entries.append(album_adapter_to_album_container(
                 objid = objid,
                 album_adapter=album_adapter))
