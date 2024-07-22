@@ -1,5 +1,13 @@
 # Tidal Plugin Release notes
 
+## 0.7.2
+
+- Some view (mostly from statistics) were still using deprecated image_url from db
+- Non-stereo Albums from playback statistics are not skipped
+- Add artists from individual tracks in Album view
+- Fixed silly bug which would prevent to show additional album artists in most cases
+- Misc code corrections, cleanup and refactoring
+
 ## 0.7.1 (2024-07-12)
 
 - Fixed album image caching for Recently Played Albums
