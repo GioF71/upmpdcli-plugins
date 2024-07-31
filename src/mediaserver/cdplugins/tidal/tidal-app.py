@@ -456,9 +456,6 @@ def build_session() -> TidalSession:
     pkce_file_available: bool = (credentials_dict[constants.key_pkce_file_available]
         if constants.key_pkce_file_available in credentials_dict
         else False)
-    # oauth2_file_available : bool = (credentials_dict[constants.key_oauth2_file_available]
-    #     if constants.key_oauth2_file_available in credentials_dict
-    #     else False)
     session : TidalSession = TidalSession()
     if config.get_override_country_code():
         session.country_code = config.get_override_country_code()
