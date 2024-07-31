@@ -2,6 +2,7 @@
 
 ## 0.7.3
 
+- Improved management of page items
 - Add Home tile
 - Add Moods tile
 - Add HiRes tile

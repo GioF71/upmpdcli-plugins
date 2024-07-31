@@ -2617,28 +2617,6 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
                 tidal_session = tidal_session,
                 page_item = current_page_item)
             if new_entry: entries.append(new_entry)
-            # set an image?
-            if isinstance(current_page_item, TidalPageLink):
-                item_list: list[any] = get_items_in_page_link(page_link=current_page_item)
-                first_item: any = item_list[0] if (item_list and len(item_list) > 0) else None
-                msgproc.log(f"page_to_entries first_item [{first_item if first_item else 'None'}]")
-                if first_item and isinstance(first_item, TidalPlaylist):
-                    image_url: str = tidal_util.get_image_url(first_item)
-                    upnp_util.set_album_art_from_uri(album_art_uri = image_url, target = new_entry)
-                else:
-                    msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}] "
-                                f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
-            # elif isinstance(current_page_item, TidalAlbum):
-            #     entries.append(album_to_album_container(
-            #         objid=objid,
-            #         album=current_page_item))
-            # elif isinstance(current_page_item, TidalPlaylist):
-            #     entries.append(playlist_to_playlist_container(
-            #         objid=objid,
-            #         playlist=current_page_item))
-            # else:
-            #     msgproc.log(f"page_to_entries type of current_page_item "
-            #                 f"[{type(current_page_item).__name__}] not handled")
         except Exception as ex:
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
@@ -2646,20 +2624,39 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
     return entries
 
 
+def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
+    item_list: list[any] = get_items_in_page_link(page_link=page_link)
+    if not item_list or len(item_list) == 0: return None
+    for first_item in item_list:
+        # playlists are good candidates for image url, other types?
+        if isinstance(first_item, TidalPlaylist):
+            return tidal_util.get_image_url(first_item)
+        elif isinstance(first_item, TidalMix):
+            return tidal_util.get_image_url(first_item)
+        else:
+            msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}]")
+
+
 def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : TidalPageItem) -> any:
     if isinstance(page_item, TidalPlaylist):
         return playlist_to_playlist_container(
-            objid = objid,
-            playlist = page_item)
+            objid=objid,
+            playlist=page_item)
+    elif isinstance(page_item, TidalMix):
+        return mix_to_mix_container(
+            objid=objid,
+            mix=page_item)
     elif isinstance(page_item, TidalAlbum):
         return album_to_album_container(
-            objid = objid,
-            album = page_item)
+            objid=objid,
+            album=page_item)
     elif isinstance(page_item, TidalArtist):
-        return artist_to_entry(objid, artist = page_item)
+        return artist_to_entry(
+            objid=objid,
+            artist=page_item)
     elif isinstance(page_item, TidalTrack):
-        track : TidalTrack = page_item
-        options : dict[str, any] = dict()
+        track: TidalTrack = page_item
+        options: dict[str, any] = dict()
         set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
         return track_to_navigable_track(
             objid = objid,
@@ -2670,11 +2667,17 @@ def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : 
     elif isinstance(page_item, TidalPageLink):
         msgproc.log(f"convert_page_item_to_entry creating a [{TidalPageLink.__name__}] ...")
         page_link : TidalPageLink = page_item
-        return page_link_to_entry(
+        page_link_image_url: str = get_image_url_for_pagelink(page_link=page_link)
+        page_link_entry = page_link_to_entry(
             objid=objid,
             page_link=page_link)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=page_link_image_url,
+            target=page_link_entry)
+        return page_link_entry
     else:
-        msgproc.log(f"convert_page_item_to_entry item of type {type(page_item) if page_item else None} not handled")
+        msgproc.log(f"convert_page_item_to_entry item of type "
+                    f"{type(page_item).__name__ if page_item else None} not handled")
     return None
 
 
