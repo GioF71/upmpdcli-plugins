@@ -2,11 +2,12 @@
 
 ## 0.7.3
 
+- Add Tile: For You
 - Paging in Page view
 - Improved management of page items
-- Add Home tile
-- Add Moods tile
-- Add HiRes tile
+- Add Tile: Home
+- Add Tile: Moods
+- Add Tile: HiRes
 - Tracks from a Category are now navigable
 - Add support for overriding the country code
 - Misc code corrections, cleanup and refactoring
