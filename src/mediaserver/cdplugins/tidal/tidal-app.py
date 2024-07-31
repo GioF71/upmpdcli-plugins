@@ -2612,6 +2612,7 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
     for current_page_item in page:
         try:
             # msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}]")
+            msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
             new_entry : dict = convert_page_item_to_entry(
                 objid = objid,
                 tidal_session = tidal_session,
@@ -2619,22 +2620,22 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
             if new_entry: entries.append(new_entry)
             # set an image?
             if isinstance(current_page_item, TidalPageLink):
-                item_list : list[any] = get_items_in_page_link(page_link = current_page_item)
-                first_item : any = item_list[0] if item_list and len(item_list) > 0 else None
-                if isinstance(first_item, TidalPlaylist):
-                    image_url : str = tidal_util.get_image_url(first_item)
+                item_list: list[any] = get_items_in_page_link(page_link=current_page_item)
+                first_item: any = item_list[0] if (item_list and len(item_list) > 0) else None
+                msgproc.log(f"page_to_entries first_item [{first_item if first_item else 'None'}]")
+                if first_item and isinstance(first_item, TidalPlaylist):
+                    image_url: str = tidal_util.get_image_url(first_item)
                     upnp_util.set_album_art_from_uri(album_art_uri = image_url, target = new_entry)
                 else:
                     msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}] "
                                 f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
             else:
                 msgproc.log(f"page_to_entries type of current_page_item "
-                            f"[{type(current_page_item).__name__}] "
-                            f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
+                            f"[{type(current_page_item).__name__}] not handled")
         except Exception as ex:
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
-                        f"Exception [{ex}]")
+                        f"due to [{type(ex)}] [{ex}]")
     return entries
 
 
