@@ -4237,8 +4237,7 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 if not page_link_image_url:
                     items_in_page : list = get_items_in_page_link(page_link)
                     for current in items_in_page if items_in_page else list():
-                        if (
-                                isinstance(current, TidalPlaylist) or
+                        if (isinstance(current, TidalPlaylist) or
                                 isinstance(current, TidalAlbum) or
                                 isinstance(current, TidalArtist)):
                             # get an image from that
@@ -4257,13 +4256,14 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 entries.append(mix_to_mix_container(objid, mix = item))
             elif isinstance(item, TidalTrack):
                 # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
-                options : dict[str, any] = dict()
+                options: dict[str, any] = dict()
                 set_option(options, OptionKey.SKIP_TRACK_NUMBER, True)
-                entries.append(track_to_track_container(
-                    objid = objid,
-                    tidal_session = tidal_session,
-                    track = item,
-                    options = options))
+                entries.append(track_to_navigable_track(
+                    objid=objid,
+                    track_adapter=instance_tidal_track_adapter(
+                        tidal_session=tidal_session,
+                        track=item),
+                    options=options))
             elif isinstance(item, TidalPlaylist):
                 # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 entries.append(playlist_to_playlist_container(

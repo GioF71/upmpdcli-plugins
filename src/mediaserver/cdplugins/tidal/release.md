@@ -2,6 +2,7 @@
 
 ## 0.7.3
 
+- Tracks from a Category are now navigable
 - Add support for overriding the country code
 
 ## 0.7.2
