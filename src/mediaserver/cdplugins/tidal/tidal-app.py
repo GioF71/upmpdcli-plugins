@@ -2655,6 +2655,7 @@ def page_to_entries(
         else:
             at_offset.append(current_page_item)
     next_needed: bool = paginate and (len(at_offset) == config.page_items_per_page + 1)
+    next_item: any = at_offset[config.page_items_per_page] if next_needed else None
     page_item_selection: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
     for current_page_item in page_item_selection:
         try:
@@ -2668,7 +2669,7 @@ def page_to_entries(
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
                         f"due to [{type(ex)}] [{ex}]")
-    if next_needed:
+    if next_item:
         # add next if possible
         if next_button_element_type and next_button_element_id:
             next_entry: dict[str, any] = create_next_button(
@@ -2676,11 +2677,10 @@ def page_to_entries(
                 element_type=next_button_element_type,
                 element_id=next_button_element_id,
                 next_offset=offset + config.page_items_per_page)
-        # upnp_util.set_album_art_from_uri(
-        #     album_art_uri=tidal_util.get_album_art_url_by_id(
-        #         album_id=next_album_id,
-        #         tidal_session=tidal_session),
-        #     target=next_entry)
+        # use next_item for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(obj=next_item),
+            target=next_entry)
         entries.append(next_entry)
     msgproc.log(f"page_to_entries got [{len(entries)}] entries")
     return entries
