@@ -512,6 +512,11 @@
 # <descr>Set the maximum numbers of item returned by
 # search, defaults to 15</descr></var>
 #tidalsearchlimit = 15
+# <var name="tidaloverridecountrycode" type="string">
+# <brief>Override the country code.</brief>
+# <descr>This will allow you to specify the desired two-letter country code.
+# When not specified, it should default to the country code of the profile.</descr></var>
+#tidaloverridecountrycode = US
 
 # <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 

@@ -1,5 +1,18 @@
 # Tidal Plugin Release notes
 
+## 0.7.3
+
+- Add Tile: Genres
+- Add Tile: For You
+- Paging in Page view
+- Improved management of page items
+- Add Tile: Home
+- Add Tile: Moods
+- Add Tile: HiRes
+- Tracks from a Category are now navigable
+- Add support for overriding the country code
+- Misc code corrections, cleanup and refactoring
+
 ## 0.7.2
 
 - Some view (mostly from statistics) were still using deprecated image_url from db

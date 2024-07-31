@@ -17,7 +17,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.7.2"
+tidal_plugin_release : str = "0.7.3"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -112,6 +112,7 @@ default_tracks_per_page : int = 25
 default_mix_items_per_page : int = 25
 default_albums_per_page : int = 25
 default_artists_per_page : int = 25
+default_page_items_per_page : int = 35
 
 # this one should be disabled by default for the release
 default_dump_track_to_entry_result : int = 0

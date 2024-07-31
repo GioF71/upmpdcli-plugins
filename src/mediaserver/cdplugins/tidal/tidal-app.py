@@ -456,14 +456,14 @@ def build_session() -> TidalSession:
     pkce_file_available: bool = (credentials_dict[constants.key_pkce_file_available]
         if constants.key_pkce_file_available in credentials_dict
         else False)
-    # oauth2_file_available : bool = (credentials_dict[constants.key_oauth2_file_available]
-    #     if constants.key_oauth2_file_available in credentials_dict
-    #     else False)
+    session : TidalSession = TidalSession()
+    if config.get_override_country_code():
+        session.country_code = config.get_override_country_code()
+        msgproc.log(f"build_session creating a new session using country code [{session.country_code}] ...")
     if pkce_file_available and AuthenticationType.PKCE == auth_type:
         msgproc.log(f"PKCE file [{tidal_util.get_pkce_credentials_file_name()}] available, building a new session ...")
         # return pkce session
         session_file = Path(tidal_util.get_pkce_credentials_file_name())
-        session : TidalSession = TidalSession()
         # Load session from file; create a new session if necessary
         res : bool = session.login_session_file(session_file, do_pkce = True)
         if not res:
@@ -479,7 +479,6 @@ def build_session() -> TidalSession:
         access_token : str = credentials_dict[constants.key_access_token]
         refresh_token : str = credentials_dict[constants.key_refresh_token]
         expiry_time_timestamp_str : str = credentials_dict[constants.key_expiry_time_timestamp_str]
-        session : TidalSession = TidalSession()
         expiry_time_timestamp : float = float(expiry_time_timestamp_str) if expiry_time_timestamp_str else None
         expiry_time : datetime.datetime = (datetime.datetime.fromtimestamp(expiry_time_timestamp)
             if expiry_time_timestamp
@@ -1640,19 +1639,18 @@ def pagelink_to_entry(
     return entry
 
 
-def page_to_entry(
+def page_link_to_entry(
         objid,
-        api_path : str,
-        page_title : str) -> upmplgutils.direntry:
+        page_link: TidalPageLink) -> upmplgutils.direntry:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.PAGE.getName(),
-        api_path)
+        page_link.api_path)
     id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id,
         objid,
-        title = page_title)
+        title = page_link.title)
     return entry
 
 
@@ -2422,6 +2420,95 @@ def handler_tag_bookmarks(
     return entries
 
 
+def handler_tag_page(
+        objid,
+        page_extractor: Callable[[TidalSession], TidalPage],
+        entries: list,
+        offset: int,
+        next_button_element_type: ElementType,
+        next_button_element_id: str) -> list:
+    tidal_session: TidalSession = get_session()
+    return page_to_entries(
+        objid=objid,
+        tidal_session=tidal_session,
+        page_extractor=page_extractor,
+        entries=entries,
+        offset=offset,
+        limit=config.page_items_per_page,
+        paginate=True,
+        next_button_element_type=next_button_element_type,
+        next_button_element_id=next_button_element_id)
+
+
+def handler_tag_genres_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.genres(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.GENRES_PAGE.getTagName())
+
+
+def handler_tag_moods_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.moods(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.MOODS_PAGE.getTagName())
+
+
+def handler_tag_home_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.home(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.HOME_PAGE.getTagName())
+
+
+def handler_tag_for_you(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.for_you(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.FOR_YOU.getTagName())
+
+def handler_tag_hires_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.hires_page(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.HIRES_PAGE.getTagName())
+
+
 def handler_tag_categories(
         objid,
         item_identifier : ItemIdentifier,
@@ -2546,82 +2633,117 @@ def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : 
             msgproc.log("handler_element_pagelink page not found")
             return entries
         if page: page_to_entries(
-            objid = objid,
-            tidal_session = tidal_session,
-            page = page,
-            entries = entries)
+            objid=objid,
+            tidal_session=tidal_session,
+            page=page,
+            entries=entries)
     except Exception as ex:
         msgproc.log(f"handler_element_pagelink could not retrieve page at api_path [{api_path}] [{ex}]")
     return entries
 
 
 def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session : TidalSession = get_session()
-    page : TidalPage = tidal_session.page.get(thing_value)
-    for page_item in page:
-        if isinstance(page_item, TidalPlaylist):
-            entries.append(playlist_to_playlist_container(
-                objid = objid,
-                playlist = page_item))
-        elif isinstance(page_item, TidalAlbum):
-            album: TidalAlbum = page_item
-            if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(album):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album.id, album.media_metadata_tags))
-                continue
-            entries.append(album_to_album_container(
-                objid = objid,
-                album = album))
-        else:
-            msgproc.log(f"handler_element_page: page_item of type [{type(page_item)}] not handled")
-    return entries
+    page: TidalPage = tidal_session.page.get(thing_value)
+    return page_to_entries(
+        objid=objid,
+        tidal_session=tidal_session,
+        page=page,
+        entries=entries,
+        offset=offset)
 
 
-def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entries : list) -> list:
+def page_to_entries(
+        objid,
+        tidal_session: TidalSession,
+        entries: list,
+        page_extractor: Callable[[TidalSession], TidalPage] = None,
+        page: TidalPage = None,
+        paginate: bool = False,
+        offset: int = 0,
+        limit: int = 100,
+        next_button_element_type: ElementType = None,
+        next_button_element_id: str = None) -> list:
+    max_items: int = limit if limit else config.page_items_per_page
+    if page_extractor: page = page_extractor(tidal_session)
     # extracting items from page
+    msgproc.log(f"page_to_entries for [{page.title}] from offset [{offset}]")
+    current_offset: int = 0
+    sliced: list[any] = list()
+    limit_size: int = max_items + 1 if paginate else max_items
     for current_page_item in page:
+        current_offset += 1
+        if (current_offset - 1) < offset: continue
+        if (len(sliced) < limit_size):
+            # add to sliced
+            sliced.append(current_page_item)
+        else:
+            break
+    next_needed: bool = paginate and (len(sliced) == max_items + 1)
+    next_item: any = sliced[max_items] if next_needed else None
+    page_item_selection: list[any] = sliced[0:len(sliced) - 1] if next_needed else sliced
+    for current_page_item in page_item_selection:
         try:
-            # msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}]")
+            # msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
             new_entry : dict = convert_page_item_to_entry(
                 objid = objid,
                 tidal_session = tidal_session,
                 page_item = current_page_item)
             if new_entry: entries.append(new_entry)
-            # set an image?
-            if isinstance(current_page_item, TidalPageLink):
-                item_list : list[any] = get_items_in_page_link(page_link = current_page_item)
-                first_item : any = item_list[0] if item_list and len(item_list) > 0 else None
-                if isinstance(first_item, TidalPlaylist):
-                    image_url : str = tidal_util.get_image_url(first_item)
-                    upnp_util.set_album_art_from_uri(album_art_uri = image_url, target = new_entry)
-                else:
-                    msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}] "
-                                f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
-            else:
-                msgproc.log(f"page_to_entries type of current_page_item "
-                            f"[{type(current_page_item).__name__}] "
-                            f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
         except Exception as ex:
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
-                        f"Exception [{ex}]")
+                        f"due to [{type(ex)}] [{ex}]")
+    if next_item:
+        # add next if possible
+        if next_button_element_type and next_button_element_id:
+            next_entry: dict[str, any] = create_next_button(
+                objid=objid,
+                element_type=next_button_element_type,
+                element_id=next_button_element_id,
+                next_offset=offset + config.page_items_per_page)
+        # use next_item for next button
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=tidal_util.get_image_url(obj=next_item),
+            target=next_entry)
+        entries.append(next_entry)
+    msgproc.log(f"page_to_entries got [{len(entries)}] entries")
     return entries
+
+
+def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
+    item_list: list[any] = get_items_in_page_link(page_link=page_link)
+    if not item_list or len(item_list) == 0: return None
+    for first_item in item_list:
+        # playlists and mixes are good candidates for image url, other types?
+        if tidal_util.is_instance_of_any(first_item, [TidalPlaylist, TidalMix]):
+            return tidal_util.get_image_url(first_item)
+        else:
+            msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}]")
 
 
 def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : TidalPageItem) -> any:
     if isinstance(page_item, TidalPlaylist):
         return playlist_to_playlist_container(
-            objid = objid,
-            playlist = page_item)
+            objid=objid,
+            playlist=page_item)
+    elif isinstance(page_item, TidalMix):
+        return mix_to_mix_container(
+            objid=objid,
+            mix=page_item)
     elif isinstance(page_item, TidalAlbum):
         return album_to_album_container(
-            objid = objid,
-            album = page_item)
+            objid=objid,
+            album=page_item)
     elif isinstance(page_item, TidalArtist):
-        return artist_to_entry(objid, artist = page_item)
+        return artist_to_entry(
+            objid=objid,
+            artist=page_item)
     elif isinstance(page_item, TidalTrack):
-        track : TidalTrack = page_item
-        options : dict[str, any] = dict()
+        track: TidalTrack = page_item
+        options: dict[str, any] = dict()
         set_option(options = options, option_key = OptionKey.SKIP_TRACK_NUMBER, option_value = True)
         return track_to_navigable_track(
             objid = objid,
@@ -2630,13 +2752,19 @@ def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : 
                 track = track),
             options = options)
     elif isinstance(page_item, TidalPageLink):
+        # msgproc.log(f"convert_page_item_to_entry creating a [{TidalPageLink.__name__}] ...")
         page_link : TidalPageLink = page_item
-        return page_to_entry(
-            objid = objid,
-            api_path = page_link.api_path,
-            page_title = page_link.title)
+        page_link_image_url: str = get_image_url_for_pagelink(page_link=page_link)
+        page_link_entry = page_link_to_entry(
+            objid=objid,
+            page_link=page_link)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=page_link_image_url,
+            target=page_link_entry)
+        return page_link_entry
     else:
-        msgproc.log(f"convert_page_item_to_entry item of type {type(page_item) if page_item else None} not handled")
+        msgproc.log(f"convert_page_item_to_entry item of type "
+                    f"{type(page_item).__name__ if page_item else None} not handled")
     return None
 
 
@@ -4238,8 +4366,7 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 if not page_link_image_url:
                     items_in_page : list = get_items_in_page_link(page_link)
                     for current in items_in_page if items_in_page else list():
-                        if (
-                                isinstance(current, TidalPlaylist) or
+                        if (isinstance(current, TidalPlaylist) or
                                 isinstance(current, TidalAlbum) or
                                 isinstance(current, TidalArtist)):
                             # get an image from that
@@ -4258,13 +4385,14 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 entries.append(mix_to_mix_container(objid, mix = item))
             elif isinstance(item, TidalTrack):
                 # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
-                options : dict[str, any] = dict()
+                options: dict[str, any] = dict()
                 set_option(options, OptionKey.SKIP_TRACK_NUMBER, True)
-                entries.append(track_to_track_container(
-                    objid = objid,
-                    tidal_session = tidal_session,
-                    track = item,
-                    options = options))
+                entries.append(track_to_navigable_track(
+                    objid=objid,
+                    track_adapter=instance_tidal_track_adapter(
+                        tidal_session=tidal_session,
+                        track=item),
+                    options=options))
             elif isinstance(item, TidalPlaylist):
                 # msgproc.log(f"handler_element_category [{category.title}] [{item_type}] [{item_name}]")
                 entries.append(playlist_to_playlist_container(
@@ -4974,6 +5102,59 @@ def image_retriever_categories(
         category = first) if first else None
 
 
+def image_retriever_home_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.home()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_for_you(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.for_you()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_hires_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.hires_page()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_genres_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.genres()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_moods_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.moods()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_page(page: TidalPage) -> str:
+    item_list: list = list()
+    for current_page_item in page:
+        if isinstance(current_page_item, TidalPageLink):
+            page_link_items: list[any] = get_items_in_page_link(current_page_item)
+            first_item: any = page_link_items[0] if page_link_items and len(page_link_items) > 0 else None
+            if first_item: item_list.append(first_item)
+        else:
+            item_list.append(current_page_item)
+    if len(item_list) == 0:
+        msgproc.log(f"image_retriever_page no item for page [{page.title}]")
+        return None
+    # get random item
+    random_item = secrets.choice(item_list)
+    msgproc.log(f"image_retriever_page selected type is [{type(random_item).__name__}]")
+    return tidal_util.get_image_url(random_item)
+
+
 def image_retriever_cached(tidal_session : TidalSession, tag_type : TagType, loader) -> str:
     tile_image : TileImage = load_tile_image_unexpired(
         tile_type = TileType.TAG,
@@ -5067,6 +5248,11 @@ def image_retriever_listen_queue(
 
 __tag_image_retriever : dict = {
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
+    TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
+    TagType.FOR_YOU.getTagName(): image_retriever_for_you,
+    TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
+    TagType.GENRES_PAGE.getTagName(): image_retriever_genres_page,
+    TagType.MOODS_PAGE.getTagName(): image_retriever_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): image_retriever_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): image_retriever_favorite_albums,
@@ -5085,6 +5271,11 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
+    TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
+    TagType.FOR_YOU.getTagName(): handler_tag_for_you,
+    TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
+    TagType.GENRES_PAGE.getTagName(): handler_tag_genres_page,
+    TagType.MOODS_PAGE.getTagName(): handler_tag_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favorite_albums,
