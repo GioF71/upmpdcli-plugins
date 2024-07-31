@@ -2644,19 +2644,19 @@ def page_to_entries(
     # extracting items from page
     msgproc.log(f"page_to_entries for [{page.title}] from offset [{offset}]")
     current_offset: int = 0
-    at_offset: list[any] = list()
+    sliced: list[any] = list()
     limit_size: int = max_items + 1 if paginate else max_items
     for current_page_item in page:
         current_offset += 1
         if (current_offset - 1) < offset: continue
-        if (len(at_offset) < limit_size):
-            # add to at_offset
-            at_offset.append(current_page_item)
+        if (len(sliced) < limit_size):
+            # add to sliced
+            sliced.append(current_page_item)
         else:
             break
-    next_needed: bool = paginate and (len(at_offset) == max_items + 1)
-    next_item: any = at_offset[max_items] if next_needed else None
-    page_item_selection: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
+    next_needed: bool = paginate and (len(sliced) == max_items + 1)
+    next_item: any = sliced[max_items] if next_needed else None
+    page_item_selection: list[any] = sliced[0:len(sliced) - 1] if next_needed else sliced
     for current_page_item in page_item_selection:
         try:
             # msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
