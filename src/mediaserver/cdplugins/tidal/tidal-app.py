@@ -2611,8 +2611,7 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
     # extracting items from page
     for current_page_item in page:
         try:
-            # msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}]")
-            msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
+            # msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
             new_entry : dict = convert_page_item_to_entry(
                 objid = objid,
                 tidal_session = tidal_session,
@@ -2629,9 +2628,17 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
                 else:
                     msgproc.log(f"page_to_entries type of current_page_item [{type(current_page_item).__name__}] "
                                 f"first_item [{type(first_item).__name__ if first_item else None}] not handled")
-            else:
-                msgproc.log(f"page_to_entries type of current_page_item "
-                            f"[{type(current_page_item).__name__}] not handled")
+            # elif isinstance(current_page_item, TidalAlbum):
+            #     entries.append(album_to_album_container(
+            #         objid=objid,
+            #         album=current_page_item))
+            # elif isinstance(current_page_item, TidalPlaylist):
+            #     entries.append(playlist_to_playlist_container(
+            #         objid=objid,
+            #         playlist=current_page_item))
+            # else:
+            #     msgproc.log(f"page_to_entries type of current_page_item "
+            #                 f"[{type(current_page_item).__name__}] not handled")
         except Exception as ex:
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
