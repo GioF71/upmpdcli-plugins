@@ -2428,13 +2428,13 @@ def handler_tag_page(
         next_button_element_type: ElementType,
         next_button_element_id: str) -> list:
     tidal_session: TidalSession = get_session()
-    # page: TidalPage = page_extractor(tidal_session)
     return page_to_entries(
         objid=objid,
         tidal_session=tidal_session,
         page_extractor=page_extractor,
         entries=entries,
         offset=offset,
+        limit=config.page_items_per_page,
         paginate=True,
         next_button_element_type=next_button_element_type,
         next_button_element_id=next_button_element_id)
@@ -2636,26 +2636,26 @@ def page_to_entries(
         page: TidalPage = None,
         paginate: bool = False,
         offset: int = 0,
+        limit: int = 100,
         next_button_element_type: ElementType = None,
         next_button_element_id: str = None) -> list:
+    max_items: int = limit if limit else config.page_items_per_page
     if page_extractor: page = page_extractor(tidal_session)
     # extracting items from page
     msgproc.log(f"page_to_entries for [{page.title}] from offset [{offset}]")
     current_offset: int = 0
     at_offset: list[any] = list()
+    limit_size: int = max_items + 1 if paginate else max_items
     for current_page_item in page:
         current_offset += 1
-        if paginate:
-            if (current_offset - 1) < offset: continue
-            if (len(at_offset) < (config.page_items_per_page + 1)):
-                # add to at_offset
-                at_offset.append(current_page_item)
-            else:
-                break
-        else:
+        if (current_offset - 1) < offset: continue
+        if (len(at_offset) < limit_size):
+            # add to at_offset
             at_offset.append(current_page_item)
-    next_needed: bool = paginate and (len(at_offset) == config.page_items_per_page + 1)
-    next_item: any = at_offset[config.page_items_per_page] if next_needed else None
+        else:
+            break
+    next_needed: bool = paginate and (len(at_offset) == max_items + 1)
+    next_item: any = at_offset[max_items] if next_needed else None
     page_item_selection: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
     for current_page_item in page_item_selection:
         try:
