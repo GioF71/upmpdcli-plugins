@@ -21,6 +21,7 @@ class TagType(Enum):
     HOME_PAGE = 110, "home", "Home"
     FOR_YOU = 115, "foru", "For You"
     HIRES_PAGE = 120, "hires", "Hi-Res"
+    GENRES_PAGE = 129, "genres", "Genres"
     MOODS_PAGE = 130, "moods", "Moods"
     MY_PLAYLISTS = 200, "myplsts", "My Playlists"
     ALL_PLAYLISTS = 300, "allplsts", "Playlists"

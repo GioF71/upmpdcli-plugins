@@ -2440,6 +2440,20 @@ def handler_tag_page(
         next_button_element_id=next_button_element_id)
 
 
+def handler_tag_genres_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.genres(),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.GENRES_PAGE.getTagName())
+
+
 def handler_tag_moods_page(
         objid,
         item_identifier: ItemIdentifier,
@@ -5109,6 +5123,13 @@ def image_retriever_hires_page(
     return image_retriever_page(page=page)
 
 
+def image_retriever_genres_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.genres()
+    return image_retriever_page(page=page)
+
+
 def image_retriever_moods_page(
         tidal_session : TidalSession,
         tag_type : TagType) -> str:
@@ -5230,6 +5251,7 @@ __tag_image_retriever : dict = {
     TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
     TagType.FOR_YOU.getTagName(): image_retriever_for_you,
     TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
+    TagType.GENRES_PAGE.getTagName(): image_retriever_genres_page,
     TagType.MOODS_PAGE.getTagName(): image_retriever_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): image_retriever_all_playlists,
@@ -5252,6 +5274,7 @@ __tag_action_dict : dict = {
     TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
     TagType.FOR_YOU.getTagName(): handler_tag_for_you,
     TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
+    TagType.GENRES_PAGE.getTagName(): handler_tag_genres_page,
     TagType.MOODS_PAGE.getTagName(): handler_tag_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,

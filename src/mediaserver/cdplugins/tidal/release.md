@@ -2,6 +2,7 @@
 
 ## 0.7.3
 
+- Add Tile: Genres
 - Add Tile: For You
 - Paging in Page view
 - Improved management of page items
