@@ -1639,19 +1639,18 @@ def pagelink_to_entry(
     return entry
 
 
-def page_to_entry(
+def page_link_to_entry(
         objid,
-        api_path : str,
-        page_title : str) -> upmplgutils.direntry:
+        page_link: TidalPageLink) -> upmplgutils.direntry:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.PAGE.getName(),
-        api_path)
+        page_link.api_path)
     id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id,
         objid,
-        title = page_title)
+        title = page_link.title)
     return entry
 
 
@@ -2421,6 +2420,19 @@ def handler_tag_bookmarks(
     return entries
 
 
+def handler_tag_hires_page(
+        objid,
+        item_identifier : ItemIdentifier,
+        entries : list) -> list:
+    tidal_session: TidalSession = get_session()
+    page: TidalPage = tidal_session.hires_page()
+    return page_to_entries(
+        objid=objid,
+        tidal_session=tidal_session,
+        page=page,
+        entries=entries)
+
+
 def handler_tag_categories(
         objid,
         item_identifier : ItemIdentifier,
@@ -2557,23 +2569,12 @@ def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : 
 def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list) -> list:
     thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session : TidalSession = get_session()
-    page : TidalPage = tidal_session.page.get(thing_value)
-    for page_item in page:
-        if isinstance(page_item, TidalPlaylist):
-            entries.append(playlist_to_playlist_container(
-                objid = objid,
-                playlist = page_item))
-        elif isinstance(page_item, TidalAlbum):
-            album: TidalAlbum = page_item
-            if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(album):
-                msgproc.log(tidal_util.not_stereo_skipmessage(album.id, album.media_metadata_tags))
-                continue
-            entries.append(album_to_album_container(
-                objid = objid,
-                album = album))
-        else:
-            msgproc.log(f"handler_element_page: page_item of type [{type(page_item)}] not handled")
-    return entries
+    page: TidalPage = tidal_session.page.get(thing_value)
+    return page_to_entries(
+        objid=objid,
+        tidal_session=tidal_session,
+        page=page,
+        entries=entries)
 
 
 def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entries : list) -> list:
@@ -2629,11 +2630,11 @@ def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : 
                 track = track),
             options = options)
     elif isinstance(page_item, TidalPageLink):
+        msgproc.log(f"convert_page_item_to_entry creating a [{type(TidalPageLink)}] ...")
         page_link : TidalPageLink = page_item
-        return page_to_entry(
-            objid = objid,
-            api_path = page_link.api_path,
-            page_title = page_link.title)
+        return page_link_to_entry(
+            objid=objid,
+            page_link=page_link)
     else:
         msgproc.log(f"convert_page_item_to_entry item of type {type(page_item) if page_item else None} not handled")
     return None
@@ -4973,6 +4974,23 @@ def image_retriever_categories(
         category = first) if first else None
 
 
+def image_retriever_hires_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.hires_page()
+    return image_retriever_page(page=page)
+
+
+def image_retriever_page(page: TidalPage) -> str:
+    item_list: list = list()
+    for current_page_item in page:
+        item_list.append(current_page_item)
+    if len(item_list) == 0: return None
+    # get random item
+    random_item = secrets.choice(item_list)
+    return tidal_util.get_image_url(random_item)
+
+
 def image_retriever_cached(tidal_session : TidalSession, tag_type : TagType, loader) -> str:
     tile_image : TileImage = load_tile_image_unexpired(
         tile_type = TileType.TAG,
@@ -5066,6 +5084,7 @@ def image_retriever_listen_queue(
 
 __tag_image_retriever : dict = {
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
+    TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): image_retriever_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): image_retriever_favorite_albums,
@@ -5084,6 +5103,7 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
+    TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favorite_albums,

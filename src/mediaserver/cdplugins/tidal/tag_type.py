@@ -18,13 +18,14 @@ from enum import Enum
 
 class TagType(Enum):
     CATEGORIES = 100, "ctgrs", "Categories"
-    MY_PLAYLISTS = 101, "myplsts", "My Playlists"
-    ALL_PLAYLISTS = 102, "allplsts", "Playlists"
-    FAVORITE_ARTISTS = 103, "fvrtsts", "My Artists"
-    FAVORITE_ALBUMS = 104, "fvlbms", "My Albums"
-    FAVORITE_TRACKS = 105, "fvrttrks", "My Tracks"
-    BOOKMARKS = 107, "lstnq", "Bookmarks"
-    PLAYBACK_STATISTICS = 106, "plbkstts", "Playback Statistics"
+    HIRES_PAGE = 101, "hires", "Hi-Res"
+    MY_PLAYLISTS = 200, "myplsts", "My Playlists"
+    ALL_PLAYLISTS = 300, "allplsts", "Playlists"
+    FAVORITE_ARTISTS = 400, "fvrtsts", "My Artists"
+    FAVORITE_ALBUMS = 500, "fvlbms", "My Albums"
+    FAVORITE_TRACKS = 600, "fvrttrks", "My Tracks"
+    BOOKMARKS = 700, "lstnq", "Bookmarks"
+    PLAYBACK_STATISTICS = 800, "plbkstts", "Playback Statistics"
 
     def __init__(self,
             num : int,
