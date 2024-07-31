@@ -2,6 +2,8 @@
 
 ## 0.7.3
 
+- Add Home tile
+- Add Moods tile
 - Add HiRes tile
 - Tracks from a Category are now navigable
 - Add support for overriding the country code

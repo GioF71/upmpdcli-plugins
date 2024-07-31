@@ -2443,6 +2443,16 @@ def handler_tag_moods_page(
         entries=entries)
 
 
+def handler_tag_home_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.home(),
+        entries=entries)
+
+
 def handler_tag_hires_page(
         objid,
         item_identifier: ItemIdentifier,
@@ -4994,6 +5004,13 @@ def image_retriever_categories(
         category = first) if first else None
 
 
+def image_retriever_home_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.home()
+    return image_retriever_page(page=page)
+
+
 def image_retriever_hires_page(
         tidal_session : TidalSession,
         tag_type : TagType) -> str:
@@ -5119,6 +5136,7 @@ def image_retriever_listen_queue(
 
 __tag_image_retriever : dict = {
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
+    TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
     TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
     TagType.MOODS_PAGE.getTagName(): image_retriever_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
@@ -5139,6 +5157,7 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
+    TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
     TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
     TagType.MOODS_PAGE.getTagName(): handler_tag_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
