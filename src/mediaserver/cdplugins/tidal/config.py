@@ -175,3 +175,7 @@ def get_fallback_quality_when_missing() -> str:
 dump_image_caching: bool = __getPluginOptionAsBool(
     "dumpimagecaching",
     constants.default_dump_image_caching)
+
+
+def get_override_country_code() -> str:
+    return getPluginOptionValue("overridecountrycode")

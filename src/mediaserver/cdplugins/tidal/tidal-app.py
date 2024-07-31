@@ -464,6 +464,9 @@ def build_session() -> TidalSession:
         # return pkce session
         session_file = Path(tidal_util.get_pkce_credentials_file_name())
         session : TidalSession = TidalSession()
+        if config.get_override_country_code():
+            msgproc.log(f"build_session using country code [{config.get_override_country_code()}]")
+            session.country_code = config.get_override_country_code()
         # Load session from file; create a new session if necessary
         res : bool = session.login_session_file(session_file, do_pkce = True)
         if not res:
@@ -480,6 +483,9 @@ def build_session() -> TidalSession:
         refresh_token : str = credentials_dict[constants.key_refresh_token]
         expiry_time_timestamp_str : str = credentials_dict[constants.key_expiry_time_timestamp_str]
         session : TidalSession = TidalSession()
+        if config.get_override_country_code():
+            msgproc.log(f"build_session using country code [{config.get_override_country_code()}]")
+            session.country_code = config.get_override_country_code()
         expiry_time_timestamp : float = float(expiry_time_timestamp_str) if expiry_time_timestamp_str else None
         expiry_time : datetime.datetime = (datetime.datetime.fromtimestamp(expiry_time_timestamp)
             if expiry_time_timestamp

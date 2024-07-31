@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.7.3
+
+- Add support for overriding the country code
+
 ## 0.7.2
 
 - Some view (mostly from statistics) were still using deprecated image_url from db
