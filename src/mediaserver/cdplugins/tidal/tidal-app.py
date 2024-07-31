@@ -2420,16 +2420,36 @@ def handler_tag_bookmarks(
     return entries
 
 
-def handler_tag_hires_page(
+def handler_tag_page(
         objid,
-        item_identifier : ItemIdentifier,
+        page_extractor: Callable[[TidalSession], TidalPage],
         entries : list) -> list:
     tidal_session: TidalSession = get_session()
-    page: TidalPage = tidal_session.hires_page()
+    page: TidalPage = page_extractor(tidal_session)
     return page_to_entries(
         objid=objid,
         tidal_session=tidal_session,
         page=page,
+        entries=entries)
+
+
+def handler_tag_moods_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.moods(),
+        entries=entries)
+
+
+def handler_tag_hires_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: x.hires_page(),
         entries=entries)
 
 
@@ -2630,7 +2650,7 @@ def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : 
                 track = track),
             options = options)
     elif isinstance(page_item, TidalPageLink):
-        msgproc.log(f"convert_page_item_to_entry creating a [{type(TidalPageLink)}] ...")
+        msgproc.log(f"convert_page_item_to_entry creating a [{TidalPageLink.__name__}] ...")
         page_link : TidalPageLink = page_item
         return page_link_to_entry(
             objid=objid,
@@ -4981,13 +5001,28 @@ def image_retriever_hires_page(
     return image_retriever_page(page=page)
 
 
+def image_retriever_moods_page(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = tidal_session.moods()
+    return image_retriever_page(page=page)
+
+
 def image_retriever_page(page: TidalPage) -> str:
     item_list: list = list()
     for current_page_item in page:
-        item_list.append(current_page_item)
-    if len(item_list) == 0: return None
+        if isinstance(current_page_item, TidalPageLink):
+            page_link_items: list[any] = get_items_in_page_link(current_page_item)
+            first_item: any = page_link_items[0] if page_link_items and len(page_link_items) > 0 else None
+            if first_item: item_list.append(first_item)
+        else:
+            item_list.append(current_page_item)
+    if len(item_list) == 0:
+        msgproc.log(f"image_retriever_page no item for page [{page.title}]")
+        return None
     # get random item
     random_item = secrets.choice(item_list)
+    msgproc.log(f"image_retriever_page selected type is [{type(random_item).__name__}]")
     return tidal_util.get_image_url(random_item)
 
 
@@ -5085,6 +5120,7 @@ def image_retriever_listen_queue(
 __tag_image_retriever : dict = {
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
     TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
+    TagType.MOODS_PAGE.getTagName(): image_retriever_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): image_retriever_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): image_retriever_favorite_albums,
@@ -5104,6 +5140,7 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 __tag_action_dict : dict = {
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
     TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
+    TagType.MOODS_PAGE.getTagName(): handler_tag_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
     TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favorite_albums,
