@@ -112,6 +112,7 @@ default_tracks_per_page : int = 25
 default_mix_items_per_page : int = 25
 default_albums_per_page : int = 25
 default_artists_per_page : int = 25
+default_page_items_per_page : int = 35
 
 # this one should be disabled by default for the release
 default_dump_track_to_entry_result : int = 0

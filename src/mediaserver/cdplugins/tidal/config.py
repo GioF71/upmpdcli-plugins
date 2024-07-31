@@ -78,6 +78,11 @@ max_get_stream_info_mix_or_playlist: bool = getPluginOptionValue(
     constants.default_max_get_stream_info_mix_or_playlist)
 
 
+page_items_per_page: int = getPluginOptionValue(
+    "pageitemsperpage",
+    constants.default_page_items_per_page)
+
+
 albums_per_page: int = getPluginOptionValue(
     "albumsperpage",
     constants.default_albums_per_page)

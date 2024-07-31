@@ -2,6 +2,7 @@
 
 ## 0.7.3
 
+- Paging in Page view (next button image still missing)
 - Improved management of page items
 - Add Home tile
 - Add Moods tile

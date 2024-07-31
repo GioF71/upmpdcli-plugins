@@ -2423,44 +2423,63 @@ def handler_tag_bookmarks(
 def handler_tag_page(
         objid,
         page_extractor: Callable[[TidalSession], TidalPage],
-        entries : list) -> list:
+        entries: list,
+        offset: int,
+        next_button_element_type: ElementType,
+        next_button_element_id: str) -> list:
     tidal_session: TidalSession = get_session()
-    page: TidalPage = page_extractor(tidal_session)
+    # page: TidalPage = page_extractor(tidal_session)
     return page_to_entries(
         objid=objid,
         tidal_session=tidal_session,
-        page=page,
-        entries=entries)
+        page_extractor=page_extractor,
+        entries=entries,
+        offset=offset,
+        paginate=True,
+        next_button_element_type=next_button_element_type,
+        next_button_element_id=next_button_element_id)
 
 
 def handler_tag_moods_page(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
         page_extractor=lambda x: x.moods(),
-        entries=entries)
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.MOODS_PAGE.getTagName())
 
 
 def handler_tag_home_page(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
         page_extractor=lambda x: x.home(),
-        entries=entries)
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.HOME_PAGE.getTagName())
 
 
 def handler_tag_hires_page(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
         page_extractor=lambda x: x.hires_page(),
-        entries=entries)
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.HIRES_PAGE.getTagName())
 
 
 def handler_tag_categories(
@@ -2587,16 +2606,17 @@ def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : 
             msgproc.log("handler_element_pagelink page not found")
             return entries
         if page: page_to_entries(
-            objid = objid,
-            tidal_session = tidal_session,
-            page = page,
-            entries = entries)
+            objid=objid,
+            tidal_session=tidal_session,
+            page=page,
+            entries=entries)
     except Exception as ex:
         msgproc.log(f"handler_element_pagelink could not retrieve page at api_path [{api_path}] [{ex}]")
     return entries
 
 
 def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session : TidalSession = get_session()
     page: TidalPage = tidal_session.page.get(thing_value)
@@ -2604,12 +2624,39 @@ def handler_element_page(objid, item_identifier : ItemIdentifier, entries : list
         objid=objid,
         tidal_session=tidal_session,
         page=page,
-        entries=entries)
+        entries=entries,
+        offset=offset)
 
 
-def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entries : list) -> list:
+def page_to_entries(
+        objid,
+        tidal_session: TidalSession,
+        entries: list,
+        page_extractor: Callable[[TidalSession], TidalPage] = None,
+        page: TidalPage = None,
+        paginate: bool = False,
+        offset: int = 0,
+        next_button_element_type: ElementType = None,
+        next_button_element_id: str = None) -> list:
+    if page_extractor: page = page_extractor(tidal_session)
     # extracting items from page
+    msgproc.log(f"page_to_entries for [{page.title}] from offset [{offset}]")
+    current_offset: int = 0
+    at_offset: list[any] = list()
     for current_page_item in page:
+        current_offset += 1
+        if paginate:
+            if (current_offset - 1) < offset: continue
+            if (len(at_offset) < (config.page_items_per_page + 1)):
+                # add to at_offset
+                at_offset.append(current_page_item)
+            else:
+                break
+        else:
+            at_offset.append(current_page_item)
+    next_needed: bool = paginate and (len(at_offset) == config.page_items_per_page + 1)
+    to_display: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
+    for current_page_item in to_display:
         try:
             # msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
             new_entry : dict = convert_page_item_to_entry(
@@ -2621,6 +2668,21 @@ def page_to_entries(objid, tidal_session : TidalSession, page : TidalPage, entri
             msgproc.log(f"page_to_entries could not convert type "
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
                         f"due to [{type(ex)}] [{ex}]")
+    if next_needed:
+        # add next if possible
+        if next_button_element_type and next_button_element_id:
+            next_entry: dict[str, any] = create_next_button(
+                objid=objid,
+                element_type=next_button_element_type,
+                element_id=next_button_element_id,
+                next_offset=offset + config.page_items_per_page)
+        # upnp_util.set_album_art_from_uri(
+        #     album_art_uri=tidal_util.get_album_art_url_by_id(
+        #         album_id=next_album_id,
+        #         tidal_session=tidal_session),
+        #     target=next_entry)
+        entries.append(next_entry)
+    msgproc.log(f"page_to_entries got [{len(entries)}] entries")
     return entries
 
 
@@ -2628,10 +2690,8 @@ def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
     item_list: list[any] = get_items_in_page_link(page_link=page_link)
     if not item_list or len(item_list) == 0: return None
     for first_item in item_list:
-        # playlists are good candidates for image url, other types?
-        if isinstance(first_item, TidalPlaylist):
-            return tidal_util.get_image_url(first_item)
-        elif isinstance(first_item, TidalMix):
+        # playlists and mixes are good candidates for image url, other types?
+        if tidal_util.is_instance_of_any(first_item, [TidalPlaylist, TidalMix]):
             return tidal_util.get_image_url(first_item)
         else:
             msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}]")
@@ -2665,7 +2725,7 @@ def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : 
                 track = track),
             options = options)
     elif isinstance(page_item, TidalPageLink):
-        msgproc.log(f"convert_page_item_to_entry creating a [{TidalPageLink.__name__}] ...")
+        # msgproc.log(f"convert_page_item_to_entry creating a [{TidalPageLink.__name__}] ...")
         page_link : TidalPageLink = page_item
         page_link_image_url: str = get_image_url_for_pagelink(page_link=page_link)
         page_link_entry = page_link_to_entry(

@@ -646,3 +646,10 @@ def get_pkce_credentials_file_name() -> str:
 
 def pkce_credential_file_exists() -> bool:
     return os.path.exists(get_pkce_credentials_file_name())
+
+
+def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
+    t: type
+    for t in type_list if type_list else list():
+        if isinstance(obj, t): return True
+    return False
