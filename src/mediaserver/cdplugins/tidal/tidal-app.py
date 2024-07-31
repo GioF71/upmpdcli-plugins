@@ -2655,8 +2655,8 @@ def page_to_entries(
         else:
             at_offset.append(current_page_item)
     next_needed: bool = paginate and (len(at_offset) == config.page_items_per_page + 1)
-    to_display: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
-    for current_page_item in to_display:
+    page_item_selection: list[any] = at_offset[0:len(at_offset) - 1] if next_needed else at_offset
+    for current_page_item in page_item_selection:
         try:
             # msgproc.log(f"page_to_entries processing [{type(current_page_item)}] [{current_page_item}] ...")
             new_entry : dict = convert_page_item_to_entry(

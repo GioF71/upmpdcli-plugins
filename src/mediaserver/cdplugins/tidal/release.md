@@ -9,6 +9,7 @@
 - Add HiRes tile
 - Tracks from a Category are now navigable
 - Add support for overriding the country code
+- Misc code corrections, cleanup and refactoring
 
 ## 0.7.2
 
