@@ -816,7 +816,9 @@ def get_category_image_url(
                 elif isinstance(first_item, TidalPageLink):
                     # msgproc.log(f"  processing as <PageLink> ...")
                     page_link : TidalPageLink = first_item
-                    page_link_items : list[any] = get_items_in_page_link(page_link)
+                    page_link_items : list[any] = get_items_in_page_link(
+                        page_link=page_link,
+                        limit=config.get_page_items_for_tile_image())
                     for current in page_link_items if page_link_items else list():
                         if (isinstance(current, TidalPlaylist) or
                                 isinstance(current, TidalAlbum) or
@@ -2613,7 +2615,7 @@ def handler_element_mix(objid, item_identifier : ItemIdentifier, entries : list)
     return entries
 
 
-def follow_page_link(page_link : TidalPageLink) -> any:
+def follow_page_link(page_link: TidalPageLink) -> any:
     next = page_link
     while next:
         # msgproc.log(f"follow_page_link type of next is [{type(next).__name__}]")
@@ -2629,17 +2631,20 @@ def follow_page_link(page_link : TidalPageLink) -> any:
     return next
 
 
-def get_items_in_page_link(page_link: TidalPageLink) -> list[any]:
-    items : list[any] = list()
+def get_items_in_page_link(page_link: TidalPageLink, limit: int = None) -> list[any]:
+    items: list[any] = list()
     linked = follow_page_link(page_link)
     # msgproc.log(f"get_items_in_page_link linked_object is [{type(linked).__name__ if linked else None}]")
     if not linked: return items
     if isinstance(linked, TidalPage):
         # msgproc.log(f"get_items_in_page_link: found a Page")
         for current in linked:
+            if limit and len(items) >= limit: break
             if isinstance(current, TidalPageLink):
                 new_page_link : TidalPageLink = current
-                items.extend(get_items_in_page_link(new_page_link))
+                items.extend(get_items_in_page_link(
+                    page_link=new_page_link,
+                    limit=limit))
             else:
                 items.append(current)
     else:
@@ -2747,7 +2752,9 @@ def page_to_entries(
 
 
 def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
-    item_list: list[any] = get_items_in_page_link(page_link=page_link)
+    item_list: list[any] = get_items_in_page_link(
+        page_link=page_link,
+        limit=config.get_page_items_for_tile_image())
     if not item_list or len(item_list) == 0: return None
     for first_item in item_list:
         # playlists and mixes are good candidates for image url, other types?
@@ -4396,10 +4403,12 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                 page_link_entry : dict = pagelink_to_entry(objid, category = category, page_link = item)
                 entries.append(page_link_entry)
                 # TODO maybe extract method for getting image for a PageLink
-                tile_image : TileImage = load_tile_image_unexpired(TileType.PAGE_LINK, page_link.api_path)
-                page_link_image_url : str = tile_image.tile_image if tile_image else None
+                tile_image: TileImage = load_tile_image_unexpired(TileType.PAGE_LINK, page_link.api_path)
+                page_link_image_url: str = tile_image.tile_image if tile_image else None
                 if not page_link_image_url:
-                    items_in_page : list = get_items_in_page_link(page_link)
+                    items_in_page: list = get_items_in_page_link(
+                        page_link=page_link,
+                        limit=config.get_page_items_for_tile_image())
                     for current in items_in_page if items_in_page else list():
                         if (isinstance(current, TidalPlaylist) or
                                 isinstance(current, TidalAlbum) or
@@ -5193,7 +5202,9 @@ def image_retriever_page(
     for current_page_item in page:
         if len(item_list) >= limit: break
         if isinstance(current_page_item, TidalPageLink):
-            page_link_items: list[any] = get_items_in_page_link(current_page_item)
+            page_link_items: list[any] = get_items_in_page_link(
+                page_link=current_page_item,
+                limit=config.get_page_items_for_tile_image())
             first_item: any = page_link_items[0] if page_link_items and len(page_link_items) > 0 else None
             if first_item: item_list.append(first_item)
         else:
