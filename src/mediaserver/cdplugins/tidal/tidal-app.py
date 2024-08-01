@@ -727,7 +727,7 @@ def _objidtopath(objid):
 def load_tile_image_unexpired(
         tile_type : TileType,
         tile_id : str,
-        expiration_time_sec : int = constants.tile_image_expiration_time_sec) -> TileImage:
+        expiration_time_sec : int = config.get_tile_image_expiration_time_sec()) -> TileImage:
     tile_image : TileImage = persistence.load_tile_image(
         tile_type = tile_type,
         tile_id = tile_id)
@@ -740,7 +740,7 @@ def load_tile_image_unexpired(
 
 def is_tile_imaged_expired(
         tile_image : TileImage,
-        expiration_time_sec : int = constants.tile_image_expiration_time_sec) -> bool:
+        expiration_time_sec : int = config.get_tile_image_expiration_time_sec()) -> bool:
     update_time : datetime.datetime = tile_image.update_time
     if not update_time: return True
     if update_time < (datetime.datetime.now() - datetime.timedelta(seconds = expiration_time_sec)):
@@ -2629,7 +2629,7 @@ def follow_page_link(page_link : TidalPageLink) -> any:
     return next
 
 
-def get_items_in_page_link(page_link : TidalPageLink) -> list[any]:
+def get_items_in_page_link(page_link: TidalPageLink) -> list[any]:
     items : list[any] = list()
     linked = follow_page_link(page_link)
     # msgproc.log(f"get_items_in_page_link linked_object is [{type(linked).__name__ if linked else None}]")
@@ -2726,16 +2726,20 @@ def page_to_entries(
                         f"[{type(current_page_item).__name__ if current_page_item else None}] "
                         f"due to [{type(ex)}] [{ex}]")
     if next_item:
-        # add next if possible
+        # use next_item for next button
         if next_button_element_type and next_button_element_id:
             next_entry: dict[str, any] = create_next_button(
                 objid=objid,
                 element_type=next_button_element_type,
                 element_id=next_button_element_id,
                 next_offset=offset + config.page_items_per_page)
-        # use next_item for next button
+        album_art_uri: str = None
+        if isinstance(next_item, TidalPageLink):
+            album_art_uri = get_image_url_for_pagelink(next_item)
+        else:
+            album_art_uri = tidal_util.get_image_url(obj=next_item)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_image_url(obj=next_item),
+            album_art_uri=album_art_uri,
             target=next_entry)
         entries.append(next_entry)
     msgproc.log(f"page_to_entries got [{len(entries)}] entries")
@@ -2747,10 +2751,12 @@ def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
     if not item_list or len(item_list) == 0: return None
     for first_item in item_list:
         # playlists and mixes are good candidates for image url, other types?
-        if tidal_util.is_instance_of_any(first_item, [TidalPlaylist, TidalMix]):
+        if tidal_util.is_instance_of_any(
+                obj=first_item,
+                type_list=[TidalPlaylist, TidalMix, TidalAlbum, TidalTrack]):
             return tidal_util.get_image_url(first_item)
         else:
-            msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}]")
+            msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}] [{first_item}]")
 
 
 def convert_page_item_to_entry(objid, tidal_session : TidalSession, page_item : TidalPageItem) -> any:
@@ -5180,9 +5186,12 @@ def image_retriever_moods_page(
     return image_retriever_page(page=page)
 
 
-def image_retriever_page(page: TidalPage) -> str:
+def image_retriever_page(
+        page: TidalPage,
+        limit: int = config.get_page_items_for_tile_image()) -> str:
     item_list: list = list()
     for current_page_item in page:
+        if len(item_list) >= limit: break
         if isinstance(current_page_item, TidalPageLink):
             page_link_items: list[any] = get_items_in_page_link(current_page_item)
             first_item: any = page_link_items[0] if page_link_items and len(page_link_items) > 0 else None
@@ -5195,7 +5204,10 @@ def image_retriever_page(page: TidalPage) -> str:
     # get random item
     random_item = secrets.choice(item_list)
     msgproc.log(f"image_retriever_page selected type is [{type(random_item).__name__}]")
-    return tidal_util.get_image_url(random_item)
+    image_url: str = tidal_util.get_image_url(random_item)
+    if not image_url: msgproc.log(f"image_retriever_page no image for [{page.title}] "
+                                  f"from [{type(random_item).__name__}]")
+    return image_url
 
 
 def image_retriever_cached(tidal_session : TidalSession, tag_type : TagType, loader) -> str:

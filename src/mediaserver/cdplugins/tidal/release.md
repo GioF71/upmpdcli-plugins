@@ -2,6 +2,8 @@
 
 ## 0.7.4
 
+- Restrict pages to inspect just to select a tile image
+- Configuration for tile image expiration time
 - Add Tile: Featured
 
 ## 0.7.3
