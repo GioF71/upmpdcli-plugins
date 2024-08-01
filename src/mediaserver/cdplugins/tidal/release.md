@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.7.4
+
+- Add Tile: Featured
+
 ## 0.7.3
 
 - Add Tile: Genres

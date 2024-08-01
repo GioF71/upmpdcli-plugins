@@ -19,6 +19,7 @@ from enum import Enum
 class TagType(Enum):
     CATEGORIES = 100, "ctgrs", "Categories"
     HOME_PAGE = 110, "home", "Home"
+    FEATURED = 112, "featured", "Featured"
     FOR_YOU = 115, "foru", "For You"
     HIRES_PAGE = 120, "hires", "Hi-Res"
     GENRES_PAGE = 129, "genres", "Genres"
