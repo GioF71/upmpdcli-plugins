@@ -1,5 +1,12 @@
 # Tidal Plugin Release notes
 
+## 0.7.4
+
+- Created tag for Page Selection for faster loading
+- Restrict pages to inspect just to select a tile image
+- Configuration for tile image expiration time
+- Add Tile: Featured
+
 ## 0.7.3
 
 - Add Tile: Genres

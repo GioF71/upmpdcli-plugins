@@ -114,6 +114,8 @@ default_albums_per_page : int = 25
 default_artists_per_page : int = 25
 default_page_items_per_page : int = 35
 
+default_page_items_for_tile_image: int = 3
+
 # this one should be disabled by default for the release
 default_dump_track_to_entry_result : int = 0
 

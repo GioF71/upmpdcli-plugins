@@ -184,3 +184,15 @@ dump_image_caching: bool = __getPluginOptionAsBool(
 
 def get_override_country_code() -> str:
     return getPluginOptionValue("overridecountrycode")
+
+
+def get_tile_image_expiration_time_sec() -> int:
+    return getPluginOptionValue(
+        "tileimageexpirationtimesec",
+        constants.tile_image_expiration_time_sec)
+
+
+def get_page_items_for_tile_image() -> int:
+    return getPluginOptionValue(
+        "pageitemsfortileimage",
+        constants.default_page_items_for_tile_image)

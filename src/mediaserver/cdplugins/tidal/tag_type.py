@@ -17,14 +17,17 @@ from enum import Enum
 
 
 class TagType(Enum):
+    PAGE_SELECTION = 10, "pgslctn", "Page Selection"
     CATEGORIES = 100, "ctgrs", "Categories"
     HOME_PAGE = 110, "home", "Home"
+    FEATURED = 112, "featured", "Featured"
+    EXPLORE = 113, "xplr", "Explore"
     FOR_YOU = 115, "foru", "For You"
     HIRES_PAGE = 120, "hires", "Hi-Res"
     GENRES_PAGE = 129, "genres", "Genres"
     MOODS_PAGE = 130, "moods", "Moods"
-    MY_PLAYLISTS = 200, "myplsts", "My Playlists"
-    ALL_PLAYLISTS = 300, "allplsts", "Playlists"
+    ALL_PLAYLISTS = 200, "allplsts", "Playlists"
+    MY_PLAYLISTS = 300, "myplsts", "My Playlists"
     FAVORITE_ARTISTS = 400, "fvrtsts", "My Artists"
     FAVORITE_ALBUMS = 500, "fvlbms", "My Albums"
     FAVORITE_TRACKS = 600, "fvrttrks", "My Tracks"

@@ -142,6 +142,10 @@ def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
 
 
 def get_image_url(obj : any, refresh: bool = False) -> str:
+    if isinstance(obj, TidalTrack):
+        # use album instead
+        track: TidalTrack = obj
+        obj = track.album
     if not config.enable_image_caching: return __get_image_url(obj)
     document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
     # webserverdocumentroot is required
