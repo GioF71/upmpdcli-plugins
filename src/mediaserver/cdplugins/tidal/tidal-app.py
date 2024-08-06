@@ -5448,18 +5448,18 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
 
 
 def show_tags(objid, entries : list) -> list:
-    tidal_session : TidalSession = get_session()
+    tidal_session: TidalSession = get_session()
     for tag in TagType:
         curr_tag_img_retriever = (__tag_image_retriever[tag.getTagName()]
             if tag.getTagName() in __tag_image_retriever
             else None)
         msgproc.log(f"show_tags found handler for tag [{tag.getTagName()}]: "
                     f"[{'yes' if curr_tag_img_retriever else 'no'}]")
-        curr_tag_img : str = (image_retriever_cached(
-            tidal_session = tidal_session,
-            tag_type = tag,
-            loader = curr_tag_img_retriever) if curr_tag_img_retriever else None)
-        tag_entry : dict[str, any] = tag_to_entry(objid, tag)
+        curr_tag_img: str = (image_retriever_cached(
+            tidal_session=tidal_session,
+            tag_type=tag,
+            loader=curr_tag_img_retriever) if curr_tag_img_retriever else None)
+        tag_entry: dict[str, any] = tag_to_entry(objid, tag)
         if curr_tag_img and len(curr_tag_img) > 0: upnp_util.set_album_art_from_uri(curr_tag_img, tag_entry)
         entries.append(tag_entry)
     return entries
