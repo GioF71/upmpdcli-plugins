@@ -2442,6 +2442,16 @@ def handler_tag_page(
         next_button_element_id=next_button_element_id)
 
 
+def handler_tag_page_selection(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    tidal_session: TidalSession = get_session()
+    for tag in get_page_selection():
+        show_single_tag(objid, tidal_session, tag, entries)
+    return entries
+
+
 def handler_tag_genres_page(
         objid,
         item_identifier: ItemIdentifier,
@@ -5317,6 +5327,8 @@ def get_featured_page(tidal_session: TidalSession) -> TidalPage:
 
 
 __tag_image_retriever : dict = {
+    # image for PAGE_SELECTION is same as HOME_PAGE
+    TagType.PAGE_SELECTION.getTagName(): image_retriever_home_page,
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
     TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
     TagType.FEATURED.getTagName(): image_retriever_featured,
@@ -5342,6 +5354,7 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 
 
 __tag_action_dict : dict = {
+    TagType.PAGE_SELECTION.getTagName(): handler_tag_page_selection,
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
     TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
     TagType.FEATURED.getTagName(): handler_tag_featured,
@@ -5447,22 +5460,44 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
     return entry
 
 
+def get_page_selection() -> list[TagType]:
+    return [TagType.CATEGORIES,
+        TagType.HOME_PAGE,
+        TagType.FEATURED,
+        TagType.EXPLORE,
+        TagType.FOR_YOU,
+        TagType.HIRES_PAGE,
+        TagType.GENRES_PAGE,
+        TagType.MOODS_PAGE]
+
+
+def get_tag_hidden_from_front_page() -> list[TagType]:
+    return get_page_selection()
+
+
 def show_tags(objid, entries : list) -> list:
     tidal_session: TidalSession = get_session()
     for tag in TagType:
-        curr_tag_img_retriever = (__tag_image_retriever[tag.getTagName()]
-            if tag.getTagName() in __tag_image_retriever
-            else None)
-        msgproc.log(f"show_tags found handler for tag [{tag.getTagName()}]: "
-                    f"[{'yes' if curr_tag_img_retriever else 'no'}]")
-        curr_tag_img: str = (image_retriever_cached(
-            tidal_session=tidal_session,
-            tag_type=tag,
-            loader=curr_tag_img_retriever) if curr_tag_img_retriever else None)
-        tag_entry: dict[str, any] = tag_to_entry(objid, tag)
-        if curr_tag_img and len(curr_tag_img) > 0: upnp_util.set_album_art_from_uri(curr_tag_img, tag_entry)
-        entries.append(tag_entry)
+        if tag not in get_tag_hidden_from_front_page():
+            show_single_tag(objid, tidal_session, tag, entries)
+        else:
+            msgproc.log(f"{TagType.__name__} [{tag.getTagName()}] is hidden from the front page")
     return entries
+
+
+def show_single_tag(objid, tidal_session: TidalSession, tag: TagType, entries: list) -> list:
+    curr_tag_img_retriever = (__tag_image_retriever[tag.getTagName()]
+        if tag.getTagName() in __tag_image_retriever
+        else None)
+    msgproc.log(f"show_tags found handler for tag [{tag.getTagName()}]: "
+                f"[{'yes' if curr_tag_img_retriever else 'no'}]")
+    curr_tag_img: str = (image_retriever_cached(
+        tidal_session=tidal_session,
+        tag_type=tag,
+        loader=curr_tag_img_retriever) if curr_tag_img_retriever else None)
+    tag_entry: dict[str, any] = tag_to_entry(objid, tag)
+    if curr_tag_img and len(curr_tag_img) > 0: upnp_util.set_album_art_from_uri(curr_tag_img, tag_entry)
+    entries.append(tag_entry)
 
 
 cachable_tag_list : list[TagType] = [

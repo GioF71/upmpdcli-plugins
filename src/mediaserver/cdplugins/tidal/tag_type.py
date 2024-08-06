@@ -17,6 +17,7 @@ from enum import Enum
 
 
 class TagType(Enum):
+    PAGE_SELECTION = 10, "pgslctn", "Page Selection"
     CATEGORIES = 100, "ctgrs", "Categories"
     HOME_PAGE = 110, "home", "Home"
     FEATURED = 112, "featured", "Featured"
