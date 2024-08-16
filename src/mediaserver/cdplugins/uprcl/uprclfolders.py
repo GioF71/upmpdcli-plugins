@@ -116,6 +116,8 @@ class Folders(object):
         self._pprefix = pathprefix
         # Debug : limit processed recoll entries for speed
         self._maxrclcnt = 0
+        # We use a recoll db connection for creating bogus rcl docs
+        self._rcldb = recoll.connect(confdir=confdir)
         # Overflow storage for synthetic records created for playlists
         # url entries. Uses docidx values starting at len(_rcldocs),
         # with actual index value - len(_rcldocs)
@@ -157,7 +159,7 @@ class Folders(object):
     def statpath(self, plpath, path):
         if not os.path.isabs(path):
             path = os.path.join(os.path.dirname(plpath), path)
-        doc = recoll.Doc()
+        doc = self._rcldb.doc()
         if _has_resultstore:
             doc["url"] = b'file://' + path
         else:
@@ -171,7 +173,7 @@ class Folders(object):
 
     # Create bogus doc for external (http) url. This is for playlists.
     def docforurl(self, url):
-        doc = recoll.Doc()
+        doc = self._rcldb.doc()
         doc.url = url
         elt = os.path.split(url)[1]
         tt = elt.decode('utf-8', errors='ignore')

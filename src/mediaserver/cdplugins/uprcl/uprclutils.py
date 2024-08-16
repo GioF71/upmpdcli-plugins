@@ -337,7 +337,7 @@ def folderart(doc, httphp, bpp, albtitle=None):
                     _foldercache[folder] = _httpurl(httphp, path)
                     break
         except:
-            traceback.print_exc()
+            #traceback.print_exc()
             pass
 
     arturi = _foldercache[folder]
