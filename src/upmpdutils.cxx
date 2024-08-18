@@ -65,6 +65,8 @@ using namespace std;
 using namespace UPnPP;
 using namespace UPnPClient;
 
+const string g_upmpdcli_package_version{UPMPDCLI_VERSION};
+
 // Translate 0-100% MPD volume to UPnP VolumeDB: we do db upnp-encoded
 // values from -10240 (0%) to 0 (100%)
 int percentodbvalue(int value)

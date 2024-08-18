@@ -50,8 +50,6 @@
 using namespace std;
 using namespace UPnPP;
 
-const string g_upmpdcli_package_version{UPMPDCLI_VERSION};
-
 static char *thisprog;
 
 static int op_flags;
