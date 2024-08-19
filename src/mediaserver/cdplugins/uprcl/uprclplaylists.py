@@ -32,7 +32,8 @@ import conftree
 import upradioconf
 
 class Playlists(object):
-    def __init__(self, rcldocs, httphp, pathprefix):
+    def __init__(self, rclconfdir, rcldocs, httphp, pathprefix):
+        self.rclconfdir = rclconfdir
         self._idprefix = '0$uprcl$playlists'
         self._pprefix = pathprefix
         uplog(f"PLAYLISTS pprefix {self._pprefix} idprefix {self._idprefix}")
@@ -102,6 +103,7 @@ class Playlists(object):
     # Return the contents of the playlist at index idx
     def _playlistatidx(self, idx):
         #uplog(f"playlistatidx: idx {idx}")
+        rcldb = recoll.connect(confdir=self.rclconfdir)
         pldoc = self._rcldocs[self._pldocsidx[idx]]
         plpath = uprclutils.docpath(pldoc)
         folders = uprclinit.getTree('folders')
@@ -116,9 +118,9 @@ class Playlists(object):
         for url in m3u:
             if m3u.urlRE.match(url):
                 # Actual URL (usually http). Create bogus doc
-                doc = folders.docforurl(url)
+                doc = folders.docforurl(rcldb, url)
             else:
-                docidx = folders.statpath(plpath, url)
+                docidx = folders.statpath(rcldb, plpath, url)
                 if not docidx:
                     continue
                 doc = self._rcldocs[docidx]
