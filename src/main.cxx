@@ -418,9 +418,16 @@ int main(int argc, char *argv[])
     int sendermpdport = getIntOptionValue("scsendermpdport", 6700);
     g_lumincompat = getBoolOptionValue("lumincompat", false);
 
-
+    // If we are root, and the log file exists, we need to temporarily chown it to root, because it
+    // may not be writable else (e.g. sticky world-writable /tmp)
+    if (geteuid() == 0 && !logfilename.empty() && logfilename.compare("stderr") &&
+        path_exists(logfilename)) {
+        if (chown(logfilename.c_str(), 0, -1) < 0 && errno != ENOENT) {
+            std::cerr << "chown(" << logfilename << ") : errno : " << errno << '\n';
+        }
+    }
     if (Logger::getTheLog(logfilename) == 0) {
-        cerr << "Can't initialize log" << endl;
+        std::cerr << "Can't initialize log" << '\n';
         return 1;
     }
     Logger::getTheLog("")->reopen(logfilename);
