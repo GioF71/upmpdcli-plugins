@@ -415,8 +415,7 @@ def _setalbumartists(conn):
 
 
 # Add albums to the recoll index so they can be searched for
-def _albumstorecoll(conn):
-    rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
+def _albumstorecoll(conn, rcldb):
     c = conn.cursor()
     #                 0        1          2          3         4         5
     stmt = '''SELECT album_id, albfolder, albtitle, albarturi, albdate, artist.value
@@ -438,8 +437,7 @@ def _albumstorecoll(conn):
     
 
 # Add artists to the recoll index so they can be searched for
-def _artiststorecoll(conn):
-    rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
+def _artiststorecoll(conn, rcldb):
     c = conn.cursor()
     #                 0         1
     stmt = "SELECT artist_id, value    FROM artist"
@@ -663,7 +661,8 @@ def recolltosql(conn, rcldocs):
     _createmergedalbums(conn)
     conn.commit()
     end = timer()
-    _albumstorecoll(conn)
-    _artiststorecoll(conn)
+    rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
+    _albumstorecoll(conn, rcldb)
+    _artiststorecoll(conn, rcldb)
     uplog(f"recolltosql: processed {totcnt} docs in {end-start:.1f} Seconds")
  
