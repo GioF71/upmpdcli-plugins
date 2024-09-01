@@ -132,7 +132,9 @@ bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
         return false;
     }
     if (wcharcnt + 1 >  int(wcharsavail)) {
+#ifdef LOGERR
         LOGERR("utf8towchar: not enough space\n");
+#endif
         return false;
     }
     wcharcnt = MultiByteToWideChar(
@@ -162,7 +164,7 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 #endif
         return std::unique_ptr<wchar_t[]>();
     }
-    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcharcnt+1]);
+    auto buf = std::make_unique<wchar_t[]>(wcharcnt+1);
 
     wcharcnt = MultiByteToWideChar(
         CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, buf.get(), wcharcnt);
@@ -172,7 +174,7 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 #endif
         return std::unique_ptr<wchar_t[]>();
     }
-    buf.get()[wcharcnt] = 0;
+    buf[wcharcnt] = 0;
     return buf;
 }
 #endif // _WIN32
