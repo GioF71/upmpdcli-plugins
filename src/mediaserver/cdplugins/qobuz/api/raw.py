@@ -23,7 +23,7 @@ socket.timeout = 5
 
 _loglevel = 3
 def debug(s):
-    if _loglevel >= 2:
+    if _loglevel >= 4:
         print("%s" %s, file=sys.stderr)
 def warn(s):
     if _loglevel >= 3:
@@ -70,7 +70,17 @@ class RawApi(object):
         for label in ka:
             if label not in mandatory and label not in allowed:
                 raise Exception("Qobuz: invalid parameter [%s]" % label)
-
+        # Having no parameters set triggers a problem in the pyrequests/Qobuz dialog, don't know
+        # where the bug is, but it results in a 411 (length required). So set a very high limit if
+        # nothing is set
+        noparams=True
+        for label in ka:
+            if ka[label]:
+                noparams=False
+                break
+        if noparams:
+            ka['limit'] = '10000'
+        
     def __set_s4(self):
         '''appid and associated secret is for this app usage only
         Any use of the API implies your full acceptance of the
@@ -128,13 +138,14 @@ class RawApi(object):
             headers['X-User-Auth-Token'] = self.user_auth_token
         headers['X-App-Id'] = self.appid
         r = None
-        #debug("POST %s params %s headers %s" % (url, params, headers))
+        debug("POST %s params %s headers %s" % (url, params, headers))
         try:
             r = self.session.post(url, data=params, headers=headers)
         except:
             self.error = 'Post request fail'
             warn(self.error)
             return None
+        debug(f"status_code: {r.status_code}\nheaders: {r.headers}\ncontent: {r.content}")
         self.status_code = int(r.status_code)
         if self.status_code != 200:
             self.error = self._api_error_string(r, url, params)
