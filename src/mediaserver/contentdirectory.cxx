@@ -19,11 +19,8 @@
 #include "contentdirectory.hxx"
 
 #include <functional>
-#include <iostream>
-#include <map>
 #include <utility>
 #include <unordered_map>
-#include <sstream>
 
 #include "libupnpp/log.hxx"
 #include "libupnpp/soaphelp.hxx"
@@ -51,8 +48,7 @@ public:
         }
     }
 
-    // Start plugins which have long init so that the user has less to
-    // wait on first access
+    // Start plugins which have long init so that the user has less to wait on first access
     void maybeStartSomePlugins(bool enabled);
 
     void maybeInit() {
@@ -132,8 +128,7 @@ int ContentDirectory::actGetSearchCapabilities(const SoapIncoming& sc, SoapOutgo
 {
     LOGDEB("ContentDirectory::actGetSearchCapabilities: " << "\n");
 
-    std::string out_SearchCaps(
-        "upnp:class,upnp:artist,dc:creator,upnp:album,dc:title");
+    std::string out_SearchCaps("upnp:class,upnp:artist,dc:creator,upnp:album,dc:title");
     data.addarg("SearchCaps", out_SearchCaps);
     return UPNP_E_SUCCESS;
 }
@@ -194,8 +189,8 @@ static bool makerootdir()
     }
 
     if (rootdir.empty()) {
-        // This should not happen, as we only start the CD if services
-        // are configured !
+        // Just as a precaution. The rootdir should never be used in this case because the media
+        // server will not be started.
         rootdir.push_back(UpSong::item("0$none$", "0", "No services found"));
         return false;
     } else {
@@ -288,11 +283,10 @@ void ContentDirectory::Internal::maybeStartSomePlugins(bool enabled)
     }
 }
 
-// Really preposterous: bubble (and maybe others) searches in root,
-// but we can't do this. So memorize the last browsed object ID and
-// use this as a replacement when root search is requested. Forget
-// about multiaccess, god forbid multithreading etc. Will work in most
-// cases though :)
+// Really preposterous: bubble (and maybe others) searches in root, but we can't do this. So
+// memorize the last browsed object ID and use this as a replacement when root search is
+// requested. Forget about multiaccess, god forbid multithreading etc. Will work in most cases
+// though :)
 static string last_objid;
 
 int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
@@ -556,9 +550,8 @@ std::string ContentDirectory::getfname()
     return m->msdev->getfname();
 }
 
-// Note that this is not needed by ohcredentials (the slave script
-// does not generate URLs in this case, and the mhttp servers listens
-// on all addresses).
+// Note that this is not needed by ohcredentials (the slave script does not generate URLs in this
+// case, and the mhttp servers listens on all addresses).
 string ContentDirectory::microhttphost()
 {
     string host;
