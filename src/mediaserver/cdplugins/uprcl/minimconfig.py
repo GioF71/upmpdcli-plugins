@@ -95,7 +95,7 @@ class MinimConfig(object):
         # Parse each option [-]tag.option={tag1,tag2} or [-]tag.option
         alloptions = []
         for e in l2:
-            lhsrhs=e.split('''\=''')
+            lhsrhs=e.split("=")
             if len(lhsrhs) == 2:
                 values = [v.strip().lower() for v in lhsrhs[1].lstrip('{').rstrip('}').split(',')]
             else:

@@ -425,7 +425,7 @@ def _albumstorecoll(conn):
     c.execute(stmt, ())
     for r in c:
         udi = "albid" + str(r[0])
-        doc = recoll.Doc()
+        doc = rcldb.doc()
         doc["album"] = r[2]
         doc["title"] = r[2]
         doc["mtype"] = "inode/directory"
@@ -446,7 +446,7 @@ def _artiststorecoll(conn):
     c.execute(stmt, ())
     for r in c:
         udi = "artid" + str(r[0])
-        doc = recoll.Doc()
+        doc = rcldb.doc()
         doc["title"] = r[1]
         doc["mtype"] = "inode/directory"
         doc["url"] = "file://artists/" + r[1] # Not used ever
