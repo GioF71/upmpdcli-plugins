@@ -116,11 +116,11 @@ class Session(object):
         #uplog("get_featured_albums, genre_id %s type %s " % (genre_id, type))
         if genre_id != 'None':
             data = self.api.album_getFeatured(type=type,
-                                              genre_id=genre_id,
+                                              genre_ids=genre_id + ':',
                                               limit=general_slice)
         else:
             data = self.api.album_getFeatured(type=type, limit=general_slice)
-            
+        
         try:
             albums = [_parse_album(alb) for alb in data['albums']['items']]
             if albums:
@@ -132,7 +132,7 @@ class Session(object):
     def get_featured_playlists(self, genre_id='None'):
         if genre_id != 'None':
             data = self.api.playlist_getFeatured(type='editor-picks',
-                                                 genre_id=genre_id,
+                                                 genre_ids=genre_id,
                                                  limit=general_slice)
         else:
             data = self.api.playlist_getFeatured(type='editor-picks',

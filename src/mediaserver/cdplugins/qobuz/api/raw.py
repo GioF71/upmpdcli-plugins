@@ -107,8 +107,9 @@ class RawApi(object):
             Arguments:
             params:    parameters dictionary
             uri   :    service/method
-            opt   :    Optionnal named parameters
+            opt   :    Optional named parameters
                         - noToken=True/False
+                        - useGet=True/False
 
             Return None if something went wrong
             Return raw data from qobuz on success as dictionary
@@ -130,6 +131,7 @@ class RawApi(object):
         self.status_code = None
         url = self._baseUrl + uri
         useToken = False if (opt and 'noToken' in opt) else True
+        useGet = True if (opt and 'useGet' in opt) else False
         headers = {
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0"
@@ -138,9 +140,13 @@ class RawApi(object):
             headers['X-User-Auth-Token'] = self.user_auth_token
         headers['X-App-Id'] = self.appid
         r = None
-        debug("POST %s params %s headers %s" % (url, params, headers))
+        op = "GET" if useGet else "POST" 
+        debug(f"{op} {url} params {params} headers {headers}")
         try:
-            r = self.session.post(url, data=params, headers=headers)
+            if useGet:
+                r = self.session.post(url, params=params, headers=headers)
+            else:
+                r = self.session.post(url, data=params, headers=headers)
         except:
             self.error = 'Post request fail'
             warn(self.error)
@@ -173,8 +179,7 @@ class RawApi(object):
         except:
             pass
         if status == 'error':
-            self.error = self._api_error_string(r, url, params,
-                                                response_json)
+            self.error = self._api_error_string(r, url, params, response_json)
             warn(self.error)
             return None
         return response_json
@@ -213,7 +218,7 @@ class RawApi(object):
 
     def setSec(self):
         global _loglevel
-        savedlevel = _loglevel
+        savedloglevel = _loglevel
         _loglevel = 1
         for value in self.spoofer.getSecrets().values():
             self.s4 = value.encode('utf-8')
@@ -221,6 +226,7 @@ class RawApi(object):
                 #debug("SECRET [%s]"%self.s4)
                 _loglevel = savedloglevel
                 return
+        _loglevel = savedloglevel
 
     def user_update(self, **ka):
         self._check_ka(ka, [], ['player_settings'])
@@ -302,11 +308,14 @@ class RawApi(object):
         return self._api_request(params, '/track/reportStreamingEnd')
 
     def album_get(self, **ka):
-        self._check_ka(ka, ['album_id'])
-        return self._api_request(ka, '/album/get')
+        self._check_ka(ka, ['album_id'], ['extra', 'limit', 'offset'])
+        # As of around sept 2024, using a POST for this does not work any more (always return the
+        # same album, not the one requested. Probably an inadvertant change on the Qobuz side. The
+        # WEB player uses a GET
+        return self._api_request(ka, '/album/get', useGet=True)
 
     def album_getFeatured(self, **ka):
-        self._check_ka(ka, [], ['type', 'genre_id', 'limit', 'offset'])
+        self._check_ka(ka, [], ['type', 'genre_ids', 'limit', 'offset'])
         return self._api_request(ka, '/album/getFeatured')
 
     def purchase_getUserPurchases(self, **ka):
@@ -348,7 +357,7 @@ class RawApi(object):
 
     def playlist_getFeatured(self, **ka):
         # type is 'last-created' or 'editor-picks'
-        self._check_ka(ka, ['type'], ['genre_id', 'limit', 'offset'])
+        self._check_ka(ka, ['type'], ['genre_ids', 'limit', 'offset'])
         return self._api_request(ka, '/playlist/getFeatured')
 
     def playlist_getUserPlaylists(self, **ka):
