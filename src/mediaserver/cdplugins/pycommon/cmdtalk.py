@@ -26,6 +26,7 @@ import tempfile
 import shutil
 import getopt
 import traceback
+import signal
 
 def makebytes(data):
     if data is None:
@@ -107,6 +108,13 @@ class CmdTalk(object):
         if s == b'':
             if self.exitfunc:
                 self.exitfunc(0)
+            # Our father process is probably going to send us a SIGTERM.  On some platforms (BSD,
+            # MacOS), an exception is sometimes generated during exit processing, probably randomly
+            # depending on where we are in the process when we receive the signal. Ignoring SIGTERM
+            # while we exit mostly fixes the problem (we very rarely get a message about a signal
+            # race condition). None of this affects the working of the program anyway, just an issue
+            # with error messages.
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
             sys.exit(0)
 
         s = s.rstrip(b'\n')

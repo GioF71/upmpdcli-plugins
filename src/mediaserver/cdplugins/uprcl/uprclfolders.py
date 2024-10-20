@@ -116,8 +116,6 @@ class Folders(object):
         self._pprefix = pathprefix
         # Debug : limit processed recoll entries for speed
         self._maxrclcnt = 0
-        # We use a recoll db connection for creating bogus rcl docs
-        self._rcldb = recoll.connect(confdir=confdir)
         # Overflow storage for synthetic records created for playlists
         # url entries. Uses docidx values starting at len(_rcldocs),
         # with actual index value - len(_rcldocs)
@@ -156,10 +154,10 @@ class Folders(object):
 
     # Find the doc index for a filesystem path.
     # We use a temporary doc to call _stat()
-    def statpath(self, plpath, path):
+    def statpath(self, rcldb, plpath, path):
         if not os.path.isabs(path):
             path = os.path.join(os.path.dirname(plpath), path)
-        doc = self._rcldb.doc()
+        doc = rcldb.doc()
         if _has_resultstore:
             doc["url"] = b'file://' + path
         else:
@@ -172,8 +170,8 @@ class Folders(object):
 
 
     # Create bogus doc for external (http) url. This is for playlists.
-    def docforurl(self, url):
-        doc = self._rcldb.doc()
+    def docforurl(self, rcldb, url):
+        doc = rcldb.doc()
         doc.url = url
         elt = os.path.split(url)[1]
         tt = elt.decode('utf-8', errors='ignore')
@@ -185,7 +183,9 @@ class Folders(object):
     
 
     # Initialize all playlists after the tree is otherwise complete
-    def _initplaylists(self):
+    def _initplaylists(self, confdir):
+        # We use a recoll db connection for creating bogus rcl docs
+        rcldb = recoll.connect(confdir=confdir)
         for diridx in self._playlists:
             pldocidx = self._dirvec[diridx]["."][1]
             pldoc = self._rcldocs[pldocidx]
@@ -198,7 +198,7 @@ class Folders(object):
             for url in m3u:
                 if m3u.urlRE.match(url):
                     # Actual URL (usually http). Create bogus doc
-                    doc = self.docforurl(url)
+                    doc = self.docforurl(rcldb, url)
                     self._moredocs.append(doc)
                     docidx = len(self._rcldocs) + len(self._moredocs) - 1
                     tt = doc["title"]
@@ -208,7 +208,7 @@ class Folders(object):
                         tt = doc["text"]
                     self._dirvec[diridx][tt] = (-1, docidx)
                 else:
-                    docidx = self.statpath(plpath, url)
+                    docidx = self.statpath(rcldb, plpath, url)
                     if docidx:
                         elt = os.path.split(url)[1]
                         self._dirvec[diridx][elt] = (-1, docidx)
@@ -341,7 +341,7 @@ class Folders(object):
             for ent in self._dirvec:
                 uplog("%s" % ent)
 
-        self._initplaylists()
+        self._initplaylists(confdir)
                     
         end = timer()
         uplog("_rcl2folders took %.2f Seconds" % (end - start))

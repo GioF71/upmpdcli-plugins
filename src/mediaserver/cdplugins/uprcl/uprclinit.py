@@ -127,7 +127,7 @@ def _update_index(rebuild=False):
 
         folders = Folders(_g_rclconfdir, _g_httphp, _g_pathprefix)
         untagged = Untagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
-        playlists = Playlists(folders.rcldocs(), _g_httphp, _g_pathprefix)
+        playlists = Playlists(_g_rclconfdir, folders.rcldocs(), _g_httphp, _g_pathprefix)
         tagged = Tagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
         newtrees = {}
         newtrees['folders'] = folders

@@ -132,7 +132,9 @@ bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
         return false;
     }
     if (wcharcnt + 1 >  int(wcharsavail)) {
+#ifdef LOGERR
         LOGERR("utf8towchar: not enough space\n");
+#endif
         return false;
     }
     wcharcnt = MultiByteToWideChar(
@@ -162,7 +164,7 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 #endif
         return std::unique_ptr<wchar_t[]>();
     }
-    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcharcnt+1]);
+    auto buf = std::make_unique<wchar_t[]>(wcharcnt+1);
 
     wcharcnt = MultiByteToWideChar(
         CP_UTF8, MB_ERR_INVALID_CHARS, in.c_str(), isize, buf.get(), wcharcnt);
@@ -172,7 +174,7 @@ std::unique_ptr<wchar_t[]> utf8towchar(const std::string& in)
 #endif
         return std::unique_ptr<wchar_t[]>();
     }
-    buf.get()[wcharcnt] = 0;
+    buf[wcharcnt] = 0;
     return buf;
 }
 #endif // _WIN32
@@ -424,9 +426,9 @@ template <class T> std::string stringsToString(const T& tokens)
     return out;
 }
 
-template <class T> void stringsToCSV(const T& tokens, std::string& s, char sep)
+template <class T> std::string stringsToCSV(const T& tokens, char sep)
 {
-    s.erase();
+    std::string s;
     for (const auto& tok : tokens) {
         bool needquotes = false;
         if (tok.empty() || tok.find_first_of(std::string(1, sep) + "\"\n") != std::string::npos) {
@@ -450,6 +452,7 @@ template <class T> void stringsToCSV(const T& tokens, std::string& s, char sep)
     // Remove last separator.
     if (!s.empty())
         s.pop_back();
+    return s;
 }
 
 template <class T> std::string commonprefix(const T& values)
@@ -498,10 +501,8 @@ template std::string stringsToString<std::vector<std::string>>(const std::vector
 template std::string stringsToString<std::set<std::string>>(const std::set<std::string>&);
 template std::string stringsToString<std::unordered_set<std::string>>(
     const std::unordered_set<std::string>&);
-template void stringsToCSV<std::list<std::string>>(
-    const std::list<std::string>&, std::string&, char);
-template void stringsToCSV<std::vector<std::string>>(
-    const std::vector<std::string>&, std::string&, char);
+template std::string stringsToCSV<std::list<std::string>>(const std::list<std::string>&, char);
+template std::string stringsToCSV<std::vector<std::string>>(const std::vector<std::string>&, char);
 template std::string commonprefix<std::vector<std::string>>(const std::vector<std::string>&values);
 #endif
 
@@ -561,6 +562,18 @@ void stringSplitString(const std::string& str, std::vector<std::string>& tokens,
         }
         startPos = pos + sep.size();
     }
+}
+
+std::string tokensToString(const std::vector<std::string>& tokens, const std::string& sep)
+{
+    std::string out;
+    for (const auto& token : tokens) {
+        if (!out.empty()) {
+            out += sep;
+        }
+        out += token;
+    }
+    return out;
 }
 
 bool stringToBool(const std::string& s)
