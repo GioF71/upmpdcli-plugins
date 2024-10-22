@@ -881,30 +881,27 @@ You will need the upmpdcli-tidal module. Depending on your distribution and inst
 this may come as part of the base installation, or be a separate package.
 
 The Tidal module code is is based on the link:https://github.com/tamland/python-tidal[Tidal API]
-currently at version 0.7.6, by Thomas Amland (also using other useful modules by Thomas). You will
+currently at version 0.8.0, by Thomas Amland (also using other useful modules by Thomas). You will
 need to install the package separately, preferably system-wide, for example:
 
 ....
-sudo python3 -m pip install tidalapi==0.7.6
+sudo python3 -m pip install tidalapi==0.8.0
 ....
 
-The software only works with a valid Tidal subscription. It is not officially supported by
+Depending on the version of your operating system, you might need to append the following
+to the previous instruction:
+
+....
+--break-system-packages
+....
+
+The Tidal plugin only works with a valid Tidal subscription. It is not officially supported by
 Tidal, and may just stop to work one day...
 
-The plugin can work using two authentication modes: OAUTH2 (default) and PKCE.
-PKCE is currently the only way to access true hi-res files (so flac up to 24bit/192kHz), while
-OAUTH2 mode is limited to 24/48kHz, which can transport MQA encoded streams.
-Keep in mind that if you choose PKCE authentication, your renderer must be able to play
+Keep in mind that if you choose HI_RES_LOSSLESS audio quality, your renderer must be able to play
 MPEG-DASH streams. Currently, only mpd and gmrender-resurrect support this type of streams.
 
 Accessing Tidal requires you to obtain a set of valid Tidal credentials.
-This applies to both OAUTH2 and PKCE authentication types.
-
-The authentication type can be selected using the parameter tidaltokentype. Set the value to PKCE
-or to OAUTH2 (default).
-If you don't set the parameter, upmpdcli will use the default OAUTH2 authentication.
-
-OAUTH2 Mode:
 
 The credentials can be obtained by running a Python script, by default at the
 following location (which may depend on the installation location):
@@ -919,72 +916,40 @@ After running the script, you will be presented with the following output:
 Visit https://link.tidal.com/XXXXX to log in, the code will expire in 300 seconds
 ....
 
-Copy paste the URL and point your browser there. You will be presented with a Tidal authentication
+Copy the URL and paste it to your browser. You will be presented with a Tidal authentication
 screen. Log in with your username and password (if you weren't logged in already), and then click on
 the "Authorize application" (or the button with some similar text). After that, you will get an
-output from the script as follows:
-
-....
-Settings for upmpdcli below, to be set in upmpdcli.conf
-tidaltokentype=Bearer
-tidalaccesstoken=your-tidal-token
-tidalrefreshtoken=your-refresh-token
-tidalexpirytime=1694616998.732007
-....
-
-Insert the above values into the upmpdcli configuration file (`/etc/upmpdcli.conf`), and restart
-upmpdcli.
-Alternatively for OAUTH2 mode, you can skip all configuration parameters, and authenticate on the 
-first access to tidal. 
-In order to do so, tail the upmpdcli logs. The log will present the same output described before:
-
-....
-Visit https://link.tidal.com/XXXXX to log in, the code will expire in 300 seconds
-....
-
-Just visit the link, authenticate and authorize. The plugin will save a json file named
-credentials.json in the plugin cache folder.
-If you need to re-authenticate, just delete the credentials.json file in the plugin cache folder.
+output from the script, which will include a json file.  
+This is the content that you should store in the tidal cache plugin, which is
+typically `/var/cache/upmpdcli/tidal`.
 
 If you want, you can use the `-f` argument and specify the target file. You can use this
 feature and have your credentials file written directly by the get_credentials.py program.
 Example:
 
 ....
-sudo python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
-  -f /var/cache/upmpdcli/tidal/credentials.json
+sudo -u upmpdcli python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
+  -f /var/cache/upmpdcli/tidal/oauth2.credentials.json
 ....
 
-PKCE Mode:
+The ownership of the generated file depend on the user which runs the script.
+In the previous example, the script will run as the `upmpdcli` user.
 
-Things are a bit more complicated for PKCE mode. In order to obtain the credentials,
-you need to launch the python script using the `-t` argument set to `pkce`:
-
-....
-python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py -t pkce
-....
-
-Open the link, authenticate and authorize.
-This is similar to OAUTH2 mode, but will require an additional step: after authorization,
-you will be presented with an "ooops" page. Grab the url of that page and paste it in the terminal.
-That should complete the authentication process.
-You will be presented with the contents of the file that you will have to save as
-pkce-credentials.json in the tidal plugin cache folder. 
-The script will also present, as an alternative, the corresponding set of variable to set
-in the upmpdcli.conf, but I recommend the approach described in the previous paragraph.
-
-If you want, you can also use the `-f` argument and specify the target file. You can use this
-feature and have your credentials file written directly by the get_credentials.py program.
-Example:
+Alternatively, you can skip all configuration parameters, and authenticate directly on the 
+first access to tidal. 
+In order to do so, you will need to monitor the upmpdcli application logs.
+When the plugin is accessed and authentication details are not available yet, 
+the log will present the same output described before:
 
 ....
-sudo python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
-  -t pkce \
-  -f /var/cache/upmpdcli/tidal/pkce-credentials.json
+Visit https://link.tidal.com/XXXXX to log in, the code will expire in 300 seconds
 ....
 
+Just visit the link, authenticate and authorize. The plugin will save a json file named
+oauth2.credentials.json in the plugin cache folder.
+If you need to re-authenticate, just delete the oauth2.credentials.json file in the plugin cache folder.
 
-Also, the PKCE mode requires the `webserverdocumentroot` to be enabled in upmpdcli.conf.
+Also, HI_RES_LOSSLESS quality mode requires the `webserverdocumentroot` to be enabled in upmpdcli.conf.
 Set it to a value like `/var/cache/upmpdcli/public`.
 
 The configuration variables are further described in the <<tidaluser,configuration section>>

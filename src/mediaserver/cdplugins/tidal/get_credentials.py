@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+"""Use this program to obtain credentials for the tidal plugin."""
+
 # Copyright (C) 2023,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,32 +17,36 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import tidalapi
-from datetime import datetime
-import argparse
 import json
+import argparse
+from datetime import datetime
 from pathlib import Path
+import tidalapi
 
 tidal_plugin_name : str = "tidal"
 
 
 def print_setting(name : str, value : str):
+    """Print function for script settings."""
     print(f"{tidal_plugin_name}{name} = {value}")
 
 
+auth_type_legacy : str = "legacy"
 auth_type_oauth2 : str = "oauth2"
 auth_type_pkce : str = "pkce"
 
 auth_type_default : str = auth_type_oauth2
 
-auth_types : list[str] = [auth_type_oauth2, auth_type_pkce]
+auth_types : list[str] = [auth_type_legacy, auth_type_oauth2, auth_type_pkce]
 
 
 def print_separator(middle_text: str, border_len: int = 20):
+    """Borded text print function."""
     print(f"{'=' * border_len} {middle_text} {'=' * border_len}")
 
 
-def auth_pkce(args : argparse.Namespace):
+def auth_oauth2(args: argparse.Namespace, use_pkce: bool = False):
+    """Performs oauth2 authentication."""
     session = tidalapi.Session()
     exists: bool = Path.exists(Path(args.f))
     if exists:
@@ -52,26 +58,16 @@ def auth_pkce(args : argparse.Namespace):
         print(f"Removed existing file [{args.f}]")
     session_file = Path(args.f)
     # Will run until you complete the login process
-    session.login_session_file(session_file, do_pkce=True)
-    token_type = session.token_type
-    session_id = session.session_id
-    access_token = session.access_token
-    refresh_token = session.refresh_token
-    print(f"Writing the credentials to file [{args.f}] ...")
-    cred_file = open(args.f, "r")
-    cred_dict = json.load(cred_file)
-    print(f"Credentials file for type [{args.t}] in json format:")
-    print(json.dumps(cred_dict, indent=4))
-    print("Alternative: Settings for upmpdcli below, to be set in upmpdcli.conf")
-    print_separator(middle_text="upmpdcli.conf BEGIN")
-    print_setting("pkcetokentype", token_type)
-    print_setting("pkcesessionid", session_id)
-    print_setting("pkceaccesstoken", access_token)
-    print_setting("pkcerefreshtoken", refresh_token)
-    print_separator(middle_text="upmpdcli.conf END")
+    session.login_session_file(session_file=session_file, do_pkce=use_pkce)
+    print(f"Credentials file [{args.f}] written.")
+    with open(file=args.f, mode="r", encoding="utf-8") as cred_file:
+        cred_dict = json.load(cred_file)
+        print(f"Displaying credentials file for type [{args.f}], json format:")
+        print(json.dumps(cred_dict, indent=4))
 
 
-def auth_oauth2(args : argparse.Namespace):
+def auth_legacy(args : argparse.Namespace):
+    """Performs legacy authentication (deprecated)."""
     session = tidalapi.Session()
     # Will run until you visit the printed url and link your account
     session.login_oauth_simple()
@@ -90,18 +86,11 @@ def auth_oauth2(args : argparse.Namespace):
     if args.f:
         print(f"Writing the credentials to file [{args.f}] ...")
         # write a new json file
-        with open(args.f, 'w') as cred_file:
+        with open(file=args.f, mode="w", encoding="utf-8") as cred_file:
             json.dump(cred_dict, cred_file, indent = 4)
         print(f"Credentials written to [{args.f}]")
     print(f"Credentials file for type [{args.t}] in json format:")
     print(json.dumps(cred_dict, indent=4))
-    print("Alternative: Settings for upmpdcli below, to be set in upmpdcli.conf")
-    print_separator(middle_text="upmpdcli.conf BEGIN")
-    print_setting("tokentype", token_type)
-    print_setting("accesstoken", access_token)
-    print_setting("refreshtoken", refresh_token)
-    print_setting("expirytime", storable_expiry_time)
-    print_separator(middle_text="upmpdcli.conf END")
 
 
 file_switch: str = "-f"
@@ -110,6 +99,7 @@ keep_file_switch: str = "-k"
 
 
 def main():
+    """Application entrypoint."""
     parser = argparse.ArgumentParser(description='Tidal Credentials Retriever')
     parser.add_argument(
         file_switch,
@@ -118,7 +108,7 @@ def main():
     parser.add_argument(
         auth_type_switch,
         type=str,
-        help='Authentication type, OAUTH2 or PKCE')
+        help='Authentication flow, OAUTH2 (default) or PKCE')
     parser.add_argument(
         keep_file_switch,
         action='store_true',
@@ -132,20 +122,24 @@ def main():
         if parent_path:
             parent_path.mkdir(parents=True, exist_ok=True)
     if args.t and args.t.lower() not in auth_types:
-        raise Exception(f"Invalid authentication type [{args.t}]")
+        raise ValueError(f"Invalid authentication type [{args.t}]")
     auth_type : str = args.t if args.t else auth_type_default
     print(f"Authentication type is [{auth_type}]")
-    if auth_type_oauth2.lower() == auth_type.lower():
-        auth_oauth2(args)
-    elif auth_type_pkce.lower() == auth_type.lower():
-        # a file is needed for pkce authentication
+    if auth_type_legacy.lower() == auth_type.lower():
+        auth_legacy(args)
+    elif auth_type.lower() in [auth_type_pkce.lower(), auth_type_oauth2.lower()]:
+        use_pkce: bool = auth_type.lower() == auth_type_pkce.lower()
+        # a file is needed for oauth2 and pkce authentication
         if not args.f:
-            args.f = "/tmp/pkce-credentials.json"
-            print(f"When using [{auth_type_pkce}], the [{file_switch}] switch is required, "
+            args.f = ("/tmp/pkce.credentials.json"
+                      if auth_type.lower() == auth_type_pkce.lower()
+                      else "/tmp/oauth2.credentials.json")
+            print(f"When using [{auth_type}], the [{file_switch}] switch is required, "
                   f"using a temporary file [{args.f}] ...")
-        print(f"Keep existing pkce file: [{args.k}]")
-        auth_pkce(args)
-    else: raise Exception(f"Authentication type [{auth_type}] cannot be processed")
+        print(f"Keep existing file: [{args.k}]")
+        auth_oauth2(args, use_pkce)
+    else:
+        raise ValueError(f"Authentication type [{auth_type}] cannot be processed")
 
 
 if __name__ == "__main__":

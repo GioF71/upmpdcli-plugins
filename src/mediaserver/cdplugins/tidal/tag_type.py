@@ -22,6 +22,7 @@ class TagType(Enum):
     HOME_PAGE = 110, "home", "Home"
     FEATURED = 112, "featured", "Featured"
     EXPLORE = 113, "xplr", "Explore"
+    EXPLORE_NEW_MUSIC = 114, "new", "New Music"
     FOR_YOU = 115, "foru", "For You"
     HIRES_PAGE = 120, "hires", "Hi-Res"
     GENRES_PAGE = 129, "genres", "Genres"
