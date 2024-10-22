@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+"""Use this program to obtain pkce credentials."""
+
 # Copyright (C) 2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,15 +17,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import tidalapi
 import json
 import os
 from pathlib import Path
+import tidalapi
 
 tidal_plugin_name : str = "tidal"
 
 
-def print_setting(name : str, value : str):
+def print_setting(name: str, value: str):
+    """Print function for script settings."""
     print(f"{name}={value}")
 
 
@@ -44,17 +47,7 @@ session_id = session.session_id
 access_token = session.access_token
 refresh_token = session.refresh_token
 
-print("Alternative 1: pkce credentials file, store as /var/cache/upmpdcli/tidal/pkce.credentials.json")
-cred_file = open(file_name, "r")
+print("PKCE credentials file, stored as /var/cache/upmpdcli/tidal/pkce.credentials.json")
+cred_file = open(file=file_name, mode="r", encoding="utf-8")
 cred_dict = json.load(cred_file)
 print(json.dumps(cred_dict, indent = 4, sort_keys = True))
-
-print("=============")
-print("=============")
-print("=============")
-
-print("Alternative 2: Environment variables:")
-print_setting("TIDAL_PKCE_TOKEN_TYPE", token_type)
-print_setting("TIDAL_PKCE_SESSION_ID", session_id)
-print_setting("TIDAL_PKCE_ACCESS_TOKEN", access_token)
-print_setting("TIDAL_PKCE_REFRESH_TOKEN", refresh_token)

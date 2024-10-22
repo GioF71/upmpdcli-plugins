@@ -138,11 +138,6 @@ max_playlist_or_mix_items_per_page: int = getPluginOptionValue(
     constants.default_max_playlist_or_mix_items_per_page)
 
 
-auth_challenge_type: str = getPluginOptionValue(
-    "authchallengetype",
-    constants.default_auth_challenge_type)
-
-
 listen_queue_playlist_name: str = getPluginOptionValue(
     "listenqueueplaylistname",
     constants.default_listen_queue_playlist_name)
@@ -153,14 +148,12 @@ display_quality_badge: bool = __getPluginOptionAsBool(
     constants.default_display_quality_badge)
 
 
-enable_image_caching: bool = __getPluginOptionAsBool(
-    "enableimagecaching",
-    constants.default_enable_image_caching)
+def get_enable_image_caching() -> bool:
+    return __getPluginOptionAsBool("enableimagecaching", constants.default_enable_image_caching)
 
 
-search_limit: int = getPluginOptionValue(
-    "searchlimit",
-    constants.default_search_limit)
+def get_search_limit() -> int:
+    return getPluginOptionValue("searchlimit", constants.default_search_limit)
 
 
 __fallback_for_missing_quality: dict[str, str] = {
@@ -177,9 +170,10 @@ def get_fallback_quality_when_missing() -> str:
     return __fallback_for_missing_quality[max_audio_quality]
 
 
-dump_image_caching: bool = __getPluginOptionAsBool(
-    "dumpimagecaching",
-    constants.default_dump_image_caching)
+def get_dump_image_caching() -> bool:
+    return __getPluginOptionAsBool(
+        "dumpimagecaching",
+        constants.default_dump_image_caching)
 
 
 def get_override_country_code() -> str:

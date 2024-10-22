@@ -78,6 +78,7 @@ class ElementType(Enum):
     BOOKMARK_ARTIST_ACTION = 59, "rtstlqctn"
     BOOKMARK_TRACKS = 60, "snglstnq"
     BOOKMARK_TRACK_ACTION = 61, "snglstnqctn"
+    MISSING_ALBUM = 62, "msnglbm"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
