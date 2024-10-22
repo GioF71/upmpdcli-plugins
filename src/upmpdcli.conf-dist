@@ -186,21 +186,6 @@
 # Bogus user name variable.
 #tidaluser = tidal
 # Oath2 authentication token type.
-#tidaltokentype = Bearer
-# Access Token.
-#tidalaccesstoken = your_oauth2_access_token
-# Refresh Token.
-#tidalrefreshtoken = your_oauth2_refresh_token
-# Token expiry time.
-#tidalexpirytime = 1697143990.40669
-# PKCE authentication token type.
-#tidalpkcetokentype = Bearer
-# PKCE Access Token.
-#tidalpkceaccesstoken = your_pkce_access_token
-# PKCE Refresh Token.
-#tidalpkcerefreshtoken = your_pkce_refresh_token
-# PKCE Session id
-#tidalpkcesessionid = your_pkce_session_id
 # Tidal maximum stream quality.
 #tidalaudioquality = LOSSLESS
 # Plugin Title.

@@ -31,6 +31,7 @@ from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
 from tidalapi.media import AudioMode as TidalAudioMode
+from tidalapi.exceptions import ObjectNotFound
 
 from typing import Callable
 
@@ -114,7 +115,7 @@ def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entr
 
 
 def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
-    if config.enable_image_caching:
+    if config.get_enable_image_caching():
         # try cached!
         document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
         if document_root_dir:
@@ -128,14 +129,14 @@ def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
                 path.extend(sub_dir_list)
                 path.append(cached_file_name)
                 cached_image_url: str = compose_docroot_url("/".join(path))
-                if config.dump_image_caching:
+                if config.get_dump_image_caching():
                     msgproc.log(f"get_album_art_url_by_id [{album_id}] -> [{cached_image_url}]")
                 return cached_image_url
             else:
-                if config.dump_image_caching:
+                if config.get_dump_image_caching():
                     msgproc.log(f"get_album_art_url_by_id [{album_id}] -> cache miss")
     # if we are are, we fallback to normal
-    if config.dump_image_caching:
+    if config.get_dump_image_caching():
         msgproc.log(f"get_album_art_url_by_id [{album_id}] -> loading from upstream service is required")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
     return get_image_url(obj=album, refresh=True)
@@ -146,7 +147,7 @@ def get_image_url(obj : any, refresh: bool = False) -> str:
         # use album instead
         track: TidalTrack = obj
         obj = track.album
-    if not config.enable_image_caching: return __get_image_url(obj)
+    if not config.get_enable_image_caching(): return __get_image_url(obj)
     document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
     # webserverdocumentroot is required
     if not document_root_dir: return __get_image_url(obj)
@@ -219,6 +220,9 @@ def try_get_album(tidal_session : TidalSession, album_id : str) -> TidalAlbum:
     album : TidalAlbum = None
     try:
         album = tidal_session.album(album_id)
+    except ObjectNotFound as onfEx:
+        msgproc.log(f"try_get_album could not find album_id [{album_id}] [{type(onfEx)}] [{onfEx}]")
+        # TODO more actions? like e.g. remove from favorites
     except Exception as ex:
         msgproc.log(f"try_get_album failed for album_id [{album_id}] [{type(ex)}] [{ex}]")
     return album
@@ -403,13 +407,9 @@ def __audio_modes_has_stereo(audio_modes: list[str]) -> bool:
 def is_stereo(media_metadata_tags : list[str]) -> bool:
     # nothing available -> assume STEREO
     if not media_metadata_tags or len(media_metadata_tags) == 0: return True
-    # return (TidalMediaMetadataTags.sony_360 not in media_metadata_tags and
-    #         TidalMediaMetadataTags.dolby_atmos not in media_metadata_tags)
     return not __only_of(
         media_metadata_tags=media_metadata_tags,
-        hit=[
-            TidalMediaMetadataTags.sony_360,
-            TidalMediaMetadataTags.dolby_atmos])
+        hit=[TidalMediaMetadataTags.dolby_atmos])
 
 
 def __only_of(media_metadata_tags : list[str], hit: list[str]) -> bool:
@@ -424,17 +424,10 @@ def not_stereo_skipmessage(album_id: str, media_metadata_tags : list[str]) -> st
     return f"Skipping album with id [{album_id}] because [{media_metadata_tags}]"
 
 
-def __is_mqa(media_metadata_tags : list[str]) -> bool:
-    if not media_metadata_tags or len(media_metadata_tags) == 0: return False
-    return TidalMediaMetadataTags.mqa in media_metadata_tags
-
-
 def __get_best_quality(media_metadata_tags : list[str]) -> str:
     if not media_metadata_tags or len(media_metadata_tags) == 0: return None
     if TidalMediaMetadataTags.hires_lossless in media_metadata_tags: return TidalQuality.hi_res_lossless
-    if TidalMediaMetadataTags.mqa in media_metadata_tags: return TidalQuality.hi_res
     if TidalMediaMetadataTags.lossless in media_metadata_tags: return TidalQuality.high_lossless
-    if TidalMediaMetadataTags.sony_360 in media_metadata_tags: return TidalQuality.low_96k
     if TidalMediaMetadataTags.dolby_atmos in media_metadata_tags: return TidalQuality.low_96k
     return None
 
@@ -478,7 +471,6 @@ def get_quality_badge_raw(
     # TODO maybe map DOLBY_ATMOS to say Atmos
     if audio_modes and not __audio_modes_has_stereo(audio_modes): return ",".join(audio_modes)
     tidal_quality: TidalQuality = __get_best_quality(media_metadata_tags)
-    is_mqa : bool = __is_mqa(media_metadata_tags)
     if not tidal_quality: tidal_quality = audio_quality
     stream_info_available : bool = (cached_tidal_quality and
                 cached_tidal_quality.bit_depth and
@@ -488,17 +480,6 @@ def get_quality_badge_raw(
     ext_badge : str = (f"{bit_depth}/{__readable_sample_rate(sample_rate)}"
                        if stream_info_available else None)
     badge : str = None
-    if is_mqa:
-        if not stream_info_available:
-            badge = "MQA"
-        else:
-            if bit_depth == 16 and sample_rate == 44100:
-                badge = "MQA CD"
-            elif bit_depth == 16 and sample_rate == 48000:
-                badge = "MQA 16/48"
-            else:
-                badge = f"MQA {ext_badge}"
-        return badge
     if TidalQuality.hi_res_lossless == tidal_quality:
         badge = f"HD {ext_badge}" if ext_badge else "MAX"
     elif TidalQuality.hi_res == tidal_quality:
@@ -520,8 +501,7 @@ def get_quality_badge_raw(
     if config.display_quality_badge:
         msgproc.log(f"get_quality_badge q:[{tidal_quality}] "
                     f"b:[{bit_depth}] "
-                    f"s:[{sample_rate}] "
-                    f"mqa:[{is_mqa}] -> [{badge}]")
+                    f"s:[{sample_rate}] -> [{badge}]")
     return badge
 
 

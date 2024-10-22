@@ -202,7 +202,6 @@ src/mediaserver/cdplugins/tidal/
 src/mediaserver/cdplugins/tidal/album_adapter.py
 src/mediaserver/cdplugins/tidal/album_sort_criteria.py
 src/mediaserver/cdplugins/tidal/artist_sort_criteria.py
-src/mediaserver/cdplugins/tidal/authentication.py
 src/mediaserver/cdplugins/tidal/codec.py
 src/mediaserver/cdplugins/tidal/config.py
 src/mediaserver/cdplugins/tidal/constants.py

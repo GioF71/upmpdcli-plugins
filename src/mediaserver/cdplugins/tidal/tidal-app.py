@@ -83,8 +83,6 @@ from artist_sort_criteria import ArtistSortCriteria
 
 from functools import cmp_to_key
 
-from authentication import AuthenticationType
-from authentication import convert_authentication_type
 from streaming_info import StreamingInfo
 
 
@@ -106,7 +104,6 @@ class SessionStatus:
         self._update_time : datetime.datetime = datetime.datetime.now()
 
 
-credentials_dict : dict[str, str] = None
 session_status : SessionStatus = None
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
@@ -154,7 +151,22 @@ def safe_get_image_url(obj : any) -> str:
     if has_image_method(obj): return tidal_util.get_image_url(obj)
 
 
-def get_bit_depth_by_config_quality() -> int:
+def guess_bit_depth(audio_quality: str = None, sample_rate: int = None) -> int:
+    bit_depth: int = __guess_bit_depth(audio_quality=audio_quality, sample_rate=sample_rate)
+    msgproc.log(f"guess_bit_depth audio_quality=[{audio_quality}] sample_rate=[{sample_rate}] "
+                f"-> guessed bit_depth=[{bit_depth}]")
+    return bit_depth
+
+
+def __guess_bit_depth(audio_quality: str = None, sample_rate: int = None) -> int:
+    # audio quality is the first choice
+    if audio_quality:
+        # use audio quality for guessing
+        if audio_quality in [TidalQuality.hi_res, TidalQuality.hi_res_lossless]: return 24
+    if sample_rate:
+        # use sample rate for guessing hi-res content...
+        if sample_rate >= 48000: return 24
+    # fallback from config
     return 24 if config.max_audio_quality in [TidalQuality.hi_res, TidalQuality.hi_res_lossless] else 16
 
 
@@ -163,343 +175,41 @@ def mp3_only() -> bool:
     return tidal_util.is_mp3(q)
 
 
-def load_json(file_name : str):
-    try:
-        with open(file_name, 'r') as cred_file:
-            json_dict = json.load(cred_file)
-        msgproc.log(f"Loaded: [{file_name}]")
-        return json_dict
-    except Exception as ex:
-        msgproc.log(f"Error loading configuration from file [{file_name}]: [{ex}]")
-
-
-def get_from_pkce_dict(pkce_dict : dict[str, any], key : str) -> any:
-    key_dict : dict[str, any] = pkce_dict[key] if key in pkce_dict else None
-    return key_dict["data"] if key_dict and "data" in key_dict else None
-
-
-def get_credentials_from_config_or_files() -> dict[str, str]:
-    # pkce file first, static next, then challenge
-    oauth2_static_loaded : bool = False
-    pkce_static_loaded : bool = False
-    res_dict : dict[str, str] = dict()
-    if tidal_util.pkce_credential_file_exists():
-        msgproc.log("get_credentials_from_config_or_files pkce file available, using it")
-        res_dict[constants.key_authentication_type] = AuthenticationType.PKCE.auth_type
-        res_dict[constants.key_pkce_file_available] = True
-        # READ contents of file
-        pkce_json_dict : dict[str, any] = load_json(tidal_util.get_pkce_credentials_file_name())
-        # check pkce credentials are here
-        file_pkce_token_type : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_token_type_json)
-        file_pkce_access_token : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_access_token_json)
-        file_pkce_refresh_token : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_refresh_token_json)
-        file_pkce_session_id : str = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_session_id_json)
-        file_pkce_is_pkce : bool = get_from_pkce_dict(pkce_json_dict, constants.key_pkce_is_pkce_json)
-        if (file_pkce_token_type
-                and file_pkce_access_token
-                and file_pkce_refresh_token
-                and file_pkce_session_id
-                and file_pkce_is_pkce):
-            msgproc.log("get_credentials_from_config_or_files pkce file contains the required data ...")
-            # msgproc.log(f"pkce in file token_type: [{file_pkce_token_type}]")
-            # msgproc.log(f"pkce in file access_token: [{file_pkce_access_token}]")
-            # msgproc.log(f"pkce in file refresh_token: [{file_pkce_refresh_token}]")
-            # msgproc.log(f"pkce in file session_id: [{file_pkce_session_id}]")
-            # msgproc.log(f"pkce in file is_pkce: [{file_pkce_is_pkce}]")
-            # store in dict
-            res_dict[constants.key_pkce_token_type] = file_pkce_token_type
-            res_dict[constants.key_pkce_access_token] = file_pkce_access_token
-            res_dict[constants.key_pkce_refresh_token] = file_pkce_refresh_token
-            res_dict[constants.key_pkce_session_id] = file_pkce_session_id
-            res_dict[constants.key_pkce_is_pkce] = file_pkce_is_pkce
-        else:
-            # something is wrong with the file, log and go on
-            msgproc.log("get_credentials_from_config_or_files pkce file is not valid")
-        # return immediately
-        return res_dict
-    else:
-        msgproc.log("get_credentials_from_config_or_files pkce file is not available")
-    conf_oauth2_token_type : str = config.getPluginOptionValue(constants.key_token_type)
-    conf_oauth2_access_token : str = config.getPluginOptionValue(constants.key_access_token)
-    conf_oauth2_refresh_token : str = config.getPluginOptionValue(constants.key_refresh_token)
-    conf_oauth2_expiry_time_timestamp_str : str = config.getPluginOptionValue(constants.key_expiry_time)
-    # do I have auth elements for oauth2? if yes, store
-    if conf_oauth2_token_type and conf_oauth2_access_token:
-        msgproc.log("OAUTH2 Credentials provided statically")
-        oauth2_static_loaded = True
-        # res_dict : dict[str, any] = dict()
-        res_dict[constants.key_token_type] = conf_oauth2_token_type
-        res_dict[constants.key_access_token] = conf_oauth2_access_token
-        if conf_oauth2_refresh_token: res_dict[constants.key_refresh_token] = conf_oauth2_refresh_token
-        if conf_oauth2_expiry_time_timestamp_str:
-            res_dict[constants.key_expiry_time_timestamp_str] = conf_oauth2_expiry_time_timestamp_str
-        # return res_dict
-    conf_pkce_token_type : str = config.getPluginOptionValue(constants.key_pkce_token_type)
-    conf_pkce_access_token : str = config.getPluginOptionValue(constants.key_pkce_access_token)
-    conf_pkce_refresh_token : str = config.getPluginOptionValue(constants.key_pkce_refresh_token)
-    conf_pkce_session_id : str = config.getPluginOptionValue(constants.key_pkce_session_id)
-    conf_pkce_is_pkce : bool = (
-        True if
-        conf_pkce_token_type and
-        conf_pkce_access_token and
-        conf_pkce_refresh_token and
-        conf_pkce_session_id
-        else False)
-    # do I have auth elements for pkce? if yes, store
-    if conf_pkce_token_type and conf_pkce_access_token and conf_pkce_refresh_token and conf_pkce_session_id:
-        msgproc.log("PKCE Credentials provided statically")
-        pkce_static_loaded = True
-        res_dict[constants.key_pkce_token_type] = conf_pkce_token_type
-        res_dict[constants.key_pkce_access_token] = conf_pkce_access_token
-        res_dict[constants.key_pkce_refresh_token] = conf_pkce_refresh_token
-        res_dict[constants.key_pkce_session_id] = conf_pkce_session_id
-        res_dict[constants.key_pkce_is_pkce] = conf_pkce_is_pkce
-        # TODO if file does not exists, create it
-    # something missing? try json file for oauth2
-    if not oauth2_static_loaded:
-        oauth2_cred_file_name: str = tidal_util.get_oauth2_credentials_file_name()
-        if tidal_util.oauth2_credential_file_exists():
-            try:
-                with open(oauth2_cred_file_name, 'r') as cred_file:
-                    oauth_dict = json.load(cred_file)
-                    res_dict = {**res_dict, **oauth_dict}
-                res_dict[constants.key_oauth2_file_available] = True
-                msgproc.log(f"Loaded: [{oauth2_cred_file_name}]")
-            except Exception as ex:
-                msgproc.log(f"Error loading configuration: [{ex}]")
-        else:
-            msgproc.log(f"File {oauth2_cred_file_name} not found")
-    if not pkce_static_loaded:
-        pkce_cred_file_name : str = tidal_util.get_pkce_credentials_file_name()
-        if tidal_util.pkce_credential_file_exists():
-            try:
-                with open(pkce_cred_file_name, 'r') as cred_file:
-                    pkce_dict = json.load(cred_file)
-                    res_dict = {**res_dict, **pkce_dict}
-                msgproc.log(f"Loaded: [{pkce_cred_file_name}]")
-            except Exception as ex:
-                msgproc.log(f"Error loading configuration: [{ex}]")
-        else:
-            msgproc.log(f"File {pkce_cred_file_name} not found")
-    return res_dict
-
-
-def get_cred_value(from_dict : dict[str, str], key_name : str) -> any:
-    return from_dict[key_name] if from_dict and key_name in from_dict else None
-
-
-def get_pkce_credentials_dict_for_json(
-        pkce_token_type : str,
-        pkce_access_token : str,
-        pkce_refresh_token : str,
-        pkce_session_id : str,
-        pkce_is_pkce : bool = True) -> dict[str, str]:
-    return {
-        constants.key_pkce_token_type_json : {"data" : pkce_token_type},
-        constants.key_pkce_access_token_json : {"data" : pkce_access_token},
-        constants.key_pkce_refresh_token_json : {"data" : pkce_refresh_token},
-        constants.key_pkce_session_id_json : {"data": pkce_session_id},
-        constants.key_pkce_is_pkce_json : {"data": pkce_is_pkce}
-    }
-
-
-def get_pkce_credentials_from_config_file() -> dict[str, any]:
-    pkce_token_type : str = config.getPluginOptionValue(constants.key_pkce_token_type)
-    pkce_access_token : str = config.getPluginOptionValue(constants.key_pkce_access_token)
-    pkce_refresh_token : str = config.getPluginOptionValue(constants.key_pkce_refresh_token)
-    pkce_session_id : str = config.getPluginOptionValue(constants.key_pkce_session_id)
-    pkce_is_pkce : bool = (True
-        if pkce_token_type and
-            pkce_access_token and
-            pkce_refresh_token and
-            pkce_session_id
-        else False)
-    # msgproc.log(f"get_pkce_credentials_from_config_file - pkce_token_type [{pkce_token_type}]")
-    # msgproc.log(f"get_pkce_credentials_from_config_file - pkce_access_token [{pkce_access_token}]")
-    # msgproc.log(f"get_pkce_credentials_from_config_file - pkce_refresh_token [{pkce_refresh_token}]")
-    # msgproc.log(f"get_pkce_credentials_from_config_file - pkce_session_id [{pkce_session_id}]")
-    # msgproc.log(f"get_pkce_credentials_from_config_file - is_pkce [{pkce_is_pkce}]")
-    return ({
-        constants.key_pkce_token_type: pkce_token_type,
-        constants.key_pkce_access_token: pkce_access_token,
-        constants.key_pkce_refresh_token: pkce_refresh_token,
-        constants.key_pkce_session_id: pkce_session_id,
-        constants.key_pkce_is_pkce: pkce_is_pkce
-    } if pkce_is_pkce else None)
-
-
-def load_credentials() -> dict[str, str]:
-    # best first
-    cred_dict : dict[str, str] = get_credentials_from_config_or_files()
-    # is there a pkce file?
-    pkce_file_available: bool = (cred_dict[constants.key_pkce_file_available]
-        if constants.key_pkce_file_available in cred_dict
-        else False)
-    if pkce_file_available:
-        # authentication type must be set
-        auth_type : AuthenticationType = convert_authentication_type(cred_dict[constants.key_authentication_type])
-        # is pkce? this is just a consistency check right now
-        if AuthenticationType.PKCE == auth_type: return cred_dict
-    # Static PKCE? (meaning that the credentials have NOT been loaded from the file)
-    pkce_token_type : str = get_cred_value(cred_dict, constants.key_pkce_token_type)
-    pkce_access_token : str = get_cred_value(cred_dict, constants.key_pkce_access_token)
-    pkce_refresh_token : str = get_cred_value(cred_dict, constants.key_pkce_refresh_token)
-    pkce_session_id : str = get_cred_value(cred_dict, constants.key_pkce_session_id)
-    pkce_is_pkce : bool = (True
-        if pkce_token_type
-            and pkce_access_token
-            and pkce_refresh_token
-            and pkce_session_id
-        else False)
-    # msgproc.log(f"load_credentials static pkce - pkce_token_type [{pkce_token_type}]")
-    # msgproc.log(f"load_credentials static pkce - pkce_access_token [{pkce_access_token}]")
-    # msgproc.log(f"load_credentials static pkce - pkce_refresh_token [{pkce_refresh_token}]")
-    # msgproc.log(f"load_credentials static pkce - pkce_session_id [{pkce_session_id}]")
-    # msgproc.log(f"load_credentials static pkce - is_pkce [{pkce_is_pkce}]")
-    if pkce_token_type and pkce_access_token and pkce_refresh_token and pkce_session_id:
-        # save credentials file if it does not exist
-        if not tidal_util.pkce_credential_file_exists():
-            pkce_credentials_json_dict : dict[str, str] = get_pkce_credentials_dict_for_json(
-                pkce_token_type = pkce_token_type,
-                pkce_access_token = pkce_access_token,
-                pkce_refresh_token = pkce_refresh_token,
-                pkce_session_id = pkce_session_id,
-                pkce_is_pkce = pkce_is_pkce)
-            with open(tidal_util.get_pkce_credentials_file_name(), 'w') as wcf:
-                json.dump(pkce_credentials_json_dict, wcf, indent = 4)
-            msgproc.log(f"PKCE credentials stored to [{tidal_util.get_pkce_credentials_file_name()}]")
-        return {
-            constants.key_authentication_type: AuthenticationType.PKCE.auth_type,
-            constants.key_pkce_token_type: pkce_token_type,
-            constants.key_pkce_access_token: pkce_access_token,
-            constants.key_pkce_refresh_token: pkce_refresh_token,
-            constants.key_pkce_session_id: pkce_session_id,
-            constants.key_pkce_is_pkce: pkce_is_pkce
-        }
-    else:
-        msgproc.log("PKCE credentials not statically available")
-    # OATH2?
-    token_type : str = get_cred_value(cred_dict, constants.key_token_type)
-    access_token : str = get_cred_value(cred_dict, constants.key_access_token)
-    refresh_token : str = get_cred_value(cred_dict, constants.key_refresh_token)
-    expiry_time_timestamp_str : str = get_cred_value(cred_dict, constants.key_expiry_time_timestamp_str)
-    if token_type and access_token:
-        oauth2_credentials : dict[str, str] = {
-            constants.key_authentication_type: AuthenticationType.OAUTH2.auth_type,
-            constants.key_token_type : token_type,
-            constants.key_access_token : access_token
-        }
-        if refresh_token: oauth2_credentials[constants.key_refresh_token] = refresh_token
-        if expiry_time_timestamp_str:
-            oauth2_credentials[constants.key_expiry_time_timestamp_str] = expiry_time_timestamp_str
-        return oauth2_credentials
-    else:
-        msgproc.log("OAUTH2 credentials not statically available")
-    # nothing available, challenge time!
-    auth_challenge_type : AuthenticationType = convert_authentication_type(config.auth_challenge_type)
-    new_session : TidalSession = TidalSession()
-    if AuthenticationType.OAUTH2 == auth_challenge_type:
-        # show challenge url
-        new_session.login_oauth_simple(function = msgproc.log)
-        token_type = new_session.token_type
-        access_token = new_session.access_token
-        refresh_token = new_session.refresh_token
-        expiry_time = new_session.expiry_time
-        storable_expiry_time = datetime.datetime.timestamp(expiry_time)
-        new_oauth2_credentials : dict[str, str] = {
-            constants.key_authentication_type: AuthenticationType.OAUTH2.auth_type,
-            constants.key_token_type : token_type,
-            constants.key_access_token : access_token,
-            constants.key_refresh_token : refresh_token,
-            constants.key_expiry_time_timestamp_str : storable_expiry_time
-        }
-        with open(tidal_util.get_oauth2_credentials_file_name(), 'w') as wcf:
-            json.dump(new_oauth2_credentials, wcf, indent = 4)
-        return new_oauth2_credentials
-    else:
-        # PKCE challenge
-        new_session.login_pkce(fn_print = msgproc.log)
-        pkce_token_type : str = new_session.token_type
-        pkce_access_token : str = new_session.access_token
-        pkce_refresh_token : str = new_session.refresh_token
-        pkce_session_id : str = new_session.session_id
-        pkce_is_pkce : bool = new_session.is_pkce
-        new_pkce_credentials : dict[str, str] = {
-            constants.key_authentication_type : AuthenticationType.PKCE.auth_type,
-            constants.key_pkce_token_type : pkce_token_type,
-            constants.key_pkce_access_token : pkce_access_token,
-            constants.key_pkce_refresh_token : pkce_refresh_token,
-            constants.key_pkce_session_id : pkce_session_id,
-            constants.key_pkce_is_pkce : pkce_is_pkce
-        }
-        with open(tidal_util.get_pkce_credentials_file_name(), 'w') as wcf:
-            pkce_credentials_json_dict : dict[str, str] = get_pkce_credentials_dict_for_json(
-                pkce_token_type = pkce_token_type,
-                pkce_access_token = pkce_access_token,
-                pkce_refresh_token = pkce_refresh_token,
-                pkce_session_id = pkce_session_id,
-                pkce_is_pkce = pkce_is_pkce)
-            json.dump(pkce_credentials_json_dict, wcf, indent = 4)
-        # inform that pkce file is available!
-        new_pkce_credentials[constants.key_pkce_file_available] = True
-        return new_pkce_credentials
-
-
-def build_session() -> TidalSession:
-    global credentials_dict
-    if not credentials_dict:
-        msgproc.log("Loading credentials ...")
-        credentials_dict = load_credentials()
-        msgproc.log("Credentials loaded")
-    # msgproc.log(f"build_session Configuration loaded")
-    auth_type: AuthenticationType = convert_authentication_type(credentials_dict[constants.key_authentication_type])
-    pkce_file_available: bool = (credentials_dict[constants.key_pkce_file_available]
-        if constants.key_pkce_file_available in credentials_dict
-        else False)
+def build_session(audio_quality: str = config.max_audio_quality) -> TidalSession:
+    pkce_file_available: bool = tidal_util.pkce_credential_file_exists()
+    oauth2_file_available: bool = tidal_util.oauth2_credential_file_exists()
+    use_pkce: bool = pkce_file_available and not oauth2_file_available
+    msgproc.log(f"pkce_file_available [{pkce_file_available}] "
+                f"oauth2_file_available [{oauth2_file_available}] "
+                f"-> use_pkce [{use_pkce}]")
     session : TidalSession = TidalSession()
     if config.get_override_country_code():
         session.country_code = config.get_override_country_code()
         msgproc.log(f"build_session creating a new session using country code [{session.country_code}] ...")
-    if pkce_file_available and AuthenticationType.PKCE == auth_type:
+    if use_pkce:
         msgproc.log(f"PKCE file [{tidal_util.get_pkce_credentials_file_name()}] available, building a new session ...")
         # return pkce session
         session_file = Path(tidal_util.get_pkce_credentials_file_name())
         # Load session from file; create a new session if necessary
-        res : bool = session.login_session_file(session_file, do_pkce = True)
+        res : bool = session.login_session_file(session_file, do_pkce=True, fn_print=msgproc.log)
         if not res:
             msgproc.log("build pkce session failed")
             return None
-        session.audio_quality = config.max_audio_quality
+        session.audio_quality = audio_quality
         msgproc.log(f"Built a pkce session successfully, using audio_quality [{session.audio_quality}]")
         return session
-    if AuthenticationType.OAUTH2 == auth_type:
-        msgproc.log("Building a new oauth2 session ...")
-        # return OAUTH2 session
-        token_type : str = credentials_dict[constants.key_token_type]
-        access_token : str = credentials_dict[constants.key_access_token]
-        refresh_token : str = credentials_dict[constants.key_refresh_token]
-        expiry_time_timestamp_str : str = credentials_dict[constants.key_expiry_time_timestamp_str]
-        expiry_time_timestamp : float = float(expiry_time_timestamp_str) if expiry_time_timestamp_str else None
-        expiry_time : datetime.datetime = (datetime.datetime.fromtimestamp(expiry_time_timestamp)
-            if expiry_time_timestamp
-            else None)
-        res : bool = session.load_oauth_session(token_type, access_token, refresh_token, expiry_time)
-        if not res:
-            msgproc.log("build session failed")
-            return None
-        session.audio_quality = config.max_audio_quality
-        msgproc.log(f"Built an oauth2 session successfully, using audio_quality [{session.audio_quality}]")
-        return session
     else:
+        msgproc.log(f"OAUTH2 file [{tidal_util.get_oauth2_credentials_file_name()}] "
+                    f"available [{oauth2_file_available}], building a new session ...")
         # return pkce session
-        session_file = Path(tidal_util.get_pkce_credentials_file_name())
-        session : TidalSession = TidalSession()
+        session_file = Path(tidal_util.get_oauth2_credentials_file_name())
         # Load session from file; create a new session if necessary
-        res : bool = session.login_session_file(session_file, do_pkce=True)
+        res : bool = session.login_session_file(session_file, do_pkce=False, fn_print=msgproc.log)
         if not res:
-            msgproc.log("build session failed")
+            msgproc.log("build oauth2 session failed")
             return None
         session.audio_quality = config.max_audio_quality
+        msgproc.log(f"Built a oauth2 session successfully, using audio_quality [{session.audio_quality}]")
         return session
 
 
@@ -545,16 +255,20 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
     audio_mode : str = stream.audio_mode
     bit_depth = stream.bit_depth
     sample_rate = stream.sample_rate
-    msgproc.log(f"build_streaming_url is_pkce [{tidal_session.is_pkce}] "
-                f"track_id [{track_id}] "
-                f"session_quality [{tidal_session.audio_quality}] "
-                f"bit_depth [{bit_depth}] "
-                f"sample_rate [{sample_rate}] "
-                f"audio_mode [{audio_mode}]")
-    mimetype : str = stream.manifest_mime_type
+    mimetype: str = stream.manifest_mime_type
     manifest = stream.get_stream_manifest()
-    codecs : any = manifest.get_codecs()
-    if stream.is_MPD:
+    codecs: any = manifest.get_codecs()
+    urls_available: bool = manifest.get_urls() is not None
+    msgproc.log(f"build_streaming_url is_pkce:[{tidal_session.is_pkce}] "
+                f"track_id:[{track_id}] "
+                f"session_quality:[{tidal_session.audio_quality}] "
+                f"bit_depth:[{bit_depth}] "
+                f"sample_rate:[{sample_rate}] "
+                f"audio_mode:[{audio_mode}] "
+                f"is_mpd:[{stream.is_mpd}] "
+                f"is_bts:[{stream.is_bts}] "
+                f"urls_available:[{urls_available}]")
+    if stream.is_mpd:
         data = stream.get_manifest_data()
         file_ext : str
         file_dir : str
@@ -576,8 +290,12 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
         path.extend([constants.plugin_name, file_dir])
         path.append(file_name)
         streaming_url = tidal_util.compose_docroot_url("/".join(path))
-    elif stream.is_BTS:
+    elif stream.is_bts:
+        if not urls_available:
+            raise Exception(f"Stream is BTS but urls are not available for track_id [{track_id}]")
         streaming_url = manifest.get_urls()
+    else:
+        raise Exception(f"Unrecognized stream type for track_id [{track_id}]")
     result : StreamingInfo = StreamingInfo()
     result.url = streaming_url
     result.mimetype = mimetype
@@ -587,11 +305,11 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
     result.audio_mode = audio_mode
     result.bit_depth = bit_depth
     msgproc.log(f"build_streaming_url for track_id: [{track_id}] "
-                f"streamtype [{'MPD' if stream.is_MPD else 'BTS'}] title [{track.name}] "
+                f"streamtype [{'mpd' if stream.is_mpd else 'bts'}] title [{track.name}] "
                 f"from [{track.album.name}] by [{track.artist.name}] -> "
                 f"[{streaming_url}] Q:[{quality}] M:[{audio_mode}] "
                 f"MT:[{mimetype}] Codecs:[{codecs}] "
-                f"SR:[{sample_rate}] B:[{bit_depth}]")
+                f"SR:[{sample_rate}] BD:[{bit_depth}]")
     return result
 
 
@@ -608,7 +326,7 @@ def calc_bitrate(tidal_quality : TidalQuality, bit_depth : int, sample_rate : in
 @dispatcher.record('trackuri')
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
-    track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
+    track_id: str = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}]")
     tidal_session : TidalSession = get_session()
     streaming_info : StreamingInfo = build_streaming_url(
@@ -1160,6 +878,11 @@ def set_track_stream_information(
     is_mix : bool = context.get(key = ContextKey.IS_MIX)
     is_track : bool = context.get(key = ContextKey.IS_TRACK)
     is_mix_or_playlist : bool = is_playlist or is_mix
+    if config.dump_track_to_entry_result:
+        msgproc.log(f"set_track_stream_information track_id [{track_adapter.get_id()}] "
+                    f"is_album [{is_album}] is_playlist [{is_playlist}] "
+                    f"is_mix [{is_mix}] is_track [{is_track}] "
+                    f"is_mix_or_playlist [{is_mix_or_playlist}]")
     if is_album:
         set_stream_information_for_album_entry(
             entry = entry,
@@ -1302,7 +1025,7 @@ def set_stream_information_for_mix_or_playlist_entry(
                         context = context)
     if not bit_depth and config.enable_assume_bitdepth:
         #  last fallback for bit depth
-        bit_depth = get_bit_depth_by_config_quality()
+        bit_depth = guess_bit_depth(audio_quality=audio_quality, sample_rate=sample_rate)
         # assume redbook
         if not audio_quality: audio_quality = TidalQuality.high_lossless
         if not bit_depth: bit_depth = 16
@@ -1412,7 +1135,7 @@ def set_stream_information_for_album_entry(
                     context = context)
     if not bit_depth and config.enable_assume_bitdepth:
         #  last fallback for bit depth
-        bit_depth = get_bit_depth_by_config_quality()
+        bit_depth = guess_bit_depth(audio_quality=audio_quality, sample_rate=sample_rate)
         # assume redbook
         if not audio_quality: audio_quality = TidalQuality.high_lossless
         if not bit_depth: bit_depth = 16
@@ -2494,6 +2217,20 @@ def handler_tag_home_page(
         next_button_element_id=TagType.HOME_PAGE.getTagName())
 
 
+def handler_tag_explore_new_music(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: get_explore_new_music_page(x),
+        entries=entries,
+        offset=offset,
+        next_button_element_type=ElementType.TAG,
+        next_button_element_id=TagType.EXPLORE_NEW_MUSIC.getTagName())
+
+
 def handler_tag_featured(
         objid,
         item_identifier: ItemIdentifier,
@@ -2841,31 +2578,71 @@ def get_first_not_stereo(audio_modes) -> str:
     return audio_modes if TidalAudioMode.stereo != audio_modes else None
 
 
-def handler_element_album_container(
-        objid,
-        item_identifier : ItemIdentifier,
-        entries : list) -> list:
-    album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session : TidalSession = get_session()
-    album : TidalAlbum = None
-    try:
-        album = tidal_util.try_get_album(tidal_session, album_id)
-    except Exception as ex:
-        msgproc.log(f"Cannot load album with id [{album_id}] due to [{type(ex)}] [{ex}]")
-        return entries
-    # force refresh of album cover
-    tidal_util.get_image_url(album, refresh=True)
-    identifier : ItemIdentifier = ItemIdentifier(
-        ElementType.ALBUM.getName(),
-        album_id)
-    id : str = identifier_util.create_objid(
+def create_missing_album_entry(
+        objid: any,
+        album_id: str,
+        entries: list) -> list:
+    identifier: ItemIdentifier = ItemIdentifier(
+        name=ElementType.MISSING_ALBUM.getName(),
+        value=album_id)
+    entry_id: str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
-    in_favorites : bool = album_id in get_favorite_album_id_list(tidal_session = tidal_session)
-    in_listen_queue : bool = persistence.is_in_album_listen_queue(album_id)
-    album_entry_title : str = "Album" if config.titleless_single_album_view else album.name
-    cached_tidal_quality : tidal_util.CachedTidalQuality = get_cached_audio_quality(album_id = album.id)
-    badge : str = tidal_util.get_quality_badge(album = album, cached_tidal_quality = cached_tidal_quality)
+    entry = upmplgutils.direntry(entry_id,
+        objid,
+        f"Missing album [{album_id}]")
+    entries.append(entry)
+    tidal_session: TidalSession = get_session()
+    # is the album in the favorites?
+    in_favorites: bool = album_id in get_favorite_album_id_list(tidal_session=tidal_session)
+    # is the album in the bookmarks?
+    in_bookmarks: bool = persistence.is_in_album_listen_queue(album_id)
+    msgproc.log(f"Album [{album_id}]: Favorite [{in_favorites}] Bookmarked [{in_bookmarks}]")
+    # add favorite action if needed
+    if in_favorites:
+        _add_album_fav_action_button(
+            objid=objid,
+            album_id=album_id,
+            album=None,
+            in_favorites=True,
+            entries=entries)
+    # button for bookmark action if needed
+    if in_bookmarks:
+        _add_album_listen_queue_action_button(
+            objid=objid,
+            album_id=album_id,
+            album=None,
+            in_listen_queue=True,
+            entries=entries)
+    return entries
+
+
+def handler_element_album_container(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    tidal_session: TidalSession = get_session()
+    album: TidalAlbum = tidal_util.try_get_album(tidal_session, album_id)
+    if not album:
+        # we could not get the album
+        msgproc.log(f"Could not load album with id [{album_id}], "
+                    f"returning a {ElementType.MISSING_ALBUM.name} entry")
+        # return a MISSING_ALBUM entry
+        return create_missing_album_entry(objid, album_id, entries)
+    # force refresh of album cover
+    tidal_util.get_image_url(album, refresh=True)
+    identifier: ItemIdentifier = ItemIdentifier(
+        name=ElementType.ALBUM.getName(),
+        value=album_id)
+    entry_id: str = identifier_util.create_objid(
+        objid = objid,
+        id = identifier_util.create_id_from_identifier(identifier))
+    in_favorites: bool = album_id in get_favorite_album_id_list(tidal_session = tidal_session)
+    in_listen_queue: bool = persistence.is_in_album_listen_queue(album_id)
+    album_entry_title: str = "Album" if config.titleless_single_album_view else album.name
+    cached_tidal_quality : tidal_util.CachedTidalQuality = get_cached_audio_quality(album_id=album.id)
+    badge: str = tidal_util.get_quality_badge(album=album, cached_tidal_quality=cached_tidal_quality)
     msgproc.log(f"handler_element_album_container album_id [{album_id}] "
                 f"badge [{badge}] in_favorites [{in_favorites}] "
                 f"in_listen_queue [{in_listen_queue}]")
@@ -2875,7 +2652,7 @@ def handler_element_album_container(
         album_entry_title = f"{album_entry_title} [F]"
     if config.show_album_id:
         album_entry_title = f"{album_entry_title} [{album_id}]"
-    entry = upmplgutils.direntry(id,
+    entry = upmplgutils.direntry(entry_id,
         objid,
         album_entry_title)
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), entry)
@@ -2893,12 +2670,14 @@ def handler_element_album_container(
     # add favorite action
     _add_album_fav_action_button(
         objid=objid,
+        album_id=album_id,
         album=album,
         in_favorites=in_favorites,
         entries=entries)
-    # button for listen queue action
+    # button for bookmark action
     _add_album_listen_queue_action_button(
         objid=objid,
+        album_id=album_id,
         album=album,
         in_listen_queue=in_listen_queue,
         entries=entries)
@@ -2935,6 +2714,7 @@ def _add_album_rmv_from_stats(
 
 def _add_album_fav_action_button(
         objid,
+        album_id: str,
         album: TidalAlbum,
         in_favorites: bool,
         entries: list):
@@ -2947,14 +2727,16 @@ def _add_album_fav_action_button(
     #             f"is in favorites: [{'yes' if in_favorites else 'no'}]")
     fav_action : ItemIdentifier = ItemIdentifier(
         fav_action_elem.getName(),
-        album.id)
+        album_id)
     fav_action_id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(fav_action))
     fav_entry : dict[str, any] = upmplgutils.direntry(fav_action_id,
         objid,
         fav_action_text)
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), fav_entry)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=tidal_util.get_image_url(album) if album else None,
+        target=fav_entry)
     entries.append(fav_entry)
 
 
@@ -2990,6 +2772,7 @@ def _add_album_tracks_entry(
 
 def _add_album_listen_queue_action_button(
         objid,
+        album_id: str,
         album: TidalAlbum,
         in_listen_queue: bool,
         entries : list):
@@ -2998,7 +2781,7 @@ def _add_album_listen_queue_action_button(
         else constants.listening_queue_action_add_dict)
     listen_queue_action : str = listen_queue_action_dict[constants.listening_queue_action_key]
     listen_queue_button_name : str = listen_queue_action_dict[constants.listening_queue_button_title_key]
-    lqb_identifier : ItemIdentifier = ItemIdentifier(ElementType.BOOKMARK_ALBUM_ACTION.getName(), album.id)
+    lqb_identifier : ItemIdentifier = ItemIdentifier(ElementType.BOOKMARK_ALBUM_ACTION.getName(), album_id)
     lqb_identifier.set(ItemIdentifierKey.LISTEN_QUEUE_ACTION, listen_queue_action)
     lqb_id : str = identifier_util.create_objid(
         objid = objid,
@@ -3008,7 +2791,9 @@ def _add_album_listen_queue_action_button(
         objid,
         title = listen_queue_button_name)
     # use same album image for this button
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), lqb_entry)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=tidal_util.get_image_url(album) if album else None,
+        target=lqb_entry)
     entries.append(lqb_entry)
 
 
@@ -3672,7 +3457,7 @@ def handler_element_artist_album_catch_all(
             objid = objid,
             album = current,
             options = options))
-    if album_list and len(album_list) == max_items:
+    if next_album:
         # add next button
         next_button: dict[str, any] = create_next_button(
             objid=objid,
@@ -5163,6 +4948,13 @@ def image_retriever_home_page(
     return image_retriever_page(page=page)
 
 
+def image_retriever_explore_new_music(
+        tidal_session : TidalSession,
+        tag_type : TagType) -> str:
+    page: TidalPage = get_explore_new_music_page(tidal_session)
+    return image_retriever_page(page=page)
+
+
 def image_retriever_featured(
         tidal_session : TidalSession,
         tag_type : TagType) -> str:
@@ -5323,7 +5115,15 @@ def image_retriever_listen_queue(
 
 
 def get_featured_page(tidal_session: TidalSession) -> TidalPage:
-    return tidal_session.page.get("pages/home")
+    return __get_page(tidal_session, "pages/home")
+
+
+def get_explore_new_music_page(tidal_session: TidalSession) -> TidalPage:
+    return __get_page(tidal_session, "pages/explore_new_music")
+
+
+def __get_page(tidal_session: TidalSession, page_path: str) -> TidalPage:
+    return tidal_session.page.get(page_path)
 
 
 __tag_image_retriever : dict = {
@@ -5331,6 +5131,7 @@ __tag_image_retriever : dict = {
     TagType.PAGE_SELECTION.getTagName(): image_retriever_home_page,
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
     TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
+    TagType.EXPLORE_NEW_MUSIC.getTagName(): image_retriever_explore_new_music,
     TagType.FEATURED.getTagName(): image_retriever_featured,
     TagType.EXPLORE.getTagName(): image_retriever_explore,
     TagType.FOR_YOU.getTagName(): image_retriever_for_you,
@@ -5357,6 +5158,7 @@ __tag_action_dict : dict = {
     TagType.PAGE_SELECTION.getTagName(): handler_tag_page_selection,
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
     TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
+    TagType.EXPLORE_NEW_MUSIC.getTagName(): handler_tag_explore_new_music,
     TagType.FEATURED.getTagName(): handler_tag_featured,
     TagType.EXPLORE.getTagName(): handler_tag_explore,
     TagType.FOR_YOU.getTagName(): handler_tag_for_you,
@@ -5463,6 +5265,7 @@ def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
 def get_page_selection() -> list[TagType]:
     return [TagType.CATEGORIES,
         TagType.HOME_PAGE,
+        TagType.EXPLORE_NEW_MUSIC,
         TagType.FEATURED,
         TagType.EXPLORE,
         TagType.FOR_YOU,
@@ -5580,7 +5383,7 @@ def tidal_search(
         tidal_session : TidalSession,
         search_type : SearchType,
         value : str,
-        limit : int = config.search_limit,
+        limit : int = config.get_search_limit(),
         offset : int = 0) -> list:
     search_result : dict = tidal_session.search(
         query = value,

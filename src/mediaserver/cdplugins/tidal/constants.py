@@ -17,7 +17,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.7.3"
+tidal_plugin_release : str = "0.7.5"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"
@@ -70,35 +70,8 @@ fav_action_dict : dict[str, any] = {
 featured_type_name_playlist : str = "PLAYLIST"
 tile_image_expiration_time_sec : int = 86400
 
-auth_challenge_type_oauth2 : str = "oauth2"
-auth_challenge_type_pkce : str = "pkce"
-
-default_auth_challenge_type : str = auth_challenge_type_oauth2
-
-oauth2_credentials_file_name : str = "credentials.json"
+oauth2_credentials_file_name : str = "oauth2.credentials.json"
 pkce_credentials_file_name : str = "pkce.credentials.json"
-
-key_authentication_type : str = "authentication_type"
-key_pkce_file_available : str = "pkce_file_available"
-key_oauth2_file_available : str = "oauth2_file_available"
-
-key_token_type : str = "tokentype"
-key_access_token : str = "accesstoken"
-key_refresh_token : str = "refreshtoken"
-key_expiry_time : str = "expirytime"
-key_expiry_time_timestamp_str : str = "expirytimetimestampstr"
-
-key_pkce_token_type : str = "pkcetokentype"
-key_pkce_access_token : str = "pkceaccesstoken"
-key_pkce_refresh_token : str = "pkcerefreshtoken"
-key_pkce_session_id : str = "pkcesessionid"
-key_pkce_is_pkce : str = "pkceispkce"
-
-key_pkce_token_type_json : str = "token_type"
-key_pkce_access_token_json : str = "access_token"
-key_pkce_refresh_token_json : str = "refresh_token"
-key_pkce_session_id_json : str = "session_id"
-key_pkce_is_pkce_json : str = "is_pkce"
 
 # remove if not really used
 default_max_album_tracks_per_page : int = 30

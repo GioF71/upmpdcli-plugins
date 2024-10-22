@@ -1,5 +1,18 @@
 # Tidal Plugin Release notes
 
+## 0.7.5
+
+- Allow to remove from Favorites an album that does not exist anymore
+- Allow to remove from Bookmarks an album that does not exist anymore
+- Present MISSING_ALBUM entry when album does not exist anymore
+- Removed references to MQA and Sony 360
+- Bump to [tidalapi version 0.8.0](https://github.com/tamland/python-tidal/releases/tag/v0.8.0)
+- Handle albums that don't exist anymore (e.g. from Favorites) more gracefully
+- Fixed obscure bug preventing to display an album list
+- Oauth2 authentication method now supports HI_RES_LOSSLESS
+- Add "explore_new_music" page (shown as "New Music")
+- Improved compatibility with renderers when using lossless quality or lower
+
 ## 0.7.4
 
 - Created tag for Page Selection for faster loading
