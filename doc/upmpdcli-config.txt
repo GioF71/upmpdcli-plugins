@@ -406,8 +406,11 @@ directory.
 [[tidaluser]]
 tidaluser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+[[tidaltokentype]]
+tidaltokentype:: Oath2 authentication token type. The type of token used for OAUTH2 authentication, typically Bearer.
+
 [[tidalaudioquality]]
-tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,
+tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for FLAC up to 24/48,
 HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
 formats).
 
@@ -418,6 +421,18 @@ directory.
 [[tidalprependnumberinitemlist]]
 tidalprependnumberinitemlist:: Use item numbers in album lists for kodi compatibility Kodi always tries to sort things, with this parameter we force it to show
 the entries in the desired order.
+
+[[tidalimagecaching]]
+tidalimagecaching:: Enables image caching, requires webdocumentroot Allows the plugin to cache images for Artists and Albums, requires
+webdocumentroot and some disk space, recommended
+
+[[tidalsearchlimit]]
+tidalsearchlimit:: Tidal search limit Set the maximum numbers of item returned by
+search, defaults to 15
+
+[[tidaloverridecountrycode]]
+tidaloverridecountrycode:: Override the country code. This will allow you to specify the desired two-letter country code.
+When not specified, it should default to the country code of the profile.
 
 === UPRCL Local Media Server parameters 
 
@@ -506,6 +521,16 @@ radio-browsertitle:: Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
 
+[[radio-browseripinfotoken]]
+radio-browseripinfotoken:: IPInfo token. Set your ipinfo
+token in order to have the shortcut to the local radios.
+
+[[radio-browsercountry]]
+radio-browsercountry:: The preferred country. Set this
+to the preferred country in order to have the shortcut to the local radios.
+This is alternative to using the ipinfo token.
+The values is to be specified in the form of a country code, e.g. `FR`, `IT`, etc.
+
 === Radio Paradise (https://www.radioparadise.com/) plugin parameters 
 
 [[radio-paradiseuser]]
@@ -546,6 +571,9 @@ subsonicport:: SubSonic server port. The port of the SubSonic server
 [[subsonicitemsperpage]]
 subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic
 
+[[subsoniccachetimeoutartists]]
+subsoniccachetimeoutartists:: SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
+
 [[subsonicappendyeartoalbum]]
 subsonicappendyeartoalbum:: Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
 
@@ -564,6 +592,14 @@ subsonicprependnumberinalbumlist:: Add a progressive number to album in album li
 [[subsonictaginitialpageenabledir]]
 subsonictaginitialpageenabledir:: Subsonic enable Internet Radios Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling
 Internet Radios
+
+[[subsonicshowemptyfavorites]]
+subsonicshowemptyfavorites:: Subsonic show empty Favorites entries Force entries for Favorites, even if there are no Favorites,
+disabled by default
+
+[[subsonicshowemptyplaylists]]
+subsonicshowemptyplaylists:: Subsonic show empty Playlists entry Force entry for Playlists, even if there are no Playlists,
+disabled by default
 
 [[subsonictitle]]
 subsonictitle:: Plugin Title. This
