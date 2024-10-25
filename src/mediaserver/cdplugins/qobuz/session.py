@@ -142,7 +142,7 @@ class Session(object):
         return []
 
     # content_type: albums/artists/playlists.  type : The type of
-    # recommandations to fetch: best-sellers, most-streamed,
+    # recommandations to fetch: 
     # new-releases, press-awards, editor-picks, most-featured
     # In practise, and despite the existence of the
     # catalog_getFeaturedTypes call which returns the above list, I

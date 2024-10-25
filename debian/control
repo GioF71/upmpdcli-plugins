@@ -17,10 +17,7 @@ Build-Depends: debhelper-compat (=12),
                qt5-qmake,
                qtbase5-dev,
                libupnpp-dev (>= 0.26.0),
-               libnpupnp-dev,
-               libexpat1-dev,
-               libmicrohttpd-dev,
-               libcurl4-gnutls-dev
+               libnpupnp-dev
 Standards-Version: 4.5.1
 Homepage: http://www.lesbonscomptes.com/upmpdcli
 Vcs-Browser: https://framagit.org/medoc92/upmpdcli

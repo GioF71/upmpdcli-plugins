@@ -141,10 +141,11 @@ class RawApi(object):
         headers['X-App-Id'] = self.appid
         r = None
         op = "GET" if useGet else "POST" 
-        debug(f"{op} {url} params {params} headers {headers}")
+        #warn(f"{op} {url} params {params} headers {headers}")
+        warn(f"{op} {url} params {params}")
         try:
             if useGet:
-                r = self.session.post(url, params=params, headers=headers)
+                r = self.session.get(url, params=params, headers=headers)
             else:
                 r = self.session.post(url, data=params, headers=headers)
         except:
@@ -183,11 +184,6 @@ class RawApi(object):
             warn(self.error)
             return None
         return response_json
-
-    def set_user_data(self, user_id, user_auth_token):
-        if not (user_id and user_auth_token):
-            raise Exception("Qobuz: missing argument uid|token")
-        self.logged_on = time.time()
 
     def logout(self):
         self.user_auth_token = None
@@ -228,10 +224,6 @@ class RawApi(object):
                 return
         _loglevel = savedloglevel
 
-    def user_update(self, **ka):
-        self._check_ka(ka, [], ['player_settings'])
-        return self._api_request(ka, '/user/update')
-
     def track_get(self, **ka):
         self._check_ka(ka, ['track_id'])
         return self._api_request(ka, '/track/get')
@@ -267,45 +259,10 @@ class RawApi(object):
         }
         return self._api_request(params, '/userLibrary/getAlbumsList')
 
+    # Currently unused. Check that it works ?
     def track_search(self, **ka):
         self._check_ka(ka, ['query'], ['limit'])
         return self._api_request(ka, '/track/search')
-
-    def catalog_search(self, **ka):
-        # type may be 'tracks', 'albums', 'artists' or 'playlists'
-        self._check_ka(ka, ['query'], ['type', 'offset', 'limit'])
-        return self._api_request(ka, '/catalog/search')
-
-    def catalog_getFeatured(self, **ka):
-        return self._api_request(ka, '/catalog/getFeatured')
-
-    def catalog_getFeaturedTypes(self, **ka):
-        return self._api_request(ka, '/catalog/getFeaturedTypes')
-    
-    def track_resportStreamingStart(self, track_id):
-        # Any use of the API implies your full acceptance
-        # of the General Terms and Conditions
-        # (http://www.qobuz.com/apps/api/QobuzAPI-TermsofUse.pdf)
-        params = {'user_id': self.user_id, 'track_id': track_id}
-        return self._api_request(params, '/track/reportStreamingStart')
-
-    def track_resportStreamingEnd(self, track_id, duration):
-        duration = math.floor(int(duration))
-        if duration < 5:
-            warn(self, 'Duration lesser than 5s, abort reporting')
-            return None
-        # @todo ???
-        user_auth_token = ''  # @UnusedVariable
-        try:
-            user_auth_token = self.user_auth_token  # @UnusedVariable
-        except:
-            warn('No authentification token')
-            return None
-        params = {'user_id': self.user_id,
-                  'track_id': track_id,
-                  'duration': duration
-                  }
-        return self._api_request(params, '/track/reportStreamingEnd')
 
     def album_get(self, **ka):
         self._check_ka(ka, ['album_id'], ['extra', 'limit', 'offset'])
@@ -316,49 +273,20 @@ class RawApi(object):
 
     def album_getFeatured(self, **ka):
         self._check_ka(ka, [], ['type', 'genre_ids', 'limit', 'offset'])
-        return self._api_request(ka, '/album/getFeatured')
-
-    def purchase_getUserPurchases(self, **ka):
-        self._check_ka(ka, [], ['order_id', 'order_line_id', 'flat', 'limit',
-                                'offset'])
-        return self._api_request(ka, '/purchase/getUserPurchases')
-
-    def search_getResults(self, **ka):
-        self._check_ka(ka, ['query', 'type'], ['limit', 'offset'])
-        return self._api_request(ka, '/search/getResults')
+        return self._api_request(ka, '/album/getFeatured', useGet=True)
 
     def favorite_getUserFavorites(self, **ka):
         self._check_ka(ka, [], ['user_id', 'type', 'limit', 'offset'])
         return self._api_request(ka, '/favorite/getUserFavorites')
 
-    def favorite_create(self, **ka):
-        mandatory = ['artist_ids', 'album_ids', 'track_ids']
-        found = None
-        for label in mandatory:
-            if label in ka:
-                found = label
-        if not found:
-           raise Exception("Qobuz: missing parameter: artist_ids|albums_ids|track_ids")
-        return self._api_request(ka, '/favorite/create')
-
-    def favorite_delete(self, **ka):
-        mandatory = ['artist_ids', 'album_ids', 'track_ids']
-        found = None
-        for label in mandatory:
-            if label in ka:
-                found = label
-        if not found:
-            raise Exception("Qobuz: missing parameter: artist_ids|albums_ids|track_ids")
-        return self._api_request(ka, '/favorite/delete')
-
     def playlist_get(self, **ka):
         self._check_ka(ka, ['playlist_id'], ['extra', 'limit', 'offset'])
-        return self._api_request(ka, '/playlist/get')
+        return self._api_request(ka, '/playlist/get', useGet=True)
 
     def playlist_getFeatured(self, **ka):
         # type is 'last-created' or 'editor-picks'
         self._check_ka(ka, ['type'], ['genre_ids', 'limit', 'offset'])
-        return self._api_request(ka, '/playlist/getFeatured')
+        return self._api_request(ka, '/playlist/getFeatured', useGet=True)
 
     def playlist_getUserPlaylists(self, **ka):
         self._check_ka(ka, [], ['user_id', 'username', 'order', 'offset', 'limit'])
@@ -366,51 +294,17 @@ class RawApi(object):
             ka['user_id'] = self.user_id
         return self._api_request(ka, '/playlist/getUserPlaylists')
 
-    def playlist_addTracks(self, **ka):
-        self._check_ka(ka, ['playlist_id', 'track_ids'])
-        return self._api_request(ka, '/playlist/addTracks')
-
-    def playlist_deleteTracks(self, **ka):
-        self._check_ka(ka, ['playlist_id'], ['playlist_track_ids'])
-        return self._api_request(ka, '/playlist/deleteTracks')
-
-    def playlist_subscribe(self, **ka):
-        self._check_ka(ka, ['playlist_id'], ['playlist_track_ids'])
-        return self._api_request(ka, '/playlist/subscribe')
-
-    def playlist_unsubscribe(self, **ka):
-        self._check_ka(ka, ['playlist_id'])
-        return self._api_request(ka, '/playlist/unsubscribe')
-
-    def playlist_create(self, **ka):
-        self._check_ka(ka, ['name'], ['is_public',
-                                      'is_collaborative', 'tracks_id', 'album_id'])
-        if not 'is_public' in ka:
-            ka['is_public'] = True
-        if not 'is_collaborative' in ka:
-            ka['is_collaborative'] = False
-        return self._api_request(ka, '/playlist/create')
-
-    def playlist_delete(self, **ka):
-        self._check_ka(ka, ['playlist_id'])
-        return self._api_request(ka, '/playlist/delete')
-
-    def playlist_update(self, **ka):
-        self._check_ka(ka, ['playlist_id'], ['name', 'description',
-                                             'is_public', 'is_collaborative', 'tracks_id'])
-        return self._api_request(ka, '/playlist/update')
-
     def playlist_getPublicPlaylists(self, **ka):
         self._check_ka(ka, [], ['type', 'limit', 'offset'])
         return self._api_request(ka, '/playlist/getPublicPlaylists')
 
     def artist_getSimilarArtists(self, **ka):
         self._check_ka(ka, ['artist_id'], ['limit', 'offset'])
-        return self._api_request(ka, '/artist/getSimilarArtists')
+        return self._api_request(ka, '/artist/getSimilarArtists', useGet=True)
 
     def artist_get(self, **ka):
         self._check_ka(ka, ['artist_id'], ['extra', 'limit', 'offset'])
-        return self._api_request(ka, '/artist/get')
+        return self._api_request(ka, '/artist/get', useGet=True)
 
     def genre_list(self, **ka):
         self._check_ka(ka, [], ['parent_id', 'limit', 'offset'])
@@ -420,29 +314,15 @@ class RawApi(object):
         self._check_ka(ka, [], ['limit', 'offset'])
         return self._api_request(ka, '/label/list')
 
-    def article_listRubrics(self, **ka):
-        self._check_ka(ka, [], ['extra', 'limit', 'offset'])
-        return self._api_request(ka, '/article/listRubrics')
+    def catalog_search(self, **ka):
+        # type may be 'tracks', 'albums', 'artists' or 'playlists'
+        self._check_ka(ka, ['query'], ['type', 'offset', 'limit'])
+        return self._api_request(ka, '/catalog/search', useGet=True)
 
-    def article_listLastArticles(self, **ka):
-        self._check_ka(ka, [], ['rubric_ids', 'offset', 'limit'])
-        return self._api_request(ka, '/article/listLastArticles')
+    #### 2024-10 Except for search the /catalog/ methods still work but they're not used by the site
+    #### afaics, replaced by /albums/getFeatured, /playlists/getFeatured
+    def catalog_getFeatured(self, **ka):
+        return self._api_request(ka, '/catalog/getFeatured')
 
-    def article_get(self, **ka):
-        self._check_ka(ka, ['article_id'])
-        return self._api_request(ka, '/article/get')
-
-    def collection_getAlbums(self, **ka):
-        self._check_ka(ka, [], ['source', 'artist_id', 'query',
-                                'limit', 'offset'])
-        return self._api_request(ka, '/collection/getAlbums')
-
-    def collection_getArtists(self, **ka):
-        self._check_ka(ka, [], ['source', 'query',
-                                'limit', 'offset'])
-        return self._api_request(ka, '/collection/getArtists')
-
-    def collection_getTracks(self, **ka):
-        self._check_ka(ka, [], ['source', 'artist_id', 'album_id', 'query',
-                                'limit', 'offset'])
-        return self._api_request(ka, '/collection/getTracks')
+    def catalog_getFeaturedTypes(self, **ka):
+        return self._api_request(ka, '/catalog/getFeaturedTypes')

@@ -217,8 +217,6 @@ def genre_view(genre_id):
     endpoint_list = [
         ('New Releases', plugin.url_for(genre_view_type, genre_id=genre_id, type='new-releases')),
         ('Qobuz Playlists', plugin.url_for(genre_view_playlists, genre_id=genre_id)), 
-        ('Most Streamed', plugin.url_for(genre_view_type, genre_id=genre_id, type='most-streamed')),
-        ('Most Downloaded', plugin.url_for(genre_view_type, genre_id=genre_id, type='best-sellers')),
         ('Editor Picks', plugin.url_for(genre_view_type, genre_id=genre_id, type='editor-picks')),
         ('Press Awards', plugin.url_for(genre_view_type, genre_id=genre_id, type='press-awards'))]           
 
