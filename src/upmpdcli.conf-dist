@@ -193,7 +193,7 @@
 # Use item numbers in album lists for kodi compatibility
 #tidalprependnumberinitemlist = 0
 # Enables tidal image caching
-#tidalimagecaching = 0
+#tidalenableimagecaching = 0
 # Tidal search limit, set to 15 items by default
 #tidalsearchlimit = 15
 

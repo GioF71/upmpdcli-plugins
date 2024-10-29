@@ -249,7 +249,7 @@ def remove_older_files(files_path : str, delta_sec : int):
 def build_streaming_url(tidal_session : TidalSession, track_id : str) -> StreamingInfo:
     track : TidalTrack = tidal_session.track(track_id)
     streaming_url : str = None
-    document_root_dir : str = upmplgutils.getOptionValue("webserverdocumentroot")
+    document_root_dir : str = config.getWebServerDocumentRoot()
     stream = track.get_stream()
     quality : TidalQuality = stream.audio_quality
     audio_mode : str = stream.audio_mode
@@ -259,9 +259,11 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
     manifest = stream.get_stream_manifest()
     codecs: any = manifest.get_codecs()
     urls_available: bool = manifest.get_urls() is not None
-    msgproc.log(f"build_streaming_url is_pkce:[{tidal_session.is_pkce}] "
-                f"track_id:[{track_id}] "
+    msgproc.log(f"build_streaming_url "
+                f"track_id:[{track_id}] title:[{track.name}] "
+                f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] "
                 f"session_quality:[{tidal_session.audio_quality}] "
+                f"is_pkce:[{tidal_session.is_pkce}] "
                 f"bit_depth:[{bit_depth}] "
                 f"sample_rate:[{sample_rate}] "
                 f"audio_mode:[{audio_mode}] "
@@ -304,9 +306,9 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
     result.audio_quality = quality
     result.audio_mode = audio_mode
     result.bit_depth = bit_depth
-    msgproc.log(f"build_streaming_url for track_id: [{track_id}] "
+    msgproc.log(f"build_streaming_url for track_id: [{track_id}] [{track.name}] "
+                f"from [{track.album.name}] [{track.album.id}] by [{track.artist.name}] -> "
                 f"streamtype [{'mpd' if stream.is_mpd else 'bts'}] title [{track.name}] "
-                f"from [{track.album.name}] by [{track.artist.name}] -> "
                 f"[{streaming_url}] Q:[{quality}] M:[{audio_mode}] "
                 f"MT:[{mimetype}] Codecs:[{codecs}] "
                 f"SR:[{sample_rate}] BD:[{bit_depth}]")
@@ -1675,7 +1677,7 @@ def __handler_element_favorite_albums_common(
                 option_key = OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME,
                 option_value = counter)
         if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(current):
-            msgproc.log(tidal_util.not_stereo_skipmessage(current.id, current.media_metadata_tags))
+            msgproc.log(tidal_util.not_stereo_skipmessage(current))
             continue
         entries.append(album_to_album_container(
             objid = objid,
@@ -2694,7 +2696,8 @@ def _add_album_rmv_from_stats(
         album: TidalAlbum,
         entries: list):
     has_been_played : bool = persistence.album_has_been_played(album.id)
-    msgproc.log(f"Album with id [{album.id}] name [{album.name}] has been played: "
+    msgproc.log(f"Album with id [{album.id}] name [{album.name}] by [{album.artist.name}] "
+                f"has been played: "
                 f"[{'yes' if has_been_played else 'no'}]")
     if has_been_played:
         # add entry for removing from stats
@@ -3384,7 +3387,8 @@ def handler_element_album(
     paged : bool = False
     if track_count > constants.default_max_album_tracks_per_page:
         paged = True
-    msgproc.log(f"Album [{album_id}] multidisc: [{is_multidisc_album}] "
+    msgproc.log(f"Album [{album_id}] Title [{album.name}] by [{album.artist.name}] "
+                f"multidisc: [{is_multidisc_album}] "
                 f"num_tracks: [{len(tracks)}] paged: [{paged}] "
                 f"page: [{page if page else 'None'}] "
                 f"offset: [{offset}]")
@@ -3451,7 +3455,7 @@ def handler_element_artist_album_catch_all(
         option_value = artist_id)
     for current in album_list:
         if config.skip_non_stereo and not tidal_util.is_tidal_album_stereo(current):
-            msgproc.log(tidal_util.not_stereo_skipmessage(current.id, current.media_metadata_tags))
+            msgproc.log(tidal_util.not_stereo_skipmessage(current))
             continue
         entries.append(album_to_album_container(
             objid = objid,
@@ -5367,7 +5371,8 @@ def browse(a):
                 return _returnentries(entries)
         else:  # it's an element
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
-            msgproc.log(f"browse: should serve element [{thing_name}], handler found: "
+            display_thing_name: str = get_element_type_by_name(thing_name) if elem_handler else thing_name
+            msgproc.log(f"browse: should serve element [{display_thing_name}], handler found: "
                         f"[{'yes' if elem_handler else 'no'}]")
             if elem_handler:
                 entries = elem_handler(objid, item_identifier, entries)
@@ -5509,6 +5514,7 @@ def _inittidal():
     msgproc.log(f"Tidal Plugin Release {constants.tidal_plugin_release}")
     msgproc.log(f"enable_read_stream_metadata=[{config.enable_read_stream_metadata}]")
     msgproc.log(f"enable_assume_bitdepth=[{config.enable_assume_bitdepth}]")
+    msgproc.log(f"enable_image_caching=[{config.get_enable_image_caching()}]")
     cache_dir : str = upmplgutils.getcachedir(constants.plugin_name)
     msgproc.log(f"Cache dir for [{constants.plugin_name}] is [{cache_dir}]")
     msgproc.log(f"DB version for [{constants.plugin_name}] is [{persistence.get_db_version()}]")

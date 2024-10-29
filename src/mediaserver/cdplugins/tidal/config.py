@@ -22,10 +22,18 @@ def getPluginOptionValue(option_key: str, dflt = None):
     return upmplgutils.getOptionValue(f"{constants.plugin_name}{option_key}", dflt)
 
 
-def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool) -> bool:
-    return (upmplgutils.getOptionValue(
-        f"{constants.plugin_name}plugin_param_name",
-        default_value) == 1)
+def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int = None) -> bool:
+    sanitized_default_value: int | bool = 0 if not default_value else default_value
+    if type(sanitized_default_value) is bool:
+        sanitized_default_value = 1 if default_value else 0
+    elif type(sanitized_default_value) is int:
+        if sanitized_default_value not in [0, 1]:
+            raise Exception(f"Invalid boolean value for [{plugin_param_name}], should be 0 or 1")
+    return (getPluginOptionValue(plugin_param_name, sanitized_default_value) == 1)
+
+
+def getWebServerDocumentRoot() -> str:
+    return upmplgutils.getOptionValue("webserverdocumentroot")
 
 
 max_audio_quality: str = getPluginOptionValue(

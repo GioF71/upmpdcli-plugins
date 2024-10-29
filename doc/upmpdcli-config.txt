@@ -419,8 +419,8 @@ directory.
 tidalprependnumberinitemlist:: Use item numbers in album lists for kodi compatibility Kodi always tries to sort things, with this parameter we force it to show
 the entries in the desired order.
 
-[[tidalimagecaching]]
-tidalimagecaching:: Enables image caching, requires webdocumentroot Allows the plugin to cache images for Artists and Albums, requires
+[[tidalenableimagecaching]]
+tidalenableimagecaching:: Enables image caching, requires webdocumentroot Allows the plugin to cache images for Artists and Albums, requires
 webdocumentroot and some disk space, recommended
 
 [[tidalsearchlimit]]
