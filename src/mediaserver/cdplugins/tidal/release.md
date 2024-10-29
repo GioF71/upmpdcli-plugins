@@ -1,5 +1,12 @@
 # Tidal Plugin Release notes
 
+## 0.7.6
+
+- Corrected support for tidalimagecaching
+- Corrected support for boolean configuration values
+- Better logging
+- Some improvements in linting (long way to go!)
+
 ## 0.7.5
 
 - Allow to remove from Favorites an album that does not exist anymore
@@ -100,7 +107,7 @@
 - Updated get_credentials.py program
 - Fixed bug in single track view
 - Various fixes and performance optimizations
-- Introduced optional image caching, for Artists and Albums (tidalimagecaching)
+- Introduced optional image caching, for Artists and Albums (tidalenableimagecaching)
 
 ## 0.4.1 (Hotfix) (2024-05-17)
 

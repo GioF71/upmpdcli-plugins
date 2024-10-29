@@ -480,11 +480,11 @@
 # <descr>Kodi always tries to sort things, with this parameter we force it to show
 # the entries in the desired order.</descr></var>
 #tidalprependnumberinitemlist = 0
-# <var name="tidalimagecaching" type="bool">
+# <var name="tidalenableimagecaching" type="bool">
 # <brief>Enables image caching, requires webdocumentroot</brief>
 # <descr>Allows the plugin to cache images for Artists and Albums, requires
 # webdocumentroot and some disk space, recommended</descr></var>
-#tidalimagecaching = 0
+#tidalenableimagecaching = 0
 # <var name="tidalsearchlimit" type="int">
 # <brief>Tidal search limit</brief>
 # <descr>Set the maximum numbers of item returned by
