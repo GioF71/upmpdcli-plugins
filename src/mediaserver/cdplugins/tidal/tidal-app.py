@@ -732,11 +732,11 @@ def track_to_navigable_track_by_element_type(
 def track_to_track_container(
         objid,
         tidal_session : TidalSession,
-        track: TidalTrack,
+        track_adapter: TrackAdapter,
         options : dict[str, any] = {}) -> dict:
     identifier : ItemIdentifier = ItemIdentifier(
         ElementType.TRACK_CONTAINER.getName(),
-        track.id)
+        track_adapter.get_id())
     id : str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
@@ -747,16 +747,14 @@ def track_to_track_container(
         title = overridden_track_name
     else:
         title = get_track_name_for_track_container(
-            track_adapter = instance_tidal_track_adapter(
-                tidal_session = tidal_session,
-                track = track),
+            track_adapter = track_adapter,
             options = options)
     track_entry = upmplgutils.direntry(id,
         objid,
         title)
     upnp_util.set_album_art_from_uri(
         tidal_util.get_album_art_url_by_id(
-            album_id=track.album.id,
+            album_id=track_adapter.get_album_id(),
             tidal_session=tidal_session),
         track_entry)
     return track_entry
@@ -885,7 +883,7 @@ def set_track_stream_information(
                     f"is_album [{is_album}] is_playlist [{is_playlist}] "
                     f"is_mix [{is_mix}] is_track [{is_track}] "
                     f"is_mix_or_playlist [{is_mix_or_playlist}]")
-    if is_album:
+    if is_album or is_track:
         set_stream_information_for_album_entry(
             entry = entry,
             track_adapter = track_adapter,
@@ -895,9 +893,9 @@ def set_track_stream_information(
             entry = entry,
             track_adapter = track_adapter,
             context = context)
-    elif is_track:
-        # nothing special to do
-        pass
+    # elif is_track:
+    #     # nothing special to do
+    #     pass
     else:
         # we do the same as fallback
         # TODO evaluate if we can so ignore is_mix, is_playlist
@@ -3172,7 +3170,7 @@ def handler_element_mix_playlist_toptrack_navigable_item(
     entries.append(track_to_track_container(
         objid = objid,
         tidal_session = tidal_session,
-        track = track,
+        track_adapter=choose_track_adapter_by_tidal_track(tidal_session=tidal_session, track=track),
         options = track_options))
     # favorite?
     in_fav : bool = is_favorite_track_id(tidal_session = tidal_session, track_id = track_id)
@@ -3654,7 +3652,9 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
             entries.append(track_to_track_container(
                 objid=objid,
                 tidal_session=tidal_session,
-                track=current,
+                track_adapter=choose_track_adapter_by_tidal_track(
+                    tidal_session=tidal_session,
+                    track=current),
                 options=options))
         except Exception as ex:
             msgproc.log(f"handler_element_favorite_tracks_list cannot add track with id {current.id} "
@@ -3730,7 +3730,9 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
         entries.append(track_to_track_container(
             objid=objid,
             tidal_session=tidal_session,
-            track=current,
+            track=choose_track_adapter_by_tidal_track(
+                tidal_session=tidal_session,
+                track=current),
             options=options))
     if next_track:
         next_entry: dict[str, any] = create_next_button(
@@ -3765,7 +3767,9 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
         entries.append(track_to_track_container(
             objid=objid,
             tidal_session=tidal_session,
-            track=current,
+            track_adapter=choose_track_adapter_by_tidal_track(
+                tidal_session=tidal_session,
+                track=current),
             options=options))
     if next_track:
         next_entry: dict[str, any] = create_next_button(
@@ -4149,16 +4153,18 @@ def add_remove_track_from_stats_if_needed(
 
 
 def handler_element_track_container(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    track_id : int = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session : TidalSession = get_session()
-    track : TidalTrack = tidal_session.track(track_id)
-    context : Context = Context()
+    track_id: int = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_track_container track_id [{track_id}]")
+    tidal_session: TidalSession = get_session()
+    track: TidalTrack = tidal_session.track(track_id)
+    context: Context = Context()
     context.add(key=ContextKey.IS_TRACK, value=True)
+    tidal_track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
+        tidal_session=tidal_session,
+        track=track)
     track_entry = track_to_entry(
-        objid = objid,
-        track_adapter = instance_tidal_track_adapter(
-            tidal_session = tidal_session,
-            track = track),
+        objid=objid,
+        track_adapter=tidal_track_adapter,
         context=context)
     entries.append(track_entry)
     return entries
@@ -4305,19 +4311,25 @@ def handler_element_track_simple(objid, item_identifier : ItemIdentifier, entrie
 
 
 def handler_element_recently_played_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    options: dict[str, any] = dict()
+    set_option(options=options, option_key=OptionKey.TRACK_AS_NAVIGABLE, option_value = True)
     return played_track_list_to_entries(
         objid=objid,
         item_identifier=item_identifier,
         played_tracks=persistence.get_last_played_tracks(),
-        entries=entries)
+        entries=entries,
+        options=options)
 
 
 def handler_element_most_played_tracks_navigable(objid, item_identifier : ItemIdentifier, entries : list) -> list:
+    options: dict[str, any] = dict()
+    set_option(options=options, option_key=OptionKey.TRACK_AS_NAVIGABLE, option_value = True)
     return played_track_list_to_entries(
         objid=objid,
         item_identifier=item_identifier,
         played_tracks=persistence.get_most_played_tracks(),
-        entries=entries)
+        entries=entries,
+        options=options)
 
 
 def is_played_track_complete(played_track : PlayedTrack) -> bool:
@@ -4341,14 +4353,13 @@ def is_played_track_complete(played_track : PlayedTrack) -> bool:
 
 
 def played_track_list_to_entries_raw(
-        objid,
-        played_tracks : list[PlayedTrack],
-        options : dict[str, any],
-        entries : list) -> list:
+        objid: any,
+        played_tracks: list[PlayedTrack],
+        options: dict[str, any],
+        entries: list) -> list:
     tidal_session : TidalSession = get_session()
     initial_track_num: int = get_option(options=options, option_key=OptionKey.INITIAL_TRACK_NUMBER)
-    context : Context = Context()
-    current : PlayedTrack
+    current: PlayedTrack
     set_option(
         options = options,
         option_key = OptionKey.SKIP_TRACK_NUMBER,
@@ -4372,21 +4383,21 @@ def played_track_list_to_entries_raw(
             options = out_options,
             option_key = OptionKey.FORCED_TRACK_NUMBER,
             option_value = track_num)
-        as_container : bool = get_option(
+        navigable : bool = get_option(
             options = options,
-            option_key = OptionKey.ENTRY_AS_CONTAINER)
-        if as_container:
-            track_entry : dict = track_to_navigable_track(
+            option_key = OptionKey.TRACK_AS_NAVIGABLE)
+        if navigable:
+            track_entry: dict = track_to_navigable_track(
                 objid=objid,
                 track_adapter=track_adapter,
                 options=out_options)
             entries.append(track_entry)
         else:
-            track_entry: dict = track_to_entry(
+            track_entry: dict = track_to_track_container(
                 objid=objid,
+                tidal_session=tidal_session,
                 track_adapter=track_adapter,
-                options=out_options,
-                context=context)
+                options=out_options)
             entries.append(track_entry)
         track_num += 1
     return entries
@@ -4396,7 +4407,8 @@ def played_track_list_to_entries(
         objid,
         item_identifier: ItemIdentifier,
         played_tracks: list[PlayedTrack],
-        entries: list) -> list:
+        entries: list,
+        options: dict[str, any] = dict()) -> list:
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     # apply offset
     played_tracks = played_tracks[offset:] if len(played_tracks) > offset else ()
@@ -4406,19 +4418,16 @@ def played_track_list_to_entries(
     played_tracks = (played_tracks[0:config.tracks_per_page]
                      if len(played_tracks) > config.tracks_per_page
                      else played_tracks)
-    options: dict[str, any] = dict()
+    out_options: dict[str, any] = dict()
+    copy_option(in_options=options, out_options=out_options, option_key=OptionKey.TRACK_AS_NAVIGABLE)
     set_option(
-        options=options,
-        option_key=OptionKey.ENTRY_AS_CONTAINER,
-        option_value=True)
-    set_option(
-        options=options,
+        options=out_options,
         option_key=OptionKey.INITIAL_TRACK_NUMBER,
         option_value=offset + 1)
     entries = played_track_list_to_entries_raw(
         objid=objid,
         played_tracks=played_tracks,
-        options=options,
+        options=out_options,
         entries=entries)
     if next_needed:
         element_type: ElementType = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME))
@@ -4437,53 +4446,8 @@ def played_track_list_to_entries(
     return entries
 
 
-def played_track_list_to_list_entries(
-        objid,
-        item_identifier: ItemIdentifier,
-        played_tracks: list[PlayedTrack],
-        entries : list) -> list:
-    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    # apply offset
-    played_tracks = played_tracks[offset:] if len(played_tracks) > offset else ()
-    # needs next?
-    next_needed: bool = len(played_tracks) > config.tracks_per_page
-    next_track: PlayedTrack = played_tracks[config.tracks_per_page] if next_needed else None
-    played_tracks = (played_tracks[0:config.tracks_per_page]
-                     if len(played_tracks) > config.tracks_per_page
-                     else played_tracks)
-    options : dict[str, any] = dict()
-    set_option(
-        options = options,
-        option_key = OptionKey.ENTRY_AS_CONTAINER,
-        option_value = True)
-    set_option(
-        options = options,
-        option_key = OptionKey.INITIAL_TRACK_NUMBER,
-        option_value = offset + 1)
-    entries = played_track_list_to_entries_raw(
-        objid = objid,
-        played_tracks = played_tracks,
-        options = options,
-        entries = entries)
-    if next_needed:
-        element_type: ElementType = get_element_type_by_name(item_identifier.get(ItemIdentifierKey.THING_NAME))
-        next_entry: dict[str, any] = create_next_button(
-            objid=objid,
-            element_type=element_type,
-            element_id=element_type.getName(),
-            next_offset=offset + config.tracks_per_page)
-        # cover for next track
-        upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
-                album_id=next_track.album_id,
-                tidal_session=get_session()),
-            target=next_entry)
-        entries.append(next_entry)
-    return entries
-
-
 def handler_element_recently_played_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return played_track_list_to_list_entries(
+    return played_track_list_to_entries(
         objid=objid,
         item_identifier=item_identifier,
         played_tracks=persistence.get_last_played_tracks(),
@@ -4491,7 +4455,7 @@ def handler_element_recently_played_tracks_list(objid, item_identifier : ItemIde
 
 
 def handler_element_most_played_tracks_list(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    return played_track_list_to_list_entries(
+    return played_track_list_to_entries(
         objid=objid,
         item_identifier=item_identifier,
         played_tracks=persistence.get_most_played_tracks(),

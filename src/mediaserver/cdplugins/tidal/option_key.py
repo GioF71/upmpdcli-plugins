@@ -33,6 +33,7 @@ class OptionKey(Enum):
     ALBUM_OMITTABLE_ARTIST_ID = 13, "lbm-omit-rtst", None
     TRACK_OMITTABLE_ARTIST_NAME = 14, "trk-omit-rtst", None
     INITIAL_TRACK_NUMBER = 15, "ntl-trkn", 1
+    TRACK_AS_NAVIGABLE = 16, "nvgbl-trk", False
 
     def __init__(self,
             num : int,

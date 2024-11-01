@@ -1,5 +1,10 @@
 # Tidal Plugin Release notes
 
+## 0.7.7
+
+- Track from a track container would not work
+- Some track lists were not presented as not navigable
+
 ## 0.7.6
 
 - Corrected support for tidalimagecaching
