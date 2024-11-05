@@ -139,7 +139,7 @@ def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
     if config.get_dump_image_caching():
         msgproc.log(f"get_album_art_url_by_id [{album_id}] -> loading from upstream service is required")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
-    return get_image_url(obj=album, refresh=True)
+    return get_image_url(obj=album, refresh=True) if album else None
 
 
 def get_image_url(obj: any, refresh: bool = False) -> str:
@@ -151,7 +151,7 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
     document_root_dir: str = config.getWebServerDocumentRoot()
     # webserverdocumentroot is required
     if not document_root_dir: return __get_image_url(obj)
-    if type(obj) not in [TidalAlbum, TidalArtist]:
+    if type(obj) not in [TidalAlbum, TidalArtist, TidalPlaylist, TidalMix]:
         return __get_image_url(obj)
     sub_dir_list: list[str] = [constants.plugin_name, "images", type(obj).__name__]
     image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
@@ -207,13 +207,14 @@ def is_multidisc_album(album: TidalAlbum) -> bool:
     return album.num_volumes and album.num_volumes > 1
 
 
-def try_get_track(tidal_session: TidalSession, track_id: str) -> TidalTrack:
+def try_get_track(tidal_session: TidalSession, track_id: str) -> tuple[TidalTrack, Exception]:
     track: TidalTrack = None
     try:
         track = tidal_session.track(track_id)
     except Exception as ex:
         msgproc.log(f"try_get_track failed for track_id [{track_id}] [{type(ex)}] [{ex}]")
-    return track
+        return None, ex
+    return track, None
 
 
 def try_get_album(tidal_session: TidalSession, album_id: str) -> TidalAlbum:
@@ -436,7 +437,7 @@ def __get_best_quality(media_metadata_tags: list[str]) -> str:
 def try_get_all_favorites(tidal_session: TidalSession) -> list[TidalAlbum]:
     favorite_list: list[TidalAlbum] = list()
     offset: int = 0
-    limit: nt = 100
+    limit: int = 100
     while True:
         some: list[TidalAlbum] = None
         try:
@@ -479,7 +480,7 @@ def get_quality_badge_raw(
     bit_depth: int = cached_tidal_quality.bit_depth if cached_tidal_quality else None
     sample_rate: int = cached_tidal_quality.sample_rate if cached_tidal_quality else None
     ext_badge: str = (f"{bit_depth}/{__readable_sample_rate(sample_rate)}"
-                       if stream_info_available else None)
+                    if stream_info_available else None)
     badge: str = None
     if TidalQuality.hi_res_lossless == tidal_quality:
         badge = f"HD {ext_badge}" if ext_badge else "MAX"
@@ -638,3 +639,23 @@ def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
     for t in type_list if type_list else list():
         if isinstance(obj, t): return True
     return False
+
+
+class PageLinkIdentifier:
+
+    def __init__(self, value: str, api_path: str, category_title: str):
+        self.__value: str = value
+        self.__api_path: str = api_path
+        self.__category_title: str = category_title
+
+    @property
+    def value(self) -> str:
+        return self.__value
+
+    @property
+    def api_path(self) -> str:
+        return self.__api_path
+
+    @property
+    def category_title(self) -> str:
+        return self.__category_title

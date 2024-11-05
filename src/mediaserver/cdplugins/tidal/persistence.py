@@ -895,6 +895,24 @@ def remove_album_from_played_tracks(album_id : str):
     __connection.commit()
 
 
+def purge_album_from_played_tracks(album_id : str):
+    return __purge_album_from_table(album_id, __table_name_played_track_v1)
+
+
+def purge_album_from_metadata_cache(album_id : str):
+    return __purge_album_from_table(album_id, __table_name_album_metadata_cache_v1)
+
+
+def __purge_album_from_table(album_id : str, table_name):
+    t = (album_id,)
+    cursor = __connection.cursor()
+    cursor.execute(f"DELETE FROM {table_name} "
+                   f"WHERE {__field_name_album_id} = ?",
+        t)
+    cursor.close()
+    __connection.commit()
+
+
 def remove_track_from_played_tracks(track_id : str):
     t = (track_id,)
     cursor = __connection.cursor()
@@ -903,6 +921,32 @@ def remove_track_from_played_tracks(track_id : str):
         t)
     cursor.close()
     __connection.commit()
+
+
+def is_album_in_played_tracks(
+        album_id: str) -> bool:
+    return __is_album_id_in_table(album_id, __table_name_played_track_v1)
+
+
+def is_album_in_metadata_cache(
+        album_id: str) -> bool:
+    return __is_album_id_in_table(album_id, __table_name_album_metadata_cache_v1)
+
+
+def __is_album_id_in_table(
+        album_id: str,
+        table_name: str) -> bool:
+    t = (album_id, )
+    cursor = __connection.cursor()
+    cursor.execute(
+        f"SELECT * \
+          FROM {table_name} \
+          WHERE {__field_name_album_id} = ?",
+        t)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows: return False
+    return True
 
 
 def get_most_played_albums(max_albums : int = 100) -> list[PlayedAlbum]:

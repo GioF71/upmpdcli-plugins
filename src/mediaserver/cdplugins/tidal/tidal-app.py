@@ -734,13 +734,13 @@ def track_to_track_container(
         tidal_session : TidalSession,
         track_adapter: TrackAdapter,
         options : dict[str, any] = {}) -> dict:
-    identifier : ItemIdentifier = ItemIdentifier(
+    identifier: ItemIdentifier = ItemIdentifier(
         ElementType.TRACK_CONTAINER.getName(),
         track_adapter.get_id())
-    id : str = identifier_util.create_objid(
+    id: str = identifier_util.create_objid(
         objid = objid,
         id = identifier_util.create_id_from_identifier(identifier))
-    overridden_track_name : str = get_option(
+    overridden_track_name: str = get_option(
         options = options,
         option_key = OptionKey.OVERRIDDEN_TRACK_NAME)
     if overridden_track_name:
@@ -2099,9 +2099,10 @@ def handler_tag_playback_statistics(
 
 
 def song_listening_queue_art_retriever() -> str:
-    select_track_id : str = __get_random_track_id_from_listen_queue()
-    select_track : TidalTrack = (tidal_util.try_get_track(get_session(), select_track_id)
-                                if select_track_id else None)
+    select_track_id: str = __get_random_track_id_from_listen_queue()
+    select_track: TidalTrack
+    select_track, _ = (tidal_util.try_get_track(get_session(), select_track_id)
+                       if select_track_id else None, None)
     return tidal_util.get_image_url(select_track.album) if select_track else None
 
 
@@ -2150,7 +2151,6 @@ def handler_tag_page(
         page_extractor: Callable[[TidalSession], TidalPage],
         entries: list,
         offset: int,
-        next_button_element_type: ElementType,
         next_button_element_id: str) -> list:
     tidal_session: TidalSession = get_session()
     return page_to_entries(
@@ -2161,7 +2161,7 @@ def handler_tag_page(
         offset=offset,
         limit=config.page_items_per_page,
         paginate=True,
-        next_button_element_type=next_button_element_type,
+        next_button_element_type=ElementType.TAG,
         next_button_element_id=next_button_element_id)
 
 
@@ -2185,7 +2185,6 @@ def handler_tag_genres_page(
         page_extractor=lambda x: x.genres(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.GENRES_PAGE.getTagName())
 
 
@@ -2199,7 +2198,6 @@ def handler_tag_moods_page(
         page_extractor=lambda x: x.moods(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.MOODS_PAGE.getTagName())
 
 
@@ -2213,7 +2211,6 @@ def handler_tag_home_page(
         page_extractor=lambda x: x.home(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.HOME_PAGE.getTagName())
 
 
@@ -2227,7 +2224,6 @@ def handler_tag_explore_new_music(
         page_extractor=lambda x: get_explore_new_music_page(x),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.EXPLORE_NEW_MUSIC.getTagName())
 
 
@@ -2241,7 +2237,6 @@ def handler_tag_featured(
         page_extractor=lambda x: get_featured_page(x),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.FEATURED.getTagName())
 
 
@@ -2255,7 +2250,6 @@ def handler_tag_explore(
         page_extractor=lambda x: x.explore(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.EXPLORE.getTagName())
 
 
@@ -2269,7 +2263,6 @@ def handler_tag_for_you(
         page_extractor=lambda x: x.for_you(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.FOR_YOU.getTagName())
 
 
@@ -2283,7 +2276,6 @@ def handler_tag_hires_page(
         page_extractor=lambda x: x.hires_page(),
         entries=entries,
         offset=offset,
-        next_button_element_type=ElementType.TAG,
         next_button_element_id=TagType.HIRES_PAGE.getTagName())
 
 
@@ -2400,23 +2392,33 @@ def get_items_in_page_link(page_link: TidalPageLink, limit: int = None) -> list[
 
 
 def handler_element_pagelink(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    thing_name : str = item_identifier.get(ItemIdentifierKey.THING_NAME)
-    thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    api_path : str = item_identifier.get(ItemIdentifierKey.PAGE_LINK_API_PATH)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    thing_name: str = item_identifier.get(ItemIdentifierKey.THING_NAME)
+    thing_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    api_path: str = item_identifier.get(ItemIdentifierKey.PAGE_LINK_API_PATH)
     category_title : str = item_identifier.get(ItemIdentifierKey.CATEGORY_TITLE)
     msgproc.log(f"handler_element_pagelink name [{thing_name}] "
                 f"value [{thing_value}] category_title [{category_title}] "
                 f"api_path [{api_path}]")
-    tidal_session : TidalSession = get_session()
+    tidal_session: TidalSession = get_session()
     try:
-        page : TidalPage = tidal_session.page.get(api_path)
+        page: TidalPage = tidal_session.page.get(api_path)
         if not page:
             msgproc.log("handler_element_pagelink page not found")
             return entries
+        pagelink_identifier: tidal_util.PageLinkIdentifier = tidal_util.PageLinkIdentifier(
+            thing_value,
+            api_path,
+            category_title)
         if page: page_to_entries(
             objid=objid,
             tidal_session=tidal_session,
             page=page,
+            offset=offset,
+            limit=config.page_items_per_page,
+            next_button_element_type=ElementType.PAGELINK,
+            pagelink_identifier=pagelink_identifier,
+            paginate=True,
             entries=entries)
     except Exception as ex:
         msgproc.log(f"handler_element_pagelink could not retrieve page at api_path [{api_path}] [{ex}]")
@@ -2446,7 +2448,8 @@ def page_to_entries(
         offset: int = 0,
         limit: int = 100,
         next_button_element_type: ElementType = None,
-        next_button_element_id: str = None) -> list:
+        next_button_element_id: str = None,
+        pagelink_identifier: tidal_util.PageLinkIdentifier = None) -> list:
     max_items: int = limit if limit else config.page_items_per_page
     if page_extractor: page = page_extractor(tidal_session)
     # extracting items from page
@@ -2463,6 +2466,8 @@ def page_to_entries(
         else:
             break
     next_needed: bool = paginate and (len(sliced) == max_items + 1)
+    msgproc.log(f"next_needed=[{next_needed}] len(sliced)={len(sliced)} "
+                f"max_items=[{max_items}] limit_size=[{limit_size}]")
     next_item: any = sliced[max_items] if next_needed else None
     page_item_selection: list[any] = sliced[0:len(sliced) - 1] if next_needed else sliced
     for current_page_item in page_item_selection:
@@ -2479,21 +2484,45 @@ def page_to_entries(
                         f"due to [{type(ex)}] [{ex}]")
     if next_item:
         # use next_item for next button
-        if next_button_element_type and next_button_element_id:
-            next_entry: dict[str, any] = create_next_button(
-                objid=objid,
-                element_type=next_button_element_type,
-                element_id=next_button_element_id,
-                next_offset=offset + config.page_items_per_page)
-        album_art_uri: str = None
-        if isinstance(next_item, TidalPageLink):
-            album_art_uri = get_image_url_for_pagelink(next_item)
-        else:
-            album_art_uri = tidal_util.get_image_url(obj=next_item)
-        upnp_util.set_album_art_from_uri(
-            album_art_uri=album_art_uri,
-            target=next_entry)
-        entries.append(next_entry)
+        if next_button_element_type:
+            next_entry: dict[str, any] = None
+            if ElementType.TAG == next_button_element_type:
+                if next_button_element_id:
+                    next_entry = create_next_button(
+                        objid=objid,
+                        element_type=next_button_element_type,
+                        element_id=next_button_element_id,
+                        next_offset=offset + config.page_items_per_page)
+                else:
+                    msgproc.log(f"next_button_element_type is [{ElementType.TAG.name}] "
+                                "but next_button_element_id was not specified")
+            else:
+                if ElementType.PAGELINK == next_button_element_type:
+                    if (pagelink_identifier
+                            and pagelink_identifier.api_path
+                            and pagelink_identifier.category_title):
+                        next_entry = create_next_button(
+                            objid=objid,
+                            element_type=ElementType.PAGELINK,
+                            element_id=pagelink_identifier.value,
+                            other_keys={
+                                ItemIdentifierKey.PAGE_LINK_API_PATH : pagelink_identifier.api_path,
+                                ItemIdentifierKey.CATEGORY_TITLE : pagelink_identifier.category_title},
+                            next_offset=offset + config.page_items_per_page)
+                    else:
+                        msgproc.log(f"next_button_element_type is [{ElementType.PAGELINK.name}] "
+                                    "but pagelink_identifier was not specified correctly")
+            # other cases?
+            if next_entry:
+                album_art_uri: str = None
+                if isinstance(next_item, TidalPageLink):
+                    album_art_uri = get_image_url_for_pagelink(next_item)
+                else:
+                    album_art_uri = tidal_util.get_image_url(obj=next_item)
+                upnp_util.set_album_art_from_uri(
+                    album_art_uri=album_art_uri,
+                    target=next_entry)
+                entries.append(next_entry)
     msgproc.log(f"page_to_entries got [{len(entries)}] entries")
     return entries
 
@@ -2591,13 +2620,24 @@ def create_missing_album_entry(
     entry = upmplgutils.direntry(entry_id,
         objid,
         f"Missing album [{album_id}]")
-    entries.append(entry)
     tidal_session: TidalSession = get_session()
     # is the album in the favorites?
     in_favorites: bool = album_id in get_favorite_album_id_list(tidal_session=tidal_session)
     # is the album in the bookmarks?
     in_bookmarks: bool = persistence.is_in_album_listen_queue(album_id)
-    msgproc.log(f"Album [{album_id}]: Favorite [{in_favorites}] Bookmarked [{in_bookmarks}]")
+    # in statistics ?
+    in_played_tracks: bool = persistence.is_album_in_played_tracks(album_id)
+    in_metadata_cache: bool = persistence.is_album_in_metadata_cache(album_id)
+    msgproc.log(f"Album [{album_id}]: Favorite [{in_favorites}] "
+                f"Bookmarked [{in_bookmarks}] "
+                f"In Played Tracks [{in_played_tracks}] "
+                f"In Metadata Cache [{in_metadata_cache}]")
+    # if in played tracks, we automatically remove those entries
+    if in_played_tracks:
+        persistence.purge_album_from_played_tracks(album_id)
+    # if in metadata cache, we automatically remove those entries
+    if in_metadata_cache:
+        persistence.purge_album_from_metadata_cache(album_id)
     # add favorite action if needed
     if in_favorites:
         _add_album_fav_action_button(
@@ -2614,7 +2654,30 @@ def create_missing_album_entry(
             album=None,
             in_listen_queue=True,
             entries=entries)
-    return entries
+    return entry
+
+
+def create_missing_track_entry(
+        objid: any,
+        track_id: str) -> list:
+    identifier: ItemIdentifier = ItemIdentifier(
+        name=ElementType.MISSING_TRACK.getName(),
+        value=track_id)
+    entry_id: str = identifier_util.create_objid(
+        objid = objid,
+        id = identifier_util.create_id_from_identifier(identifier))
+    entry = upmplgutils.direntry(entry_id,
+        objid,
+        f"Missing track [{track_id}]")
+    tidal_session: TidalSession = get_session()
+    # is the album in the favorites?
+    in_favorites: bool = track_id in get_favorite_track_id_list(tidal_session=tidal_session)
+    # is the album in the bookmarks?
+    in_bookmarks: bool = persistence.is_in_track_listen_queue(track_id)
+    # in statistics ?
+    msgproc.log(f"Missing track [{track_id}] Favorite [{in_favorites}] Bookmarked [{in_bookmarks}]")
+    # TODO execute actions on statistics and bookmarks?
+    return entry
 
 
 def handler_element_album_container(
@@ -2629,7 +2692,8 @@ def handler_element_album_container(
         msgproc.log(f"Could not load album with id [{album_id}], "
                     f"returning a {ElementType.MISSING_ALBUM.name} entry")
         # return a MISSING_ALBUM entry
-        return create_missing_album_entry(objid, album_id, entries)
+        entries.append(create_missing_album_entry(objid, album_id))
+        return entries
     # force refresh of album cover
     tidal_util.get_image_url(album, refresh=True)
     identifier: ItemIdentifier = ItemIdentifier(
@@ -2871,7 +2935,11 @@ def handle_element_mix_or_playlist_container(
     navigable_entry = upmplgutils.direntry(navigable_id,
         objid,
         "Navigable")
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(mix_or_playlist), navigable_entry)
+    upnp_util.set_album_art_from_uri(
+        tidal_util.get_image_url(
+            obj=mix_or_playlist,
+            refresh=True),
+        navigable_entry)
     entries.append(navigable_entry)
     # BEGIN add artists in mix or playlist
     artists_identifier : ItemIdentifier = ItemIdentifier(
@@ -2887,7 +2955,11 @@ def handle_element_mix_or_playlist_container(
         "Artists")
     # same art as the playlist/mix itself
     # we must try to avoid expensive calls here
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(mix_or_playlist), artists_entry)
+    upnp_util.set_album_art_from_uri(
+        tidal_util.get_image_url(
+            obj=mix_or_playlist,
+            refresh=True),
+        artists_entry)
     entries.append(artists_entry)
     # BEGIN add albums in mix or playlist
     albums_identifier : ItemIdentifier = ItemIdentifier(
@@ -3284,19 +3356,23 @@ def handler_element_playlist_navigable(
     for track in to_display:
         options: dict[str, any] = dict()
         set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
-        track_entry : dict = None
-        try:
-            track_entry = track_to_navigable_playlist_item(
-                objid=objid,
-                tidal_session=tidal_session,
-                track=track,
-                options=options)
-        except Exception as ex:
-            msgproc.log(f"handler_element_playlist_navigable Cannot create track entry for track_id [{track.id}] "
-                        f"num [{track_number}] [{track.name}] [{track.album.id}] "
-                        f"[{track.album.name}] Exception [{ex}]")
+        track_id: str = track.id if track else None
+        track, _ = tidal_util.try_get_track(tidal_session, track_id)
+        if track:
+            try:
+                track_entry: dict = track_to_navigable_playlist_item(
+                    objid=objid,
+                    tidal_session=tidal_session,
+                    track=track,
+                    options=options)
+                if track_entry: entries.append(track_entry)
+            except Exception as ex:
+                msgproc.log(f"handler_element_playlist_navigable Cannot create track entry for track_id [{track.id}] "
+                            f"num [{track_number}] [{track.name}] [{track.album.id}] "
+                            f"[{track.album.name}] Exception [{ex}]")
+        else:
+            msgproc.log(f"Track with id [{track_id}] for track number [{track_number}] could not be loaded")
         track_number += 1
-        if track_entry: entries.append(track_entry)
     if next_track:
         next_entry: dict[str, any] = create_next_button(
             objid=objid,
@@ -3331,39 +3407,45 @@ def playlist_to_entries(
     max_items : int = item_identifier.get(
         ItemIdentifierKey.MAX_ITEMS,
         config.max_playlist_or_mix_items_per_page)
-    tidal_session : TidalSession = get_session()
-    playlist : TidalPlaylist = tidal_session.playlist(playlist_id)
-    tracks : list[TidalTrack] = playlist.tracks(offset = offset, limit = max_items)
-    track_number : int = offset + 1
-    counter : int = 0
-    context : Context = Context()
+    tidal_session: TidalSession = get_session()
+    playlist: TidalPlaylist = tidal_session.playlist(playlist_id)
+    tracks: list[TidalTrack] = playlist.tracks(offset = offset, limit = max_items)
+    track_number: int = offset + 1
+    counter: int = 0
+    context: Context = Context()
     context.add(key = ContextKey.IS_PLAYLIST, value = True)
     for track in tracks:
-        options : dict[str, any] = dict()
-        set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
-        track_entry : dict = None
-        try:
-            track_adapter : TrackAdapter = choose_track_adapter_by_tidal_track(
-                tidal_session = tidal_session,
-                track = track)
-            track_entry = track_to_entry(
-                objid = objid,
-                track_adapter = track_adapter,
-                options = options,
-                context = context)
-        except Exception as ex:
-            msgproc.log(f"playlist_to_entries Cannot create track entry for track_id [{track.id}] "
-                        f"num [{track_number}] [{track.name}] [{track.album.id}] "
-                        f"[{track.album.name}] Exception [{ex}]")
+        track_entry: dict = None
+        # reload track
+        track_id: str = track.id if track else None
+        track, _ = tidal_util.try_get_track(tidal_session, track_id) if track_id else None
+        if track:
+            options: dict[str, any] = dict()
+            set_option(options, OptionKey.FORCED_TRACK_NUMBER, track_number)
+            try:
+                track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
+                    tidal_session=tidal_session,
+                    track=track)
+                track_entry = track_to_track_container(
+                    objid=objid,
+                    tidal_session=tidal_session,
+                    track_adapter=track_adapter,
+                    options=options)
+                if track_entry: entries.append(track_entry)
+            except Exception as ex:
+                msgproc.log(f"playlist_to_entries Cannot create track entry for track_id [{track.id}] "
+                            f"num [{track_number}] [{track.name}] [{track.album.id}] "
+                            f"[{track.album.name}] Exception [{ex}]")
+        else:
+            msgproc.log(f"Cannot load track with id [{track_id}] for track_number [{track_number}]")
         # let user know some tracks are missing
         track_number += 1
         counter += 1
-        if track_entry: entries.append(track_entry)
         if max_items and counter == max_items: break
-    success_count : int = context.get(ContextKey.SUCCESS_COUNT)
-    known_tracks_count : int = context.get(ContextKey.KNOWN_TRACKS_COUNT)
-    guessed_tracks_count : int = context.get(ContextKey.GUESSED_TRACKS_COUNT)
-    get_stream_count : int = context.get(ContextKey.GET_STREAM_COUNT)
+    success_count: int = context.get(ContextKey.SUCCESS_COUNT)
+    known_tracks_count: int = context.get(ContextKey.KNOWN_TRACKS_COUNT)
+    guessed_tracks_count: int = context.get(ContextKey.GUESSED_TRACKS_COUNT)
+    get_stream_count: int = context.get(ContextKey.GET_STREAM_COUNT)
     msgproc.log(f"playlist_to_entries finished with success_count [{success_count}] "
                 f"Known [{known_tracks_count}] Guessed [{guessed_tracks_count}] "
                 f"Get Stream Count [{get_stream_count}]")
@@ -3730,7 +3812,7 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
         entries.append(track_to_track_container(
             objid=objid,
             tidal_session=tidal_session,
-            track=choose_track_adapter_by_tidal_track(
+            track_adapter=choose_track_adapter_by_tidal_track(
                 tidal_session=tidal_session,
                 track=current),
             options=options))
@@ -4156,17 +4238,24 @@ def handler_element_track_container(objid, item_identifier : ItemIdentifier, ent
     track_id: int = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     msgproc.log(f"handler_element_track_container track_id [{track_id}]")
     tidal_session: TidalSession = get_session()
-    track: TidalTrack = tidal_session.track(track_id)
-    context: Context = Context()
-    context.add(key=ContextKey.IS_TRACK, value=True)
-    tidal_track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
-        tidal_session=tidal_session,
-        track=track)
-    track_entry = track_to_entry(
-        objid=objid,
-        track_adapter=tidal_track_adapter,
-        context=context)
-    entries.append(track_entry)
+    track: TidalTrack
+    track, _ = tidal_util.try_get_track(tidal_session, track_id)
+    if track:
+        context: Context = Context()
+        context.add(key=ContextKey.IS_TRACK, value=True)
+        tidal_track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
+            tidal_session=tidal_session,
+            track=track)
+        track_entry = track_to_entry(
+            objid=objid,
+            track_adapter=tidal_track_adapter,
+            context=context)
+        entries.append(track_entry)
+    else:
+        # track is most likely missing
+        msgproc.log(f"Track [{track_id}] could not be found")
+        # present MISSING_TRACK
+        entries.append(create_missing_track_entry(objid=objid, track_id=track_id))
     return entries
 
 
@@ -4201,7 +4290,6 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
         for item in category.items:
             item_type : str = type(item).__name__
             item_name : str = tidal_util.get_name_or_title(item)
-            # msgproc.log(f"handler_element_category [{category.title}] [{index}] [{item_type}] [{item_name}]")
             # msgproc.log(f"handler_element_category categories[{select_category}].item[{index}] type is [{item_type}]")
             if isinstance(item, TidalPageLink):
                 page_link : TidalPageLink = item
@@ -4215,9 +4303,13 @@ def handler_element_category(objid, item_identifier : ItemIdentifier, entries : 
                         page_link=page_link,
                         limit=config.get_page_items_for_tile_image())
                     for current in items_in_page if items_in_page else list():
-                        if (isinstance(current, TidalPlaylist) or
-                                isinstance(current, TidalAlbum) or
-                                isinstance(current, TidalArtist)):
+                        if (tidal_util.is_instance_of_any(
+                            current,
+                            [TidalPlaylist,
+                                TidalMix,
+                                TidalAlbum,
+                                TidalArtist,
+                                TidalTrack])):
                             # get an image from that
                             page_link_image_url = tidal_util.get_image_url(current)
                             persistence.save_tile_image(TileType.PAGE_LINK, page_link.api_path, page_link_image_url)
@@ -4524,9 +4616,10 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current_album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            entries.append(album_adapter_to_album_container(
-                objid = objid,
-                album_adapter=album_adapter))
+            if album_adapter:
+                entries.append(album_adapter_to_album_container(
+                    objid = objid,
+                    album_adapter=album_adapter))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current_album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
@@ -4563,9 +4656,10 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
             album_adapter: AlbumAdapter = album_adapter_by_album_id(
                 album_id=current.album_id,
                 tidal_album_loader=get_tidal_album_loader())
-            entries.append(album_adapter_to_album_container(
-                objid = objid,
-                album_adapter=album_adapter))
+            if album_adapter:
+                entries.append(album_adapter_to_album_container(
+                    objid = objid,
+                    album_adapter=album_adapter))
         except Exception as ex:
             msgproc.log(f"Cannot add album with id [{current.album_id}] due to [{type(ex)}] [{ex}]")
     if next_needed:
@@ -4586,9 +4680,9 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
 
 
 def handler_album_tracks_action(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    album_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session : TidalSession = get_session()
-    album : TidalAlbum = tidal_util.try_get_album(tidal_session = tidal_session, album_id = album_id)
+    album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    tidal_session: TidalSession = get_session()
+    album: TidalAlbum = tidal_util.try_get_album(tidal_session = tidal_session, album_id = album_id)
     if not album: return entries
     options: dict[str, any] = dict()
     set_option(
@@ -4598,12 +4692,12 @@ def handler_album_tracks_action(objid, item_identifier : ItemIdentifier, entries
     track : TidalTrack
     for track in album.tracks():
         try:
-            track_entry : dict[str, any] = track_to_navigable_track(
-                objid = objid,
+            track_entry: dict[str, any] = track_to_navigable_track(
+                objid=objid,
                 track_adapter = instance_tidal_track_adapter(
-                    tidal_session = tidal_session,
-                    track = track),
-                options = options)
+                    tidal_session=tidal_session,
+                    track=track),
+                options=options)
             if track_entry: entries.append(track_entry)
         except Exception as ex:
             msgproc.log(f"handler_album_tracks_action cannot load "
@@ -4665,11 +4759,12 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
     for obj_id in obj_list:
         counter += 1
         try:
-            tidal_obj : TidalAlbum = tidal_util.try_get_album(
+            tidal_obj: TidalAlbum = tidal_util.try_get_album(
                 tidal_session=tidal_session,
                 album_id=obj_id)
-            success_count += 1
-            entries.append(album_to_album_container(objid, tidal_obj))
+            if tidal_obj:
+                success_count += 1
+                entries.append(album_to_album_container(objid, tidal_obj))
             if success_count == config.albums_per_page:
                 break
         except Exception as ex:
@@ -4692,20 +4787,21 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
 
 
 def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, entries : list) -> list:
-    obj_list : list[str] = persistence.get_track_listen_queue()
-    offset : int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    counter : int = offset
+    obj_list: list[str] = persistence.get_track_listen_queue()
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    counter: int = offset
     # start from the offset (slice obj_list)
     obj_list = obj_list[offset:] if len(obj_list) > offset else list()
     # msgproc.log(f"handler_element_bookmark_tracks offset [{offset}] len [{len(obj_list)}]")
     tidal_session : TidalSession = get_session()
-    counter : int = 0
+    counter: int = 0
     success_count : int = 0
-    obj_id : str
+    obj_id: str
     for obj_id in obj_list:
         counter += 1
         try:
-            tidal_obj : TidalTrack = tidal_util.try_get_track(
+            tidal_obj: TidalTrack
+            tidal_obj, _ = tidal_util.try_get_track(
                 tidal_session=tidal_session,
                 track_id=obj_id)
             success_count += 1
@@ -4722,11 +4818,12 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
     if len(obj_list) > counter:
         next_track_id: str = obj_list[counter]
         next_button: dict[str, any] = create_next_button(
-            objid = objid,
-            element_type = ElementType.BOOKMARK_TRACKS,
-            element_id = ElementType.BOOKMARK_TRACKS.getName(),
-            next_offset = offset + counter)
-        next_track: TidalTrack = tidal_util.try_get_track(
+            objid=objid,
+            element_type=ElementType.BOOKMARK_TRACKS,
+            element_id=ElementType.BOOKMARK_TRACKS.getName(),
+            next_offset=offset + counter)
+        next_track: TidalTrack
+        next_track, _ = tidal_util.try_get_track(
             tidal_session=tidal_session,
             track_id=next_track_id)
         if next_track:
@@ -4825,10 +4922,10 @@ def __load_tidal_track_adapter_by_track(
         tidal_session : TidalSession,
         track : TidalTrack) -> TidalTrackAdapter:
     # msgproc.log(f"Loading track details from Tidal for track_id: [{track_id}]")
-    adapter : TidalTrackAdapter = TidalTrackAdapter(
-        tidal_session = tidal_session,
-        track = track,
-        album_retriever = album_retriever)
+    adapter: TidalTrackAdapter = TidalTrackAdapter(
+        tidal_session=tidal_session,
+        track=track,
+        album_retriever=album_retriever)
     return adapter
 
 
@@ -4836,14 +4933,14 @@ def __load_tidal_track_adapter_by_track_id(
         tidal_session : TidalSession,
         track_id : str) -> TidalTrackAdapter:
     # msgproc.log(f"Loading track details from Tidal for track_id: [{track_id}]")
-    adapter : TidalTrackAdapter = TidalTrackAdapter(
+    adapter: TidalTrackAdapter = TidalTrackAdapter(
         tidal_session = tidal_session,
         track = tidal_session.track(track_id),
         album_retriever = album_retriever)
     # maybe update on db?
     if config.enable_read_stream_metadata:
-        current : PlayedTrack = persistence.get_played_track_entry(track_id = track_id)
-        request : PlayedTrackRequest = PlayedTrackRequest()
+        current: PlayedTrack = persistence.get_played_track_entry(track_id = track_id)
+        request: PlayedTrackRequest = PlayedTrackRequest()
         request.track_id = track_id
         request.album_track_count = adapter.get_album_track_count()
         request.album_num_volumes = adapter.get_album_num_volumes() if adapter.get_album_num_volumes() else 1

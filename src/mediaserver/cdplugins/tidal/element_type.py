@@ -79,6 +79,7 @@ class ElementType(Enum):
     BOOKMARK_TRACKS = 60, "snglstnq"
     BOOKMARK_TRACK_ACTION = 61, "snglstnqctn"
     MISSING_ALBUM = 62, "msnglbm"
+    MISSING_TRACK = 63, "msngtrk"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 

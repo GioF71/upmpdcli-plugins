@@ -1,5 +1,17 @@
 # Tidal Plugin Release notes
 
+## 0.7.8
+
+- Pagination on PageLinks
+- Better handling of missing Tracks
+- Better handling of missing Albums
+- Present playlist items (tracks) in track container
+- Better handling of PageLinks in Categories
+- Add image caching for Playlists and Mixes
+- Fix call to track_to_track_container with wrong named argument
+- When a missing album is encountered, we now remove it from playback statistics and metadata cache if the entry is clicked
+- Misc code corrections, cleanup and refactoring
+
 ## 0.7.7
 
 - Track from a track container would not work
