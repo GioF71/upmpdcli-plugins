@@ -881,11 +881,11 @@ You will need the upmpdcli-tidal module. Depending on your distribution and inst
 this may come as part of the base installation, or be a separate package.
 
 The Tidal module code is is based on the link:https://github.com/tamland/python-tidal[Tidal API]
-currently at version 0.8.0, by Thomas Amland (also using other useful modules by Thomas). You will
+currently at version 0.8.1, by Thomas Amland (also using other useful modules by Thomas). You will
 need to install the package separately, preferably system-wide, for example:
 
 ....
-sudo python3 -m pip install tidalapi==0.8.0
+sudo python3 -m pip install tidalapi==0.8.1
 ....
 
 Depending on the version of your operating system, you might need to append the following
