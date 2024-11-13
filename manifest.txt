@@ -209,7 +209,6 @@ src/mediaserver/cdplugins/tidal/context.py
 src/mediaserver/cdplugins/tidal/context_key.py
 src/mediaserver/cdplugins/tidal/element_type.py
 src/mediaserver/cdplugins/tidal/get_credentials.py
-src/mediaserver/cdplugins/tidal/get_credentials_pkce.py
 src/mediaserver/cdplugins/tidal/identifier_util.py
 src/mediaserver/cdplugins/tidal/item_identifier.py
 src/mediaserver/cdplugins/tidal/item_identifier_key.py

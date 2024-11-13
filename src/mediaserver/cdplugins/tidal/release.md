@@ -1,6 +1,12 @@
 # Tidal Plugin Release notes
 
-## 0.7.8
+## 0.7.9
+
+- Bump to [tidalapi version 0.8.1](https://github.com/tamland/python-tidal/releases/tag/v0.8.1)
+- Remove old get_credentials_pkce.py
+- Misc code corrections, cleanup and refactoring
+
+## 0.7.8 (2024-11-05)
 
 - Pagination on PageLinks
 - Better handling of missing Tracks
@@ -12,19 +18,19 @@
 - When a missing album is encountered, we now remove it from playback statistics and metadata cache if the entry is clicked
 - Misc code corrections, cleanup and refactoring
 
-## 0.7.7
+## 0.7.7 (2024-11-01)
 
 - Track from a track container would not work
 - Some track lists were not presented as not navigable
 
-## 0.7.6
+## 0.7.6 (2024-10-29)
 
 - Corrected support for tidalimagecaching
 - Corrected support for boolean configuration values
 - Better logging
 - Some improvements in linting (long way to go!)
 
-## 0.7.5
+## 0.7.5 (2024-10-22)
 
 - Allow to remove from Favorites an album that does not exist anymore
 - Allow to remove from Bookmarks an album that does not exist anymore
@@ -37,14 +43,14 @@
 - Add "explore_new_music" page (shown as "New Music")
 - Improved compatibility with renderers when using lossless quality or lower
 
-## 0.7.4
+## 0.7.4 (2024-08-06)
 
 - Created tag for Page Selection for faster loading
 - Restrict pages to inspect just to select a tile image
 - Configuration for tile image expiration time
 - Add Tile: Featured
 
-## 0.7.3
+## 0.7.3 (2024-08-01)
 
 - Add Tile: Genres
 - Add Tile: For You
@@ -57,7 +63,7 @@
 - Add support for overriding the country code
 - Misc code corrections, cleanup and refactoring
 
-## 0.7.2
+## 0.7.2 (2024-07-22)
 
 - Some view (mostly from statistics) were still using deprecated image_url from db
 - Non-stereo Albums from playback statistics are not skipped

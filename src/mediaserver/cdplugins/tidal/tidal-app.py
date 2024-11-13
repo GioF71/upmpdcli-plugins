@@ -162,12 +162,12 @@ def __guess_bit_depth(audio_quality: str = None, sample_rate: int = None) -> int
     # audio quality is the first choice
     if audio_quality:
         # use audio quality for guessing
-        if audio_quality in [TidalQuality.hi_res, TidalQuality.hi_res_lossless]: return 24
+        if audio_quality in [TidalQuality.hi_res_lossless]: return 24
     if sample_rate:
         # use sample rate for guessing hi-res content...
         if sample_rate >= 48000: return 24
     # fallback from config
-    return 24 if config.max_audio_quality in [TidalQuality.hi_res, TidalQuality.hi_res_lossless] else 16
+    return 24 if config.max_audio_quality in [TidalQuality.hi_res_lossless] else 16
 
 
 def mp3_only() -> bool:
@@ -296,6 +296,12 @@ def build_streaming_url(tidal_session : TidalSession, track_id : str) -> Streami
         if not urls_available:
             raise Exception(f"Stream is BTS but urls are not available for track_id [{track_id}]")
         streaming_url = manifest.get_urls()
+        if isinstance(streaming_url, list):
+            if len(streaming_url) == 1:
+                streaming_url = streaming_url[0]
+            else:
+                raise Exception(f"Invalid length from get_urls(), expected 1, got [{len(streaming_url)}]")
+            
     else:
         raise Exception(f"Unrecognized stream type for track_id [{track_id}]")
     result : StreamingInfo = StreamingInfo()
@@ -418,12 +424,12 @@ def get_cached_audio_quality(album_id : str) -> tidal_util.CachedTidalQuality:
             return tidal_util.CachedTidalQuality(
                 bit_depth = played_track.bit_depth,
                 sample_rate = played_track.sample_rate,
-                audio_quality = TidalQuality.hi_res)
+                audio_quality = TidalQuality.hi_res_lossless)
     # catch invalid combinations
     bit_depth : int = played_track.bit_depth
     sample_rate : int = played_track.sample_rate
     if bit_depth == 16 and sample_rate in [44100, 48000]:
-        if audio_quality in [TidalQuality.hi_res, TidalQuality.hi_res_lossless]:
+        if audio_quality in [TidalQuality.hi_res_lossless]:
             # invalid!
             # reset audio_quality to None to avoid false hires identification
             audio_quality = None
@@ -513,7 +519,7 @@ def get_category_image_url(
                 if isinstance(first_item, TidalTrack):
                     # msgproc.log(f"  processing as Track ...")
                     track: TidalTrack = first_item
-                    image_url = (tidal_util.get_album_art_url_by_id(
+                    image_url = (tidal_util.get_album_art_url_by_album_id(
                                  album_id=track.album.id,
                                  tidal_session=tidal_session)
                                  if track and track.album else None)
@@ -722,7 +728,7 @@ def track_to_navigable_track_by_element_type(
     track_entry = upmplgutils.direntry(id,
         objid,
         title)
-    image_url: str = tidal_util.get_album_art_url_by_id(
+    image_url: str = tidal_util.get_album_art_url_by_album_id(
         album_id=track_adapter.get_album_id(),
         tidal_session=get_session())
     upnp_util.set_album_art_from_uri(image_url, track_entry)
@@ -753,7 +759,7 @@ def track_to_track_container(
         objid,
         title)
     upnp_util.set_album_art_from_uri(
-        tidal_util.get_album_art_url_by_id(
+        tidal_util.get_album_art_url_by_album_id(
             album_id=track_adapter.get_album_id(),
             tidal_session=tidal_session),
         track_entry)
@@ -801,7 +807,7 @@ def track_to_entry(
         art_url : str = get_option(
             options = options,
             option_key = OptionKey.OVERRIDDEN_ART_URI)
-        if not art_url: art_url = tidal_util.get_album_art_url_by_id(
+        if not art_url: art_url = tidal_util.get_album_art_url_by_album_id(
             album_id=track_adapter.get_album_id(),
             tidal_session=get_session())
         msgproc.log(f"track_to_entry [{track_adapter.get_id()}] -> [{art_url}]")
@@ -1165,14 +1171,13 @@ def correct_audio_quality(
         audio_quality : TidalQuality) -> TidalQuality:
     # can we evaluate bit available data?
     if bit_depth and sample_rate:
-        if bit_depth > 16 and sample_rate > 48000: return TidalQuality.hi_res_lossless
-        if bit_depth > 16: return TidalQuality.hi_res
+        if bit_depth > 16: return TidalQuality.hi_res_lossless
         if bit_depth == 16 and sample_rate in [44100, 48000]:
             if not audio_quality:
                 return TidalQuality.high_lossless
             else:
                 # can't be hires or hi_res_lossless
-                if audio_quality not in [TidalQuality.hi_res, TidalQuality.hi_res_lossless]:
+                if audio_quality not in [TidalQuality.hi_res_lossless]:
                     return audio_quality
                 else:  # invalid!
                     return None
@@ -1337,7 +1342,7 @@ def album_adapter_to_entry(
         artist = album_adapter.artist_name)
     if not as_container: upnp_util.set_class_album(entry)
     upnp_util.set_album_art_from_uri(
-        album_art_uri=tidal_util.get_album_art_url_by_id(
+        album_art_uri=tidal_util.get_album_art_url_by_album_id(
             album_id=album_adapter.id,
             tidal_session=get_session()),
         target=entry)
@@ -1688,7 +1693,7 @@ def __handler_element_favorite_albums_common(
             element_id=element_type.getName(),
             next_offset=offset + max_items)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_album.id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -1978,7 +1983,7 @@ def handler_tag_favorite_tracks(objid, item_identifier : ItemIdentifier, entries
         fav_tracks : list[TidalTrack] = tidal_session.user.favorites.tracks(limit = 10)
         random_track: TidalTrack = secrets.choice(fav_tracks) if fav_tracks else None
         upnp_util.set_album_art_from_uri(
-            tidal_util.get_album_art_url_by_id(
+            tidal_util.get_album_art_url_by_album_id(
                 album_id=random_track.album.id,
                 tidal_session=tidal_session)
             if random_track and random_track.album else None,
@@ -2041,7 +2046,7 @@ def handler_tag_playback_statistics(
         secrets.choice(most_played_albums)
         if most_played_albums and len(most_played_albums) > 0
         else None)
-    most_played_album_url : str = (tidal_util.get_album_art_url_by_id(
+    most_played_album_url : str = (tidal_util.get_album_art_url_by_album_id(
         album_id=random_most_played_album.album_id,
         tidal_session=tidal_session)
         if random_most_played_album else None)
@@ -2049,13 +2054,13 @@ def handler_tag_playback_statistics(
     random_last_played_album_id : str = (secrets.choice(last_played_albums)
         if last_played_albums and len(last_played_albums) > 0
         else None)
-    random_last_played_album_url : str = (tidal_util.get_album_art_url_by_id(
+    random_last_played_album_url : str = (tidal_util.get_album_art_url_by_album_id(
         album_id=random_last_played_album_id,
         tidal_session=tidal_session)
         if random_last_played_album_id
         else None)
     get_url_of_random : Callable[[list[PlayedTrack]], str] = (lambda album_list:
-        tidal_util.get_album_art_url_by_id(album_id=secrets.choice(album_list).album_id, tidal_session=tidal_session)
+        tidal_util.get_album_art_url_by_album_id(album_id=secrets.choice(album_list).album_id, tidal_session=tidal_session)
         if album_list and len(album_list) > 0 else None)
     tuple_array = [
         (
@@ -2108,7 +2113,7 @@ def song_listening_queue_art_retriever() -> str:
 
 def album_listening_queue_art_retriever() -> str:
     select_album_id : str = __get_random_album_id_from_listen_queue()
-    return (tidal_util.get_album_art_url_by_id(
+    return (tidal_util.get_album_art_url_by_album_id(
             album_id=select_album_id,
             tidal_session=get_session())
             if select_album_id else None)
@@ -3101,7 +3106,7 @@ def handler_element_albums_in_mix_or_playlist(
                 ItemIdentifierKey.UNDERLYING_TYPE: underlying_type_str,
                 ItemIdentifierKey.LAST_FOUND_ID: last_displayed_album_id})
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_album_id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3326,7 +3331,7 @@ def handler_element_mix_navigable(
             element_id=mix_id,
             next_offset=offset + config.mix_items_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3380,7 +3385,7 @@ def handler_element_playlist_navigable(
             element_id=playlist_id,
             next_offset=offset + config.mix_items_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3549,7 +3554,7 @@ def handler_element_artist_album_catch_all(
             element_id=item_identifier.get(ItemIdentifierKey.THING_VALUE),
             next_offset=offset + max_items)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_album.id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -3704,7 +3709,7 @@ def handler_element_favorite_tracks_navigable(objid, item_identifier : ItemIdent
             element_id=ElementType.FAVORITE_TRACKS_NAVIGABLE.getName(),
             next_offset=offset + max_items)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -3750,7 +3755,7 @@ def handler_element_favorite_tracks_list(objid, item_identifier : ItemIdentifier
             element_id = ElementType.FAVORITE_TRACKS_LIST.getName(),
             next_offset = offset + config.tracks_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3783,7 +3788,7 @@ def handler_element_artist_top_tracks_navigable(objid, item_identifier : ItemIde
             element_id=artist_id,
             next_offset=offset + max_items)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -3823,7 +3828,7 @@ def handler_element_artist_top_tracks_list(objid, item_identifier : ItemIdentifi
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3860,7 +3865,7 @@ def handler_element_artist_radio_list(objid, item_identifier : ItemIdentifier, e
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -3896,7 +3901,7 @@ def handler_element_artist_radio_navigable(objid, item_identifier : ItemIdentifi
             element_id=artist_id,
             next_offset=offset + config.tracks_per_page)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album.id,
                 tidal_session=tidal_session),
             target=next_entry)
@@ -4039,7 +4044,7 @@ def get_artist_top_tracks_image_url(tidal_session : TidalSession, artist_id : st
         artist: TidalArtist = tidal_session.artist(artist_id)
         tracks: list[TidalTrack] = artist.get_top_tracks() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
-        return tidal_util.get_album_art_url_by_id(album_id=select.album.id, tidal_session=tidal_session)
+        return tidal_util.get_album_art_url_by_album_id(album_id=select.album.id, tidal_session=tidal_session)
     except Exception:
         msgproc.log(f"Cannot get top tracks image for artist_id [{artist.id}]")
 
@@ -4049,7 +4054,7 @@ def get_artist_radio_image_url(tidal_session : TidalSession, artist_id : str) ->
         artist: TidalArtist = tidal_session.artist(artist_id)
         tracks: list[TidalTrack] = artist.get_radio() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
-        return (tidal_util.get_album_art_url_by_id(
+        return (tidal_util.get_album_art_url_by_album_id(
                 album_id=select.album.id,
                 tidal_session=tidal_session)
                 if select and select.album
@@ -4530,7 +4535,7 @@ def played_track_list_to_entries(
             next_offset=offset + config.tracks_per_page)
         # cover art for next track button
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_track.album_id,
                 tidal_session=get_session()),
             target=next_entry)
@@ -4631,7 +4636,7 @@ def handler_element_recently_played_albums(objid, item_identifier : ItemIdentifi
         # get the cover for the Next button
         cover_album_id: str = from_offset_album_id_list[albums_per_page]
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=cover_album_id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -4671,7 +4676,7 @@ def handler_element_most_played_albums(objid, item_identifier : ItemIdentifier, 
         # get the cover for the Next button
         next_album: PlayedAlbum = from_offset_album_list[albums_per_page]
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_album.album_id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -4778,7 +4783,7 @@ def handler_element_bookmark_albums(objid, item_identifier : ItemIdentifier, ent
             element_id = ElementType.BOOKMARK_ALBUMS.getName(),
             next_offset = offset + counter)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=tidal_util.get_album_art_url_by_id(
+            album_art_uri=tidal_util.get_album_art_url_by_album_id(
                 album_id=next_album_id,
                 tidal_session=tidal_session),
             target=next_button)
@@ -4828,7 +4833,7 @@ def handler_element_bookmark_tracks(objid, item_identifier : ItemIdentifier, ent
             track_id=next_track_id)
         if next_track:
             upnp_util.set_album_art_from_uri(
-                album_art_uri=tidal_util.get_album_art_url_by_id(
+                album_art_uri=tidal_util.get_album_art_url_by_album_id(
                     album_id=next_track.album.id,
                     tidal_session=tidal_session),
                 target=next_button)
@@ -5137,7 +5142,7 @@ def image_retriever_favorite_tracks(
         tag_type : TagType) -> str:
     items: list[TidalTrack] = tidal_session.user.favorites.tracks(limit = 1, offset = 0)
     first: TidalTrack = items[0] if items and len(items) > 0 else None
-    return (tidal_util.get_album_art_url_by_id(
+    return (tidal_util.get_album_art_url_by_album_id(
             album_id=first.album.id,
             tidal_session=tidal_session)
             if first and first.album else None)
@@ -5148,7 +5153,7 @@ def image_retriever_playback_statistics(
         tag_type : TagType) -> str:
     items: list[PlayedTrack] = persistence.get_last_played_tracks(max_tracks = 10)
     first: PlayedTrack = secrets.choice(items) if items and len(items) > 0 else None
-    return (tidal_util.get_album_art_url_by_id(
+    return (tidal_util.get_album_art_url_by_album_id(
             album_id=first.album_id,
             tidal_session=tidal_session)
             if first else None)
@@ -5173,7 +5178,7 @@ def image_retriever_listen_queue(
         tidal_session : TidalSession,
         tag_type : TagType) -> str:
     select_album_id: str = __get_random_album_id_from_listen_queue()
-    return (tidal_util.get_album_art_url_by_id(
+    return (tidal_util.get_album_art_url_by_album_id(
         album_id=select_album_id,
         tidal_session=tidal_session)
         if select_album_id else None)

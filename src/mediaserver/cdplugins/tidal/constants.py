@@ -17,7 +17,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name : str = "tidal"
 
-tidal_plugin_release : str = "0.7.8"
+tidal_plugin_release : str = "0.7.9-dev"
 
 listening_queue_action_key : str = "action"
 listening_queue_button_title_key : str = "button_title"

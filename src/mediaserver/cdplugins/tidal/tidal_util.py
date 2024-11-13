@@ -96,7 +96,7 @@ class FavoriteAlbumsMode:
         return self.__descending
 
 
-def get_image_dimension_list(obj: any) -> list[int]:
+def __get_image_dimension_list(obj: any) -> list[int]:
     key = type(obj).__name__
     return default_image_sz_by_type[key] if key in default_image_sz_by_type else list()
 
@@ -110,11 +110,11 @@ def get_name_or_title(obj: any) -> str:
 
 
 def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entry: dict):
-    album_art_url: str = get_album_art_url_by_id(album_id=album_id, tidal_session=tidal_session)
+    album_art_url: str = get_album_art_url_by_album_id(album_id=album_id, tidal_session=tidal_session)
     upnp_util.set_album_art_from_uri(album_art_url, entry)
 
 
-def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
+def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) -> str:
     if config.get_enable_image_caching():
         # try cached!
         document_root_dir: str = config.getWebServerDocumentRoot()
@@ -130,14 +130,14 @@ def get_album_art_url_by_id(album_id: str, tidal_session: TidalSession) -> str:
                 path.append(cached_file_name)
                 cached_image_url: str = compose_docroot_url("/".join(path))
                 if config.get_dump_image_caching():
-                    msgproc.log(f"get_album_art_url_by_id [{album_id}] -> [{cached_image_url}]")
+                    msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_image_url}]")
                 return cached_image_url
             else:
                 if config.get_dump_image_caching():
-                    msgproc.log(f"get_album_art_url_by_id [{album_id}] -> cache miss")
+                    msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> cache miss")
     # if we are are, we fallback to normal
     if config.get_dump_image_caching():
-        msgproc.log(f"get_album_art_url_by_id [{album_id}] -> loading from upstream service is required")
+        msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> loading from upstream service is required")
     album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
     return get_image_url(obj=album, refresh=True) if album else None
 
@@ -171,7 +171,7 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
 
 
 def __get_image_url(obj: any) -> str:
-    dimension_list: list[int] = get_image_dimension_list(obj)
+    dimension_list: list[int] = __get_image_dimension_list(obj)
     if not dimension_list or len(dimension_list) == 0:
         msgproc.log(f"Type [{type(obj).__name__}] does not have an image sizes list!")
         return None
@@ -428,7 +428,7 @@ def not_stereo_skipmessage(album: TidalAlbum) -> str:
 
 def __get_best_quality(media_metadata_tags: list[str]) -> str:
     if not media_metadata_tags or len(media_metadata_tags) == 0: return None
-    if TidalMediaMetadataTags.hires_lossless in media_metadata_tags: return TidalQuality.hi_res_lossless
+    if TidalMediaMetadataTags.hi_res_lossless in media_metadata_tags: return TidalQuality.hi_res_lossless
     if TidalMediaMetadataTags.lossless in media_metadata_tags: return TidalQuality.high_lossless
     if TidalMediaMetadataTags.dolby_atmos in media_metadata_tags: return TidalQuality.low_96k
     return None
@@ -484,8 +484,6 @@ def get_quality_badge_raw(
     badge: str = None
     if TidalQuality.hi_res_lossless == tidal_quality:
         badge = f"HD {ext_badge}" if ext_badge else "MAX"
-    elif TidalQuality.hi_res == tidal_quality:
-        badge = f"HD {ext_badge}" if ext_badge else "HD"
     elif TidalQuality.high_lossless == tidal_quality:
         if not stream_info_available:
             badge = "Lossless"

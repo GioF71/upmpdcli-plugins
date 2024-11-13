@@ -166,7 +166,6 @@ def get_search_limit() -> int:
 
 __fallback_for_missing_quality: dict[str, str] = {
     TidalQuality.hi_res_lossless: TidalQuality.high_lossless,
-    TidalQuality.hi_res: TidalQuality.high_lossless,
     TidalQuality.high_lossless: TidalQuality.high_lossless,
     TidalQuality.low_320k: TidalQuality.low_320k,
     TidalQuality.low_96k: TidalQuality.low_96k
