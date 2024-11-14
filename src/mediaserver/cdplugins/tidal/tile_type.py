@@ -21,11 +21,12 @@ class TileType(Enum):
     CATEGORY = 2, "category"
     PAGE_LINK = 3, "pagelink"
 
-    def __init__(self,
-            type_type_num : int,
-            tile_type_name : str):
-        self._type_type_num : int = type_type_num
-        self._tile_type_name : str = tile_type_name
+    def __init__(
+            self,
+            type_type_num: int,
+            tile_type_name: str):
+        self._type_type_num: int = type_type_num
+        self._tile_type_name: str = tile_type_name
 
     @property
     def tile_type_num(self) -> int:
@@ -38,7 +39,7 @@ class TileType(Enum):
         return self._tile_type_name
 
 
-def get_tile_type_by_name(tile_type_name : str) -> TileType:
+def get_tile_type_by_name(tile_type_name: str) -> TileType:
     # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
     for _, member in TileType.__members__.items():
         if tile_type_name == member.tile_type_name:
@@ -47,8 +48,8 @@ def get_tile_type_by_name(tile_type_name : str) -> TileType:
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in TileType:
     if v.tile_type_name in name_checker_set:
         raise Exception(f"Duplicated name [{v.tile_type_name}]")

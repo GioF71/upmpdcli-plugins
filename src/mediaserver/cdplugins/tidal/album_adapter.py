@@ -29,8 +29,8 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
-def _albumToAlbumMetadata(album : TidalAlbum) -> AlbumMetadata:
-    result : AlbumMetadata = AlbumMetadata()
+def __albumToAlbumMetadata(album: TidalAlbum) -> AlbumMetadata:
+    result: AlbumMetadata = AlbumMetadata()
     result.album_id = album.id
     result.album_name = album.name
     result.artist_id = album.artist.id if album.artist else None
@@ -39,10 +39,10 @@ def _albumToAlbumMetadata(album : TidalAlbum) -> AlbumMetadata:
     result.release_date = album.release_date
     result.available_release_date = album.available_release_date
     result.image_url = tidal_util.get_image_url(album)
-    album_audio_modes : list[str] = album.audio_modes
+    album_audio_modes: list[str] = album.audio_modes
     result.audio_modes = ",".join(album_audio_modes) if album_audio_modes else None
     result.audio_quality = album.audio_quality
-    album_media_metadata_tags : list[str] = album.media_metadata_tags
+    album_media_metadata_tags: list[str] = album.media_metadata_tags
     result.media_metadata_tags = ",".join(album_media_metadata_tags) if album_media_metadata_tags else None
     return result
 
@@ -66,9 +66,9 @@ class AlbumAdapter:
         return self.available_release_date.year if self.available_release_date else None
 
 
-def tidal_album_to_adapter(tidal_album : TidalAlbum) -> AlbumAdapter:
-    persistence.store_album_metadata(_albumToAlbumMetadata(tidal_album))
-    album_adapter : AlbumAdapter = AlbumAdapter()
+def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
+    persistence.store_album_metadata(__albumToAlbumMetadata(tidal_album))
+    album_adapter: AlbumAdapter = AlbumAdapter()
     album_adapter.id = tidal_album.id
     album_adapter.name = tidal_album.name
     album_adapter.artist_id = tidal_album.artist.id if tidal_album.artist else None
@@ -83,8 +83,8 @@ def tidal_album_to_adapter(tidal_album : TidalAlbum) -> AlbumAdapter:
     return album_adapter
 
 
-def album_metadata_to_adapter(album_metadata : AlbumMetadata) -> AlbumAdapter:
-    album_adapter : AlbumAdapter = AlbumAdapter()
+def __album_metadata_to_adapter(album_metadata: AlbumMetadata) -> AlbumAdapter:
+    album_adapter: AlbumAdapter = AlbumAdapter()
     album_adapter.id = album_metadata.album_id
     album_adapter.name = album_metadata.album_name
     album_adapter.artist_id = album_metadata.artist_id
@@ -94,22 +94,23 @@ def album_metadata_to_adapter(album_metadata : AlbumMetadata) -> AlbumAdapter:
     album_adapter.available_release_date = album_metadata.available_release_date
     album_adapter.image_url = album_metadata.image_url
     album_adapter.audio_modes = (album_metadata.audio_modes.split(",")
-                                if album_metadata.audio_modes
-                                else None)
+                                 if album_metadata.audio_modes
+                                 else None)
     album_adapter.audio_quality = album_metadata.audio_quality
     album_adapter.media_metadata_tags = (album_metadata.media_metadata_tags.split(",")
-                                        if album_metadata.media_metadata_tags
-                                        else None)
+                                         if album_metadata.media_metadata_tags
+                                         else None)
     return album_adapter
 
 
 def album_adapter_by_album_id(
-        album_id : str,
-        tidal_album_loader : typing.Callable[[str], TidalAlbum]) -> AlbumAdapter:
-    album_metadata : AlbumMetadata = persistence.get_album_metadata(album_id = album_id)
+        album_id: str,
+        tidal_album_loader: typing.Callable[[str], TidalAlbum]) -> AlbumAdapter:
+    album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
     # msgproc.log(f"album_adapter_by_album_id [{album_id}] cache hit: [{'yes' if album_metadata else 'no'}]")
-    if album_metadata: return album_metadata_to_adapter(album_metadata)
+    if album_metadata:
+        return __album_metadata_to_adapter(album_metadata)
     # load the album if no metadata is available
-    tidal_album : TidalAlbum = tidal_album_loader(album_id)
+    tidal_album: TidalAlbum = tidal_album_loader(album_id)
     # convert to adapter (performs caching)
     return tidal_album_to_adapter(tidal_album) if tidal_album else None

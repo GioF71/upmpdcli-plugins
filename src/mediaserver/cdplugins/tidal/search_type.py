@@ -23,15 +23,16 @@ class SearchType(Enum):
     ARTIST = 1, "artist", "artists", tidalapi.artist.Artist
     TRACK = 2, "track", "tracks", tidalapi.media.Track
 
-    def __init__(self,
-            num : int,
-            element_name : str,
-            dict_entry : str,
-            model : type):
-        self.num : int = num
-        self.element_name : str = element_name
-        self.dict_entry : str = dict_entry
-        self.model : type = model
+    def __init__(
+            self,
+            num: int,
+            element_name: str,
+            dict_entry: str,
+            model: type):
+        self.num: int = num
+        self.element_name: str = element_name
+        self.dict_entry: str = dict_entry
+        self.model: type = model
 
     def get_name(self):
         return self.element_name
@@ -44,8 +45,8 @@ class SearchType(Enum):
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in SearchType:
     if v.get_name() in name_checker_set:
         raise Exception(f"Duplicated name [{v.get_name()}]")

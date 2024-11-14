@@ -32,16 +32,16 @@ class TidalTrackAdapter(TrackAdapter):
 
     def __init__(
             self,
-            tidal_session : TidalSession,
-            track : TidalTrack,
-            album_retriever : Callable[[TidalSession, str], TidalAlbum]):
-        self._tidal_session : TidalSession = tidal_session
-        self._track : TidalTrack = track
-        self._album_retriever : Callable[[TidalSession, str], TidalAlbum] = album_retriever
-        self._album : TidalAlbum = None
-        self._album_load_failed : bool = False
+            tidal_session: TidalSession,
+            track: TidalTrack,
+            album_retriever: Callable[[TidalSession, str], TidalAlbum]):
+        self._tidal_session: TidalSession = tidal_session
+        self._track: TidalTrack = track
+        self._album_retriever: Callable[[TidalSession, str], TidalAlbum] = album_retriever
+        self._album: TidalAlbum = None
+        self._album_load_failed: bool = False
         self._stream = None
-        self._stream_load_failed : bool = False
+        self._stream_load_failed: bool = False
 
     def __get_album(self):
         if not self._album_load_failed and not self._album:
@@ -79,7 +79,7 @@ class TidalTrackAdapter(TrackAdapter):
         return self._track.volume_num
 
     def get_album_num_volumes(self) -> int:
-        album : TidalAlbum = self.__get_album()
+        album: TidalAlbum = self.__get_album()
         try:
             return album.num_volumes
         except Exception:
@@ -99,7 +99,7 @@ class TidalTrackAdapter(TrackAdapter):
         return self._track.album.artist.name
 
     def get_image_url(self) -> str:
-        album : TidalAlbum = None
+        album: TidalAlbum = None
         try:
             album = self.__get_album()
         except Exception as ex:

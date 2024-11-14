@@ -39,12 +39,12 @@ class ContextKey(Enum):
     GUESSED_TRACK_DICT = 18, "guessed-track-dict", None
 
     def __init__(self,
-            num : int,
-            key_name : str,
-            default_value : any):
-        self.__num : int = num
-        self.__key_name : str = key_name
-        self.__default_value : any = default_value
+            num: int,
+            key_name: str,
+            default_value: any):
+        self.__num: int = num
+        self.__key_name: str = key_name
+        self.__default_value: any = default_value
 
     @property
     def name(self) -> str:
@@ -56,8 +56,8 @@ class ContextKey(Enum):
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in ContextKey:
     if v.name in name_checker_set:
         raise Exception(f"Duplicated name [{v.name}]")

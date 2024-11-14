@@ -147,10 +147,12 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         # use album instead
         track: TidalTrack = obj
         obj = track.album
-    if not config.get_enable_image_caching(): return __get_image_url(obj)
+    if not config.get_enable_image_caching():
+        return __get_image_url(obj)
     document_root_dir: str = config.getWebServerDocumentRoot()
     # webserverdocumentroot is required
-    if not document_root_dir: return __get_image_url(obj)
+    if not document_root_dir:
+        return __get_image_url(obj)
     if type(obj) not in [TidalAlbum, TidalArtist, TidalPlaylist, TidalMix]:
         return __get_image_url(obj)
     sub_dir_list: list[str] = [constants.plugin_name, "images", type(obj).__name__]
@@ -178,7 +180,7 @@ def __get_image_url(obj: any) -> str:
     current: int
     for current in dimension_list if dimension_list else list():
         try:
-            return obj.image(dimensions = current)
+            return obj.image(dimensions=current)
         except ValueError:
             if log_unavailable_images_sizes:
                 msgproc.log(f"Cannot find image for type [{type(obj).__name__}] "
@@ -320,7 +322,7 @@ def is_album_in_playlist(
     offset: int = 0
     limit: int = 100
     while True:
-        item_list: list = listen_queue.items(offset = offset, limit = limit)
+        item_list: list = listen_queue.items(offset=offset, limit=limit)
         msgproc.log(f"Getting [{len(item_list) if item_list else 0}] from playlist "
                     f"[{config.listen_queue_playlist_name}] from offset [{offset}]")
         if not item_list or len(item_list) == 0:
@@ -331,7 +333,8 @@ def is_album_in_playlist(
         for current in item_list if item_list else list():
             count += 1
             # must be a track
-            if not isinstance(current, TidalTrack): continue
+            if not isinstance(current, TidalTrack):
+                continue
             track: TidalTrack = current
             if track.album.id == album_id:
                 # msgproc.log(f"Found track [{track.id}] from album [{album_id}], returning True")
@@ -357,7 +360,7 @@ def album_playlist_action(
     offset: int = 0
     limit: int = 100
     while True:
-        item_list: list = listen_queue.items(offset = offset, limit = limit)
+        item_list: list = listen_queue.items(offset=offset, limit=limit)
         # msgproc.log(f"Getting [{len(item_list) if item_list else 0}] from playlist "
         #             f"[{config.listen_queue_playlist_name}] from offset [{offset}]")
         if not item_list or len(item_list) == 0:
@@ -368,7 +371,8 @@ def album_playlist_action(
         for current in item_list:
             count += 1
             # must be a track
-            if not isinstance(current, TidalTrack): continue
+            if not isinstance(current, TidalTrack):
+                continue
             track: TidalTrack = current
             if track.album.id == album_id:
                 # msgproc.log(f"Found track [{track.id}] from album [{album_id}], returning True")
@@ -379,7 +383,7 @@ def album_playlist_action(
         offset += limit
     for track_id in remove_list:
         listen_queue.remove_by_id(media_id=track_id)
-    album: TidalAlbum = tidal_session.album(album_id = album_id)
+    album: TidalAlbum = tidal_session.album(album_id=album_id)
     # add if needed
     if constants.listening_queue_action_add == action:
         # add the album tracks
@@ -398,26 +402,31 @@ def is_tidal_album_stereo(album: TidalAlbum) -> bool:
 
 
 def __audio_modes_has_stereo(audio_modes: list[str]) -> bool:
-    if not audio_modes or len(audio_modes) == 0: return False
+    if not audio_modes or len(audio_modes) == 0:
+        return False
     current: str
     for current in audio_modes:
-        if TidalAudioMode.stereo == current: return True
+        if TidalAudioMode.stereo == current:
+            return True
     return False
 
 
 def is_stereo(media_metadata_tags: list[str]) -> bool:
     # nothing available -> assume STEREO
-    if not media_metadata_tags or len(media_metadata_tags) == 0: return True
+    if not media_metadata_tags or len(media_metadata_tags) == 0:
+        return True
     return not __only_of(
         media_metadata_tags=media_metadata_tags,
         hit=[TidalMediaMetadataTags.dolby_atmos])
 
 
 def __only_of(media_metadata_tags: list[str], hit: list[str]) -> bool:
-    if not media_metadata_tags or len(media_metadata_tags) == 0: return False
+    if not media_metadata_tags or len(media_metadata_tags) == 0:
+        return False
     current: str
     for current in media_metadata_tags:
-        if current not in hit: return False
+        if current not in hit:
+            return False
     return True
 
 
@@ -427,10 +436,14 @@ def not_stereo_skipmessage(album: TidalAlbum) -> str:
 
 
 def __get_best_quality(media_metadata_tags: list[str]) -> str:
-    if not media_metadata_tags or len(media_metadata_tags) == 0: return None
-    if TidalMediaMetadataTags.hi_res_lossless in media_metadata_tags: return TidalQuality.hi_res_lossless
-    if TidalMediaMetadataTags.lossless in media_metadata_tags: return TidalQuality.high_lossless
-    if TidalMediaMetadataTags.dolby_atmos in media_metadata_tags: return TidalQuality.low_96k
+    if not media_metadata_tags or len(media_metadata_tags) == 0:
+        return None
+    if TidalMediaMetadataTags.hi_res_lossless in media_metadata_tags:
+        return TidalQuality.hi_res_lossless
+    if TidalMediaMetadataTags.lossless in media_metadata_tags:
+        return TidalQuality.high_lossless
+    if TidalMediaMetadataTags.dolby_atmos in media_metadata_tags:
+        return TidalQuality.low_96k
     return None
 
 
@@ -446,7 +459,8 @@ def try_get_all_favorites(tidal_session: TidalSession) -> list[TidalAlbum]:
             msg: str = f"Cannot get favorite albums from offset [{offset}] [{type(ex)}] [{ex}]"
             raise Exception(msg)
         some_len: int = len(some) if some else 0
-        if some_len > 0: favorite_list.extend(some)
+        if some_len > 0:
+            favorite_list.extend(some)
         if some_len < limit:
             break
         # another slice maybe
@@ -471,16 +485,19 @@ def get_quality_badge_raw(
         cached_tidal_quality: CachedTidalQuality) -> str:
     # msgproc.log(f"get_quality_badge type(audio_modes) -> {type(audio_modes) if audio_modes else 'none'}")
     # TODO maybe map DOLBY_ATMOS to say Atmos
-    if audio_modes and not __audio_modes_has_stereo(audio_modes): return ",".join(audio_modes)
+    if audio_modes and not __audio_modes_has_stereo(audio_modes):
+        return ",".join(audio_modes)
     tidal_quality: TidalQuality = __get_best_quality(media_metadata_tags)
-    if not tidal_quality: tidal_quality = audio_quality
-    stream_info_available: bool = (cached_tidal_quality and
-                cached_tidal_quality.bit_depth and
-                cached_tidal_quality.sample_rate)
+    if not tidal_quality:
+        tidal_quality = audio_quality
+    stream_info_available: bool = (
+        cached_tidal_quality and
+        cached_tidal_quality.bit_depth and
+        cached_tidal_quality.sample_rate)
     bit_depth: int = cached_tidal_quality.bit_depth if cached_tidal_quality else None
     sample_rate: int = cached_tidal_quality.sample_rate if cached_tidal_quality else None
     ext_badge: str = (f"{bit_depth}/{__readable_sample_rate(sample_rate)}"
-                    if stream_info_available else None)
+                      if stream_info_available else None)
     badge: str = None
     if TidalQuality.hi_res_lossless == tidal_quality:
         badge = f"HD {ext_badge}" if ext_badge else "MAX"
@@ -506,7 +523,8 @@ def get_quality_badge_raw(
 
 
 def track_only(obj: any) -> any:
-    if obj and isinstance(obj, TidalTrack): return obj
+    if obj and isinstance(obj, TidalTrack):
+        return obj
 
 
 def get_mix_or_playlist_items(
@@ -515,21 +533,23 @@ def get_mix_or_playlist_items(
         obj_type: str,
         limit: int,
         offset: int) -> list[any]:
-    underlying_type: ElementType = get_element_type_by_name(element_name = obj_type)
+    underlying_type: ElementType = get_element_type_by_name(element_name=obj_type)
     if underlying_type == ElementType.PLAYLIST:
         playlist: TidalPlaylist = tidal_session.playlist(tidal_obj_id)
-        return playlist.tracks(limit = limit, offset = offset)
+        return playlist.tracks(limit=limit, offset=offset)
     elif underlying_type == ElementType.MIX:
         mix: TidalMix = tidal_session.mix(tidal_obj_id)
         items: list[any] = mix.items()
         items = items if items else list()
         sz: int = len(items)
-        if offset >= sz: return list()
+        if offset >= sz:
+            return list()
         if offset + limit > sz:
             # reduce limit
             limit = sz - offset
         return items[offset:offset + limit]
-    else: raise Exception(f"Invalid type [{obj_type}]")
+    else:
+        raise Exception(f"Invalid type [{obj_type}]")
 
 
 def load_unique_ids_from_mix_or_playlist(
@@ -558,11 +578,11 @@ def load_unique_ids_from_mix_or_playlist(
                     f"loading [{max_loadable}] from offset [{last_offset}] "
                     f"load_count [{load_count}] skip_count [{skip_count}] ...")
         item_list: list[any] = get_mix_or_playlist_items(
-            tidal_session = tidal_session,
-            tidal_obj_id = tidal_obj_id,
-            obj_type = tidal_obj_type,
-            limit = max_slice_size,
-            offset = last_offset)
+            tidal_session=tidal_session,
+            tidal_obj_id=tidal_obj_id,
+            obj_type=tidal_obj_type,
+            limit=max_slice_size,
+            offset=last_offset)
         if not item_list or len(item_list) == 0:
             # no items, we are finished
             finished = True
@@ -609,11 +629,17 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
     return curr_dir
 
 
-def compose_docroot_url(right: str) -> str:
+def get_docroot_base_url() -> str:
     host_port: str = os.environ['UPMPD_UPNPHOSTPORT']
     doc_root: str = os.environ['UPMPD_UPNPDOCROOT']
-    if not host_port and not doc_root: return None
-    return f"http://{host_port}/{right}"
+    if not host_port and not doc_root:
+        return None
+    return f"http://{host_port}"
+
+
+def compose_docroot_url(right: str) -> str:
+    doc_root_base_url: str = get_docroot_base_url()
+    return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
 
 
 def get_oauth2_credentials_file_name() -> str:
@@ -635,7 +661,8 @@ def pkce_credential_file_exists() -> bool:
 def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
     t: type
     for t in type_list if type_list else list():
-        if isinstance(obj, t): return True
+        if isinstance(obj, t):
+            return True
     return False
 
 

@@ -37,31 +37,33 @@ dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
-__table_name_played_track_v1 : str = "played_track_v1"
+__table_name_played_track_v1: str = "played_track_v1"
 
-__table_name_listen_album_queue_v1 : str = "listen_album_queue_v1"
-__table_name_listen_artist_queue_v1 : str = "listen_artist_queue_v1"
-__table_name_listen_track_queue_v1 : str = "listen_track_queue_v1"
+__table_name_listen_album_queue_v1: str = "listen_album_queue_v1"
+__table_name_listen_artist_queue_v1: str = "listen_artist_queue_v1"
+__table_name_listen_track_queue_v1: str = "listen_track_queue_v1"
 
-__table_name_album_metadata_cache_v1 : str = "album_metadata_cache_v1"
+__table_name_album_metadata_cache_v1: str = "album_metadata_cache_v1"
+__table_name_tile_image_v1: str = "tile_image_v1"
 
-__field_name_album_id : str = "album_id"
-__field_name_artist_id : str = "artist_id"
-__field_name_artist_name : str = "artist_name"
-__field_name_explicit : str = "explicit"
-__field_name_release_date : str = "release_date"
-__field_name_available_release_date : str = "available_release_date"
-__field_name_image_url : str = "image_url"
-__field_name_audio_modes : str = "audio_modes"
-__field_name_audio_quality : str = "audio_quality"
-__field_name_media_metadata_tags : str = "media_metadata_tags"
-__field_name_track_id : str = "track_id"
-__field_name_name : str = "name"
+__field_name_album_id: str = "album_id"
+__field_name_artist_id: str = "artist_id"
+__field_name_artist_name: str = "artist_name"
+__field_name_explicit: str = "explicit"
+__field_name_release_date: str = "release_date"
+__field_name_available_release_date: str = "available_release_date"
+__field_name_image_url: str = "image_url"
+__field_name_audio_modes: str = "audio_modes"
+__field_name_audio_quality: str = "audio_quality"
+__field_name_media_metadata_tags: str = "media_metadata_tags"
+__field_name_track_id: str = "track_id"
+__field_name_name: str = "name"
+__field_name_tile_image: str = "tile_image"
 
-__field_name_created_timestamp : str = "created_timestamp"
+__field_name_created_timestamp: str = "created_timestamp"
 
 
-__most_played_albums_query : str = """
+__most_played_albums_query: str = """
     SELECT
         album_id,
         (SUM(CAST (play_count AS FLOAT) * (CAST (track_duration AS FLOAT) / CAST (album_duration AS FLOAT))))
@@ -98,7 +100,7 @@ class AlbumMetadata:
     audio_quality: str = None
     # comma separated values
     media_metadata_tags: str = None
-    created_timestamp : datetime = None
+    created_timestamp: datetime = None
 
 
 class PlayedTracksSorting(Enum):
@@ -106,15 +108,16 @@ class PlayedTracksSorting(Enum):
     LAST_PLAYED_FIRST = 0, "lp-first", "last_played", "DESC"
     MOST_PLAYED_FIRST = 1, "mp-first", "play_count", "DESC"
 
-    def __init__(self,
-            num : int,
-            element_name : str,
-            field_name : str,
-            field_order : str):
-        self.num : int = num
-        self.element_name : str = element_name
-        self.field_name : str = field_name
-        self.field_order : str = field_order
+    def __init__(
+            self,
+            num: int,
+            element_name: str,
+            field_name: str,
+            field_order: str):
+        self.num: int = num
+        self.element_name: str = element_name
+        self.field_name: str = field_name
+        self.field_order: str = field_order
 
     def get_name(self) -> str:
         return self.element_name
@@ -137,14 +140,14 @@ def __get_db_full_path() -> str:
 def __get_connection() -> sqlite3.Connection:
     connection = sqlite3.connect(
         __get_db_full_path(),
-        detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
     return connection
 
 
 def __prepare_table_db_version():
     cursor_obj = __connection.cursor()
     # Creating table
-    create_table : str = """
+    create_table: str = """
         CREATE TABLE IF NOT EXISTS db_version(
         version VARCHAR(32) PRIMARY KEY)
     """
@@ -162,8 +165,8 @@ def get_db_version() -> str:
     return None
 
 
-def __store_db_version(version : str):
-    db_version : str = get_db_version()
+def __store_db_version(version: str):
+    db_version: str = get_db_version()
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
         insert_tuple = (version, )
@@ -184,7 +187,7 @@ def __prepare_table_played_track_v1():
     msgproc.log("Preparing table played_track_v1 ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    create_table : str = """
+    create_table: str = """
         CREATE TABLE played_track_v1(
         track_id VARCHAR(255) PRIMARY KEY,
         play_count INTEGER,
@@ -193,13 +196,13 @@ def __prepare_table_played_track_v1():
     cursor_obj.execute(create_table)
     # Creating index on last_played
     msgproc.log("Preparing index played_track_idx_last_played ...")
-    create_index_last_played : str = """
+    create_index_last_played: str = """
         CREATE INDEX played_track_idx_last_played
         ON played_track_v1(last_played)"""
     cursor_obj.execute(create_index_last_played)
     # Creating index on play_count
     msgproc.log("Preparing index played_track_idx_play_count ...")
-    create_index_play_count : str = """
+    create_index_play_count: str = """
         CREATE INDEX played_track_idx_play_count
         ON played_track_v1(play_count)"""
     cursor_obj.execute(create_index_play_count)
@@ -208,29 +211,29 @@ def __prepare_table_played_track_v1():
 
 
 def __prepare_table_tile_image_v1():
-    msgproc.log("Preparing table tile_image_v1 ...")
+    msgproc.log(f"Preparing table {__table_name_tile_image_v1} ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    create_table : str = """
-        CREATE TABLE tile_image_v1(
+    create_table: str = f"""
+        CREATE TABLE {__table_name_tile_image_v1}(
         tile_type VARCHAR(64) NOT NULL,
         tile_id VARCHAR(255) NOT NULL,
-        tile_image VARCHAR(255),
+        {__field_name_tile_image} VARCHAR(255),
         PRIMARY KEY(tile_type, tile_id))
     """
     cursor_obj.execute(create_table)
     cursor_obj.close()
-    msgproc.log("Prepared table tile_image_v1.")
+    msgproc.log(f"Prepared table {__table_name_tile_image_v1}.")
 
 
 def load_tile_image(
-        tile_type : TileType,
-        tile_id : str) -> TileImage:
+        tile_type: TileType,
+        tile_id: str) -> TileImage:
     t = (tile_type.tile_type_name, tile_id)
     cursor = __connection.cursor()
     cursor.execute(
-        "SELECT tile_image, update_time \
-          FROM tile_image_v1 \
+        f"SELECT {__field_name_tile_image}, update_time \
+          FROM {__table_name_tile_image_v1} \
           WHERE tile_type = ? AND tile_id = ?",
         t)
     rows = cursor.fetchall()
@@ -238,7 +241,7 @@ def load_tile_image(
     if not rows: return None
     if len(rows) > 1:
         raise Exception(f"Multiple tile_image records for tile_type [{tile_type.tile_type_name}], tile_id [{tile_id}]")
-    tile_image : TileImage = TileImage()
+    tile_image: TileImage = TileImage()
     tile_image.tile_image = rows[0][0]
     tile_image.update_time = rows[0][1]
     tile_image.tile_type = tile_type.tile_type_name
@@ -247,19 +250,20 @@ def load_tile_image(
 
 
 def save_tile_image(
-        tile_type : TileType,
-        tile_id : str,
-        tile_image : str):
-    now : datetime.datetime = datetime.datetime.now()
-    existing : TileImage = load_tile_image(tile_type = tile_type, tile_id = tile_id)
+        tile_type: TileType,
+        tile_id: str,
+        tile_image: str):
+    now: datetime.datetime = datetime.datetime.now()
+    existing: TileImage = load_tile_image(tile_type=tile_type, tile_id=tile_id)
     if existing:
         t = (tile_image, now, tile_type.tile_type_name, tile_id)
         cursor = __connection.cursor()
-        cursor.execute("""
+        cursor.execute(
+            f"""
             UPDATE
-                tile_image_v1
+                {__table_name_tile_image_v1}
             SET
-                tile_image = ?,
+                {__field_name_tile_image} = ?,
                 update_time = ?
             WHERE
                 tile_type = ?
@@ -270,8 +274,9 @@ def save_tile_image(
     else:
         t = (tile_type.tile_type_name, tile_id, tile_image, now)
         cursor = __connection.cursor()
-        cursor.execute("INSERT INTO \
-            tile_image_v1( \
+        cursor.execute(
+            f"INSERT INTO \
+            {__table_name_tile_image_v1}( \
                 tile_type, \
                 tile_id, \
                 tile_image, \
@@ -287,7 +292,7 @@ def __alter_played_track_v1_add_album_id():
     msgproc.log("Updating table played_track_v1 with new column album_id ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    alter : str = """
+    alter: str = """
         ALTER TABLE played_track_v1
         ADD COLUMN album_id VARCHAR(255)
     """
@@ -300,7 +305,7 @@ def __alter_played_track_v1_add_album_track_count():
     msgproc.log("Updating table played_track_v1 with new column album_track_count ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    alter : str = """
+    alter: str = """
         ALTER TABLE played_track_v1
         ADD COLUMN album_track_count INTEGER
     """
@@ -312,7 +317,7 @@ def __alter_played_track_v1_add_album_track_count():
 def __add_index_by_album_id_to_played_track_v1():
     msgproc.log("Adding index on album_id on table played_track_v1 ...")
     cursor_obj = __connection.cursor()
-    create_index : str = """
+    create_index: str = """
         CREATE INDEX played_track_idx_album_id
         ON played_track_v1(album_id)"""
     cursor_obj.execute(create_index)
@@ -321,34 +326,34 @@ def __add_index_by_album_id_to_played_track_v1():
 
 
 def __alter_tile_image_v1_add_update_time():
-    msgproc.log("Updating table tile_image_v1 with new column update_time ...")
+    msgproc.log(f"Updating table {__table_name_tile_image_v1} with new column update_time ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    alter : str = """
-        ALTER TABLE tile_image_v1
+    alter: str = f"""
+        ALTER TABLE {__table_name_tile_image_v1}
         ADD COLUMN update_time TIMESTAMP
     """
     cursor_obj.execute(alter)
     cursor_obj.close()
-    msgproc.log("Altered table tile_image_v1 with new column update_time.")
+    msgproc.log(f"Altered table {__table_name_tile_image_v1} with new column update_time.")
 
 
-def __alter_table_with_column(table_name : str, column_name : str, column_type : str):
+def __alter_table_with_column(table_name: str, column_name: str, column_type: str):
     msgproc.log(f"Updating table {table_name} with new column {column_name} type {column_type} ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    alter : str = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+    alter: str = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
     cursor_obj.execute(alter)
     cursor_obj.close()
     msgproc.log(f"Altered table {table_name} with new column {column_name} type {column_type}.")
 
 
-def __alter_table_drop_column(table_name : str, column_name : str):
+def __alter_table_drop_column(table_name: str, column_name: str):
     msgproc.log(f"Updating table {table_name} dropping column {column_name} ...")
     cursor_obj = __connection.cursor()
     # Creating table
-    alter : str = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
-    success : bool = False
+    alter: str = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
+    success: bool = False
     try:
         cursor_obj.execute(alter)
         success = True
@@ -398,7 +403,7 @@ def migration_4():
 
 def migration_5():
     msgproc.log("Creating db version 6 ...")
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_with_column(table_name, "track_name", "VARCHAR(4096)")
     __alter_table_with_column(table_name, "track_duration", "INTEGER")
     __alter_table_with_column(table_name, "track_num", "INTEGER")
@@ -413,7 +418,7 @@ def migration_5():
     msgproc.log("Updated db to version 6.")
 
 
-def migration_template(new_version : str, migration_function : Callable):
+def migration_template(new_version: str, migration_function: Callable):
     msgproc.log(f"Creating db version {new_version} ...")
     migration_function()
     __store_db_version(new_version)
@@ -421,7 +426,7 @@ def migration_template(new_version : str, migration_function : Callable):
 
 
 def do_migration_6():
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_with_column(table_name, "explicit", "INTEGER")
 
 
@@ -430,7 +435,7 @@ def migration_6():
 
 
 def do_migration_7():
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_with_column(table_name, "artist_name", "VARCHAR(4096)")
 
 
@@ -439,7 +444,7 @@ def migration_7():
 
 
 def do_migration_8():
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_drop_column(table_name, "is_multidisc_album")
 
 
@@ -448,7 +453,7 @@ def migration_8():
 
 
 def do_migration_9():
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_with_column(table_name, "album_duration", "INTEGER")
 
 
@@ -457,14 +462,14 @@ def migration_9():
 
 
 def do_migration_10():
-    msgproc.log("Adding index on tile_type, tile_id on table tile_image_v1 ...")
+    msgproc.log(f"Adding index on tile_type, tile_id on table {__table_name_tile_image_v1} ...")
     cursor_obj = __connection.cursor()
-    create_index : str = """
+    create_index: str = f"""
         CREATE INDEX tile_image_v1_idx_tile_type_and_id
-        ON tile_image_v1(tile_type, tile_id)"""
+        ON {__table_name_tile_image_v1}(tile_type, tile_id)"""
     cursor_obj.execute(create_index)
     cursor_obj.close()
-    msgproc.log("Added index on tile_type, tile_id on table tile_image_v1")
+    msgproc.log(f"Added index on tile_type, tile_id on table {__table_name_tile_image_v1}")
 
 
 def migration_10():
@@ -472,14 +477,14 @@ def migration_10():
 
 
 def do_migration_11():
-    table_name : str = __table_name_played_track_v1
+    table_name: str = __table_name_played_track_v1
     __alter_table_with_column(table_name, "bit_depth", "INTEGER")
     __alter_table_with_column(table_name, "sample_rate", "INTEGER")
 
 
-def __do_migration_listen_queue(table_name : str, field_name : str):
+def __do_migration_listen_queue(table_name: str, field_name: str):
     # Creating table
-    create_table : str = f"""
+    create_table: str = f"""
         CREATE TABLE IF NOT EXISTS {table_name}(
         {field_name} VARCHAR(255) PRIMARY KEY,
         {__field_name_created_timestamp} TIMESTAMP)
@@ -508,7 +513,7 @@ def do_migration_14():
 
 
 def do_migration_15():
-    create_table : str = f"""
+    create_table: str = f"""
         CREATE TABLE IF NOT EXISTS {__table_name_album_metadata_cache_v1}(
         {__field_name_album_id} VARCHAR(255) PRIMARY KEY,
         {__field_name_name} VARCHAR(255),
@@ -549,9 +554,9 @@ def migration_15():
 
 
 def insert_playback(
-        played_track_request : PlayedTrackRequest,
-        last_played : datetime.datetime):
-    play_count : int = 1 if last_played else 0
+        played_track_request: PlayedTrackRequest,
+        last_played: datetime.datetime):
+    play_count: int = 1 if last_played else 0
     # msgproc.log(f"insert_playback [{played_track_request.track_id}] "
     #             f"with play_count [{play_count}] "
     #             f"last_played [{'NOT NULL' if last_played else 'NULL'}]")
@@ -576,7 +581,8 @@ def insert_playback(
         play_count,
         last_played)
     cursor = __connection.cursor()
-    cursor.execute("INSERT INTO played_track_v1(track_id, \
+    cursor.execute(
+        "INSERT INTO played_track_v1(track_id, \
                     album_id, \
                     album_track_count, \
                     track_name, \
@@ -596,14 +602,14 @@ def insert_playback(
                     play_count, \
                     last_played) \
                     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                t)
+        t)
     cursor.close()
     __connection.commit()
 
 
 def update_playback(
-        played_track_request : PlayedTrackRequest,
-        last_played : datetime.datetime):
+        played_track_request: PlayedTrackRequest,
+        last_played: datetime.datetime):
     msgproc.log(f"update_playback [{played_track_request.track_id}] "
                 f"with last_played [{'NOT NULL' if last_played else 'NULL'}]")
     if last_played:
@@ -689,10 +695,10 @@ def update_playback(
     __connection.commit()
 
 
-def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[PlayedTrack]:
+def _get_played_tracks(sorting: PlayedTracksSorting, max_tracks: int) -> list[PlayedTrack]:
     t = (max_tracks, )
     cursor = __connection.cursor()
-    query : str = f"SELECT \
+    query: str = f"SELECT \
             track_id, \
             play_count, \
             last_played, \
@@ -725,9 +731,9 @@ def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[
     rows = cursor.fetchall()
     cursor.close()
     if not rows: return list()
-    played_list : list[PlayedTrack] = list()
+    played_list: list[PlayedTrack] = list()
     for row in rows:
-        played : PlayedTrack = PlayedTrack()
+        played: PlayedTrack = PlayedTrack()
         played.track_id = str(row[0])
         played.play_count = row[1]
         played.last_played = row[2]
@@ -751,19 +757,19 @@ def _get_played_tracks(sorting : PlayedTracksSorting, max_tracks : int) -> list[
     return played_list
 
 
-def get_last_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
+def get_last_played_tracks(max_tracks: int = 100) -> list[PlayedTrack]:
     return _get_played_tracks(
-        sorting = PlayedTracksSorting.LAST_PLAYED_FIRST,
-        max_tracks = max_tracks)
+        sorting=PlayedTracksSorting.LAST_PLAYED_FIRST,
+        max_tracks=max_tracks)
 
 
-def get_most_played_tracks(max_tracks : int = 100) -> list[PlayedTrack]:
+def get_most_played_tracks(max_tracks: int = 100) -> list[PlayedTrack]:
     return _get_played_tracks(
-        sorting = PlayedTracksSorting.MOST_PLAYED_FIRST,
-        max_tracks = max_tracks)
+        sorting=PlayedTracksSorting.MOST_PLAYED_FIRST,
+        max_tracks=max_tracks)
 
 
-def get_played_track_entry(track_id : str) -> PlayedTrack:
+def get_played_track_entry(track_id: str) -> PlayedTrack:
     t = (track_id,)
     cursor = __connection.cursor()
     cursor.execute("SELECT \
@@ -790,7 +796,7 @@ def get_played_track_entry(track_id : str) -> PlayedTrack:
     rows = cursor.fetchall()
     cursor.close()
     if not rows: return None
-    result : PlayedTrack = PlayedTrack()
+    result: PlayedTrack = PlayedTrack()
     result.track_id = track_id
     result.play_count = rows[0][0]
     result.last_played = rows[0][1]
@@ -813,7 +819,7 @@ def get_played_track_entry(track_id : str) -> PlayedTrack:
     return result
 
 
-def get_played_album_entries(album_id : str) -> list[PlayedTrack]:
+def get_played_album_entries(album_id: str) -> list[PlayedTrack]:
     t = (album_id,)
     cursor = __connection.cursor()
     cursor.execute("SELECT \
@@ -841,9 +847,9 @@ def get_played_album_entries(album_id : str) -> list[PlayedTrack]:
     rows = cursor.fetchall()
     cursor.close()
     if not rows: return list()
-    result : list[PlayedTrack] = list()
+    result: list[PlayedTrack] = list()
     for row in rows:
-        played_track : PlayedTrack = PlayedTrack()
+        played_track: PlayedTrack = PlayedTrack()
         played_track.album_id = album_id
         played_track.play_count = row[0]
         played_track.last_played = row[1]
@@ -867,11 +873,11 @@ def get_played_album_entries(album_id : str) -> list[PlayedTrack]:
     return result
 
 
-def track_has_been_played(track_id : str) -> bool:
+def track_has_been_played(track_id: str) -> bool:
     return get_played_track_entry(track_id) is not None
 
 
-def album_has_been_played(album_id : str) -> bool:
+def album_has_been_played(album_id: str) -> bool:
     t = (album_id,)
     cursor = __connection.cursor()
     cursor.execute("SELECT album_id, COUNT(album_id) \
@@ -885,7 +891,7 @@ def album_has_been_played(album_id : str) -> bool:
     return rows and len(rows) == 1 and int(rows[0][1]) > 0
 
 
-def remove_album_from_played_tracks(album_id : str):
+def remove_album_from_played_tracks(album_id: str):
     t = (album_id,)
     cursor = __connection.cursor()
     cursor.execute(
@@ -895,25 +901,26 @@ def remove_album_from_played_tracks(album_id : str):
     __connection.commit()
 
 
-def purge_album_from_played_tracks(album_id : str):
+def purge_album_from_played_tracks(album_id: str):
     return __purge_album_from_table(album_id, __table_name_played_track_v1)
 
 
-def purge_album_from_metadata_cache(album_id : str):
+def purge_album_from_metadata_cache(album_id: str):
     return __purge_album_from_table(album_id, __table_name_album_metadata_cache_v1)
 
 
-def __purge_album_from_table(album_id : str, table_name):
+def __purge_album_from_table(album_id: str, table_name):
     t = (album_id,)
     cursor = __connection.cursor()
-    cursor.execute(f"DELETE FROM {table_name} "
-                   f"WHERE {__field_name_album_id} = ?",
+    cursor.execute(
+        f"DELETE FROM {table_name} "
+        f"WHERE {__field_name_album_id} = ?",
         t)
     cursor.close()
     __connection.commit()
 
 
-def remove_track_from_played_tracks(track_id : str):
+def remove_track_from_played_tracks(track_id: str):
     t = (track_id,)
     cursor = __connection.cursor()
     cursor.execute(
@@ -949,15 +956,15 @@ def __is_album_id_in_table(
     return True
 
 
-def get_most_played_albums(max_albums : int = 100) -> list[PlayedAlbum]:
+def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
     cursor = __connection.cursor()
     cursor.execute(f"{__most_played_albums_query} LIMIT {max_albums}")
     rows = cursor.fetchall()
     cursor.close()
-    result : list[PlayedAlbum] = list()
+    result: list[PlayedAlbum] = list()
     if not rows: return result
     for row in rows:
-        played : PlayedAlbum = PlayedAlbum()
+        played: PlayedAlbum = PlayedAlbum()
         played.album_id = row[0]
         played.album_played_counter = row[1]
         result.append(played)
@@ -967,33 +974,33 @@ def get_most_played_albums(max_albums : int = 100) -> list[PlayedAlbum]:
 # this will track the collected required information to the
 # played_tracks_v1 table but last_playback and play_count
 # are left as they are
-def track_ghost_playback(played_track_request : PlayedTrackRequest):
-    if not track_has_been_played(track_id = played_track_request.track_id):
+def track_ghost_playback(played_track_request: PlayedTrackRequest):
+    if not track_has_been_played(track_id=played_track_request.track_id):
         insert_playback(
-            played_track_request = played_track_request,
-            last_played = None)
+            played_track_request=played_track_request,
+            last_played=None)
 
 
-def track_playback(played_track_request : PlayedTrackRequest):
-    now : datetime.datetime = datetime.datetime.now()
+def track_playback(played_track_request: PlayedTrackRequest):
+    now: datetime.datetime = datetime.datetime.now()
     # we try inserting first
-    track_action : str = "insert"
+    track_action: str = "insert"
     try:
         insert_playback(
-            played_track_request = played_track_request,
-            last_played = now)
+            played_track_request=played_track_request,
+            last_played=now)
     except sqlite3.IntegrityError:
-        track_action : str = "update"
+        track_action: str = "update"
         update_playback(
-            played_track_request = played_track_request,
-            last_played = now)
+            played_track_request=played_track_request,
+            last_played=now)
     msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
 
 
 def __is_in_listen_queue(
-        obj_id : str,
-        key_field_name : str,
-        table_name : str) -> bool:
+        obj_id: str,
+        key_field_name: str,
+        table_name: str) -> bool:
     t = (obj_id, )
     cursor = __connection.cursor()
     cursor.execute(
@@ -1010,21 +1017,21 @@ def __is_in_listen_queue(
     return True
 
 
-def is_in_track_listen_queue(track_id : str) -> bool:
+def is_in_track_listen_queue(track_id: str) -> bool:
     return __is_in_listen_queue(
         obj_id=track_id,
         key_field_name=__field_name_track_id,
         table_name=__table_name_listen_track_queue_v1)
 
 
-def is_in_album_listen_queue(album_id : str) -> bool:
+def is_in_album_listen_queue(album_id: str) -> bool:
     return __is_in_listen_queue(
         obj_id=album_id,
         key_field_name=__field_name_album_id,
         table_name=__table_name_listen_album_queue_v1)
 
 
-def is_in_artist_listen_queue(artist_id : str) -> bool:
+def is_in_artist_listen_queue(artist_id: str) -> bool:
     return __is_in_listen_queue(
         obj_id=artist_id,
         key_field_name=__field_name_artist_id,
@@ -1032,8 +1039,8 @@ def is_in_artist_listen_queue(artist_id : str) -> bool:
 
 
 def __get_listen_queue(
-        table_name : str,
-        key_field_name : str) -> list[str]:
+        table_name: str,
+        key_field_name: str) -> list[str]:
     cursor = __connection.cursor()
     cursor.execute(
         f"SELECT {key_field_name} \
@@ -1041,9 +1048,9 @@ def __get_listen_queue(
           ORDER BY {__field_name_created_timestamp}")
     rows = cursor.fetchall()
     cursor.close()
-    result : list[str] = list()
+    result: list[str] = list()
     for row in rows if rows else list():
-        id : str = row[0]
+        id: str = row[0]
         result.append(id)
     return result
 
@@ -1067,14 +1074,14 @@ def get_track_listen_queue() -> list[str]:
 
 
 def __add_to_listen_queue(
-        obj_id : str,
-        table_name : str,
-        key_field_name : str) -> bool:
+        obj_id: str,
+        table_name: str,
+        key_field_name: str) -> bool:
     if not __is_in_listen_queue(
             obj_id=obj_id,
             key_field_name=key_field_name,
             table_name=table_name):
-        now : datetime.datetime = datetime.datetime.now()
+        now: datetime.datetime = datetime.datetime.now()
         t = (obj_id, now)
         cursor = __connection.cursor()
         cursor.execute(
@@ -1091,21 +1098,21 @@ def __add_to_listen_queue(
     return False
 
 
-def add_to_album_listen_queue(album_id : str) -> bool:
+def add_to_album_listen_queue(album_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=album_id,
         table_name=__table_name_listen_album_queue_v1,
         key_field_name=__field_name_album_id)
 
 
-def add_to_artist_listen_queue(artist_id : str) -> bool:
+def add_to_artist_listen_queue(artist_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=artist_id,
         table_name=__table_name_listen_artist_queue_v1,
         key_field_name=__field_name_artist_id)
 
 
-def add_to_track_listen_queue(track_id : str) -> bool:
+def add_to_track_listen_queue(track_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=track_id,
         table_name=__table_name_listen_track_queue_v1,
@@ -1113,9 +1120,9 @@ def add_to_track_listen_queue(track_id : str) -> bool:
 
 
 def __remove_from_listen_queue(
-        obj_id : str,
-        table_name : str,
-        key_field_name : str) -> bool:
+        obj_id: str,
+        table_name: str,
+        key_field_name: str) -> bool:
     if __is_in_listen_queue(
             obj_id=obj_id,
             table_name=table_name,
@@ -1134,31 +1141,50 @@ def __remove_from_listen_queue(
     return False
 
 
-def remove_from_album_listen_queue(album_id : str) -> bool:
+def remove_from_album_listen_queue(album_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=album_id,
         table_name=__table_name_listen_album_queue_v1,
         key_field_name=__field_name_album_id)
 
 
-def remove_from_artist_listen_queue(artist_id : str) -> bool:
+def remove_from_artist_listen_queue(artist_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=artist_id,
         table_name=__table_name_listen_artist_queue_v1,
         key_field_name=__field_name_artist_id)
 
 
-def remove_from_track_listen_queue(track_id : str) -> bool:
+def remove_from_track_listen_queue(track_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=track_id,
         table_name=__table_name_listen_track_queue_v1,
         key_field_name=__field_name_track_id)
 
 
-def get_album_metadata(album_id : str) -> AlbumMetadata:
+def clean_image_url_starting_with(base_root: str, opposite: bool = False):
+    t = (base_root + "%",)
+    operator_left: str = "NOT(" if opposite else ""
+    operator_right: str = ")" if opposite else ""
+    update_str: str = f"""
+            UPDATE {__table_name_tile_image_v1}
+            SET {__field_name_tile_image} = null
+            WHERE {operator_left}{__field_name_tile_image} LIKE ?{operator_right}
+    """
+    msgproc.log(f"clean_image_url_starting_with update_str [{update_str}],"
+                f" base_root [{base_root}], "
+                f" value [{t[0]}]")
+    cursor = __connection.cursor()
+    cursor.execute(update_str, t)
+    cursor.close()
+    __connection.commit()
+
+
+def get_album_metadata(album_id: str) -> AlbumMetadata:
     t = (album_id, )
     cursor = __connection.cursor()
-    cursor.execute(f"""
+    cursor.execute(
+        f"""
             SELECT
                 {__field_name_album_id},
                 {__field_name_name},
@@ -1182,7 +1208,7 @@ def get_album_metadata(album_id : str) -> AlbumMetadata:
     if len(rows) > 1:
         raise Exception(f"Multiple {__table_name_album_metadata_cache_v1} records for [{album_id}]")
     row = rows[0]
-    result : AlbumMetadata = AlbumMetadata()
+    result: AlbumMetadata = AlbumMetadata()
     result.album_id = row[0]
     result.album_name = row[1]
     result.artist_id = row[2]
@@ -1198,7 +1224,7 @@ def get_album_metadata(album_id : str) -> AlbumMetadata:
     return result
 
 
-def __insert_album_metadata(album : AlbumMetadata, commit : bool = False):
+def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
     t = (
         album.album_id,
         album.album_name,
@@ -1213,7 +1239,8 @@ def __insert_album_metadata(album : AlbumMetadata, commit : bool = False):
         album.media_metadata_tags,
         album.created_timestamp)
     cursor = __connection.cursor()
-    cursor.execute(f"""
+    cursor.execute(
+        f"""
             INSERT INTO {__table_name_album_metadata_cache_v1}(
                 {__field_name_album_id},
                 {__field_name_name},
@@ -1236,7 +1263,7 @@ def __insert_album_metadata(album : AlbumMetadata, commit : bool = False):
     if commit: __connection.commit()
 
 
-def __delete_album_metadata(album_id : str, commit : bool = False):
+def __delete_album_metadata(album_id: str, commit: bool = False):
     t = (album_id, )
     cursor = __connection.cursor()
     cursor.execute(
@@ -1247,8 +1274,8 @@ def __delete_album_metadata(album_id : str, commit : bool = False):
     if commit: __connection.commit()
 
 
-def store_album_metadata(album_metadata : AlbumMetadata):
-    if get_album_metadata(album_id = album_metadata.album_id):
+def store_album_metadata(album_metadata: AlbumMetadata):
+    if get_album_metadata(album_id=album_metadata.album_id):
         # we want to overwrite so we delete first
         __delete_album_metadata(
             album_id=album_metadata.album_id,
@@ -1260,18 +1287,18 @@ def store_album_metadata(album_metadata : AlbumMetadata):
     pass
 
 
-__connection : sqlite3.Connection = __get_connection()
+__connection: sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
 
-current_db_version : str = get_db_version()
+current_db_version: str = get_db_version()
 
 
 class Migration:
 
-    def __init__(self, migration_name : str, apply_on : str, migration_function : Callable[[], any]):
-        self._migration_name : str = migration_name
-        self._apply_on : str = apply_on
-        self._migration_function : Callable[[], any] = migration_function
+    def __init__(self, migration_name: str, apply_on: str, migration_function: Callable[[], any]):
+        self._migration_name: str = migration_name
+        self._apply_on: str = apply_on
+        self._migration_function: Callable[[], any] = migration_function
 
     @property
     def migration_name(self) -> str:
@@ -1286,75 +1313,75 @@ class Migration:
         return self._migration_function
 
 
-migrations : list[Migration] = [
+migrations: list[Migration] = [
     Migration(
-        migration_name = "initial_creation",
-        apply_on = None,
-        migration_function = migration_0),
+        migration_name="initial_creation",
+        apply_on=None,
+        migration_function=migration_0),
     Migration(
-        migration_name = "tile_image_v1",
-        apply_on = "1",
-        migration_function = migration_1),
+        migration_name="tile_image_v1",
+        apply_on="1",
+        migration_function=migration_1),
     Migration(
-        migration_name = "add_album_info_to_played_tracks_v1",
-        apply_on = "2",
-        migration_function = migration_2),
+        migration_name="add_album_info_to_played_tracks_v1",
+        apply_on="2",
+        migration_function=migration_2),
     Migration(
-        migration_name = "add_album_id_index_to_played_tracks_v1",
-        apply_on = "3",
-        migration_function = migration_3),
+        migration_name="add_album_id_index_to_played_tracks_v1",
+        apply_on="3",
+        migration_function=migration_3),
     Migration(
-        migration_name = "add_update_time_to_tile_image_v1",
-        apply_on = "4",
-        migration_function = migration_4),
+        migration_name="add_update_time_to_tile_image_v1",
+        apply_on="4",
+        migration_function=migration_4),
     Migration(
-        migration_name = "add_columns_to_played_track_v1",
-        apply_on = "5",
-        migration_function = migration_5),
+        migration_name="add_columns_to_played_track_v1",
+        apply_on="5",
+        migration_function=migration_5),
     Migration(
-        migration_name = "add_explicit_to_played_track_v1",
-        apply_on = "6",
-        migration_function = migration_6),
+        migration_name="add_explicit_to_played_track_v1",
+        apply_on="6",
+        migration_function=migration_6),
     Migration(
-        migration_name = "add_artist_name_to_played_track_v1",
-        apply_on = "7",
-        migration_function = migration_7),
+        migration_name="add_artist_name_to_played_track_v1",
+        apply_on="7",
+        migration_function=migration_7),
     Migration(
-        migration_name = "drop_is_multidisc_album_from_played_track_v1",
-        apply_on = "8",
-        migration_function = migration_8),
+        migration_name="drop_is_multidisc_album_from_played_track_v1",
+        apply_on="8",
+        migration_function=migration_8),
     Migration(
-        migration_name = "add_album_duration_to_played_track_v1",
-        apply_on = "9",
-        migration_function = migration_9),
+        migration_name="add_album_duration_to_played_track_v1",
+        apply_on="9",
+        migration_function=migration_9),
     Migration(
-        migration_name = "add_indexes_to_tile_image_v1",
-        apply_on = "10",
-        migration_function = migration_10),
+        migration_name="add_indexes_to_tile_image_v1",
+        apply_on="10",
+        migration_function=migration_10),
     Migration(
-        migration_name = "add_bd_and_sr_to_played_track_v1",
-        apply_on = "11",
-        migration_function = migration_11),
+        migration_name="add_bd_and_sr_to_played_track_v1",
+        apply_on="11",
+        migration_function=migration_11),
     Migration(
-        migration_name = "add_listen_album_queue_v1",
-        apply_on = "12",
-        migration_function = migration_12),
+        migration_name="add_listen_album_queue_v1",
+        apply_on="12",
+        migration_function=migration_12),
     Migration(
-        migration_name = "add_listen_artist_queue_v1",
-        apply_on = "13",
-        migration_function = migration_13),
+        migration_name="add_listen_artist_queue_v1",
+        apply_on="13",
+        migration_function=migration_13),
     Migration(
-        migration_name = "add_listen_track_queue_v1",
-        apply_on = "14",
-        migration_function = migration_14),
+        migration_name="add_listen_track_queue_v1",
+        apply_on="14",
+        migration_function=migration_14),
     Migration(
-        migration_name = "add_album_metadata_v1",
-        apply_on = "15",
-        migration_function = migration_15)]
+        migration_name="add_album_metadata_v1",
+        apply_on="15",
+        migration_function=migration_15)]
 
-current_migration : Migration
+current_migration: Migration
 for current_migration in migrations:
-    current_db_version : int = get_db_version()
+    current_db_version: int = get_db_version()
     if not current_db_version or current_db_version == current_migration.apply_on:
         msgproc.log(f"Migration [{current_migration.migration_name}] "
                     f"is executing on current db version [{current_db_version}] ...")
@@ -1363,5 +1390,5 @@ for current_migration in migrations:
     else:
         msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
 
-migrated_db_version : str = get_db_version()
+migrated_db_version: str = get_db_version()
 msgproc.log(f"Current db version is [{migrated_db_version}]")

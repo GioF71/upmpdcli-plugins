@@ -556,7 +556,7 @@ int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::iStop()
 {
-    bool ok = m_dev->getmpdcli()->stop();
+    bool ok = m_dev->getmpdcli()->clearQueue();
     m_playpending = false;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }

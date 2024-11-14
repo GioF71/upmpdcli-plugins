@@ -35,13 +35,14 @@ class OptionKey(Enum):
     INITIAL_TRACK_NUMBER = 15, "ntl-trkn", 1
     TRACK_AS_NAVIGABLE = 16, "nvgbl-trk", False
 
-    def __init__(self,
-            num : int,
-            element_name : str,
-            default_value : any):
-        self.num : int = num
-        self.element_name : str = element_name
-        self.default_value : any = default_value
+    def __init__(
+            self,
+            num: int,
+            element_name: str,
+            default_value: any):
+        self.num: int = num
+        self.element_name: str = element_name
+        self.default_value: any = default_value
 
     def get_name(self) -> str:
         return self.element_name
@@ -51,8 +52,8 @@ class OptionKey(Enum):
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in OptionKey:
     if v.get_name() in name_checker_set:
         raise Exception(f"Duplicated name [{v.get_name()}]")

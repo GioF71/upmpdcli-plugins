@@ -19,9 +19,9 @@ from tidalapi.album import Album as TidalAlbum
 
 class AlbumSortCriteria:
 
-    def __init__(self, extractor : Callable[[TidalAlbum], any], comparator : Callable[[any, any], int]):
-        self._extractor : Callable[[TidalAlbum], any] = extractor
-        self._comparator : Callable[[any, any], int] = comparator
+    def __init__(self, extractor: Callable[[TidalAlbum], any], comparator: Callable[[any, any], int]):
+        self._extractor: Callable[[TidalAlbum], any] = extractor
+        self._comparator: Callable[[any, any], int] = comparator
 
-    def compare(self, left : TidalAlbum, right : TidalAlbum) -> int:
+    def compare(self, left: TidalAlbum, right: TidalAlbum) -> int:
         return self._comparator(self._extractor(left), self._extractor(right))

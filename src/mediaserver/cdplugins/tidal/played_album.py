@@ -16,21 +16,21 @@
 class PlayedAlbum:
 
     def __init__(self):
-        self._album_id : str = None
-        self._album_played_counter : float = None
+        self._album_id: str = None
+        self._album_played_counter: float = None
 
     @property
     def album_id(self) -> str:
         return self._album_id
 
     @album_id.setter
-    def album_id(self, value : str):
-        self._album_id : str = value
+    def album_id(self, value: str):
+        self._album_id: str = value
 
     @property
     def album_played_counter(self) -> float:
         return self._album_played_counter
 
     @album_played_counter.setter
-    def album_played_counter(self, value : float):
-        self._album_played_counter : float = value
+    def album_played_counter(self, value: float):
+        self._album_played_counter: float = value

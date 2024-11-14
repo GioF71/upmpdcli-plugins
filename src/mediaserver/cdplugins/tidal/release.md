@@ -1,6 +1,12 @@
 # Tidal Plugin Release notes
 
-## 0.7.9
+## 0.7.10
+
+- Restore "Add to Bookmark" functionality for Albums
+- Improve reliability of image caching
+- Misc code corrections, cleanup and refactoring
+
+## 0.7.9 (2024-11-13)
 
 - Bump to [tidalapi version 0.8.1](https://github.com/tamland/python-tidal/releases/tag/v0.8.1)
 - Remove old get_credentials_pkce.py
