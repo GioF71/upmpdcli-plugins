@@ -35,13 +35,14 @@ class TagType(Enum):
     BOOKMARKS = 700, "lstnq", "Bookmarks"
     PLAYBACK_STATISTICS = 800, "plbkstts", "Playback Statistics"
 
-    def __init__(self,
-            num : int,
-            tag_name : str,
-            tag_title : str):
-        self.num : int = num
-        self.tag_name : str = tag_name
-        self.tag_title : str = tag_title
+    def __init__(
+            self,
+            num: int,
+            tag_name: str,
+            tag_title: str):
+        self.num: int = num
+        self.tag_name: str = tag_name
+        self.tag_title: str = tag_title
 
     def getTagName(self) -> str:
         return self.tag_name
@@ -50,7 +51,7 @@ class TagType(Enum):
         return self.tag_title
 
 
-def get_tag_Type_by_name(tag_name : str) -> TagType:
+def get_tag_Type_by_name(tag_name: str) -> TagType:
     # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
     for _, member in TagType.__members__.items():
         if tag_name == member.getTagName():
@@ -59,8 +60,8 @@ def get_tag_Type_by_name(tag_name : str) -> TagType:
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in TagType:
     if v.getTagName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getTagName()}]")

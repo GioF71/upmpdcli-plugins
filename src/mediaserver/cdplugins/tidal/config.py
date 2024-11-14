@@ -18,7 +18,7 @@ import constants
 from tidalapi import Quality as TidalQuality
 
 
-def getPluginOptionValue(option_key: str, dflt = None):
+def getPluginOptionValue(option_key: str, dflt=None):
     return upmplgutils.getOptionValue(f"{constants.plugin_name}{option_key}", dflt)
 
 

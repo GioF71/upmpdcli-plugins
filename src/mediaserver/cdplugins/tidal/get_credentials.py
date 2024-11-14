@@ -23,21 +23,21 @@ from datetime import datetime
 from pathlib import Path
 import tidalapi
 
-tidal_plugin_name : str = "tidal"
+tidal_plugin_name: str = "tidal"
 
 
-def print_setting(name : str, value : str):
+def print_setting(name: str, value: str):
     """Print function for script settings."""
     print(f"{tidal_plugin_name}{name} = {value}")
 
 
-auth_type_legacy : str = "legacy"
-auth_type_oauth2 : str = "oauth2"
-auth_type_pkce : str = "pkce"
+auth_type_legacy: str = "legacy"
+auth_type_oauth2: str = "oauth2"
+auth_type_pkce: str = "pkce"
 
-auth_type_default : str = auth_type_oauth2
+auth_type_default: str = auth_type_oauth2
 
-auth_types : list[str] = [auth_type_legacy, auth_type_oauth2, auth_type_pkce]
+auth_types: list[str] = [auth_type_legacy, auth_type_oauth2, auth_type_pkce]
 
 
 def print_separator(middle_text: str, border_len: int = 20):
@@ -66,7 +66,7 @@ def auth_oauth2(args: argparse.Namespace, use_pkce: bool = False):
         print(json.dumps(cred_dict, indent=4))
 
 
-def auth_legacy(args : argparse.Namespace):
+def auth_legacy(args: argparse.Namespace):
     """Performs legacy authentication (deprecated)."""
     session = tidalapi.Session()
     # Will run until you visit the printed url and link your account
@@ -76,7 +76,7 @@ def auth_legacy(args : argparse.Namespace):
     refresh_token = session.refresh_token
     expiry_time = session.expiry_time
     storable_expiry_time = datetime.timestamp(expiry_time)
-    cred_dict : dict[str, str] = {
+    cred_dict: dict[str, str] = {
         "authentication_type": "oauth2",
         "tokentype": token_type,
         "accesstoken": access_token,
@@ -87,7 +87,7 @@ def auth_legacy(args : argparse.Namespace):
         print(f"Writing the credentials to file [{args.f}] ...")
         # write a new json file
         with open(file=args.f, mode="w", encoding="utf-8") as cred_file:
-            json.dump(cred_dict, cred_file, indent = 4)
+            json.dump(cred_dict, cred_file, indent=4)
         print(f"Credentials written to [{args.f}]")
     print(f"Credentials file for type [{args.t}] in json format:")
     print(json.dumps(cred_dict, indent=4))
@@ -123,7 +123,7 @@ def main():
             parent_path.mkdir(parents=True, exist_ok=True)
     if args.t and args.t.lower() not in auth_types:
         raise ValueError(f"Invalid authentication type [{args.t}]")
-    auth_type : str = args.t if args.t else auth_type_default
+    auth_type: str = args.t if args.t else auth_type_default
     print(f"Authentication type is [{auth_type}]")
     if auth_type_legacy.lower() == auth_type.lower():
         auth_legacy(args)

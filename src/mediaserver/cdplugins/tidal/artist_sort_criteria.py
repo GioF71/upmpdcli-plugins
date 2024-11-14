@@ -16,12 +16,12 @@
 from typing import Callable
 from tidalapi.artist import Artist as TidalArtist
 
+
 class ArtistSortCriteria:
 
-    def __init__(self, extractor : Callable[[TidalArtist], any], comparator : Callable[[any, any], int]):
-        self._extractor : Callable[[TidalArtist], any] = extractor
-        self._comparator : Callable[[any, any], int] = comparator
+    def __init__(self, extractor: Callable[[TidalArtist], any], comparator: Callable[[any, any], int]):
+        self._extractor: Callable[[TidalArtist], any] = extractor
+        self._comparator: Callable[[any, any], int] = comparator
 
-    def compare(self, left : TidalArtist, right : TidalArtist) -> int:
+    def compare(self, left: TidalArtist, right: TidalArtist) -> int:
         return self._comparator(self._extractor(left), self._extractor(right))
-

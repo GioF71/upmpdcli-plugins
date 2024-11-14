@@ -19,8 +19,8 @@ from played_track import PlayedTrack
 
 class PlayedTrackAdapter(TrackAdapter):
 
-    def __init__(self, track : PlayedTrack):
-        self._track : PlayedTrack = track
+    def __init__(self, track: PlayedTrack):
+        self._track: PlayedTrack = track
 
     def get_id(self) -> str:
         return self._track.track_id

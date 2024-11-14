@@ -20,36 +20,36 @@ from tidalapi import Quality as TidalQuality
 class StreamingInfo:
 
     def __init__(self):
-        self._url : str = None
-        self._mimetype : str = None
-        self._codec : any = None
-        self._sample_rate : int = None
-        self._bit_depth : int = None
-        self._audio_quality : TidalQuality = None
-        self._audio_mode : str = None
+        self._url: str = None
+        self._mimetype: str = None
+        self._codec: any = None
+        self._sample_rate: int = None
+        self._bit_depth: int = None
+        self._audio_quality: TidalQuality = None
+        self._audio_mode: str = None
 
     @property
     def url(self) -> str:
         return self._url
 
     @url.setter
-    def url(self, value : str):
-        self._url : str = value
+    def url(self, value: str):
+        self._url: str = value
 
     @property
     def mimetype(self) -> str:
         return self._mimetype
 
     @mimetype.setter
-    def mimetype(self, value : str):
-        self._mimetype : str = value
+    def mimetype(self, value: str):
+        self._mimetype: str = value
 
     @property
     def codecs(self) -> any:
         return self._codec
 
     @codecs.setter
-    def codecs(self, value : any):
+    def codecs(self, value: any):
         self._codec = value
 
     @property
@@ -57,7 +57,7 @@ class StreamingInfo:
         return self._sample_rate
 
     @sample_rate.setter
-    def sample_rate(self, value : int):
+    def sample_rate(self, value: int):
         self._sample_rate = value
 
     @property
@@ -65,7 +65,7 @@ class StreamingInfo:
         return self._bit_depth
 
     @bit_depth.setter
-    def bit_depth(self, value : int):
+    def bit_depth(self, value: int):
         self._bit_depth = value
 
     @property
@@ -73,7 +73,7 @@ class StreamingInfo:
         return self._audio_quality
 
     @audio_quality.setter
-    def audio_quality(self, value : TidalQuality):
+    def audio_quality(self, value: TidalQuality):
         self._audio_quality = value
 
     @property
@@ -81,5 +81,5 @@ class StreamingInfo:
         return self._audio_mode
 
     @audio_mode.setter
-    def audio_mode(self, value : str):
+    def audio_mode(self, value: str):
         self._audio_mode = value

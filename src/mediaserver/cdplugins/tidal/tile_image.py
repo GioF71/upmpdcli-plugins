@@ -26,29 +26,29 @@ class TileImage:
         return self._tile_type
 
     @tile_type.setter
-    def tile_type(self, value : str):
-        self._tile_type : str = value
+    def tile_type(self, value: str):
+        self._tile_type: str = value
 
     @property
     def tile_id(self) -> str:
         return self._tile_id
 
     @tile_id.setter
-    def tile_id(self, value : str):
-        self._tile_id : str = value
+    def tile_id(self, value: str):
+        self._tile_id: str = value
 
     @property
     def tile_image(self) -> str:
         return self._tile_image
 
     @tile_image.setter
-    def tile_image(self, value : str):
-        self._tile_image : str = value
+    def tile_image(self, value: str):
+        self._tile_image: str = value
 
     @property
     def update_time(self) -> datetime.datetime:
         return self._update_time
 
     @update_time.setter
-    def update_time(self, value : datetime.datetime):
-        self._update_time : datetime.datetime = value
+    def update_time(self, value: datetime.datetime):
+        self._update_time: datetime.datetime = value
