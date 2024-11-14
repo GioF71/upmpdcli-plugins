@@ -600,14 +600,28 @@ int AVTransport::playcontrol(
     switch (mpds.state) {
     case MpdStatus::MPDS_PLAY: 
         switch (what) {
-        case 0: ok = m_dev->getmpdcli()->stop(); break;
+        case 0:
+            m_uri = m_curMetadata = m_nextUri = m_nextMetadata = "";
+            if (m_dev->getopts().options & UpMpd::upmpdOwnQueue) {
+                ok = m_dev->getmpdcli()->clearQueue();
+            } else {
+                ok = m_dev->getmpdcli()->stop(); 
+            }
+            break;
         case 1: ok = m_dev->getmpdcli()->play();break;
         case 2: ok = m_dev->getmpdcli()->togglePause();break;
         }
         break;
     case MpdStatus::MPDS_PAUSE:
         switch (what) {
-        case 0: ok = m_dev->getmpdcli()->stop(); break;
+        case 0:
+            m_uri = m_curMetadata = m_nextUri = m_nextMetadata = "";
+            if (m_dev->getopts().options & UpMpd::upmpdOwnQueue) {
+                ok = m_dev->getmpdcli()->clearQueue();
+            } else {
+                ok = m_dev->getmpdcli()->stop(); 
+            }
+            break;
         case 1: ok = m_dev->getmpdcli()->togglePause();break;
         case 2: break;
         }
