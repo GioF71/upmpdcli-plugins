@@ -109,8 +109,7 @@ def maybelogin(a={}):
     else:
         username, password = getserviceuserpass("qobuz")
       
-    # Set default values in xbmcplug, for track listings when we don't have the audio details at
-    # this stage.
+    # Set default values for track listings
     if formatid == 5:
         setMimeAndSamplerate("audio/mpeg", "44100")
     if formatid == 6:
@@ -173,7 +172,6 @@ def track_list(tracks):
 @dispatcher.record('browse')
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(qobidprefix, routeplugin=plugin)
     msgproc.log("browse: [%s]" % a)
     if 'objid' not in a:
         raise Exception("No objid in args")
@@ -182,9 +180,11 @@ def browse(a):
     
     if re.match(r'0\$qobuz\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
+
+    xbmcplugin = XbmcPlugin(qobidprefix, objid, routeplugin=plugin)
+
     maybelogin()
 
-    xbmcplugin.objid = objid
     idpath = objid.replace(qobidprefix, '', 1)
     if bflg == 'meta':
         m = re.match(r'.*\$(.+)$', idpath)
@@ -218,7 +218,7 @@ def genre_view(genre_id):
         ('New Releases', plugin.url_for(genre_view_type, genre_id=genre_id, type='new-releases')),
         ('Qobuz Playlists', plugin.url_for(genre_view_playlists, genre_id=genre_id)), 
         ('Editor Picks', plugin.url_for(genre_view_type, genre_id=genre_id, type='editor-picks')),
-        ('Press Awards', plugin.url_for(genre_view_type, genre_id=genre_id, type='press-awards'))]           
+        ('Press Awards', plugin.url_for(genre_view_type, genre_id=genre_id, type='press-awards'))]
 
     item_num = 1
     for endpoint in endpoint_list:
@@ -258,8 +258,7 @@ def genre_view_playlists(genre_id):
 
 @plugin.route('/whats_new')
 def whats_new():
-    xbmcplugin.add_directory('Playlists', plugin.url_for(featured,
-                                              content_type='playlists'))
+    xbmcplugin.add_directory('Playlists', plugin.url_for(featured, content_type='playlists'))
     xbmcplugin.add_directory('Albums', plugin.url_for(featured, content_type='albums'))
     xbmcplugin.add_directory('Artists', plugin.url_for(featured, content_type='artists'))
 
@@ -373,7 +372,6 @@ def favourite_playlists():
 @dispatcher.record('search')
 def search(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(qobidprefix, routeplugin=plugin)
     msgproc.log("search: [%s]" % a)
     objid = a['objid']
     field = a['field'] if 'field' in a else None
@@ -382,7 +380,9 @@ def search(a):
     
     if re.match(r'0\$qobuz\$', objid) is None:
         raise Exception("bad objid [%s]" % objid)
-    xbmcplugin.objid = objid
+
+    xbmcplugin = XbmcPlugin(qobidprefix, objid, routeplugin=plugin)
+
     maybelogin()
     
     if field and field not in ['artist', 'album', 'playlist', 'track']:
