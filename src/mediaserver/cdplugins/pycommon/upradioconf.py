@@ -21,6 +21,7 @@ import threading
 from upmplgutils import uplog, direntry, getOptionValue
 import conftree
 
+
 class UpmpdcliRadios(object):
     def __init__(self, upconfig):
         datadir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -29,21 +30,21 @@ class UpmpdcliRadios(object):
         self.fetchstream = os.path.join(datadir, "rdpl2stream", "fetchStream.py")
         self._radios = []
         self._readRadios(upconfig)
-        #uplog("Radios: %s" % self._radios)
+        # uplog("Radios: %s" % self._radios)
 
     def _fetchStream(self, index, title, uri, artUri, mime):
         uplog(f"upradios: Fetching {title}")
-        streamUri=""
+        streamUri = ""
         try:
             streamUri = subprocess.check_output([self.fetchstream, uri])
-            streamUri = streamUri.decode('utf-8').strip("\r\n")
+            streamUri = streamUri.decode("utf-8").strip("\r\n")
         except Exception as ex:
             uplog("fetchStream.py failed for %s: %s" % (title, ex))
         if streamUri:
             self._radios[index] = (title, streamUri, uri, artUri, mime)
-        
+
     def _readRadiosFromConf(self, conf):
-        '''Read radio definitions from a config file (either main file or radiolist)'''
+        """Read radio definitions from a config file (either main file or radiolist)"""
         keys = conf.getSubKeys_unsorted()
         threads = []
         cntt = 0
@@ -55,7 +56,9 @@ class UpmpdcliRadios(object):
                 mime = conf.get("mime", k)
                 self._radios.append(None)
                 idx = len(self._radios) - 1
-                t = threading.Thread(target=self._fetchStream, args=(idx, title, uri, artUri, mime))
+                t = threading.Thread(
+                    target=self._fetchStream, args=(idx, title, uri, artUri, mime)
+                )
                 t.start()
                 threads.append(t)
                 cntt += 1
@@ -77,9 +80,9 @@ class UpmpdcliRadios(object):
                 tlist.append(rd)
         self._radios = tlist
         uplog(f"upradios: Init done")
-        
+
     def _readRadios(self, upconfig):
-        '''Read radio definitions from main config file, then possible radiolist'''
+        """Read radio definitions from main config file, then possible radiolist"""
         self._radios = []
         self._maxthreads = upconfig.get("upradiosmaxthreads")
         if self._maxthreads:
@@ -87,39 +90,47 @@ class UpmpdcliRadios(object):
         else:
             self._maxthreads = 5
         self._readRadiosFromConf(upconfig)
-        radiolist = getOptionValue("radiolist", "/usr/share/upmpdcli/radio_scripts/radiolist.conf")
+        radiolist = getOptionValue(
+            "radiolist", "/usr/share/upmpdcli/radio_scripts/radiolist.conf"
+        )
         if radiolist:
             radioconf = conftree.ConfSimple(radiolist)
             self._readRadiosFromConf(radioconf)
 
-
     def __iter__(self):
-       return RadioIterator(self)
+        return RadioIterator(self)
 
     # Note: not implementing __getitem__ because don't want to deal with slices, neg indexes etc.
     def get_radio(self, idx):
         if idx < 0 or idx > len(self._radios):
-            raise(IndexError(f"bad radio index {idx}"))
+            raise (IndexError(f"bad radio index {idx}"))
         radio = self._radios[idx]
-        return {"index" : idx, "title" : radio[0], "streamUri" : radio[1],
-                "uri" : radio[2], "artUri" : radio[3], "mime": radio[4]}
-       
+        return {
+            "index": idx,
+            "title": radio[0],
+            "streamUri": radio[1],
+            "uri": radio[2],
+            "artUri": radio[3],
+            "mime": radio[4],
+        }
+
+
 class RadioIterator:
-   def __init__(self, radios):
-       self._radios = radios
-       self._index = 0
+    def __init__(self, radios):
+        self._radios = radios
+        self._index = 0
 
-   def __next__(self):
-       if self._index < (len(self._radios._radios)):
-           result = self._radios.get_radio(self._index)
-           self._index +=1
-           return result
+    def __next__(self):
+        if self._index < (len(self._radios._radios)):
+            result = self._radios.get_radio(self._index)
+            self._index += 1
+            return result
 
-       raise StopIteration            
+        raise StopIteration
 
 
 def radioToEntry(pid, id, radio):
-    #uplog(f"radioToEntry: pid {pid} id {id}")
+    # uplog(f"radioToEntry: pid {pid} id {id}")
     # if this comes from a 'browse meta', the id is set, else compute it
     if id is None:
         objid = pid
@@ -133,29 +144,30 @@ def radioToEntry(pid, id, radio):
     else:
         mime = "audio/mpeg"
     return {
-        'pid': pid,
-        'id': objid,
-        'uri': radio["streamUri"],
-        'tp': 'it',
-        'res:mime': mime,
-        'upnp:class': 'object.item.audioItem.musicTrack',
-        'upnp:albumArtURI': radio["artUri"],
-        'tt': radio["title"],
+        "pid": pid,
+        "id": objid,
+        "uri": radio["streamUri"],
+        "tp": "it",
+        "res:mime": mime,
+        "upnp:class": "object.item.audioItem.musicTrack",
+        "upnp:albumArtURI": radio["artUri"],
+        "tt": radio["title"],
         # This is for Kodi mostly, to avoid displaying a big "Unknown" placeholder
-        'upnp:artist': "Internet Radio",
-        'upnp:album': "upmpdcli"
+        "upnp:artist": "Internet Radio",
+        "upnp:album": "upmpdcli",
     }
+
 
 def radioIndexFromId(objid):
     stridx = objid.find("$e")
     if stridx == -1:
         raise Exception(f"Bad objid {objid}")
-    return int(objid[stridx+2:])
-
+    return int(objid[stridx + 2 :])
 
 
 if __name__ == "__main__":
     from upmplgutils import getConfigObject
+
     radios = UpmpdcliRadios(getConfigObject())
     for radio in radios:
         print("%s" % radio)
