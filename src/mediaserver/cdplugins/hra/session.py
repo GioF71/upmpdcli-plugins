@@ -5,14 +5,23 @@ from __future__ import print_function
 
 import sys
 import json
-from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, \
-     Category, Genre, Model
+from upmplgmodels import (
+    Artist,
+    Album,
+    Track,
+    Playlist,
+    SearchResult,
+    Category,
+    Genre,
+    Model,
+)
 from upmplgutils import *
 import hraapi
 import urllib
 import datetime
 import traceback
 import base64
+
 
 class Session(object):
     def __init__(self):
@@ -26,31 +35,26 @@ class Session(object):
         else:
             return False
 
-
     def isloggedin(self):
         return self.api.isloggedin()
-    
 
     def get_categories(self):
         return list(map(_parse_category, self.api.getAllCategories()))
-
 
     def get_genres(self, parent=None):
         data = self.api.getAllGenres()
         return [_parse_genre(g) for g in data]
 
-
     def get_catg_albums(self, prefix):
         data = self.api.listCategoryContent(category=prefix)
         return [_parse_album(a) for a in data]
 
-    
     def get_alluserplaylists(self):
         data = self.api.listAllUserPlaylists()
         if not data:
             return []
         return [_parse_playlist(p) for p in data]
-        
+
     def get_user_playlist(self, id):
         data = self.api.getUserPlaylist(playlist_id=id)
         if not data:
@@ -68,7 +72,6 @@ class Session(object):
         if not data:
             return []
         return [_parse_track(p) for p in data]
-        
 
     def get_album_tracks(self, albid):
         data = self.api.getAlbumDetails(album_id=albid)
@@ -77,137 +80,134 @@ class Session(object):
         # Apart from the tracks array, sata contains a copy of the album
         # metadata. Parse it like an album.
         album = _parse_album(data)
-        return [_parse_track(t, album) for t in data['tracks']]
-
+        return [_parse_track(t, album) for t in data["tracks"]]
 
     def get_media_url(self, trackid):
         data = self.api.getTrackById(track_id=trackid)
-        if not data or 'url' not in data or data['url'] is None:
+        if not data or "url" not in data or data["url"] is None:
             uplog("get_media_url: no url for [%s]" % trackid)
             return None
-        return data['url']
-
+        return data["url"]
 
     def get_editormoods(self):
         data = self.api.getAvailableMoods()
         return [_parse_album(a) for a in data]
+
     def get_editorgenres(self):
         data = self.api.getAvailableGenres()
         return [_parse_album(a) for a in data]
+
     def get_editorthemes(self):
         data = self.api.getAvailableThemes()
         return [_parse_album(a) for a in data]
 
-
     def get_alleditorplaylists(self):
         data = self.api.getAllEditorPlaylists()
         return [_parse_album(a) for a in data]
-
 
     def get_editor_playlist(self, id):
         data = self.api.getEditorPlaylist(id=id)
         if not data:
             return []
         album = _parse_album(data)
-        return [_parse_track(t, album) for t in data['tracks']]
-        
-    def get_playlist_tracks(self, plid):
-        data = self.api.playlist_get(playlist_id = plid, extra = 'tracks')
-        return [_parse_track(t) for t in data['tracks']['items']]
+        return [_parse_track(t, album) for t in data["tracks"]]
 
+    def get_playlist_tracks(self, plid):
+        data = self.api.playlist_get(playlist_id=plid, extra="tracks")
+        return [_parse_track(t) for t in data["tracks"]["items"]]
 
     def search(self, value):
         data = self.api.quickSearch(search=value)
         albums = []
-        for key,value in data.items():
-            value['id'] = key
+        for key, value in data.items():
+            value["id"] = key
             albums.append(value)
         return [_parse_album(a) for a in albums]
-
 
     def searchCategory(self, value, prefix):
         data = self.api.searchCategory(category=prefix, search=value)
         return [_parse_album(a) for a in data]
 
-    
+
 def encode_prefix(p):
-    return base64.urlsafe_b64encode(p.encode('utf-8')).decode('utf-8')
+    return base64.urlsafe_b64encode(p.encode("utf-8")).decode("utf-8")
+
 
 def decode_prefix(p):
-    return base64.urlsafe_b64decode(p.encode('utf-8')).decode('utf-8')
+    return base64.urlsafe_b64decode(p.encode("utf-8")).decode("utf-8")
+
 
 def _parse_category(data):
-    return Category(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
+    return Category(
+        id=encode_prefix(data["prefix"]), name=data["title"], iid=data["id"]
+    )
+
 
 def _parse_genre(data):
-    return Genre(id=encode_prefix(data['prefix']), name=data['title'], iid = data['id'])
+    return Genre(id=encode_prefix(data["prefix"]), name=data["title"], iid=data["id"])
 
 
 def _parse_artist(json_obj):
-    artist = Artist(id=json_obj['id'], name=json_obj['title'].encode())
+    artist = Artist(id=json_obj["id"], name=json_obj["title"].encode())
     return artist
 
 
 def _parse_album(data):
-    #uplog(data)
-    #uplog("-_"*30)
+    # uplog(data)
+    # uplog("-_"*30)
 
-    kwargs = {
-        'id': data['id'],
-        'name': data['title']
-    }
-    if 'artist' in data:
-        kwargs['artist'] = data['artist']
-    if 'cover' in data:
-        if isinstance(data['cover'], dict):
-            for key in ('preview', 'master', 'thumbnail'):
-                if key in data['cover']:
-                    kwargs['image'] = 'https://'+data['cover'][key]['file_url']
+    kwargs = {"id": data["id"], "name": data["title"]}
+    if "artist" in data:
+        kwargs["artist"] = data["artist"]
+    if "cover" in data:
+        if isinstance(data["cover"], dict):
+            for key in ("preview", "master", "thumbnail"):
+                if key in data["cover"]:
+                    kwargs["image"] = "https://" + data["cover"][key]["file_url"]
                     break
         else:
-            kwargs['image'] = data['cover']
-    elif 'playlistCover' in data:
-        kwargs['image'] = data['playlistCover']
+            kwargs["image"] = data["cover"]
+    elif "playlistCover" in data:
+        kwargs["image"] = data["playlistCover"]
 
     a = Album(**kwargs)
     return a
 
 
-def _parse_track(data, albumarg = None):
-    artist = Artist(name=data['artist'])
+def _parse_track(data, albumarg=None):
+    artist = Artist(name=data["artist"])
 
     kwargs = {
-        'id': data['playlistAdd'],
-        'name': data['title'],
-        'duration': data['playtime'],
-        'format': data['format'],
-        'artist': artist,
-        'available': True
+        "id": data["playlistAdd"],
+        "name": data["title"],
+        "duration": data["playtime"],
+        "format": data["format"],
+        "artist": artist,
+        "available": True,
     }
 
-    if 'trackNumber' in data:
-        kwargs['track_num'] = data['trackNumber']
+    if "trackNumber" in data:
+        kwargs["track_num"] = data["trackNumber"]
     else:
-        kwargs['track_num'] = 0
+        kwargs["track_num"] = 0
 
-        
     if albumarg:
-        kwargs['album'] = albumarg
-    elif 'cover' in data and 'album' in data:
-        kwargs['album'] = Album(image=data['cover'], name=data['album'])
+        kwargs["album"] = albumarg
+    elif "cover" in data and "album" in data:
+        kwargs["album"] = Album(image=data["cover"], name=data["album"])
 
     # If track has own cover, use it (e.g. for multialbum playlists)
-    if 'cover' in data:
-        kwargs['image'] = data['cover']
+    if "cover" in data:
+        kwargs["image"] = data["cover"]
 
     return Track(**kwargs)
 
 
 def _parse_playlist(data, artist=None, artists=None):
     kwargs = {
-        'id': data['playlist_id'],
-        'name': data['playlist_title'],
-        'num_tracks': data.get('count_track'),
-        'duration': data.get('duration')
+        "id": data["playlist_id"],
+        "name": data["playlist_title"],
+        "num_tracks": data.get("count_track"),
+        "duration": data.get("duration"),
     }
     return Playlist(**kwargs)
