@@ -420,17 +420,19 @@ def search(a):
 
     maybelogin()
 
-    if field and field not in ["artist", "album", "playlist", "track"]:
+    if field and field not in ["artist", "album", "playlist", "track", "title"]:
         msgproc.log("Unknown field '%s'" % field)
-        field = "track"
+        field = "title"
+    elif field == "track":
+        field = "title"
 
     if objkind and objkind not in ["artist", "album", "playlist", "track"]:
         msgproc.log("Unknown objkind '%s'" % objkind)
         objkind = "track"
 
-    # type may be 'tracks', 'albums', 'artists' or 'playlists'
+    # type must be 'tracks', 'albums', 'artists' or 'playlists'
     qkind = objkind + "s" if objkind else None
-    searchresults = session.search(value, qkind)
+    searchresults = session.search(field, value, qkind)
 
     if objkind is None or objkind == "artist":
         xbmcplugin.view(
@@ -448,7 +450,7 @@ def search(a):
         # playlists. So if we want these to be findable, need to send
         # them with the albums
         if objkind == "album":
-            searchresults = session.search(value, "playlists")
+            searchresults = session.search(field, value, "playlists")
             objkind = "playlist"
             # Fallthrough to view playlists
     if objkind is None or objkind == "playlist":

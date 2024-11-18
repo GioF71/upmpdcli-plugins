@@ -170,8 +170,25 @@ class Session(object):
             _parse_genre(g) for g in data["genres"]["items"]
         ]
 
-    def _search1(self, query, tp):
-        uplog("_search1: query [%s] tp [%s]" % (query, tp))
+    # field : "artist", "album", "playlist", "title"
+    # tp: 'tracks', 'albums', 'artists' or 'playlists'
+    def _search1(self, field, query, tp):
+        flt = None
+        if tp == "tracks":
+            if field == "artist":
+                flt = _track_filter_artist
+            elif field == "title":
+                flt = _track_filter_title
+            elif field == "album":
+                flt = _track_filter_album
+        elif tp == "albums":
+            if field == "artist":
+                flt = _album_filter_artist
+            elif field == "album" or field == "title":
+                flt = _album_filter_title
+        elif tp == "artists":
+            if field == "artist" or field == "title":
+                flt = _artist_filter_name
 
         limit = 200
         slice = 200
@@ -183,8 +200,8 @@ class Session(object):
             slice = 50
         offset = 0
         all = []
-        while offset < limit:
-            uplog("_search1: call catalog_search, offset %d" % offset)
+        while offset < limit or len(all) < limit / 2:
+            uplog("_search1: calling catalog_search, offset %d" % offset)
             data = self.api.catalog_search(query=query, type=tp, offset=offset, limit=slice)
             ncnt = 0
             ndata = []
@@ -192,10 +209,14 @@ class Session(object):
                 if tp == "artists":
                     ncnt = len(data["artists"]["items"])
                     ndata = [_parse_artist(i) for i in data["artists"]["items"]]
+                    if flt:
+                        ndata = [art for art in ndata if flt(art, query)]
                 elif tp == "albums":
                     ncnt = len(data["albums"]["items"])
                     ndata = [_parse_album(i) for i in data["albums"]["items"]]
                     ndata = [alb for alb in ndata if alb.available]
+                    if flt:
+                        ndata = [alb for alb in ndata if flt(alb, query)]
                 elif tp == "playlists":
                     # uplog("PLAYLISTS: %s" % json.dumps(data, indent=4))
                     ncnt = len(data["playlists"]["items"])
@@ -203,6 +224,8 @@ class Session(object):
                 elif tp == "tracks":
                     ncnt = len(data["tracks"]["items"])
                     ndata = [_parse_track(self, i) for i in data["tracks"]["items"]]
+                    if flt:
+                        ndata = [track for track in ndata if flt(track, query)]
             except Exception as err:
                 uplog("_search1: exception while parsing result: %s" % err)
                 break
@@ -221,20 +244,28 @@ class Session(object):
         elif tp == "tracks":
             return SearchResult(tracks=all)
 
-    def search(self, query, tp):
+    def search(self, field, value, tp):
+        uplog(f"search: field [{field}] value [{value}] tp [{tp}]")
         if tp:
-            return self._search1(query, tp)
+            return self._search1(field, value, tp)
         else:
             cplt = SearchResult()
-            res = self._search1(query, "artists")
-            cplt.artists = res.artists
-            res = self._search1(query, "albums")
+            if field != "album":
+                res = self._search1(field, value, "artists")
+                cplt.artists = res.artists
+            res = self._search1(field, value, "albums")
             cplt.albums = res.albums
-            res = self._search1(query, "tracks")
+            res = self._search1(field, value, "tracks")
             cplt.tracks = res.tracks
-            res = self._search1(query, "playlists")
+            res = self._search1(field, value, "playlists")
             cplt.playlists = res.playlists
             return cplt
+
+
+# This is useful because qobuz returns partial word matches, which I don't think is a good idea
+def _artist_filter_name(art, value):
+    # uplog(f"_artist_filter_name: value [{value}] name [{art.name}]")
+    return re.search(r"\b" + value + r"\b", art.name, re.IGNORECASE)
 
 
 def _parse_artist(data):
@@ -247,6 +278,15 @@ def _parse_artist(data):
 
 def _parse_genre(data):
     return Genre(id=data["id"], name=data["name"])
+
+
+def _album_filter_title(alb, value):
+    # uplog(f"_album_filter_title: value [{value}] title [{alb.name}]")
+    return re.search(r"\b" + value + r"\b", alb.name, re.IGNORECASE)
+
+
+def _album_filter_artist(alb, value):
+    return re.search(r"\b" + value + r"\b", alb.artist.name, re.IGNORECASE)
 
 
 def _parse_album(json_obj, artist=None, artists=None):
@@ -325,6 +365,19 @@ def _parse_playlist(data, artist=None, artists=None):
     return Playlist(**kwargs)
 
 
+def _track_filter_title(track, value):
+    # uplog(f"_track_filter_title: value [{value}] title [{track.name}]")
+    return re.search(r"\b" + value + r"\b", track.name, re.IGNORECASE)
+
+
+def _track_filter_artist(track, value):
+    return re.search(r"\b" + value + r"\b", track.artist.name, re.IGNORECASE)
+
+
+def _track_filter_album(track, value):
+    return re.search(r"\b" + value + r"\b", track.album.name, re.IGNORECASE)
+
+
 def _parse_track(sess, json_obj, albumarg=None):
     artist = Artist()
     if "performer" in json_obj:
@@ -342,7 +395,7 @@ def _parse_track(sess, json_obj, albumarg=None):
 
     available = json_obj["streamable"] if "streamable" in json_obj else false
     # if not available:
-    # uplog("Track no not streamable: %s " % json_obj['title'])
+    # uplog("Track not streamable: %s " % json_obj['title'])
 
     # artists = _parse_artists(json_obj['artists'])
     kwargs = {
