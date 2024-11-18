@@ -76,9 +76,7 @@ def direntry(
 
 # Generate an permanent URL in the form which can be used trackid_from_urlpath
 def url_from_trackid(httphp, pathprefix, trackid):
-    return f"http://{httphp}" + posixpath.join(
-        pathprefix, f"track/version/1/trackId/{trackid}"
-    )
+    return f"http://{httphp}" + posixpath.join(pathprefix, f"track/version/1/trackId/{trackid}")
 
 
 # Extract the service (qobuz,tidal...) trackid from one of our special form permanent URLs.
@@ -124,9 +122,7 @@ def getOptionValue(nm, dflt=None):
         members = dict(inspect.getmembers(conftree.ConfSimple.__init__.__code__))
         var_names = members["co_varnames"]
         if "casesensitive" in var_names:
-            _g_upconfig = conftree.ConfSimple(
-                os.environ["UPMPD_CONFIG"], casesensitive=False
-            )
+            _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"], casesensitive=False)
         else:
             _g_upconfig = conftree.ConfSimple(os.environ["UPMPD_CONFIG"])
     value = _g_upconfig.get(nm)
@@ -300,9 +296,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums=False):
 
         li["duration"] = str(track.duration)
         li["res:mime"] = track.mime if track.mime else default_mime
-        li["res:samplefreq"] = (
-            track.samplefreq if track.samplefreq else default_samplerate
-        )
+        li["res:samplefreq"] = track.samplefreq if track.samplefreq else default_samplerate
         li["res:bitsPerSample"] = track.bitdepth if track.bitdepth else default_bits
         li["res:channels"] = track.channels if track.channels else default_channels
 
