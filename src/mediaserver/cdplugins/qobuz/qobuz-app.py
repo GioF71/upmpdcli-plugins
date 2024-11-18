@@ -37,6 +37,20 @@ from session import Session
 
 qobidprefix = "0$qobuz$"
 
+# We maybe should retrieve this from the "index" call (cf notes/qobuz/featured/index/json)
+_playlist_tags = (
+    ("hi-res", "Hi-Res"),
+    ("new", "New"),
+    ("focus", "Themes"),
+    ("danslecasque", "Artist's choices"),
+    ("label", "Labels"),
+    ("mood", "Moods"),
+    ("artist", "Artists"),
+    ("events", "Events"),
+    ("auditoriums", "Hi-Fi Audio Partners"),
+    ("popular", "Popular"),
+)
+
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
@@ -225,10 +239,15 @@ def root_genres():
 @plugin.route("/genre/<genre_id>")
 def genre_view(genre_id):
     endpoint_list = [
-        ("New Releases", plugin.url_for(genre_view_type, genre_id=genre_id, type="new-releases")),
-        ("Qobuz Playlists", plugin.url_for(genre_view_playlists, genre_id=genre_id)),
-        ("Editor Picks", plugin.url_for(genre_view_type, genre_id=genre_id, type="editor-picks")),
-        ("Press Awards", plugin.url_for(genre_view_type, genre_id=genre_id, type="press-awards")),
+        ("New Releases", plugin.url_for(featured_albums, genre_id=genre_id, type="new-releases")),
+        (
+            "Ideal Discography",
+            plugin.url_for(featured_albums, genre_id=genre_id, type="ideal-discography"),
+        ),
+        ("Qobuzissime", plugin.url_for(featured_albums, genre_id=genre_id, type="qobuzissims")),
+        ("Editor Picks", plugin.url_for(featured_albums, genre_id=genre_id, type="editor-picks")),
+        ("Press Awards", plugin.url_for(featured_albums, genre_id=genre_id, type="press-awards")),
+        ("Qobuz Playlists", plugin.url_for(featured_playlists, genre_id=genre_id, tags="None")),
     ]
 
     item_num = 1
@@ -238,21 +257,9 @@ def genre_view(genre_id):
         )
         item_num += 1
 
-    items = session.get_featured_albums(genre_id)
-    update_album_names(items)
-    (
-        xbmcplugin.view(
-            items,
-            xbmcplugin.urls_from_id(album_view, items),
-            initial_item_num=(len(endpoint_list) + 1),
-        )
-        if explicit_item_numbers
-        else None
-    )
-
 
 @plugin.route("/featured/<genre_id>/<type>")
-def genre_view_type(genre_id, type):
+def featured_albums(genre_id, type):
     items = session.get_featured_albums(genre_id=genre_id, type=type)
     update_album_names(items)
     xbmcplugin.view(
@@ -266,9 +273,9 @@ def genre_view_type(genre_id, type):
 # matched by the one for genre_view_type, and the wrong function may
 # be called, depending on the rules ordering (meaning we had the
 # problem on an rpi, but not ubuntu...)
-@plugin.route("/featured_playlists/<genre_id>")
-def genre_view_playlists(genre_id):
-    items = session.get_featured_playlists(genre_id=genre_id)
+@plugin.route("/featured_playlists/<genre_id>/<tags>")
+def featured_playlists(genre_id, tags):
+    items = session.get_featured_playlists(genre_id=genre_id, tags=tags)
     xbmcplugin.view(
         items,
         xbmcplugin.urls_from_id(playlist_view, items),
@@ -276,11 +283,37 @@ def genre_view_playlists(genre_id):
     )
 
 
+@plugin.route("/featured_artists")
+def featured_artists():
+    items = session.get_featured_artists()
+    xbmcplugin.view(
+        items,
+        xbmcplugin.urls_from_id(artist_view, items),
+        initial_item_num=1 if explicit_item_numbers else None,
+    )
+
+
 @plugin.route("/whats_new")
 def whats_new():
-    xbmcplugin.add_directory("Playlists", plugin.url_for(featured, content_type="playlists"))
-    xbmcplugin.add_directory("Albums", plugin.url_for(featured, content_type="albums"))
-    xbmcplugin.add_directory("Artists", plugin.url_for(featured, content_type="artists"))
+    xbmcplugin.add_directory(
+        "Playlists", plugin.url_for(featured_playlists, genre_id=None, tags=None)
+    )
+    xbmcplugin.add_directory(
+        "Albums (ideal discography)",
+        plugin.url_for(featured_albums, genre_id=None, type="ideal-discography"),
+    )
+    xbmcplugin.add_directory(
+        "Albums (Qobuzissime)", plugin.url_for(featured_albums, genre_id=None, type="qobuzissims")
+    )
+    xbmcplugin.add_directory(
+        "Albums (new)", plugin.url_for(featured_albums, genre_id=None, type="new-releases-full")
+    )
+    xbmcplugin.add_directory("Artists", plugin.url_for(featured_artists))
+
+    for tag, label in _playlist_tags:
+        xbmcplugin.add_directory(
+            f"Playlists ({label})", plugin.url_for(featured_playlists, genre_id=None, tags=tag)
+        )
 
 
 def update_album_names(items):
@@ -293,33 +326,6 @@ def update_album_name(item):
         artist = item.artist.name if item.artist else None
         if artist and len(artist) > 0:
             item.name = f"{artist} - {item.name}"
-
-
-@plugin.route("/featured/<content_type>")
-def featured(content_type=None):
-    msgproc.log(f"featured {content_type}")
-    items = session.get_featured_items(content_type)
-    if content_type == "artists":
-        xbmcplugin.view(
-            items,
-            xbmcplugin.urls_from_id(artist_view, items),
-            initial_item_num=1 if explicit_item_numbers else None,
-        )
-    elif content_type == "albums":
-        update_album_names(items)
-        xbmcplugin.view(
-            items,
-            xbmcplugin.urls_from_id(album_view, items),
-            initial_item_num=1 if explicit_item_numbers else None,
-        )
-    elif content_type == "playlists":
-        xbmcplugin.view(
-            items,
-            xbmcplugin.urls_from_id(playlist_view, items),
-            initial_item_num=1 if explicit_item_numbers else None,
-        )
-    else:
-        print("qobuz-app bad featured type %s" % content_type, file=sys.stderr)
 
 
 @plugin.route("/my_music")

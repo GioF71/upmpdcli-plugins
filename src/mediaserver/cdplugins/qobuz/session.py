@@ -130,38 +130,18 @@ class Session(object):
             pass
         return []
 
-    def get_featured_playlists(self, genre_id="None"):
-        if genre_id != "None":
-            data = self.api.playlist_getFeatured(
-                type="editor-picks", genre_ids=genre_id, limit=general_slice
-            )
-        else:
-            data = self.api.playlist_getFeatured(type="editor-picks", limit=general_slice)
+    def get_featured_playlists(self, genre_id="None", tags="None"):
+        data = self.api.playlist_getFeatured(
+            type="editor-picks", genre_ids=genre_id, tags=tags, limit=general_slice
+        )
         if data and "playlists" in data:
             return [_parse_playlist(pl) for pl in data["playlists"]["items"]]
         return []
 
-    # content_type: albums/artists/playlists.  type : The type of
-    # recommandations to fetch:
-    # new-releases, press-awards, editor-picks, most-featured
-    # In practise, and despite the existence of the
-    # catalog_getFeaturedTypes call which returns the above list, I
-    # could not find a way to pass the type parameter to
-    # catalog_getFeatured (setting type triggers an
-    # error). album_getFeatured() and playlist_getFeatured() do accept type.
-    def get_featured_items(self, content_type, type=""):
-        # uplog("FEATURED TYPES: %s" % self.api.catalog_getFeaturedTypes())
+    def get_featured_artists(self):
         data = self.api.catalog_getFeatured(limit=general_slice)
-        # uplog("Featured: %s" % json.dumps(data,indent=4)))
-        if content_type == "artists":
-            if "artists" in data:
-                return [_parse_artist(i) for i in data["artists"]["items"]]
-        elif content_type == "playlists":
-            if "playlists" in data:
-                return [_parse_playlist(pl) for pl in data["playlists"]["items"]]
-        elif content_type == "albums":
-            if "albums" in data:
-                return [_parse_album(alb) for alb in data["albums"]["items"]]
+        if "artists" in data:
+            return [_parse_artist(i) for i in data["artists"]["items"]]
         return []
 
     def get_genres(self, parent=None):

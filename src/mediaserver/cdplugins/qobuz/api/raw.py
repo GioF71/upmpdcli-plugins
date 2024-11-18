@@ -300,7 +300,10 @@ class RawApi(object):
 
     def playlist_getFeatured(self, **ka):
         # type is 'last-created' or 'editor-picks'
-        self._check_ka(ka, ["type"], ["genre_ids", "limit", "offset"])
+        self._check_ka(ka, ["type"], ["genre_ids", "tags", "limit", "offset"])
+        for k in ("tags", "genre_ids"):
+            if k in ka and ka[k] == "None":
+                del ka[k]
         return self._api_request(ka, "/playlist/getFeatured", useGet=True)
 
     def playlist_getUserPlaylists(self, **ka):
@@ -308,10 +311,6 @@ class RawApi(object):
         if not "user_id" in ka and not "username" in ka:
             ka["user_id"] = self.user_id
         return self._api_request(ka, "/playlist/getUserPlaylists")
-
-    def playlist_getPublicPlaylists(self, **ka):
-        self._check_ka(ka, [], ["type", "limit", "offset"])
-        return self._api_request(ka, "/playlist/getPublicPlaylists")
 
     def artist_getSimilarArtists(self, **ka):
         self._check_ka(ka, ["artist_id"], ["limit", "offset"])
