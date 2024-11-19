@@ -1,3 +1,14 @@
+upmpdcli (1.9.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Qobuz: updated the plugin to be closer to the choices on the Web
+    site (reason for the middle version bump).
+  * Qobuz: fixed the search to better return what actually requested.
+  * Tidal: updated plugin.
+  * Misc fixes: restore custom icon support, clear "phantom" track from mpd
+    to avoid its reappearance on startup,
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 19 Nov 2024 12:03:00 +0100
+
 upmpdcli (1.8.18-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Fix most glaring issues in the Qobuz plugin
