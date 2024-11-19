@@ -27,11 +27,13 @@ import uprclinit
 
 # DNS rebinding mitigation. We check that the HOST header is either the configured host:port (with a
 # possible domain-based host) or a numeric address.
-_hostre = re.compile(r'[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+')
+_hostre = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+|\[[0-9A-Fa-f:]+\]:[0-9]+")
+
+
 def _checkhost():
     httphp = uprclinit.getHttphp()
-    if 'host' in bottle.request.headers:
-        host = bottle.request.headers['host']
+    if "host" in bottle.request.headers:
+        host = bottle.request.headers["host"]
         if host == httphp:
             return True
         if not _hostre.match(host):
@@ -39,46 +41,51 @@ def _checkhost():
             return False
     return True
 
-@bottle.route('/')
-@bottle.post('/')
-@bottle.view('main')
+
+@bottle.route("/")
+@bottle.post("/")
+@bottle.view("main")
 def main():
     if not _checkhost():
         return bottle.HTTPResponse(status=404)
     # Using params.get will work with either the form's POST or an URL GET query value
     # See https://bottlepy.org/docs/dev/tutorial.html#request-data
-    what =  bottle.request.params.get('what')
-    #uplog("bottle:main: what value is %s" % what)
+    what = bottle.request.params.get("what")
+    # uplog("bottle:main: what value is %s" % what)
 
     status = uprclinit.updaterunning()
     if not status:
-        status = 'Ready'
+        status = "Ready"
 
-    reloadsecs='1'
-    if what == 'Update Index':
+    reloadsecs = "1"
+    if what == "Update Index":
         uprclinit.start_index_update()
-    elif what == 'Reset Index':
+    elif what == "Reset Index":
         uprclinit.start_index_update(rebuild=True)
-    elif what == 'Refresh Status':
-        reloadsecs = ''
+    elif what == "Refresh Status":
+        reloadsecs = ""
     elif not what:
-        if status == 'Updating':
-            reloadsecs = '2'
-        elif status == 'Rebuilding':
-            reloadsecs = '10'
+        if status == "Updating":
+            reloadsecs = "2"
+        elif status == "Rebuilding":
+            reloadsecs = "10"
         else:
-            reloadsecs = ''
+            reloadsecs = ""
 
-    return {'title':status, 'status':status, 'reloadsecs':reloadsecs,
-            'friendlyname':uprclinit.getFriendlyname()}
+    return {
+        "title": status,
+        "status": status,
+        "reloadsecs": reloadsecs,
+        "friendlyname": uprclinit.getFriendlyname(),
+    }
 
 
-@bottle.route('/static/<filepath:path>')
+@bottle.route("/static/<filepath:path>")
 def static(filepath):
-    #uplog("control: static: filepath %s datadir %s" % (filepath, datadir))
+    # uplog("control: static: filepath %s datadir %s" % (filepath, datadir))
     if not _checkhost():
         return bottle.HTTPResponse(status=404)
-    return bottle.static_file(filepath, root=os.path.join(datadir, 'static'))
+    return bottle.static_file(filepath, root=os.path.join(datadir, "static"))
 
 
 # Object for streaming data from a given subtree (topdirs entry more
@@ -92,13 +99,13 @@ class Streamer(object):
     def __call__(self, filepath):
         if not _checkhost():
             return bottle.HTTPResponse(status=404)
-        embedded = True if 'embed' in bottle.request.query else False
+        embedded = True if "embed" in bottle.request.query else False
         if embedded:
             # Embedded image urls have had a .jpg or .png
             # appended. Remove it to restore the track path name.
-            i = filepath.rfind('.')
+            i = filepath.rfind(".")
             filepath = filepath[:i]
-            apath = os.path.join(self.root,filepath)
+            apath = os.path.join(self.root, filepath)
             ctype, size, f = embedded_open(apath)
             fs = os.stat(apath)
             lm = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(fs.st_mtime))
@@ -116,11 +123,11 @@ class Streamer(object):
         # request environment variable, and try to use it if the
         # normal path is not accessible.
         fullpath = os.path.join(self.root, filepath)
-        root = '/'
+        root = "/"
         if not os.path.exists(fullpath):
-            fullpath = bottle.request.environ.get('bottle.raw_path')
-            fullpath = fullpath.encode('latin1')
-            root = b'/'
+            fullpath = bottle.request.environ.get("bottle.raw_path")
+            fullpath = fullpath.encode("latin1")
+            root = b"/"
             if not os.path.exists(fullpath):
                 uplog("uprcl: no such file: %s" % fullpath)
                 return bottle.HTTPResponse(status=404)
@@ -131,16 +138,18 @@ class Streamer(object):
             return bottle.static_file(fullpath, root=root, mimetype=mutf.mime[0])
         else:
             return bottle.static_file(fullpath, root=root)
-    
+
 
 # Bottle handle both the streaming and control requests.
-def runbottle(host='0.0.0.0', port=9278, pthstr='', pathprefix=''):
+def runbottle(host="0.0.0.0", port=9278, pthstr="", pathprefix=""):
     global datadir
-    uplog("runbottle: version %s host %s port %d pthstr %s pathprefix %s" %
-          (bottle.__version__, host, port, pthstr, pathprefix))
+    uplog(
+        "runbottle: version %s host %s port %d pthstr %s pathprefix %s"
+        % (bottle.__version__, host, port, pthstr, pathprefix)
+    )
     datadir = os.path.dirname(__file__)
-    datadir = os.path.join(datadir, 'bottle')
-    bottle.TEMPLATE_PATH = (os.path.join(datadir, 'views'),)
+    datadir = os.path.join(datadir, "bottle")
+    bottle.TEMPLATE_PATH = (os.path.join(datadir, "views"),)
 
     # All the file urls must be like /some/prefix/path where
     # /some/prefix must be in the path translation map (which I'm not
@@ -150,16 +159,16 @@ def runbottle(host='0.0.0.0', port=9278, pthstr='', pathprefix=''):
     # route it was called from, we create a callable for each prefix.
     # Each route is built on the translation input, and the processor
     # uses the translated path as root
-    lpth = pthstr.split(',')
+    lpth = pthstr.split(",")
     for ptt in lpth:
-        l = ptt.split(':')
+        l = ptt.split(":")
         rt = l[0]
-        if rt[-1] != '/':
-            rt += '/'
-        rt += '<filepath:path>'
-        uplog("runbottle: adding route for: %s"%rt)
-        # We build the streamer with the translated 
+        if rt[-1] != "/":
+            rt += "/"
+        rt += "<filepath:path>"
+        uplog("runbottle: adding route for: %s" % rt)
+        # We build the streamer with the translated
         streamer = Streamer(l[1])
-        bottle.route(rt, 'GET', streamer)
+        bottle.route(rt, "GET", streamer)
 
-    bottle.run(server='waitress', host=host, port=port)
+    bottle.run(server="waitress", host=host, port=port)

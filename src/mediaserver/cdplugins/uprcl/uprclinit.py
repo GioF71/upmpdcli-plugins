@@ -43,7 +43,7 @@ _g_httphp = ""
 _g_friendlyname = "UpMpd-mediaserver"
 # Prefix for object Ids. This must be consistent with what
 # contentdirectory.cxx does
-_g_myprefix = '0$uprcl$'
+_g_myprefix = "0$uprcl$"
 g_minimconfig = None
 
 ### Index update status
@@ -56,7 +56,7 @@ g_initmessage = ""
 
 ### Data created during initialisation
 _g_trees = {}
-_g_trees_order = ['folders', 'playlists', 'tags', 'untagged']
+_g_trees_order = ["folders", "playlists", "tags", "untagged"]
 
 g_dblock = ReadWriteLock()
 
@@ -64,26 +64,34 @@ g_dblock = ReadWriteLock()
 def getObjPrefix():
     return _g_myprefix
 
+
 def getPathPrefix():
     return _g_pathprefix
+
 
 def getHttphp():
     return _g_httphp
 
+
 def getRclConfdir():
     return _g_rclconfdir
+
 
 def getFriendlyname():
     return _g_friendlyname
 
+
 def getTree(treename):
     return _g_trees[treename]
+
 
 def getTreesOrder():
     return _g_trees_order
 
+
 def _reset_index():
     _update_index(True)
+
 
 def initdone():
     g_dblock.acquire_read()
@@ -92,13 +100,15 @@ def initdone():
     else:
         return True
 
+
 def initstatus():
     return (g_initstatus, g_initmessage)
+
 
 def updaterunning():
     return g_initrunning
 
-    
+
 # Create or update Recoll index, then read and process the data. This runs in a separate thread, and
 # signals startup/completion by setting/unsetting the g_initrunning flag.
 #
@@ -121,7 +131,7 @@ def _update_index(rebuild=False):
         uprclindex.runindexer(_g_rclconfdir, g_rcltopdirs, rebuild=rebuild)
         # Wait for indexer
         while not uprclindex.indexerdone():
-            time.sleep(.5)
+            time.sleep(0.5)
         fin = timer()
         uplog("Indexing took %.2f Seconds" % (fin - start))
 
@@ -130,10 +140,10 @@ def _update_index(rebuild=False):
         playlists = Playlists(_g_rclconfdir, folders.rcldocs(), _g_httphp, _g_pathprefix)
         tagged = Tagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
         newtrees = {}
-        newtrees['folders'] = folders
-        newtrees['untagged'] = untagged
-        newtrees['playlists'] = playlists
-        newtrees['tags'] = tagged
+        newtrees["folders"] = folders
+        newtrees["untagged"] = untagged
+        newtrees["playlists"] = playlists
+        newtrees["tags"] = tagged
         _g_trees = newtrees
         g_initstatus = True
         uplog("Init done")
@@ -154,10 +164,9 @@ def uprcl_init():
 
     global _g_pathprefix, g_initstatus, g_initmessage
 
-    
     #######
     # Acquire configuration data.
-    
+
     # We get the path prefix from an environment variable set by our parent upmpdcli. It would
     # typically be something like "/uprcl". It's used for dispatching URLs to the right plugin for
     # processing. We strip it whenever we need a real file path.
@@ -191,7 +200,7 @@ def uprcl_init():
     _g_rclconfdir = getOptionValue("uprclconfdir")
     _g_rclconfdir = getcachedir("uprcl", forcedpath=_g_rclconfdir)
     uplog("uprcl: cachedir: %s" % _g_rclconfdir)
-        
+
     global g_rcltopdirs
     g_rcltopdirs = getOptionValue("uprclmediadirs")
     if g_rcltopdirs:
@@ -202,7 +211,7 @@ def uprcl_init():
         g_initstatus = False
         g_initmessage = "No media directories were set in configuration"
         return
-    
+
     # g_rcltopdirs is now a list, check the elements
     goodpthlist = []
     for dir in g_rcltopdirs:
@@ -214,7 +223,7 @@ def uprcl_init():
         g_initstatus = False
         g_initmessage = "No accessible media directories in configuration"
         return
-    
+
     pthstr = getOptionValue("uprclpaths")
     if pthstr is None:
         uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
@@ -223,8 +232,8 @@ def uprcl_init():
             pthstr += p + ":" + p + ","
         pthstr = pthstr.rstrip(",")
     uplog("Path translation: pthstr: %s" % pthstr)
-        
-    host,port = _g_httphp.split(':')
+
+    host, port = _g_httphp.split(":")
 
     # Turn g_rcltopdirs back into a string, that's how it's used by runindexer
     g_rcltopdirs = conftree.stringsToString(goodpthlist)
@@ -232,12 +241,11 @@ def uprcl_init():
     start_index_update()
 
     # Start the bottle app. It's both the control/config interface and the file streamer
-    httpthread = threading.Thread(target=runbottle,
-                                  kwargs = {'host':host ,
-                                            'port':int(port),
-                                            'pthstr':pthstr,
-                                            'pathprefix':_g_pathprefix})
-    httpthread.daemon = True 
+    httpthread = threading.Thread(
+        target=runbottle,
+        kwargs={"host": host, "port": int(port), "pthstr": pthstr, "pathprefix": _g_pathprefix},
+    )
+    httpthread.daemon = True
     httpthread.start()
 
     uplog("Init started")
@@ -270,8 +278,8 @@ def allMinimTags():
         storedtags = g_minimconfig.getindextags()
         for f in g_minimconfig.getitemtags():
             storedtags[f] = ""
-        for v,d in storedtags:
-            if v.lower() == 'none':
+        for v, d in storedtags:
+            if v.lower() == "none":
                 break
             fields.append(v.lower())
     except:

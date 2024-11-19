@@ -27,14 +27,17 @@ import os
 from upmplgutils import getOptionValue
 import minimconfig
 
+
 def uplog(s):
-    if not type(s) == type(b''):
-        s = ("%s: %s" % ('uprcl:minimtagfixer', s)).encode('utf-8')
-    sys.stderr.buffer.write(s + b'\n')
+    if not type(s) == type(b""):
+        s = ("%s: %s" % ("uprcl:minimtagfixer", s)).encode("utf-8")
+    sys.stderr.buffer.write(s + b"\n")
     sys.stderr.flush()
 
 
 _logfp = None
+
+
 def _logchange(s):
     if _logfp:
         print("%s" % s, file=_logfp)
@@ -55,7 +58,7 @@ class TagUpdateData(object):
 
         self.minimconfig = minimconfig.MinimConfig(self.minimcnffn)
         self.tgupfile = self.minimconfig.getsimplevalue("minimserver.tagUpdate")
-        #uplog("Minim config read: tagUpdate: %s" % self.tgupfile)
+        # uplog("Minim config read: tagUpdate: %s" % self.tgupfile)
         if self.tgupfile:
             self.tgupfile = self._makeabs(self.tgupfile)
             if not os.path.exists(self.tgupfile):
@@ -76,12 +79,12 @@ class TagUpdateData(object):
     # logs (see minim doc). So compute minimserver/etc/xx.conf/../../data/fn
     # This probably only works for linux
     def _makeabs(self, fn):
-        if not fn: return fn
+        if not fn:
+            return fn
         if not os.path.isabs(fn):
             dir = os.path.dirname(os.path.dirname(self.minimcnffn))
             fn = os.path.join(os.path.join(dir, "data"), fn)
         return fn
-
 
     # https://minimserver.com/ug-other.html#Tag%20update
     # Tag value replacement specs, e.g. "Johann Sebastian Bach" -> "Bach J.S."
@@ -89,7 +92,7 @@ class TagUpdateData(object):
         if not self.tgupfile:
             return ()
         try:
-            f = open(self.tgupfile, 'rb')
+            f = open(self.tgupfile, "rb")
         except Exception as ex:
             uplog(f"gettagupdate: can't open {self.tgupfile} for reading: {ex}")
             return
@@ -101,10 +104,9 @@ class TagUpdateData(object):
         tagdels = []
         seltagsdone = False
         for line in f.readlines():
-            line = line.strip().decode('utf-8')
-            if not line or line[0] not in \
-                   ("@"[0], "&"[0], "="[0], "-"[0], "+"[0]):
-                #uplog("gettaupdate: skipping [%s]" % line)
+            line = line.strip().decode("utf-8")
+            if not line or line[0] not in ("@"[0], "&"[0], "="[0], "-"[0], "+"[0]):
+                # uplog("gettaupdate: skipping [%s]" % line)
                 continue
 
             if line[0] != "@"[0]:
@@ -115,9 +117,9 @@ class TagUpdateData(object):
                 line += "="
             # Compute tag and value
             eq = line[1:].find("=")
-            tagname = line[1:eq+1].strip().lower()
-            tagval = line[eq+2:].strip().encode('utf-8')
-            #uplog("gettaupdate: tagname [%s] tagval [%s]"%(tagname,tagval))
+            tagname = line[1 : eq + 1].strip().lower()
+            tagval = line[eq + 2 :].strip().encode("utf-8")
+            # uplog("gettaupdate: tagname [%s] tagval [%s]"%(tagname,tagval))
 
             if line[0] == "@"[0]:
                 if seltagsdone:
@@ -136,10 +138,10 @@ class TagUpdateData(object):
             elif line[0] == "="[0]:
                 tagadds.append((tagname, tagval))
             elif line[0] == "-"[0]:
-                tagdels.append((tagname,''))
+                tagdels.append((tagname, ""))
             elif line[0] == "+"[0]:
                 tagadds.append((tagname, tagval))
-            
+
         if seltagsdone:
             groups.append((seltags, filtertags, tagadds, tagdels))
 
@@ -148,31 +150,32 @@ class TagUpdateData(object):
 
 tud = TagUpdateData()
 groups = tud.gettagupdate()
-#uplog("minimtagfixer: groups %s" % groups)
+# uplog("minimtagfixer: groups %s" % groups)
+
 
 def tagupdate(tags):
     for group in groups:
         # Must match at least one element of group[0]
         sel = False
-        for tag,val in group[0]:
+        for tag, val in group[0]:
             if tag in tags and tags[tag] == val:
                 sel = True
                 break
         if not sel:
             return
         # Must match all in group[1]
-        for tag,val in group[1]:
+        for tag, val in group[1]:
             if not tag in tags or tags[tag] != val:
                 sel = False
         if not sel:
             return
         # Apply adds/mods
-        for tag,val in group[2]:
+        for tag, val in group[2]:
             old = tags[tag] if tag in tags else ""
             _logchange("Setting [%s] from [%s] to [%s]" % (tag, old, val))
             tags[tag] = val
         # Apply dels
-        for tag,val in group[3]:
+        for tag, val in group[3]:
             _logchange("Clearing [%s]" % tag)
             del tags[tag]
 
@@ -182,23 +185,23 @@ def tagvalue(tags):
 
 
 def aliastags(tags):
-    #uplog(f"ALIASTAGS: {tud.aliastags}")
+    # uplog(f"ALIASTAGS: {tud.aliastags}")
     if tud.aliastags:
         for orig, target, rep in tud.aliastags:
             try:
                 val = tags[orig]
                 targetexists = "yes" if target in tags else "no"
-                #uplog(f"aliastags: Rep {rep} tags[{orig}]=[{val}] {target} in tags: {targetexists}")
+                # uplog(f"aliastags: Rep {rep} tags[{orig}]=[{val}] {target} in tags: {targetexists}")
                 if val and (rep or not target in tags or not tags[target]):
-                    #uplog(f"tags[{target}] -> {val}")
+                    # uplog(f"tags[{target}] -> {val}")
                     tags[target] = val
             except Exception as ex:
-                #uplog(f"EXCEPTION: {ex}")
+                # uplog(f"EXCEPTION: {ex}")
                 pass
 
 
 def tagfix(tags={}):
-    #uplog("tagfix(%s)"%tags)
+    # uplog("tagfix(%s)"%tags)
     tagvalue(tags)
     aliastags(tags)
     tagupdate(tags)

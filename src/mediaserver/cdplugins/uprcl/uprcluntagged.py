@@ -23,7 +23,7 @@
 # indexes into the global doc vector.
 #
 # Object Id prefix: 0$uprcl$untagged
-# 
+#
 # Obect id inside the section: $u<idx> where <idx> is the document index
 #  inside the global document vector.
 
@@ -35,24 +35,24 @@ from upmplgutils import uplog, direntry
 from uprclutils import rcldoctoentry
 import uprclinit
 
+
 class Untagged(object):
     def __init__(self, rcldocs, httphp, pathprefix):
-        self._idprefix = '0$uprcl$untagged'
+        self._idprefix = "0$uprcl$untagged"
         self._httphp = httphp
         self._pprefix = pathprefix
         self.recoll2untagged(rcldocs)
-        
+
     # Create the untagged entries static vector by filtering the global
     # doc vector, storing the indexes of all tracks without a title
     # field. We keep a reference to the doc vector.
     def recoll2untagged(self, rcldocs):
         # The -1 entry is because we use index 0 for our root.
         self.utidx = [-1]
-    
+
         for docidx in range(len(rcldocs)):
             doc = rcldocs[docidx]
-            if doc["mtype"] == 'inode/directory' or \
-               doc["mtype"] == 'audio/x-mpegurl':
+            if doc["mtype"] == "inode/directory" or doc["mtype"] == "audio/x-mpegurl":
                 continue
             if not doc["title"]:
                 self.utidx.append(docidx)
@@ -62,15 +62,15 @@ class Untagged(object):
         if not pid.startswith(self._idprefix):
             raise Exception("untagged:browse: bad pid %s" % pid)
 
-        idx = pid[len(self._idprefix):]
+        idx = pid[len(self._idprefix) :]
         if not idx:
             # Browsing the root.
             idx = 0
         else:
-            if idx[1] != 'u':
+            if idx[1] != "u":
                 raise Exception("untagged:browse: called on bad objid %s" % pid)
             idx = int(idx[2:])
-    
+
         if idx >= len(self.utidx):
             raise Exception("untagged:browse: bad pid %s" % pid)
 
@@ -78,8 +78,9 @@ class Untagged(object):
 
     # Return entry to be created in the top-level directory ([untagged]).
     def rootentries(self, pid):
-        return [direntry(pid + 'untagged', pid, '[untagged]'),]
-
+        return [
+            direntry(pid + "untagged", pid, "[untagged]"),
+        ]
 
     # Browse method
     # objid is like 0$uprcl$untagged$u<index>
@@ -88,7 +89,7 @@ class Untagged(object):
         idx = self._objidtoidx(pid)
 
         entries = []
-        rcldocs = uprclinit.getTree('folders').rcldocs()
+        rcldocs = uprclinit.getTree("folders").rcldocs()
         if idx == 0:
             # Browsing root
             if flag == "meta":
@@ -98,17 +99,17 @@ class Untagged(object):
                 # Root children
                 for i in range(len(self.utidx))[1:]:
                     doc = rcldocs[self.utidx[i]]
-                    #uplog(f"UNTAGGED: {i} -> {doc['url']}")
-                    id = self._idprefix + '$u' + str(i)
+                    # uplog(f"UNTAGGED: {i} -> {doc['url']}")
+                    id = self._idprefix + "$u" + str(i)
                     e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
                     if e:
                         entries.append(e)
         else:
             # Non root: only items in there. flag needs to be 'meta'
             doc = rcldocs[self.utidx[idx]]
-            id = self._idprefix + '$u' + str(idx)
+            id = self._idprefix + "$u" + str(idx)
             e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
             if e:
                 entries.append(e)
 
-        return sorted(entries, key=lambda entry: entry['tt'].lower())
+        return sorted(entries, key=lambda entry: entry["tt"].lower())

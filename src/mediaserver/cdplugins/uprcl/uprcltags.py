@@ -36,8 +36,10 @@ import uprclinit
 import uprcltagscreate
 from uprcltagscreate import _clid, _junctb, recolltosql
 
+
 def _tblst(tabnames):
     return ",".join(tabnames)
+
 
 # The browseable object which defines the tree of tracks organized by tags.
 class Tagged(object):
@@ -46,6 +48,7 @@ class Tagged(object):
     # slice (which we currently only do when displaying the top-level
     # items list, so the cache can actually never have more than 1 element...)
     _stmt_cnt_cachesize = 20
+
     def __init__(self, rcldocs, httphp, pathprefix):
         self._httphp = httphp
         self._pprefix = pathprefix
@@ -55,7 +58,6 @@ class Tagged(object):
         self._stmt_cnt_cachequeue = []
         self.hidden = []
         recolltosql(self._conn, rcldocs)
-        
 
     def _init_sqconn(self):
         # We use a separate thread for building the db to ensure
@@ -63,25 +65,24 @@ class Tagged(object):
         # can't be shared between threads, and different :memory: handles
         # access different dbs. The following would work, but it needs
         # python 3.4
-        #self._conn = sqlite3.connect('file:uprcl_db?mode=memory&cache=shared')
+        # self._conn = sqlite3.connect('file:uprcl_db?mode=memory&cache=shared')
         # As we can guarantee that 2 threads will never access the db at
         # the same time (the init thread just goes away when it's done),
         # we just disable the same_thread checking on :memory:
         if self._conn is None:
-            self._conn = sqlite3.connect(':memory:', check_same_thread=False)
-
+            self._conn = sqlite3.connect(":memory:", check_same_thread=False)
 
     # Create our top-level directories, with fixed entries, and stuff
     # from the tags tables. This may be called (indirectly) from the folders
     # hierarchy, with a path restriction
-    def rootentries(self, pid, path=''):
-        #uplog("rootentries: pid %s path %s" % (pid, path))
+    def rootentries(self, pid, path=""):
+        # uplog("rootentries: pid %s path %s" % (pid, path))
         entries = []
         nalbs = self._albcntforfolder(path)
-        entries.append(direntry(pid + 'albums', pid, nalbs + ' albums'))
+        entries.append(direntry(pid + "albums", pid, nalbs + " albums"))
         if path:
             where = " WHERE tracks.path LIKE ? "
-            args = (path + '%',)
+            args = (path + "%",)
         else:
             where = " "
             args = ()
@@ -89,18 +90,23 @@ class Tagged(object):
         stmt = f"SELECT COUNT(*) from tracks {where}"
         c.execute(stmt, args)
         nitems = str(c.fetchone()[0])
-        entries.append(direntry(pid + 'items', pid, nitems + ' items'))
-        subqs = self._subtreetags(where, ["tracks",], args)
+        entries.append(direntry(pid + "items", pid, nitems + " items"))
+        subqs = self._subtreetags(
+            where,
+            [
+                "tracks",
+            ],
+            args,
+        )
         tagdisplaytag = uprcltagscreate.getTagDisplayTag()
         for tt in subqs:
-            entries.append(direntry(pid + '=' + tt , pid, tagdisplaytag[tt]))
+            entries.append(direntry(pid + "=" + tt, pid, tagdisplaytag[tt]))
         return entries
-
 
     # List all tags which still have multiple values inside this selection level
     def _subtreetags(self, where, seltables, values):
         where = where.strip()
-        #uplog(f"_subtreetags: where: [{where}]")
+        # uplog(f"_subtreetags: where: [{where}]")
         c = self._conn.cursor()
         tags = []
         indextags = uprcltagscreate.getIndexTags()
@@ -113,13 +119,15 @@ class Tagged(object):
             tb = tagtotable[tt]
             if _junctb(tb) in seltables:
                 continue
-            stmt = f"SELECT COUNT(DISTINCT {_junctb(tb)}.{_clid(tb)}) " \
-                f"FROM {_tblst(seltables)},{_junctb(tb)} {where} " \
+            stmt = (
+                f"SELECT COUNT(DISTINCT {_junctb(tb)}.{_clid(tb)}) "
+                f"FROM {_tblst(seltables)},{_junctb(tb)} {where} "
                 f"{conjunct} tracks.docidx = {_junctb(tb)}.docidx"
-            #uplog(f"subtreetags: executing: {stmt}. Values: {values}")
+            )
+            # uplog(f"subtreetags: executing: {stmt}. Values: {values}")
             c.execute(stmt, values)
             cnt = c.fetchone()[0]
-            #uplog(f"subtreetags: {cnt} values for {tb} ({stmt[:200]},{values})")
+            # uplog(f"subtreetags: {cnt} values for {tb} ({stmt[:200]},{values})")
             if cnt > 1:
                 tags.append(tt)
         return tags
@@ -135,10 +143,10 @@ class Tagged(object):
             self._stmt_cnt_cache[stmt] = total
             self._stmt_cnt_cachequeue.append(stmt)
             if len(self._stmt_cnt_cachequeue) > self._stmt_cnt_cachesize:
-                del(self._stmt_cnt_cache[self._stmt_cnt_cachequeue[0]])
+                del self._stmt_cnt_cache[self._stmt_cnt_cachequeue[0]]
                 self._stmt_cnt_cachequeue = self._stmt_cnt_cachequeue[1:]
         return total
-        
+
     # Build a list of track directory entries for an SQL statement
     # which selects docidxs (SELECT docidx,... FROM tracks WHERE...)
     #
@@ -149,7 +157,7 @@ class Tagged(object):
     # this for the full top-level items list, which is not really
     # useful anyway.
     def _trackentriesforstmt(self, stmt, values, pid, offset=0, count=0, key=cmpentries):
-        #uplog("trackentries: offset %d count %d" % (offset, count))
+        # uplog("trackentries: offset %d count %d" % (offset, count))
         total = 0
         if offset != 0 or count != 0:
             total = self._stmt_total(stmt, values)
@@ -164,28 +172,27 @@ class Tagged(object):
             stmt += " LIMIT %d " % count
         if offset != 0:
             stmt += " OFFSET %d " % offset
-        rcldocs = uprclinit.getTree('folders').rcldocs()
+        rcldocs = uprclinit.getTree("folders").rcldocs()
         c = self._conn.cursor()
         c.execute(stmt, values)
-        entries = [rcldoctoentry(pid + '$i' + str(r[0]),
-                                 pid, self._httphp, self._pprefix,
-                                 rcldocs[r[0]]) for r in c]
-        #uplog("trackentries: stmt returns %d entries" % len(entries))
+        entries = [
+            rcldoctoentry(pid + "$i" + str(r[0]), pid, self._httphp, self._pprefix, rcldocs[r[0]])
+            for r in c
+        ]
+        # uplog("trackentries: stmt returns %d entries" % len(entries))
         if offset != 0 or count != 0:
             return (offset, total, entries)
         else:
             return sorted(entries, key=key)
-
 
     # Return a list of trackids as selected by the current path <selwhere>
     # <values> holds the corresponding values
     def _docidsforsel(self, selwhere, seltables, values):
         c = self._conn.cursor()
         stmt = f"SELECT tracks.docidx FROM {_tblst(seltables)}  {selwhere}  ORDER BY trackno"
-        #uplog(f"docidsforsel: executing {stmt}. Values: {values}")
+        # uplog(f"docidsforsel: executing {stmt}. Values: {values}")
         c.execute(stmt, values)
         return [r[0] for r in c.fetchall()]
-
 
     # Expand multiple possibly merged albums to real ones. The tracks
     # always refer to the raw albid, so this is necessary to compute a
@@ -194,7 +201,7 @@ class Tagged(object):
         c = self._conn.cursor()
         rawalbids = []
         for albid in albids:
-            c.execute('''SELECT album_id FROM albums WHERE albalb = ?''', (albid,))
+            c.execute("""SELECT album_id FROM albums WHERE albalb = ?""", (albid,))
             rows = c.fetchall()
             if len(rows):
                 for r in rows:
@@ -202,18 +209,16 @@ class Tagged(object):
             else:
                 rawalbids.append(albid)
         return rawalbids
-    
 
     # Expand single possibly merged album into list of ids for component discs
     def _albid2rawalbidssorted(self, albid):
         c = self._conn.cursor()
-        c.execute('''SELECT album_id FROM albums WHERE albalb = ? ORDER BY albtdisc''', (albid,))
+        c.execute("""SELECT album_id FROM albums WHERE albalb = ? ORDER BY albtdisc""", (albid,))
         rows = c.fetchall()
         if len(rows) <= 1:
             return (albid,)
         else:
             return [r[0] for r in rows]
-
 
     # Translate albids so that the ones which are part of a merged
     # album become the merged id. The returned list is same size or
@@ -223,7 +228,7 @@ class Tagged(object):
         albids = set()
         c = self._conn.cursor()
         for rawalbid in rawalbids:
-            c.execute('''SELECT album_id, albalb FROM albums WHERE album_id = ?''', (rawalbid,))
+            c.execute("""SELECT album_id, albalb FROM albums WHERE album_id = ?""", (rawalbid,))
             alb = c.fetchone()
             if alb[1]:
                 albids.add(alb[1])
@@ -232,7 +237,6 @@ class Tagged(object):
         #
         return [id for id in albids]
 
-
     # Count albums under file system path. We use albalb because
     # merged albums may come from multiple folders, and have no
     # albfolder. So this returns merged albums for which at least one
@@ -240,85 +244,94 @@ class Tagged(object):
     def _albcntforfolder(self, path):
         c = self._conn.cursor()
         if path:
-            stmt = '''SELECT COUNT(DISTINCT albalb) FROM ALBUMS
-            WHERE albfolder LIKE ?'''
+            stmt = """SELECT COUNT(DISTINCT albalb) FROM ALBUMS
+            WHERE albfolder LIKE ?"""
             args = (path + "%",)
         else:
             stmt = "SELECT COUNT(*) FROM albums WHERE albtdisc is NULL"
             args = ()
-        #uplog("_albcntforfolder: stmt %s args %s" % (stmt, args))
+        # uplog("_albcntforfolder: stmt %s args %s" % (stmt, args))
         c.execute(stmt, args)
         return str(c.fetchone()[0])
-
 
     # Track list for possibly merged album: get tracks from all
     # components, then renumber trackno
     def _trackentriesforalbum(self, albid, pid):
         albids = self._albid2rawalbidssorted(albid)
-        #uplog("_trackentriesforalbid: %d -> %s" % (albid, albids))
+        # uplog("_trackentriesforalbid: %d -> %s" % (albid, albids))
         # I don't see a way to use a select..in statement and get the
         # order right
         tracks = []
         for albid in albids:
-            stmt = '''SELECT docidx FROM tracks
-            WHERE album_id = ? ORDER BY trackno'''
+            stmt = """SELECT docidx FROM tracks
+            WHERE album_id = ? ORDER BY trackno"""
             tracks += self._trackentriesforstmt(stmt, (albid,), pid)
 
         tno = None
         for track in tracks:
             tn = 1
-            if 'upnp:originalTrackNumber' in track:
-                tn = int(track['upnp:originalTrackNumber'])
+            if "upnp:originalTrackNumber" in track:
+                tn = int(track["upnp:originalTrackNumber"])
             if tno:
                 if tn <= tno:
                     tn = tno + 1
                 tno = tn
             else:
                 tno = tn
-            track['upnp:originalTrackNumber'] = str(tno)
+            track["upnp:originalTrackNumber"] = str(tno)
         return tracks
-            
 
     # Return all albums ids to which any of the selected tracks belong
     def _subtreealbums(self, selwhere, seltables, values):
         stmt = f"SELECT DISTINCT tracks.album_id FROM {_tblst(seltables)} {selwhere}"
         c = self._conn.cursor()
-        #uplog(f"subtreealbums: executing {stmt}")
+        # uplog(f"subtreealbums: executing {stmt}")
         c.execute(stmt, values)
         rawalbids = [r[0] for r in c]
         albids = self._rawalbids2albids(rawalbids)
-        #uplog(f"subtreealbums: returning {albids}")
+        # uplog(f"subtreealbums: returning {albids}")
         return albids
-    
 
-    def _direntriesforalbums(self, pid, where, path=''):
-        #uplog("_direntriesforalbums. where: %s" % where)
+    def _direntriesforalbums(self, pid, where, path=""):
+        # uplog("_direntriesforalbums. where: %s" % where)
         c = self._conn.cursor()
-        args = (path + '%',) if path else ()
+        args = (path + "%",) if path else ()
         if path:
             if not where:
-                where = '''WHERE albfolder LIKE ?'''
+                where = """WHERE albfolder LIKE ?"""
             else:
-                where += ''' AND albfolder LIKE ?'''
-            substmt = '''SELECT DISTINCT albalb FROM ALBUMS %s'''%where
-            where = '''WHERE album_id IN (%s)''' % substmt
+                where += """ AND albfolder LIKE ?"""
+            substmt = """SELECT DISTINCT albalb FROM ALBUMS %s""" % where
+            where = """WHERE album_id IN (%s)""" % substmt
         else:
             if not where:
-                where = '''WHERE albtdisc IS NULL'''
+                where = """WHERE albtdisc IS NULL"""
             else:
-                where += ''' AND albtdisc IS NULL'''
+                where += """ AND albtdisc IS NULL"""
 
-        stmt = '''SELECT album_id, albtitle, albarturi, albdate, artist.value
+        stmt = (
+            """SELECT album_id, albtitle, albarturi, albdate, artist.value
         FROM albums LEFT JOIN artist ON artist.artist_id = albums.artist_id
-        %s ORDER BY albtitle''' % where
+        %s ORDER BY albtitle"""
+            % where
+        )
 
-        #uplog("_direntriesforalbums: stmt {stmt}")
+        # uplog("_direntriesforalbums: stmt {stmt}")
         c.execute(stmt, args)
         entries = []
         for r in c:
-            id = pid + '$' + str(r[0])
-            entries.append(direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
-                                    upnpclass='object.container.album.musicAlbum'))
+            id = pid + "$" + str(r[0])
+            entries.append(
+                direntry(
+                    id,
+                    pid,
+                    r[1],
+                    arturi=r[2],
+                    date=r[3],
+                    artist=r[4],
+                    upnpclass="object.container.album.musicAlbum",
+                )
+            )
         return entries
 
     # Called when the search finds one of our synthetic album search
@@ -326,16 +339,23 @@ class Tagged(object):
     def direntryforalbid(self, albid):
         intalbid = int(albid)
         c = self._conn.cursor()
-        stmt = '''SELECT album_id, albtitle, albarturi, albdate, artist.value
+        stmt = """SELECT album_id, albtitle, albarturi, albdate, artist.value
         FROM albums LEFT JOIN artist ON artist.artist_id = albums.artist_id
-        WHERE album_id = ? AND albtdisc is NULL  ORDER BY albtitle'''
+        WHERE album_id = ? AND albtdisc is NULL  ORDER BY albtitle"""
         args = (intalbid,)
         c.execute(stmt, args)
         for r in c:
-            pid = uprclinit.getObjPrefix() + 'albums'
-            id = pid + '$' + albid
-            return direntry(id, pid, r[1], arturi=r[2], date=r[3],artist=r[4],
-                               upnpclass='object.container.album.musicAlbum')
+            pid = uprclinit.getObjPrefix() + "albums"
+            id = pid + "$" + albid
+            return direntry(
+                id,
+                pid,
+                r[1],
+                arturi=r[2],
+                date=r[3],
+                artist=r[4],
+                upnpclass="object.container.album.musicAlbum",
+            )
         return None
 
     # Called when the recoll search finds an artist record result.
@@ -346,9 +366,9 @@ class Tagged(object):
         args = (int(artid),)
         c.execute(stmt, args)
         for r in c:
-            pid = uprclinit.getObjPrefix() + '=Artist'
-            id = pid + '$' + artid
-            return direntry(id, pid, r[0], upnpclass='object.container.person.musicArtist')
+            pid = uprclinit.getObjPrefix() + "=Artist"
+            id = pid + "$" + artid
+            return direntry(id, pid, r[0], upnpclass="object.container.person.musicArtist")
         return None
 
     # This is called when an 'albums' element is encountered in the
@@ -358,47 +378,50 @@ class Tagged(object):
     # list for i == ql-2 (we then have an albid at ql-1), and a 'Complete
     # album' query if i == ql-3 (...$albums$xxx$showca)
     def _tagsbrowsealbums(self, pid, qpath, i, selwhere, seltables, values):
-        #uplog(f"_tagsbrowsealbums: pid {pid} qpath {qpath} i {i} where {selwhere} values {values}"
+        # uplog(f"_tagsbrowsealbums: pid {pid} qpath {qpath} i {i} where {selwhere} values {values}"
         c = self._conn.cursor()
         entries = []
-        if i == len(qpath)-1:
+        if i == len(qpath) - 1:
             # List of albums to which belong any track from selection
             albidsl = self._subtreealbums(selwhere, seltables, values)
-            albids = ','.join([str(a) for a in albidsl])
-            where = ' WHERE album_id in (' + albids + ') '
+            albids = ",".join([str(a) for a in albidsl])
+            where = " WHERE album_id in (" + albids + ") "
             entries = self._direntriesforalbums(pid, where)
-        elif i == len(qpath)-2:
+        elif i == len(qpath) - 2:
             # Album track list. Maybe a merged album->multiple phys albids
             albid = int(qpath[-1])
             rawalbids = self._albids2rawalbids((albid,))
-            #uplog(f"_tagsbrowsealbums: albid {albid} rawalbids {rawalbids}")
-            stmt = '''SELECT COUNT(docidx) FROM tracks
-                WHERE album_id IN (%s)''' % ','.join('?'*len(rawalbids))
+            # uplog(f"_tagsbrowsealbums: albid {albid} rawalbids {rawalbids}")
+            stmt = """SELECT COUNT(docidx) FROM tracks
+                WHERE album_id IN (%s)""" % ",".join(
+                "?" * len(rawalbids)
+            )
             c.execute(stmt, rawalbids)
             r = c.fetchone()
             ntracks = int(r[0])
             docidsl = self._docidsforsel(selwhere, seltables, values)
-            stmt = '''SELECT docidx FROM tracks 
-                WHERE album_id IN (%s) AND docidx IN (%s)''' % \
-            (','.join('?'*len(rawalbids)), ','.join('?'*len(docidsl)))
-            entries = self._trackentriesforstmt(stmt, rawalbids+docidsl, pid)
+            stmt = """SELECT docidx FROM tracks 
+                WHERE album_id IN (%s) AND docidx IN (%s)""" % (
+                ",".join("?" * len(rawalbids)),
+                ",".join("?" * len(docidsl)),
+            )
+            entries = self._trackentriesforstmt(stmt, rawalbids + docidsl, pid)
             if ntracks != len(entries):
-                id = pid + '$' + 'showca'
-                entries = [direntry(id, pid, '>> Complete Album')] + entries
-        elif i == len(qpath)-3:
+                id = pid + "$" + "showca"
+                entries = [direntry(id, pid, ">> Complete Album")] + entries
+        elif i == len(qpath) - 3:
             # 'Complete album' entry
             # Note that minim has an additional level here, probably to
             # present groups or multiple groups ? The trackids ids are
-            # like: 
+            # like:
             #    0$=Composer$17738$albums$2$showca.0$hcalbum$*i13458
             # I don't know what the .0 is for.
-            # The 'hcalbum' level usually has 2 entries '>> Hide Content' 
+            # The 'hcalbum' level usually has 2 entries '>> Hide Content'
             # and the album title. TBD
             albid = int(qpath[-2])
             entries = self._trackentriesforalbum(albid, pid)
-        
-        return entries
 
+        return entries
 
     # This is called when an 'items' element is encountered in the selection path.
     def _tagsbrowseitems(self, pid, qpath, i, selwhere, seltables, values):
@@ -416,31 +439,36 @@ class Tagged(object):
             albid = albids[0]
             tlist = self._trackentriesforalbum(albid, pid)
             # Replace $items with $albums for the album entry
-            id = pid.replace('$items', '$albums') + f"${albid}$showca"
+            id = pid.replace("$items", "$albums") + f"${albid}$showca"
             if len(tlist) != len(docids):
-                entries.append(direntry(id, pid, '>> Complete Album'))
+                entries.append(direntry(id, pid, ">> Complete Album"))
             # We used to show an album entry here, but the album was probably already shown at the
             # level above (because there is only one), and it's better to show the tracks in title
             # order. Kept around because I'm not sure that there are not cases where we'd want it
             # anyway.
-            #else:
+            # else:
             #    displaytracks = False
             #    el = self._direntriesforalbums(pid, f"WHERE album_id = {albid}")
             #    el[0]['id'] = id
             #    entries.append(el[0])
         if displaytracks:
-            rcldocs = uprclinit.getTree('folders').rcldocs()
-            entries += sorted([rcldoctoentry(pid + '$i' + str(docid),
-                                             pid, self._httphp, self._pprefix,
-                                             rcldocs[docid]) for docid in docids], key=cmpitems)
+            rcldocs = uprclinit.getTree("folders").rcldocs()
+            entries += sorted(
+                [
+                    rcldoctoentry(
+                        pid + "$i" + str(docid), pid, self._httphp, self._pprefix, rcldocs[docid]
+                    )
+                    for docid in docids
+                ],
+                key=cmpitems,
+            )
         return entries
-
 
     # Main browsing routine. Given an objid, translate it into a select
     # statement, plus further processing, and return the corresponding
     # records
-    def _tagsbrowse(self, pid, qpath, flag, path=''):
-        #uplog(f"tagsbrowse. pid {pid} qpath {qpath}")
+    def _tagsbrowse(self, pid, qpath, flag, path=""):
+        # uplog(f"tagsbrowse. pid {pid} qpath {qpath}")
 
         tagdisplaytag = uprcltagscreate.getTagDisplayTag()
 
@@ -450,13 +478,17 @@ class Tagged(object):
         # dates for tracks by Artist #21. =Artist$21$=Date$48 the data
         # for date 48 (the numbers are indexes into the aux tables)
         qlen = len(qpath)
-        selwhat = ''
-        seltables = ["tracks",]
+        selwhat = ""
+        seltables = [
+            "tracks",
+        ]
         if path:
-            selwhere = ' WHERE tracks.path LIKE ? '
-            values = [path + '%',]
+            selwhere = " WHERE tracks.path LIKE ? "
+            values = [
+                path + "%",
+            ]
         else:
-            selwhere = ''
+            selwhere = ""
             values = []
         tagtotable = uprcltagscreate.getTagToTable()
         i = 0
@@ -466,18 +498,18 @@ class Tagged(object):
             # Detect the special values: albums items etc. here. Their
             # presence changes how we process the rest (showing tracks and
             # albums and not dealing with other tags any more)
-            if elt == 'albums':
+            if elt == "albums":
                 return self._tagsbrowsealbums(pid, qpath, i, selwhere, seltables, values)
-            elif elt == 'items':
+            elif elt == "items":
                 return self._tagsbrowseitems(pid, qpath, i, selwhere, seltables, values)
-            
+
             # '=colname'. Set the current column name, which will be used
             # in different ways depending if this is the last element or
             # not.
-            if elt.startswith('='):
-                col = tagtotable[elt[1:]] 
+            if elt.startswith("="):
+                col = tagtotable[elt[1:]]
 
-            selwhere = selwhere + ' AND ' if selwhere else ' WHERE '
+            selwhere = selwhere + " AND " if selwhere else " WHERE "
             seltables.append(_junctb(col))
             if i == qlen - 1:
                 # We can only get here if the qpath ends with '=colname'
@@ -488,29 +520,32 @@ class Tagged(object):
                 # e.g. artist.artist_id, artist.value
                 selwhat = f"{col}.{_clid(col)}, {col}.value"
                 # e.g. tracks.artist_id = artist.artist_id
-                selwhere += f"tracks.docidx = {_junctb(col)}.docidx AND " \
+                selwhere += (
+                    f"tracks.docidx = {_junctb(col)}.docidx AND "
                     f"{_junctb(col)}.{_clid(col)} = {col}.{_clid(col)}"
+                )
             else:
                 # Look at the value specified for the =xx column. The
                 # selwhat value is only used as a flag
                 selwhat = "tracks.docidx"
-                selwhere += f"tracks.docidx = {_junctb(col)}.docidx AND " \
-                    f"{_junctb(col)}.{_clid(col)} = ?"
+                selwhere += (
+                    f"tracks.docidx = {_junctb(col)}.docidx AND " f"{_junctb(col)}.{_clid(col)} = ?"
+                )
                 i += 1
                 values.append(int(qpath[i]))
             i += 1
 
         entries = []
         if selwhat == "tracks.docidx":
-            #uplog(f"tagsbrowse: showing remaining multivalued tags")
+            # uplog(f"tagsbrowse: showing remaining multivalued tags")
             # We are displaying content for a given value of a given tag
             docids = self._docidsforsel(selwhere, seltables, values)
             albids = self._subtreealbums(selwhere, seltables, values)
             subqs = self._subtreetags(selwhere, seltables, values)
             displaytracks = True
             if len(albids) > 1:
-                id = pid + '$albums'
-                label = '%d albums'
+                id = pid + "$albums"
+                label = "%d albums"
                 entries.append(direntry(id, pid, label % len(albids)))
             elif len(albids) == 1:
                 # Only display '>> Complete album' if not all tracks
@@ -518,29 +553,30 @@ class Tagged(object):
                 # the album entry (with the same id value: show album)
                 albid = albids[0]
                 tlist = self._trackentriesforalbum(albid, pid)
-                id = pid + '$albums$' + str(albid) + '$showca'
+                id = pid + "$albums$" + str(albid) + "$showca"
                 if len(tlist) != len(docids):
-                    entries.append(direntry(id, pid, '>> Complete Album'))
+                    entries.append(direntry(id, pid, ">> Complete Album"))
                 else:
                     displaytracks = False
-                    el = self._direntriesforalbums(pid, "WHERE album_id = %s"%albid)
-                    el[0]['id'] = id
+                    el = self._direntriesforalbums(pid, "WHERE album_id = %s" % albid)
+                    el[0]["id"] = id
                     entries.append(el[0])
 
             if subqs:
-                id = pid + '$items'
-                label = '%d items'
+                id = pid + "$items"
+                label = "%d items"
                 entries.append(direntry(id, pid, label % len(docids)))
                 for tt in subqs:
-                    id = pid + '$=' + tt
+                    id = pid + "$=" + tt
                     entries.append(direntry(id, pid, tagdisplaytag[tt]))
             elif displaytracks:
-                rcldocs = uprclinit.getTree('folders').rcldocs()
+                rcldocs = uprclinit.getTree("folders").rcldocs()
                 tracks = []
                 for docidx in docids:
-                    id = pid + '$*i' + str(docidx)
+                    id = pid + "$*i" + str(docidx)
                     tracks.append(
-                        rcldoctoentry(id, pid, self._httphp, self._pprefix, rcldocs[docidx]))
+                        rcldoctoentry(id, pid, self._httphp, self._pprefix, rcldocs[docidx])
+                    )
                 entries += sorted(tracks, key=cmpitems)
         else:
             # Showing all values at this point for given column
@@ -548,25 +584,26 @@ class Tagged(object):
             # WHERE tracks.col_id = col.col_id
             # GROUP BY tracks.col_id
             # ORDER BY col.value
-            stmt = f"SELECT {selwhat} FROM {_tblst(seltables)}, {col} " \
+            stmt = (
+                f"SELECT {selwhat} FROM {_tblst(seltables)}, {col} "
                 f"{selwhere} GROUP BY {col}.value ORDER BY {col}.value"
-            #uplog(f"tagsbrowse: showing values for {selwhat} : <{stmt}> values {values}")
+            )
+            # uplog(f"tagsbrowse: showing values for {selwhat} : <{stmt}> values {values}")
             c = self._conn.cursor()
             c.execute(stmt, values)
             for r in c:
-                id = pid + '$' + str(r[0])
+                id = pid + "$" + str(r[0])
                 entries.append(direntry(id, pid, r[1]))
         return entries
-
 
     # Browse the top-level tree named like 'xxx albums'. There are just 2
     # levels: the whole albums list, then for each entry the specified
     # albums track list
-    def _albumsbrowse(self, pid, qpath, flag, path=''):
+    def _albumsbrowse(self, pid, qpath, flag, path=""):
         c = self._conn.cursor()
         entries = []
         if len(qpath) == 1:
-            entries = self._direntriesforalbums(pid, '', path)
+            entries = self._direntriesforalbums(pid, "", path)
         elif len(qpath) == 2:
             e1 = qpath[1]
             album_id = int(e1)
@@ -576,23 +613,21 @@ class Tagged(object):
 
         return entries
 
-
     # Implement the common part of browse() and browseFolder()
-    def _dobrowse(self, pid, flag, qpath, folder='', offset=0, count=0):
-        #uplog(f"Tags:_dobrowse: pid {pid} qpath {qpath} folder [{folder}] ofs {offset} cnt {count}")
-        if qpath[0] == 'items':
-            args = (folder + '%',) if folder else ()
-            folderwhere = ' WHERE tracks.path LIKE ? ' if folder else ' '
-            stmt = 'SELECT docidx FROM tracks' + folderwhere
+    def _dobrowse(self, pid, flag, qpath, folder="", offset=0, count=0):
+        # uplog(f"Tags:_dobrowse: pid {pid} qpath {qpath} folder [{folder}] ofs {offset} cnt {count}")
+        if qpath[0] == "items":
+            args = (folder + "%",) if folder else ()
+            folderwhere = " WHERE tracks.path LIKE ? " if folder else " "
+            stmt = "SELECT docidx FROM tracks" + folderwhere
             entries = self._trackentriesforstmt(stmt, args, pid, offset, count, key=cmpitems)
-        elif qpath[0] == 'albums':
+        elif qpath[0] == "albums":
             entries = self._albumsbrowse(pid, qpath, flag, folder)
-        elif qpath[0].startswith('='):
+        elif qpath[0].startswith("="):
             entries = self._tagsbrowse(pid, qpath, flag, folder)
         else:
             raise Exception(f"Bad path in tags tree (start): <{qpath}>")
         return entries
-        
 
     # Call from the folders tree when Tag View is selected. Reproduces
     # the general view by tags, but with selection for only the files
@@ -606,8 +641,8 @@ class Tagged(object):
     # simplename/ will contain the local tags subtree.
     #
     def browseFolder(self, pid, flag, pthremain, folder):
-        #uplog(f"Tags:browseFolder: objpath {pthremain} folder {folder}")
-        l = pthremain.split('$')
+        # uplog(f"Tags:browseFolder: objpath {pthremain} folder {folder}")
+        l = pthremain.split("$")
         # 1st elt in list is empty because pthremain begins with $. so
         # len(l)==2 is the root of tags from this folder
         entries = []
@@ -616,11 +651,11 @@ class Tagged(object):
             return entries
         if len(l) == 2:
             # (0$uprcl$folders$d2)$tagview.0
-            entries.append(direntry(pid + '$hchide', pid, ">> Hide Contents"))
-            entries.append(direntry(pid + '$hctags', pid, uprclutils.basename(folder)))
+            entries.append(direntry(pid + "$hchide", pid, ">> Hide Contents"))
+            entries.append(direntry(pid + "$hctags", pid, uprclutils.basename(folder)))
             return entries
         elif len(l) == 3:
-            ppid = '$'.join(pid.split('$')[:-1])
+            ppid = "$".join(pid.split("$")[:-1])
             value = l[-1]
             if value == "hchide":
                 # (0$uprcl$folders$d2)$tagview.0$hchide
@@ -630,27 +665,26 @@ class Tagged(object):
                 # (0$uprcl$folders$d2)$tagview.0$hctags
                 now = time.time()
                 for i in range(len(self.hidden)):
-                    #uplog("Browsefolder: hidden: since %d pid %s" %
+                    # uplog("Browsefolder: hidden: since %d pid %s" %
                     #      (int(now - self.hidden[i][0]), self.hidden[i][1]))
                     if self.hidden[i][0] <= now - 2:
                         self.hidden = self.hidden[:i]
                         break
                     elif self.hidden[i][1] == ppid:
                         return entries
-                return self.rootentries(pid + '$', folder)
+                return self.rootentries(pid + "$", folder)
         else:
             # (0$uprcl$folders$d2)$tagview.0$hctags$=Artist...
             # Back to normal browsing, restricted to entries occuring under the given folder
             qpath = l[3:]
             return self._dobrowse(pid, flag, qpath, folder)
 
-        
     def _browsemeta(self, objid):
         # very few control points use this, and it is useless because we return the full metadata in
         # the container entries. This would be too complicated to implement in the tags tree, so we
         # only do it for items, and in a very brutal way, by browsing the parent and finding the
         # entry in the result.
-        #uplog(f"_browsemeta: objid {objid}")
+        # uplog(f"_browsemeta: objid {objid}")
         anchorlen = 2
         ipos = objid.rfind("$i")
         if ipos == -1:
@@ -661,7 +695,7 @@ class Tagged(object):
                 anchorlen = 3
         if objid[ipos:] == "$items":
             return []
-        id = objid[ipos+anchorlen:]
+        id = objid[ipos + anchorlen :]
         try:
             iid = int(id)
         except:
@@ -670,51 +704,50 @@ class Tagged(object):
         entries = self.browse(pid, "children", 0, 0)
         for e in entries:
             if e["id"] == objid:
-                return [e,]
+                return [
+                    e,
+                ]
         return []
-    
+
     # Top level browse routine. Handle the special cases and call the
     # appropriate worker routine. idpath is something like 0$uprcl$=tagname$tagvalue...
     def browse(self, pid, flag, offset, count):
         if flag == "meta":
             return self._browsemeta(pid)
-        idpath = pid.replace(uprclinit.getObjPrefix(), '', 1)
+        idpath = pid.replace(uprclinit.getObjPrefix(), "", 1)
         # Idpath now looks like =Artist$14$=Genre...
-        uplog('tags:browse: idpath <%s>' % idpath)
-        qpath = idpath.split('$')
+        uplog("tags:browse: idpath <%s>" % idpath)
+        qpath = idpath.split("$")
         return self._dobrowse(pid, flag, qpath, offset=offset, count=count)
-
-
-
-
 
 
 ############ Misc test/trial code, not used by uprcl ########################
 
+
 def misctries():
     c = self._conn.cursor()
-    c.execute('''SELECT COUNT(*) FROM tracks''')
+    c.execute("""SELECT COUNT(*) FROM tracks""")
     uplog("Count(*) %d" % (c.fetchone()[0],))
-    
-    #for row in c.execute('''SELECT album
+
+    # for row in c.execute('''SELECT album
     #                        FROM tracks where artist LIKE "%Gould%"
     #                        GROUP BY album'''):
     #    uplog("%s" % (row,))
 
     # For some strange reason it appears that GROUP BY is faster than SELECT
     # DISTINCT
-    stmt = '''SELECT album FROM tracks GROUP BY album ORDER BY album'''
+    stmt = """SELECT album FROM tracks GROUP BY album ORDER BY album"""
     start = timer()
     for row in c.execute(stmt):
-        #uplog("%s" % (row[0].encode('UTF-8')))
+        # uplog("%s" % (row[0].encode('UTF-8')))
         pass
     end = timer()
     uplog("Select took %.2f Seconds" % (end - start))
-    for row in c.execute('''SELECT COUNT(DISTINCT album) from tracks'''):
+    for row in c.execute("""SELECT COUNT(DISTINCT album) from tracks"""):
         uplog("Album count %d" % row[0])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     confdir = "/home/dockes/.recoll-mp3"
     from recoll import recoll
 
@@ -731,12 +764,11 @@ if __name__ == '__main__':
             for doc in docs:
                 allthedocs.append(doc)
                 totcnt += 1
-            if (maxcnt > 0 and totcnt >= maxcnt) or \
-                   len(docs) != rclq.arraysize:
+            if (maxcnt > 0 and totcnt >= maxcnt) or len(docs) != rclq.arraysize:
                 break
         uplog("Retrieved %d docs" % (totcnt,))
         return allthedocs
-    
+
     start = timer()
     docs = fetchalldocs(confdir)
     end = timer()
@@ -745,4 +777,3 @@ if __name__ == '__main__':
     recolltosql(docs)
     end = timer()
     uplog("SQL db create took %.2f Seconds" % (end - start))
-    

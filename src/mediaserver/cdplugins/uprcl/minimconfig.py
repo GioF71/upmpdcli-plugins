@@ -16,16 +16,16 @@
 import conftree
 from uprclutils import uplog
 
+
 class MinimConfig(object):
-    def __init__(self, fn = ''):
+    def __init__(self, fn=""):
         if fn:
             self.conf = conftree.ConfSimple(fn)
         else:
-            self.conf = conftree.ConfSimple('/dev/null')
+            self.conf = conftree.ConfSimple("/dev/null")
         self.quotes = "\"'"
-        self.escape = ''
-        self.whitespace = ', '
-
+        self.escape = ""
+        self.whitespace = ", "
 
     def getsimplevalue(self, nm):
         s = self.conf.get(nm)
@@ -34,17 +34,15 @@ class MinimConfig(object):
         else:
             return s
 
-
     def getboolvalue(self, nm, dflt):
         val = self.getsimplevalue(nm)
-        if val is None or val == '':
+        if val is None or val == "":
             return dflt
-        if val == '0' or val.lower()[0] == 'f' or val.lower()[0] == 'n':
+        if val == "0" or val.lower()[0] == "f" or val.lower()[0] == "n":
             return False
         else:
             return True
 
-        
     # Split on commas and colons, a common minim format and return as
     # list of pairs
     def minimsplitsplit(self, str):
@@ -53,41 +51,40 @@ class MinimConfig(object):
             return out
         # For some reason, the active colons are backslash-escaped in
         # the file
-        lst = str.replace('\\:', ':').split(',')
+        lst = str.replace("\\:", ":").split(",")
         for e in lst:
-            l = e.split(':')
+            l = e.split(":")
             if len(l) == 0:
-                a = ''
-                b = ''
+                a = ""
+                b = ""
             elif len(l) == 1:
                 a = l[0]
-                b = ''
+                b = ""
             else:
                 a = l[0]
                 b = l[1]
-            out.append((a.strip(),b.strip()))
+            out.append((a.strip(), b.strip()))
         return out
-
 
     # Comma-separated list. Each element maybe a simple tagname.option
     # value or an \= assignement, with a comma-separated list of values in
     # braces. Returns a list of quadruplet: (tag, neg, optname, values)
     def minimsplitbraceslist(self, value):
         # Split everything on commas
-        l1 = value.split(',')
+        l1 = value.split(",")
         # Re-join parts inside braces, creating list of options
-        inbraces=False
-        accum = ''
+        inbraces = False
+        accum = ""
         l2 = []
         for e in l1:
             if inbraces:
-                accum += ', ' + e
-                if e.find('}'):
+                accum += ", " + e
+                if e.find("}"):
                     inbraces = False
                     l2.append(accum)
-                    accum=''
+                    accum = ""
                 continue
-            if e.find('{') != -1 and e.find('}') == -1:
+            if e.find("{") != -1 and e.find("}") == -1:
                 inbraces = True
                 accum = e
                 continue
@@ -95,34 +92,31 @@ class MinimConfig(object):
         # Parse each option [-]tag.option={tag1,tag2} or [-]tag.option
         alloptions = []
         for e in l2:
-            lhsrhs=e.split("=")
+            lhsrhs = e.split("=")
             if len(lhsrhs) == 2:
-                values = [v.strip().lower() for v in lhsrhs[1].lstrip('{').rstrip('}').split(',')]
+                values = [v.strip().lower() for v in lhsrhs[1].lstrip("{").rstrip("}").split(",")]
             else:
                 values = []
-            tagopt = lhsrhs[0].split('.')
+            tagopt = lhsrhs[0].split(".")
             tag = tagopt[0].strip()
-            if tag.startswith('-'):
+            if tag.startswith("-"):
                 neg = True
                 tag = tag[1:]
             else:
                 neg = False
-            opt = '.'.join(tagopt[1:])
+            opt = ".".join(tagopt[1:])
             alloptions.append((tag, neg, opt, values))
         return alloptions
-
 
     def getexcludepatterns(self):
         spats = self.conf.get("minimserver.excludePattern")
         if spats:
-            lpats = conftree.stringToStrings(spats,
-                                             quotes = self.quotes,
-                                             escape = self.escape,
-                                             whitespace = self.whitespace)
+            lpats = conftree.stringToStrings(
+                spats, quotes=self.quotes, escape=self.escape, whitespace=self.whitespace
+            )
             spats = conftree.stringsToString(lpats)
-        #uplog("skippedNames from Minim excludePattern: %s" % spats)
+        # uplog("skippedNames from Minim excludePattern: %s" % spats)
         return spats
-
 
     def gettagvalue(self):
         stagv = self.conf.get("minimserver.tagValue")
@@ -130,44 +124,40 @@ class MinimConfig(object):
         if stagv:
             tagvalue = self.minimsplitbraceslist(stagv)
         return tagvalue
-    
 
     def getaliastags(self):
         aliases = []
         saliases = self.conf.get("minimserver.aliasTags")
-        #uplog("Minim:getaliastags:in: [%s]" % saliases)
+        # uplog("Minim:getaliastags:in: [%s]" % saliases)
         lst = self.minimsplitsplit(saliases)
-        for orig,target in lst:
+        for orig, target in lst:
             orig = orig.lower()
             target = target.lower()
             rep = False
-            if target.startswith('-'):
+            if target.startswith("-"):
                 rep = True
                 target = target[1:]
             aliases.append((orig, target, rep))
-        #uplog("Minim:getaliastags:out: %s" % aliases)
+        # uplog("Minim:getaliastags:out: %s" % aliases)
         return aliases
 
-        
     def getindextags(self):
         indextags = []
         sit = self.conf.get("minimserver.indexTags")
-        #uplog("Minim:getindextags:in: [%s]" % sit)
+        # uplog("Minim:getindextags:in: [%s]" % sit)
         if sit:
             indextags = self.minimsplitsplit(sit)
-        #uplog("Minim:getindextags:out: %s" % indextags)
+        # uplog("Minim:getindextags:out: %s" % indextags)
         return indextags
-
 
     def getitemtags(self):
         itemtags = []
         sit = self.conf.get("minimserver.itemTags")
-        #uplog("Minim:getitemtags:in: [%s]" % sit)
+        # uplog("Minim:getitemtags:in: [%s]" % sit)
         if sit:
-            itemtags = [i.strip() for i in sit.split(',')]
-        #uplog("Minim:getitemtags:out: %s" % itemtags)
+            itemtags = [i.strip() for i in sit.split(",")]
+        # uplog("Minim:getitemtags:out: %s" % itemtags)
         return itemtags
-
 
     def getcontentdirs(self):
         # minim uses '\\n' as a separator for directories (actual
@@ -178,7 +168,6 @@ class MinimConfig(object):
             cdirs = s.replace("\\n", "\n").split("\n")
         return cdirs
 
-    
     def gettranscodingspec(self):
         s = self.conf.get("stream.transcode")
         if not s:
@@ -188,4 +177,3 @@ class MinimConfig(object):
         # each spec is a pair of (input,output)
         # TBD
         pass
-    

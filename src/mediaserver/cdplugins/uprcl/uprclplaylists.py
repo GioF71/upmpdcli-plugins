@@ -17,7 +17,7 @@
 # Manage the playlists section of the tree
 #
 # Object Id prefix: 0$uprcl$playlists
-# 
+#
 # Obect id inside the section: $p<idx> where <idx> is the document index
 #  inside the global document vector.
 
@@ -31,17 +31,18 @@ from recoll import recoll
 import conftree
 import upradioconf
 
+
 class Playlists(object):
     def __init__(self, rclconfdir, rcldocs, httphp, pathprefix):
         self.rclconfdir = rclconfdir
-        self._idprefix = '0$uprcl$playlists'
+        self._idprefix = "0$uprcl$playlists"
         self._pprefix = pathprefix
         uplog(f"PLAYLISTS pprefix {self._pprefix} idprefix {self._idprefix}")
         self._httphp = httphp
         self._rcldocs = rcldocs
         self.recoll2playlists()
         self._radios = []
-        radiolistid = self._idprefix + '$p' + str(len(self._pldocsidx))
+        radiolistid = self._idprefix + "$p" + str(len(self._pldocsidx))
         if not conftree.valToBool(getOptionValue("uprclnoradioconf")):
             radios = upradioconf.UpmpdcliRadios(getConfigObject())
             for radio in radios:
@@ -49,13 +50,17 @@ class Playlists(object):
 
     # Return entry to be created in the top-level directory ([playlists]).
     def rootentries(self, pid):
-        return [direntry(pid + 'playlists', pid, str(len(self._pldocsidx)) + ' playlists'),]
+        return [
+            direntry(pid + "playlists", pid, str(len(self._pldocsidx)) + " playlists"),
+        ]
 
     # Create the playlists static vector by filtering the global doc vector, storing the indexes of
     # the playlists.
     def recoll2playlists(self):
         # The -1 entry is because we use index 0 for our root.
-        self._pldocsidx = [-1,]
+        self._pldocsidx = [
+            -1,
+        ]
         for docidx in range(len(self._rcldocs)):
             doc = self._rcldocs[docidx]
             if doc["mtype"] == "audio/x-mpegurl":
@@ -66,34 +71,34 @@ class Playlists(object):
     # idx0==0 -> our root. idx0 == len(ourlist) is valid too and does not point to an rcldoc built
     # from an actual playlist file, but to our internal radio playlist
     def _objidtoidx(self, objid):
-        #uplog("playlists:objidtoidx: %s" % objid)
+        # uplog("playlists:objidtoidx: %s" % objid)
         if not objid.startswith(self._idprefix):
             raise Exception(f"playlists:browse: bad objid prefix in {objid}")
         # path is like $p{idx0} or $p{idx0}$e{idx1}
-        path = objid[len(self._idprefix):]
+        path = objid[len(self._idprefix) :]
         idx1 = -1
         if not path:
             # Browsing the root.
             idx0 = 0
         else:
-            if path[1] != 'p':
+            if path[1] != "p":
                 raise Exception(f"playlists:browse: bad objid {objid} path {path} no $p")
             epos = path.find("$e")
             if epos != -1:
                 idx0 = int(path[2:epos])
-                idx1 = int(path[epos+2:])
+                idx1 = int(path[epos + 2 :])
             else:
                 idx0 = int(path[2:])
         if idx0 > len(self._pldocsidx):
             raise Exception(f"playlists:browse: bad objid {objid} idx0 {idx0} not in range")
-        return idx0,idx1
+        return idx0, idx1
 
     def _idxtoentry(self, idx):
         upnpclass = "object.container.playlistContainer"
         id = self._idprefix + "$p" + str(idx)
         if idx == len(self._pldocsidx):
             title = "*Upmpdcli Radios*"
-        elif idx >=1 and idx < len(self._pldocsidx):
+        elif idx >= 1 and idx < len(self._pldocsidx):
             doc = self._rcldocs[self._pldocsidx[idx]]
             title = doc["title"] if doc["title"] else doc["filename"]
         else:
@@ -102,17 +107,17 @@ class Playlists(object):
 
     # Return the contents of the playlist at index idx
     def _playlistatidx(self, idx):
-        #uplog(f"playlistatidx: idx {idx}")
+        # uplog(f"playlistatidx: idx {idx}")
         rcldb = recoll.connect(confdir=self.rclconfdir)
         pldoc = self._rcldocs[self._pldocsidx[idx]]
         plpath = uprclutils.docpath(pldoc)
-        folders = uprclinit.getTree('folders')
-        #uplog("playlists: plpath %s" % plpath)
+        folders = uprclinit.getTree("folders")
+        # uplog("playlists: plpath %s" % plpath)
         entries = []
         try:
             m3u = uprclutils.M3u(plpath)
         except Exception as ex:
-            uplog("M3u open failed: %s %s" % (plpath,ex))
+            uplog("M3u open failed: %s %s" % (plpath, ex))
             return entries
         cnt = 1
         for url in m3u:
@@ -124,15 +129,15 @@ class Playlists(object):
                 if not docidx:
                     continue
                 doc = self._rcldocs[docidx]
-                        
+
             pid = self._idprefix + "$p" + str(idx)
-            id = pid +  "$e" + str(len(entries))
+            id = pid + "$e" + str(len(entries))
             e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
             if e:
                 entries.append(e)
-        #uplog(f"playlistatidx: idx {idx} -> {entries}")
+        # uplog(f"playlistatidx: idx {idx} -> {entries}")
         return entries
-        
+
     # Browse method
     # objid is like {_idprefix}$p<idx0> or {_idprefix}$p<idx0>$e<idx1> (meta only)
     # flag is meta or children.
@@ -145,17 +150,25 @@ class Playlists(object):
                 return self.rootentries(self, self._idprefix)
             elif idx0 < len(self._pldocsidx):
                 if idx1 == -1:
-                    return [self._idxtoentry(idx0),]
+                    return [
+                        self._idxtoentry(idx0),
+                    ]
                 else:
                     entries = self._playlistatidx(idx0)
                     if idx1 >= 0 and idx1 < len(entries):
-                        return [entries[idx1],]
+                        return [
+                            entries[idx1],
+                        ]
             elif idx0 == len(self._pldocsidx):
                 if idx1 == -1:
-                    return [self._idxtoentry(idx0),]
+                    return [
+                        self._idxtoentry(idx0),
+                    ]
                 else:
                     if idx1 > 0 and idx1 < len(self._radios):
-                        return [self._radios[idx1],]
+                        return [
+                            self._radios[idx1],
+                        ]
             return []
 
         # Browsing children

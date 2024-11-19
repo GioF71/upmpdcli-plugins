@@ -36,7 +36,7 @@ def _initconfdir(confdir, topdirs):
         if os.path.exists(confdir):
             raise Exception("Exists and not directory: %s" % confdir)
         os.mkdir(confdir)
-        
+
     datadir = os.path.dirname(__file__)
     uplog("datadir: %s" % datadir)
 
@@ -55,7 +55,7 @@ def _initconfdir(confdir, topdirs):
     dst = os.path.join(confdir, "fields")
     fldconf = conftree.ConfSimple(dst, False, False)
     for fld in fields:
-        fldconf.set(fld, '', "stored")
+        fldconf.set(fld, "", "stored")
 
     exclpats = uprclinit.g_minimconfig.getexcludepatterns()
 
@@ -65,15 +65,15 @@ def _initconfdir(confdir, topdirs):
     if os.path.exists(userconfig):
         userconfdata = open(userconfig, "rb").read()
     else:
-        userconfdata = b''
-        
+        userconfdata = b""
+
     path = os.path.join(confdir, "recoll.conf")
     f = open(path, "wb")
-    f.write(b"topdirs = %s\n"% topdirs.encode(locale.getpreferredencoding()))
+    f.write(b"topdirs = %s\n" % topdirs.encode(locale.getpreferredencoding()))
     f.write(b"idxabsmlen = 0\n")
     f.write(b"loglevel = 2\n")
-    #f.write(b"idxlogfilename = /tmp/loguprcl.txt\n")
-    #f.write(b"pylogfilename = /tmp/logpyuprcl.txt\n")
+    # f.write(b"idxlogfilename = /tmp/loguprcl.txt\n")
+    # f.write(b"pylogfilename = /tmp/logpyuprcl.txt\n")
     f.write(b"noaspell = 1\n")
     f.write(b"nomd5types = rclaudio rclaudio.py rclimg rclimg.py\n")
     f.write(b"testmodifusemtime = 1\n")
@@ -84,10 +84,13 @@ def _initconfdir(confdir, topdirs):
     # chert backend disabled, even if XAPIAN_HAS_CHERT_BACKEND is set
     # in version.h
     f.write(b"indexStoreDocText = 1\n")
-    f.write(b"audiotagfixerscript = %b\n" %
-            os.path.join(datadir, "minimtagfixer.py").encode('utf-8'))
+    f.write(
+        b"audiotagfixerscript = %b\n" % os.path.join(datadir, "minimtagfixer.py").encode("utf-8")
+    )
     f.write(b"indexallfilenames = 0\n")
-    f.write(b"noContentSuffixes+ = .png .jp2 .jpg .jpeg .gif .tiff .tif .xcf .bmp .xpm .svg .djvu\n")
+    f.write(
+        b"noContentSuffixes+ = .png .jp2 .jpg .jpeg .gif .tiff .tif .xcf .bmp .xpm .svg .djvu\n"
+    )
     if exclpats:
         f.write(b"skippedNames+ = " + exclpats.encode("utf-8") + b"\n")
     else:
@@ -100,6 +103,7 @@ def _initconfdir(confdir, topdirs):
 _idxproc = None
 _lastidxstatus = None
 
+
 def runindexer(confdir, topdirs, rebuild=False):
     global _idxproc, _lastidxstatus
     if _idxproc is not None:
@@ -107,8 +111,8 @@ def runindexer(confdir, topdirs, rebuild=False):
 
     _initconfdir(confdir, topdirs)
 
-    cf = conftree.ConfSimple(os.path.join(confdir, "recoll.conf"), readonly = False)
-    td = cf.get("topdirs", '')
+    cf = conftree.ConfSimple(os.path.join(confdir, "recoll.conf"), readonly=False)
+    td = cf.get("topdirs", "")
     if td != topdirs:
         cf.set("topdirs", topdirs)
 
@@ -118,6 +122,7 @@ def runindexer(confdir, topdirs, rebuild=False):
         _idxproc = subprocess.Popen(["recollindex", "-c", confdir, "-z"])
     else:
         _idxproc = subprocess.Popen(["recollindex", "-c", confdir])
+
 
 def indexerdone():
     global _idxproc, _lastidxstatus
@@ -129,13 +134,13 @@ def indexerdone():
     _idxproc = None
     return True
 
+
 def indexerstatus():
     return _lastidxstatus
-    
 
 
 # Only used for testing
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: uprclindex.py <confdir> <topdirs>", file=sys.stderr)
         sys.exit(1)
@@ -145,4 +150,4 @@ if __name__ == '__main__':
             uplog("Indexing done, status: %d" % indexerstatus())
             sys.exit(0)
         uplog("Waiting for indexer")
-        time.sleep(1);
+        time.sleep(1)
