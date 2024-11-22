@@ -7,7 +7,9 @@ import requests
 
 class Spoofer:
     def __init__(self):
-        self.seed_timezone_regex = r'[a-z]\.initialSeed\("(?P<seed>[\w=]+)",window\.utimezone\.(?P<timezone>[a-z]+)\)'
+        self.seed_timezone_regex = (
+            r'[a-z]\.initialSeed\("(?P<seed>[\w=]+)",window\.utimezone\.(?P<timezone>[a-z]+)\)'
+        )
         # note: {timezones} should be replaced with every capitalized timezone joined by a |
         self.info_extras_regex = r'name:"\w+/(?P<timezone>{timezones})",info:"(?P<info>[\w=]+)",extras:"(?P<extras>[\w=]+)"'
         self.appId_regex = r'production:{api:{appId:"(?P<app_id>\d{9})",appSecret:"(?P<secret>\w{32})"},braze:a\(a\({},s\),{},{apiKey:"([-0-9a-fA-F]{36})"}\),extra:o}'
@@ -51,7 +53,7 @@ class Spoofer:
         return secrets
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     spoofer = Spoofer()
-    print("%s"%spoofer.getSecrets())
-    print("%s"%spoofer.getAppId())
+    print("%s" % spoofer.getSecrets())
+    print("%s" % spoofer.getAppId())

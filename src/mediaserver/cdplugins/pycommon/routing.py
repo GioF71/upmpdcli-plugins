@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import re
 import sys
+
 try:
     from urlparse import urlsplit, parse_qs
     from urllib import urlencode
@@ -28,12 +29,15 @@ except ImportError:
 try:
     import xbmc
     import xbmcaddon
-    _addon_id = xbmcaddon.Addon().getAddonInfo('id')
+
+    _addon_id = xbmcaddon.Addon().getAddonInfo("id")
 
     def log(msg):
         msg = "[%s][routing] %s" % (_addon_id, msg)
         xbmc.log(msg, level=xbmc.LOGDEBUG)
+
 except ImportError:
+
     def log(msg):
         print(msg, file=sys.stderr)
 
@@ -53,7 +57,7 @@ class Plugin(object):
         self.args = {}
         self.base_url = base_url
         if self.base_url is None:
-            self.base_url = "plugin://" + xbmcaddon.Addon().getAddonInfo('id')
+            self.base_url = "plugin://" + xbmcaddon.Addon().getAddonInfo("id")
 
     def route_for(self, path):
         """
@@ -79,25 +83,29 @@ class Plugin(object):
                 path = rule.make_path(*args, **kwargs)
                 if path is not None:
                     return self.url_for_path(path)
-        raise RoutingError("No known paths to '{0}' with args {1} and "
-                           "kwargs {2}".format(func.__name__, args, kwargs))
+        raise RoutingError(
+            "No known paths to '{0}' with args {1} and "
+            "kwargs {2}".format(func.__name__, args, kwargs)
+        )
 
     def url_for_path(self, path):
         """
         Returns the complete URL for a path.
         """
-        path = path if path.startswith('/') else '/' + path
+        path = path if path.startswith("/") else "/" + path
         return self.base_url + path
 
     def route(self, pattern):
-        """ Register a route. """
+        """Register a route."""
+
         def decorator(func):
             self.add_route(func, pattern)
             return func
+
         return decorator
 
     def add_route(self, func, pattern):
-        """ Register a route. """
+        """Register a route."""
         rule = UrlRule(pattern)
         if func not in self._rules:
             self._rules[func] = []
@@ -105,8 +113,8 @@ class Plugin(object):
 
     def run(self, argv=sys.argv):
         if len(argv) > 2:
-            self.args = parse_qs(argv[2].lstrip(b'?'))
-        path = urlsplit(argv[0]).path or '/'
+            self.args = parse_qs(argv[2].lstrip(b"?"))
+        path = urlsplit(argv[0]).path or "/"
         self._dispatch(path)
 
     def redirect(self, path):
@@ -126,15 +134,15 @@ class Plugin(object):
 class UrlRule(object):
 
     def __init__(self, pattern):
-        kw_pattern = r'<(?:[^:]+:)?([A-z]+)>'
-        self._pattern = re.sub(kw_pattern, '{\\1}', pattern)
+        kw_pattern = r"<(?:[^:]+:)?([A-z]+)>"
+        self._pattern = re.sub(kw_pattern, "{\\1}", pattern)
         self._keywords = re.findall(kw_pattern, pattern)
 
-        p = re.sub('<([A-z]+)>', '<string:\\1>', pattern)
-        p = re.sub('<string:([A-z]+)>', '(?P<\\1>[^/]+?)', p)
-        p = re.sub('<path:([A-z]+)>', '(?P<\\1>.*)', p)
+        p = re.sub("<([A-z]+)>", "<string:\\1>", pattern)
+        p = re.sub("<string:([A-z]+)>", "(?P<\\1>[^/]+?)", p)
+        p = re.sub("<path:([A-z]+)>", "(?P<\\1>.*)", p)
         self._compiled_pattern = p
-        self._regex = re.compile('^' + p + '$')
+        self._regex = re.compile("^" + p + "$")
 
     def match(self, path):
         """
@@ -152,7 +160,7 @@ class UrlRule(object):
         if args:
             # Replace the named groups %s and format
             try:
-                return re.sub(r'{[A-z]+}', r'%s', self._pattern) % args
+                return re.sub(r"{[A-z]+}", r"%s", self._pattern) % args
             except TypeError:
                 return None
 
@@ -161,7 +169,7 @@ class UrlRule(object):
         url_kwargs = dict(((k, v) for k, v in kwargs.items() if k in self._keywords))
         qs_kwargs = dict(((k, v) for k, v in kwargs.items() if k not in self._keywords))
 
-        query = '?' + urlencode(qs_kwargs) if qs_kwargs else ''
+        query = "?" + urlencode(qs_kwargs) if qs_kwargs else ""
         try:
             return self._pattern.format(**url_kwargs) + query
         except KeyError:

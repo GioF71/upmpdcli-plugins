@@ -18,10 +18,11 @@
 
 from __future__ import unicode_literals
 
+
 def sortmodellist(l):
-    l.sort(key = lambda e: e.name)
+    l.sort(key=lambda e: e.name)
     return l
-    
+
 
 class Model(object):
     id = None
@@ -31,10 +32,12 @@ class Model(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+
 class User(Model):
     upnpclass = "object.container"
     name = "Unknown"
-    
+
+
 class Album(Model):
     upnpclass = "object.container.album.musicAlbum"
     name = "Unknown"
@@ -46,6 +49,7 @@ class Album(Model):
     release_date = None
     available = True
 
+
 class Artist(Model):
     upnpclass = "object.container.person.musicArtist"
     name = "Unknown"
@@ -55,7 +59,7 @@ class Artist(Model):
 class Playlist(Model):
     upnpclass = "object.container.playlistContainer"
     # Using the proper playlistContainer type this confuses e.g. Kazoo
-    #upnpclass = "object.container.playlistContainer"
+    # upnpclass = "object.container.playlistContainer"
     # We create a bogus artist with the playlist owner name when available
     artist = None
     description = None
@@ -89,10 +93,9 @@ class Category(Model):
 class Genre(Model):
     upnpclass = "object.container"
 
-    
+
 class SearchResult(Model):
     artists = []
     albums = []
     tracks = []
     playlists = []
-

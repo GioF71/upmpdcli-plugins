@@ -649,8 +649,8 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
         return false;
     }
 
-    // Note that if we only keep one object kind filtering clause and one content filtering one. If there are more,
-    // these will be the last ones.
+    // Note that if we only keep one object kind filtering clause and one content filtering one. If
+    // there are more, these will be the last ones.
     for (unsigned int i = 0; i < vs.size()-2; i += 4) {
         const string& upnpproperty = vs[i];
         LOGDEB("PlgWithSlave::search:clause: " << vs[i] << " " << vs[i+1] << " " << vs[i+2] << "\n");

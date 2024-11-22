@@ -18,7 +18,7 @@
 # input parameters, under the key prcnmkey: "cmdtalk:proc". The client module creates a Dispatch
 # object which it uses to record the methods to call. The message processor looks for the prcnmkey
 # value and call the processing method accordingly. Example code:
-#  
+#
 #     dispatcher = cmdtalkplugin.Dispatch()
 #     msgproc = cmdtalkplugin.Processor(dispatcher)
 #
@@ -34,33 +34,36 @@ import cmdtalk
 
 prcnmkey = "cmdtalk:proc"
 
+
 class Dispatch:
     def __init__(self):
         self.map = {}
-        
+
     def record(self, nm):
         def decorator(func):
             self.map[nm] = func
             return func
+
         return decorator
 
     def run(self, nm, params):
         func = self.map[nm]
         return func(params)
-    
+
+
 class Processor:
     def __init__(self, dispatcher, outfile=sys.stdout, infile=sys.stdin, exitfunc=None):
         self.em = cmdtalk.CmdTalk(outfile=outfile, infile=infile, exitfunc=exitfunc)
         self.dispatcher = dispatcher
-        
-    def log(self, s, doexit = 0, exitvalue = 1):
+
+    def log(self, s, doexit=0, exitvalue=1):
         self.em.log(s, doexit, exitvalue)
-        
+
     def process(self, params):
-        # self.em.log("pCmdTalkProcessor.process: [%s]" % params)
+        # self.em.log(f"pCmdTalkProcessor.process: [{params}]")
         if not prcnmkey in params:
-            raise Exception('%s not in args' % prcnmkey)
-        
+            raise Exception(f"{prcnmkey} not in args")
+
         return self.dispatcher.run(params[prcnmkey], params)
 
     def mainloop(self):

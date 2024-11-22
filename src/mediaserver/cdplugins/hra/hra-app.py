@@ -31,12 +31,13 @@ from xbmcplug import *
 
 # Using tidal Kodi addon routing module
 from routing import Plugin
-plugin = Plugin('')
+
+plugin = Plugin("")
 
 import session
 
-_rootid = '0$hra$'
-_rootidre = r'0\$hra\$'
+_rootid = "0$hra$"
+_rootidre = r"0\$hra\$"
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -44,6 +45,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 sess = session.Session()
+
 
 def maybelogin():
     if sess.isloggedin():
@@ -59,50 +61,50 @@ def maybelogin():
     pathprefix = os.environ["UPMPD_PATHPREFIX"]
     if "UPMPD_CONFIG" not in os.environ:
         raise Exception("No UPMPD_CONFIG in environment")
-    
-    username,password = getserviceuserpass('hra')
+
+    username, password = getserviceuserpass("hra")
     if not username or not password:
         raise Exception("hrauser and/or hrapass not set in configuration")
-    lang = getOptionValue('hralang')
+    lang = getOptionValue("hralang")
     if not lang:
-        lang = 'en'
+        lang = "en"
     setMimeAndSamplerate("application/flac", "44100")
     return sess.login(username, password, lang)
-    
 
-@dispatcher.record('trackuri')
+
+@dispatcher.record("trackuri")
 def trackuri(a):
     global pathprefix
     msgproc.log("trackuri: [%s]" % a)
     trackid = trackid_from_urlpath(pathprefix, a)
     maybelogin()
     url = sess.get_media_url(trackid) or ""
-    #msgproc.log("%s" % media_url)
-    return {'media_url' : url}
+    # msgproc.log("%s" % media_url)
+    return {"media_url": url}
 
 
 def track_list(tracks):
     xbmcplugin.entries += trackentries(httphp, pathprefix, xbmcplugin.objid, tracks)
 
 
-@dispatcher.record('browse')
+@dispatcher.record("browse")
 def browse(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(_rootid, routeplugin=plugin)
     uplog("browse: [%s]" % a)
-    if 'objid' not in a:
+    if "objid" not in a:
         raise Exception("No objid in args")
-    objid = a['objid']
-    bflg = a['flag'] if 'flag' in a else 'children'
-    
+    objid = a["objid"]
+    bflg = a["flag"] if "flag" in a else "children"
+
     if re.match(_rootidre, objid) is None:
         raise Exception("bad objid [%s]" % objid)
+
+    xbmcplugin = XbmcPlugin(_rootid, objid, routeplugin=plugin)
     maybelogin()
 
-    xbmcplugin.objid = objid
-    idpath = objid.replace(_rootid, '', 1)
-    if bflg == 'meta':
-        m = re.match(r'.*\$(.+)$', idpath)
+    idpath = objid.replace(_rootid, "", 1)
+    if bflg == "meta":
+        m = re.match(r".*\$(.+)$", idpath)
         if m:
             trackid = m.group(1)
             track = sess.get_track(trackid)
@@ -110,109 +112,125 @@ def browse(a):
     else:
         plugin.run([idpath])
     encoded = json.dumps(xbmcplugin.entries)
-    return {"entries" : encoded}
+    return {"entries": encoded}
 
-@plugin.route('/')
+
+@plugin.route("/")
 def root():
     if not maybelogin():
-        xbmcplugin.add_directory('LOGIN FAILED', '/')
+        xbmcplugin.add_directory("LOGIN FAILED", "/")
         return
-    xbmcplugin.add_directory('Categories', allCategories)
-    xbmcplugin.add_directory('Genres', allGenres)
-# These seem mostly empty. The hra app uses alleditor
-#    xbmcplugin.add_directory('Editor playlists: Moods', allEditorMoods)
-#    xbmcplugin.add_directory('Editor playlists: Genres', allEditorGenres)
-#    xbmcplugin.add_directory('Editor playlists: Themes', allEditorThemes)
-    xbmcplugin.add_directory('Editor Playlists', allEditorPlaylists)
-    xbmcplugin.add_directory('My Playlists', allUserPlaylists)
-    xbmcplugin.add_directory('My Albums', allUserAlbums)
-    xbmcplugin.add_directory('My Tracks', allUserTracks)
+    xbmcplugin.add_directory("Categories", allCategories)
+    xbmcplugin.add_directory("Genres", allGenres)
+    # These seem mostly empty. The hra app uses alleditor
+    #    xbmcplugin.add_directory('Editor playlists: Moods', allEditorMoods)
+    #    xbmcplugin.add_directory('Editor playlists: Genres', allEditorGenres)
+    #    xbmcplugin.add_directory('Editor playlists: Themes', allEditorThemes)
+    xbmcplugin.add_directory("Editor Playlists", allEditorPlaylists)
+    xbmcplugin.add_directory("My Playlists", allUserPlaylists)
+    xbmcplugin.add_directory("My Albums", allUserAlbums)
+    xbmcplugin.add_directory("My Tracks", allUserTracks)
 
 
-@plugin.route('/allcategories')
+@plugin.route("/allcategories")
 def allCategories():
     items = sess.get_categories()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(category_view, items))
 
-@plugin.route('/allgenres')
+
+@plugin.route("/allgenres")
 def allGenres():
     items = sess.get_genres()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(category_view, items))
 
-@plugin.route('/category/<catg_id>')
+
+@plugin.route("/category/<catg_id>")
 def category_view(catg_id):
     decoded = session.decode_prefix(catg_id)
     uplog("category_view: id [%s] decoded [%s]" % (catg_id, decoded))
     items = sess.get_catg_albums(decoded)
     xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
 
-@plugin.route('/alleditorgenres')
+
+@plugin.route("/alleditorgenres")
 def allEditorGenres():
     items = sess.get_editorgenres()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(edplaylist_view, items))
-@plugin.route('/alleditormoods')
+
+
+@plugin.route("/alleditormoods")
 def allEditorMoods():
     items = sess.get_editormoods()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(edplaylist_view, items))
-@plugin.route('/alleditorthemes')
+
+
+@plugin.route("/alleditorthemes")
 def allEditorThemes():
     items = sess.get_editorthemes()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(edplaylist_view, items))
 
-@plugin.route('/alleditorplaylists')
+
+@plugin.route("/alleditorplaylists")
 def allEditorPlaylists():
     items = sess.get_alleditorplaylists()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(edplaylist_view, items))
-    
-@plugin.route('/editorplaylist/<id>')
+
+
+@plugin.route("/editorplaylist/<id>")
 def edplaylist_view(id):
     track_list(sess.get_editor_playlist(id))
 
-    
-@plugin.route('/alluserplaylists')
+
+@plugin.route("/alluserplaylists")
 def allUserPlaylists():
     items = sess.get_alluserplaylists()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(userplaylist_view, items))
-@plugin.route('/alluseralbums')
+
+
+@plugin.route("/alluseralbums")
 def allUserAlbums():
     items = sess.get_alluseralbums()
     xbmcplugin.view(items, xbmcplugin.urls_from_id(album_view, items))
-@plugin.route('/allusertracks')
+
+
+@plugin.route("/allusertracks")
 def allUserTracks():
     track_list(sess.get_allusertracks())
 
-@plugin.route('/userplaylist/<id>')
+
+@plugin.route("/userplaylist/<id>")
 def userplaylist_view(id):
     track_list(sess.get_user_playlist(id))
 
-@plugin.route('/album/<album_id>')
+
+@plugin.route("/album/<album_id>")
 def album_view(album_id):
     track_list(sess.get_album_tracks(album_id))
 
 
-@dispatcher.record('search')
+@dispatcher.record("search")
 def search(a):
     global xbmcplugin
-    xbmcplugin = XbmcPlugin(_rootid, routeplugin=plugin)
 
     msgproc.log("search: %s" % a)
 
-    objid = a['objid']
-    field = a['field'] if 'field' in a else None
-    value = a['value']
-    objkind = a['objkind'] if 'objkind' in a and a['objkind'] else None
+    objid = a["objid"]
+    field = a["field"] if "field" in a else None
+    value = a["value"]
+    objkind = a["objkind"] if "objkind" in a and a["objkind"] else None
 
     if re.match(_rootidre, objid) is None:
         raise Exception("bad objid [%s]" % objid)
-    xbmcplugin.objid = objid
+
+    xbmcplugin = XbmcPlugin(_rootid, objid, routeplugin=plugin)
     maybelogin()
 
-    idpath = objid.replace(_rootid, '', 1)
+    idpath = objid.replace(_rootid, "", 1)
 
     catg = ""
     # Both genres and categories have an objid path beginning with category
-    if idpath.startswith('/category'):
-        catg = session.decode_prefix(idpath.replace('/category/', '', 1))
+    if idpath.startswith("/category"):
+        catg = session.decode_prefix(idpath.replace("/category/", "", 1))
 
     # HRA search always returns albums anyway.
     if catg:
@@ -220,7 +238,7 @@ def search(a):
     else:
         albums = sess.search(value)
     xbmcplugin.view(albums, xbmcplugin.urls_from_id(album_view, albums))
-    #msgproc.log("%s" % xbmcplugin.entries)
+    # msgproc.log("%s" % xbmcplugin.entries)
     encoded = json.dumps(xbmcplugin.entries)
     return {"entries": encoded}
 
