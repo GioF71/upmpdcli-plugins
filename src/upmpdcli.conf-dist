@@ -192,10 +192,12 @@
 #tidaltitle = Tidal
 # Use item numbers in album lists for kodi compatibility
 #tidalprependnumberinitemlist = 0
-# Enables tidal image caching
+# Enables image caching, requires webdocumentroot
 #tidalenableimagecaching = 0
-# Tidal search limit, set to 15 items by default
+# Tidal search limit
 #tidalsearchlimit = 15
+# Override the country code.
+#tidaloverridecountrycode = US
 
 # UPRCL Local Media Server parameters
 
@@ -235,6 +237,10 @@ upradiostitle = Upmpdcli Radio List
 #radio-browseruser = bugsbunny
 # Plugin Title.
 #radio-browsertitle = Radio Browser
+# IPInfo token.
+#radio-browseripinfotoken = your-ipinfo-token
+# The preferred country.
+#radio-browsercountry = your-ipinfo-token
 
 # Radio Paradise (https://www.radioparadise.com/) plugin parameters
 
@@ -264,6 +270,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonicport = 4533
 # SubSonic items per page
 #subsonicitemsperpage = 36
+# SubSonic cache timeout for artists
+#subsoniccachetimeoutartists = 600
 # Append year to album
 #subsonicappendyeartoalbum = 1
 # Enable transcoding
@@ -276,6 +284,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicprependnumberinalbumlist = 1
 # Subsonic enable Internet Radios
 #subsonictaginitialpageenabledir = 0
+# Subsonic show empty Favorites entries
+#subsonicshowemptyfavorites = 0
+# Subsonic show empty Playlists entry
+#subsonicshowemptyplaylists = 0
 # Plugin Title.
 #subsonictitle = Subsonic
 

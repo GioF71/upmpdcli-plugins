@@ -406,6 +406,9 @@ directory.
 [[tidaluser]]
 tidaluser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 
+[[tidaltokentype]]
+tidaltokentype:: Oath2 authentication token type. The type of token used for OAUTH2 authentication, typically Bearer.
+
 [[tidalaudioquality]]
 tidalaudioquality:: Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for FLAC up to 24/48,
 HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
