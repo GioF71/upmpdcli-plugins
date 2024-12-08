@@ -249,11 +249,21 @@ def remove_older_files(files_path: str, delta_sec: int):
             os.remove(os.path.join(files_path, f))
 
 
-def build_streaming_url(tidal_session: TidalSession, track_id: str) -> StreamingInfo:
-    track: TidalTrack = tidal_session.track(track_id)
+def try_get_stream(track: TidalTrack):
+    try:
+        return track.get_stream()
+    except Exception as ex:
+        msgproc.log(f"Cannot get stream for track [{track.id}] due to [{type(ex)}] [{ex}]")
+
+
+def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> StreamingInfo:
+    track_id: str = track.id
     streaming_url: str = None
     document_root_dir: str = config.getWebServerDocumentRoot()
-    stream = track.get_stream()
+    stream = try_get_stream(track)
+    if not stream:
+        msgproc.log(f"build_streaming_url failed for track [{track.id}]")
+        return None
     quality: TidalQuality = stream.audio_quality
     audio_mode: str = stream.audio_mode
     bit_depth = stream.bit_depth
@@ -340,10 +350,23 @@ def trackuri(a):
     track_id: str = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}]")
     tidal_session: TidalSession = get_session()
+    tidal_track: TidalTrack
+    ex: Exception
+    tidal_track, ex = tidal_util.try_get_track(tidal_session=tidal_session, track_id=track_id)
+    if not tidal_track:
+        # cannot load track?
+        msgproc.log("Cannot load track with id [{track_id}] due to [{type(ex)}] [{ex}]")
+        # return empty dictionary
+        return dict()
     streaming_info: StreamingInfo = build_streaming_url(
         tidal_session=tidal_session,
-        track_id=track_id) or ("", "")
+        track=tidal_track)
     res: dict[str, any] = {}
+    if not streaming_info:
+        # nothing to do, report error and return nothing
+        msgproc.log(f"Cannot execute trackuri for track_id [{track_id}]")
+        return res
+    # we have the streaming info, we are good to go
     res['media_url'] = streaming_info.url
     upnp_util.set_mime_type(streaming_info.mimetype, res)
     if streaming_info.url:

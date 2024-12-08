@@ -1,5 +1,10 @@
 # Tidal Plugin Release notes
 
+## 0.7.11
+
+- Bump to [tidalapi version 0.8.2](https://github.com/tamland/python-tidal/releases/tag/v0.8.2)
+- Handle missing track in trackuri
+
 ## 0.7.10
 
 - Restore "Add to Bookmark" functionality for Albums
