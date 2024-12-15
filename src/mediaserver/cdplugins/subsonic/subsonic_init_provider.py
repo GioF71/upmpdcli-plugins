@@ -22,4 +22,4 @@ def __initializer_callback() -> None:
     subsonic_init.initial_caching()
 
 
-initializer_callback : Callable[[], None] = __initializer_callback
+initializer_callback: Callable[[], None] = __initializer_callback

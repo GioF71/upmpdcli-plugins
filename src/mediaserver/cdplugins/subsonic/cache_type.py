@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,26 +16,33 @@
 from enum import Enum
 
 
-class SearchType(Enum):
-    ALBUM = 0, "album"
-    ARTIST = 1, "artist"
-    TRACK = 2, "track"
+class CacheType(Enum):
+    ALBUMS_BY_ARTIST = 1, "lbm4rtst"
+    MB_ALBUM_ID_BY_ALBUM_ID = 2, "mblbmidbylbmid"
+    MB_ARTIST_ID_BY_ARTIST_ID = 3, "mbrtstidbyrtstid"
 
     def __init__(
             self,
             num: int,
-            element_name: str):
+            cache_name: str):
         self.num: int = num
-        self.element_name: str = element_name
+        self.__cache_name: str = cache_name
 
-    def getName(self):
-        return self.element_name
+    def getName(self) -> str:
+        return self.__cache_name
+
+
+def get_cache_type_by_name(cache_name: str) -> CacheType:
+    for _, member in CacheType.__members__.items():
+        if cache_name == member.getName():
+            return member
+    raise Exception(f"get_cache_type_by_name with {cache_name} NOT found")
 
 
 # duplicate check
 name_checker_set: set[str] = set()
 id_checker_set: set[int] = set()
-for v in SearchType:
+for v in CacheType:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")
     if v.value[0] in id_checker_set:

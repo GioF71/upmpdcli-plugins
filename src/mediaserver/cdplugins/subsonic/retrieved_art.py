@@ -15,14 +15,9 @@
 
 class RetrievedArt:
 
-    def __init__(self, cover_art : str = None, art_url : str = None):
-        self._cover_art : str = cover_art
-        self._art_url : str = art_url
-
-    @property
-    def cover_art(self) -> str:
-        return self._cover_art
+    def __init__(self, art_url: str = None):
+        self.__art_url: str = art_url
 
     @property
     def art_url(self) -> str:
-        return self._art_url
+        return self.__art_url

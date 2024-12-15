@@ -27,9 +27,7 @@ class TagType(Enum):
     NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
     RANDOM = 160, "r", "Random Albums", "random"
     ARTISTS = 200, "grtsts", "Artists", None
-    ALBUM_ARTISTS = 211, "lbmrtsts", "Album Artists", None
     ALL_ARTISTS = 212, "llrtsts", "All Artists", None
-    ALBUM_ARTISTS_INDEXED = 220, "lbm_ndx", "Album Artists (By Initial)", None
     ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial)", None
     FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,
@@ -41,15 +39,16 @@ class TagType(Enum):
     PLAYLISTS = 500, "pl", "Playlists", None
     INTERNET_RADIOS = 600, "ir", "Internet Radios", None
 
-    def __init__(self,
-            num : int,
-            tag_name : str,
-            tag_title : str,
-            query_type : str):
-        self.num : int = num
-        self.tag_name : str = tag_name
-        self.tag_title : str = tag_title
-        self.query_type : str = query_type
+    def __init__(
+            self,
+            num: int,
+            tag_name: str,
+            tag_title: str,
+            query_type: str):
+        self.num: int = num
+        self.tag_name: str = tag_name
+        self.tag_title: str = tag_title
+        self.query_type: str = query_type
 
     def getTagName(self) -> str:
         return self.tag_name
@@ -61,7 +60,7 @@ class TagType(Enum):
         return self.query_type
 
 
-def get_tag_type_by_name(tag_name : str) -> TagType:
+def get_tag_type_by_name(tag_name: str) -> TagType:
     for _, member in TagType.__members__.items():
         if tag_name == member.getTagName():
             return member
@@ -69,8 +68,8 @@ def get_tag_type_by_name(tag_name : str) -> TagType:
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in TagType:
     if v.getTagName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getTagName()}]")

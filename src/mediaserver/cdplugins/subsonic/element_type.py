@@ -44,17 +44,18 @@ class ElementType(Enum):
     ALBUM_FOCUS = 24, "lbmfcs"
     ARTIST_FOCUS = 25, "rstsfcs"
 
-    def __init__(self,
-            num : int,
-            element_name : str):
-        self.num : int = num
-        self.element_name : str = element_name
+    def __init__(
+            self,
+            num: int,
+            element_name: str):
+        self.num: int = num
+        self.element_name: str = element_name
 
     def getName(self):
         return self.element_name
 
 
-def get_element_type_by_name(element_name : str) -> ElementType:
+def get_element_type_by_name(element_name: str) -> ElementType:
     for _, member in ElementType.__members__.items():
         if element_name == member.getName():
             return member
@@ -62,8 +63,8 @@ def get_element_type_by_name(element_name : str) -> ElementType:
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in ElementType:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")

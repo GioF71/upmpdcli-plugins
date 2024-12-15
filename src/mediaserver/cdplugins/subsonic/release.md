@@ -1,5 +1,31 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.4
+
+- Simplified class RetrievedArt
+- Cache artist mb id
+- Improve selection of artist art using albums
+- reduce dependency on RetrievedArt
+- Tag art retriever dict made private
+- Initial work for album classification
+- Caching for album mb id so it's more available
+- Remove all remaining dependencies from old caching
+- Allow to dump paths for album, useful for tagging purposes
+- Advance subsonic-connector to 0.3.5
+- Add optional album mbid in album view
+- Initial MusicBrainz support
+- Add optional artist mbid in artist entries
+- Configurability for showing artist/album id around
+- Add artist id in artist entries and additional artists
+- Some randomization for tiles images from favorites
+- Get rid of views for Album Artists (required caching)
+- Artists by Genre use existing entry creator
+- Get rid of precaching
+- Presentation of artists by genre is much faster now
+- Use random album cover for "Genres" tile
+- Additional artists (work in progress)
+- Improved linting
+
 ## Release 0.6.3
 
 - Don't present Artist again from items in Artist Albums view

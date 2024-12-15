@@ -15,7 +15,7 @@
 
 from caching import CacheManager
 
-__cache_manager : CacheManager = CacheManager()
+__cache_manager: CacheManager = CacheManager()
 
 
 def get() -> CacheManager:

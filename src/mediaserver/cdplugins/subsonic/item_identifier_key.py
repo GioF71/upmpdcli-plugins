@@ -28,22 +28,22 @@ class ItemIdentifierKey(Enum):
     RADIO_NAME = 8, "rn"
     SONG_AS_ENTRY = 9, "sntr"
     RANDOM_VALUE = 21, "rnd"
-    ALBUM_ARTISTS_ONLY = 22, "lmbrtstnly"
-    SKIP_ARTIST = 23, "skprtst"
+    SKIP_ARTIST_ID = 23, "skprtstd"
 
-    def __init__(self,
-            num : int,
-            key_name : str):
-        self.num : int = num
-        self.key_name : str = key_name
+    def __init__(
+            self,
+            num: int,
+            key_name: str):
+        self.num: int = num
+        self.key_name: str = key_name
 
     def getName(self) -> str:
         return self.key_name
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in ItemIdentifierKey:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")

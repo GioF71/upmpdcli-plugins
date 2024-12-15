@@ -38,7 +38,7 @@ class AlbumMetadata:
     album_id: str = None
     quality_badge: str = None
     created_timestamp: datetime.datetime = None
-    updated_timestamp : datetime.datetime = None
+    updated_timestamp: datetime.datetime = None
 
 
 __table_name_album_metadata_v1: str = "album_metadata_v1"
@@ -61,7 +61,7 @@ __sql_create_table_album_metadata_v1: str = f"""
 def get_album_metadata(album_id: str) -> AlbumMetadata:
     t = (album_id, )
     cursor = __connection.cursor()
-    cursor.execute(f"""
+    q: str = f"""
             SELECT
                 {__field_name_album_id},
                 {__field_name_album_quality_badge},
@@ -69,15 +69,16 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
                 {__field_name_updated_timestamp}
             FROM
                 {__table_name_album_metadata_v1}
-            WHERE {__field_name_album_id} = ?""",
-        t)
+            WHERE {__field_name_album_id} = ?"""
+    cursor.execute(q, t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return None
+    if not rows:
+        return None
     if len(rows) > 1:
         raise Exception(f"Multiple {__table_name_album_metadata_v1} records for [{album_id}]")
     row = rows[0]
-    result : AlbumMetadata = AlbumMetadata()
+    result: AlbumMetadata = AlbumMetadata()
     result.album_id = row[0]
     result.quality_badge = row[1]
     result.created_timestamp = row[2]
@@ -122,7 +123,7 @@ def save_quality_badge(album_id: str, quality_badge: str):
         insert_album_metadata(album_metadata=album_metadata)
 
 
-def save_album_metadata(album_metadata : AlbumMetadata):
+def save_album_metadata(album_metadata: AlbumMetadata):
     msgproc.log(f"save_album_metadata for album_id: {album_metadata.album_id} "
                 f"quality_badge: {album_metadata.quality_badge}")
     album_metadata: AlbumMetadata = get_album_metadata(album_id=album_metadata.album_id)
@@ -162,11 +163,13 @@ def insert_album_metadata(album_metadata: AlbumMetadata):
     __execute_update(insert_sql, insert_values)
 
 
-def __execute_update(sql: str, data: tuple, cursor = None, do_commit: bool = True):
+def __execute_update(sql: str, data: tuple, cursor=None, do_commit: bool = True):
     the_cursor = cursor if cursor else __connection.cursor()
     the_cursor.execute(sql, data)
-    if not cursor: the_cursor.close()
-    if do_commit: __connection.commit()
+    if not cursor:
+        the_cursor.close()
+    if do_commit:
+        __connection.commit()
 
 
 def __do_create_table(table_name: str, sql: str):
@@ -188,14 +191,14 @@ def __get_db_full_path() -> str:
 def __get_connection() -> sqlite3.Connection:
     connection = sqlite3.connect(
         __get_db_full_path(),
-        detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
     return connection
 
 
 def __prepare_table_db_version():
     cursor_obj = __connection.cursor()
     # Creating table
-    create_table : str = """
+    create_table: str = """
         CREATE TABLE IF NOT EXISTS db_version(
         version VARCHAR(32) PRIMARY KEY)
     """
@@ -213,8 +216,8 @@ def get_db_version() -> str:
     return None
 
 
-def __store_db_version(version : str):
-    db_version : str = get_db_version()
+def __store_db_version(version: str):
+    db_version: str = get_db_version()
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
         insert_tuple = (version, )
@@ -247,25 +250,25 @@ def migration_0():
     msgproc.log("Created db version 1.")
 
 
-def migration_template(new_version : str, migration_function : Callable):
+def migration_template(new_version: str, migration_function: Callable):
     msgproc.log(f"Creating db version {new_version} ...")
     migration_function()
     __store_db_version(new_version)
     msgproc.log(f"Updated db to version {new_version}.")
 
 
-__connection : sqlite3.Connection = __get_connection()
+__connection: sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
 
-current_db_version : str = get_db_version()
+current_db_version: str = get_db_version()
 
 
 class Migration:
 
-    def __init__(self, migration_name : str, apply_on : str, migration_function : Callable[[], any]):
-        self._migration_name : str = migration_name
-        self._apply_on : str = apply_on
-        self._migration_function : Callable[[], any] = migration_function
+    def __init__(self, migration_name: str, apply_on: str, migration_function: Callable[[], any]):
+        self._migration_name: str = migration_name
+        self._apply_on: str = apply_on
+        self._migration_function: Callable[[], any] = migration_function
 
     @property
     def migration_name(self) -> str:
@@ -280,7 +283,7 @@ class Migration:
         return self._migration_function
 
 
-migrations : list[Migration] = [
+migrations: list[Migration] = [
     Migration(
         migration_name="Initial Creation",
         apply_on=None,
@@ -291,9 +294,9 @@ migrations : list[Migration] = [
         migration_function=migration_1)]
 
 
-current_migration : Migration
+current_migration: Migration
 for current_migration in migrations:
-    current_db_version : int = get_db_version()
+    current_db_version: int = get_db_version()
     if not current_db_version or current_db_version == current_migration.apply_on:
         msgproc.log(f"Migration [{current_migration.migration_name}] "
                     f"is executing on current db version [{current_db_version}] ...")
@@ -302,5 +305,5 @@ for current_migration in migrations:
     else:
         msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
 
-migrated_db_version : str = get_db_version()
+migrated_db_version: str = get_db_version()
 msgproc.log(f"Current db version is [{migrated_db_version}]")

@@ -16,7 +16,7 @@
 from subsonic_connector.connector import Connector
 from config import UpmpdcliSubsonicConfig
 
-connector : Connector = Connector(UpmpdcliSubsonicConfig())
+connector: Connector = Connector(UpmpdcliSubsonicConfig())
 
 
 def get():

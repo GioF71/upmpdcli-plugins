@@ -47,19 +47,20 @@ cached_starred: CachedResponse = CachedResponse()
 
 
 def __is_older_than(date_time: datetime.datetime, delta_sec: int) -> bool:
-    if date_time is None: return True
-    cutoff: datetime.datetime = datetime.datetime.now() - datetime.timedelta(seconds = delta_sec)
+    if date_time is None:
+        return True
+    cutoff: datetime.datetime = datetime.datetime.now() - datetime.timedelta(seconds=delta_sec)
     return date_time < cutoff
 
 
 def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool:
     return (cached is None or
-        cached.last_response_obj is None or
-        __is_older_than(
-            cached.last_response_time
-            if cached is not None
-            else None,
-            delta_sec))
+            cached.last_response_obj is None or
+            __is_older_than(
+                cached.last_response_time
+                if cached is not None
+                else None,
+                delta_sec))
 
 
 def get_starred() -> Response[Artists]:
@@ -88,6 +89,7 @@ def get_artists() -> Response[Artists]:
         cached_response_artists = CachedResponse()
         cached_response_artists.last_response_obj = res
         cached_response_artists.last_response_time = datetime.datetime.now()
+        msgproc.log("subsonic_util.get_artists artists have been loaded.")
         return res
     else:
         # msgproc.log("subsonic_util.get_artists using cached artists!")

@@ -25,7 +25,7 @@ from subsonic_connector.album import Album
 from codec_delimiter_style import CodecDelimiterStyle
 
 
-__split_characters : list[str] = [' ', '-', '_']
+__split_characters: list[str] = [' ', '-', '_']
 
 
 def split_string(string, delimiters):
@@ -41,7 +41,7 @@ class Starter(Enum):
     D = 4
 
 
-def __is_int(value : str) -> bool:
+def __is_int(value: str) -> bool:
     try:
         # converting to integer
         int(value)
@@ -50,35 +50,37 @@ def __is_int(value : str) -> bool:
         return False
 
 
-def _ignorable(last_path : str) -> bool:
+def _ignorable(last_path: str) -> bool:
     # first case: start with a starter, then there is a number without a splitter
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
             # is there a number after that?
             if len(last_path) > len(name):
-                potential_discnumber : str = last_path[len(name)]
-                if __is_int(potential_discnumber): return True
+                potential_discnumber: str = last_path[len(name)]
+                if __is_int(potential_discnumber):
+                    return True
     # second case: start with a starter, then there is a number after a splitter
     for name, member in Starter.__members__.items():
         if last_path.upper().startswith(name):
-            splitted : list = split_string(last_path, __split_characters)
+            splitted: list = split_string(last_path, __split_characters)
             if splitted is not None and len(splitted) >= 2:
-                last : str = splitted[1]
-                if __is_int(last): return True
+                last: str = splitted[1]
+                if __is_int(last):
+                    return True
     return False
 
 
-def get_last_path_element(path : str) -> str:
+def get_last_path_element(path: str) -> str:
     return os.path.basename(os.path.normpath(path))
 
 
-def get_dir_from_path(path : str) -> str:
+def get_dir_from_path(path: str) -> str:
     return os.path.dirname(path)
 
 
-def get_album_base_path(path : str) -> str:
+def get_album_base_path(path: str) -> str:
     last_path = os.path.basename(os.path.normpath(path))
-    last_path_ignorable : bool = _ignorable(last_path)
+    last_path_ignorable: bool = _ignorable(last_path)
     if last_path_ignorable:
         return os.path.split(path)[0]
     return path
@@ -86,17 +88,17 @@ def get_album_base_path(path : str) -> str:
 
 class __Decorated_Song:
 
-    def __init__(self, song : Song):
-        self._song = song
-        self._disc : int = song.getDiscNumber() if song.getDiscNumber() else 0
-        self._track : int = song.getTrack() if song.getTrack() else 0
-        path : str = get_dir_from_path(song.getPath())
+    def __init__(self, song: Song):
+        self._song: Song = song
+        self._disc: int = song.getDiscNumber() if song.getDiscNumber() else 0
+        self._track: int = song.getTrack() if song.getTrack() else 0
+        path: str = get_dir_from_path(song.getPath())
         last_path = os.path.basename(os.path.normpath(path))
-        last_path_ignorable : bool = _ignorable(last_path)
+        last_path_ignorable: bool = _ignorable(last_path)
         if last_path_ignorable:
-            self._path = os.path.split(path)[0]
+            self._path: str = os.path.split(path)[0]
         else:
-            self._path = path
+            self._path: str = path
 
     def getSong(self) -> Song: return self._song
     def getPath(self) -> str: return self._path
@@ -104,10 +106,10 @@ class __Decorated_Song:
     def getTrack(self) -> int: return self._track
 
 
-def __compare_decorated_song(left : __Decorated_Song, right : __Decorated_Song) -> int:
-    cmp : int
-    left_album : str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
-    right_album : str = right.getSong().getAlbum() if right.getSong().getAlbum() else ""
+def __compare_decorated_song(left: __Decorated_Song, right: __Decorated_Song) -> int:
+    cmp: int
+    left_album: str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
+    right_album: str = right.getSong().getAlbum() if right.getSong().getAlbum() else ""
     cmp = -1 if left_album < right_album else 0 if left_album == right_album else 1
     if cmp == 0:
         cmp = -1 if left.getPath() < right.getPath() else 0 if left.getPath() == right.getPath() else 1
@@ -127,12 +129,12 @@ class SortSongListResult:
 
     def __init__(
             self,
-            codec_set_by_path : dict[str, set[str]],
-            song_list : list[Song],
-            multi_codec_album : MultiCodecAlbum):
-        self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
-        self._song_list : list[Song] = song_list
-        self._multi_codec_album : MultiCodecAlbum = multi_codec_album
+            codec_set_by_path: dict[str, set[str]],
+            song_list: list[Song],
+            multi_codec_album: MultiCodecAlbum):
+        self._codec_set_by_path: dict[str, set[str]] = codec_set_by_path
+        self._song_list: list[Song] = song_list
+        self._multi_codec_album: MultiCodecAlbum = multi_codec_album
 
     def getCodecSetByPath(self) -> set[str]:
         return self._codec_set_by_path
@@ -147,17 +149,17 @@ class SortSongListResult:
         return self._multi_codec_album
 
 
-def sort_song_list(song_list : list[Song]) -> SortSongListResult:
-    dec_list : list[__Decorated_Song] = []
-    codec_dict : dict[str, int] = {}
-    multi_codec : MultiCodecAlbum = MultiCodecAlbum.NO
-    codec_set_by_path : dict[str, set[str]] = {}
+def sort_song_list(song_list: list[Song]) -> SortSongListResult:
+    dec_list: list[__Decorated_Song] = []
+    codec_dict: dict[str, int] = {}
+    multi_codec: MultiCodecAlbum = MultiCodecAlbum.NO
+    codec_set_by_path: dict[str, set[str]] = {}
     for song in song_list:
-        dec : __Decorated_Song = __Decorated_Song(song)
+        dec: __Decorated_Song = __Decorated_Song(song)
         dec_list.append(dec)
         if not dec.getPath() in codec_set_by_path:
             codec_set_by_path[dec.getPath()] = set()
-        codec_per_path_set : set[str] = codec_set_by_path[dec.getPath()]
+        codec_per_path_set: set[str] = codec_set_by_path[dec.getPath()]
         if not song.getSuffix() in codec_per_path_set:
             codec_per_path_set.add(song.getSuffix())
         if not song.getSuffix() in codec_dict:
@@ -165,31 +167,31 @@ def sort_song_list(song_list : list[Song]) -> SortSongListResult:
         else:
             codec_dict[song.getSuffix()] = codec_dict[song.getSuffix()] + 1
     multi_codec = MultiCodecAlbum.YES if len(codec_dict) > 1 else MultiCodecAlbum.NO
-    dec_list.sort(key = cmp_to_key(__compare_decorated_song))
-    result : list[Song] = []
-    current : __Decorated_Song
+    dec_list.sort(key=cmp_to_key(__compare_decorated_song))
+    result: list[Song] = []
+    current: __Decorated_Song
     for current in dec_list:
         result.append(current.getSong())
     return SortSongListResult(
-        codec_set_by_path = codec_set_by_path,
-        song_list = result,
-        multi_codec_album = multi_codec)
+        codec_set_by_path=codec_set_by_path,
+        song_list=result,
+        multi_codec_album=multi_codec)
 
 
 class AlbumTracks:
 
     def __init__(
             self,
-            codec_set_by_path : dict[str, set[str]],
-            album : Album,
-            song_list : list[Song],
-            art_uri : str,
-            multi_codec_album : MultiCodecAlbum):
-        self._codec_set_by_path : dict[str, set[str]] = codec_set_by_path
-        self._album : Album = album
-        self._song_list : list[Song] = song_list
-        self._art_uri : str = art_uri
-        self._multi_codec_album : MultiCodecAlbum = multi_codec_album
+            codec_set_by_path: dict[str, set[str]],
+            album: Album,
+            song_list: list[Song],
+            art_uri: str,
+            multi_codec_album: MultiCodecAlbum):
+        self._codec_set_by_path: dict[str, set[str]] = codec_set_by_path
+        self._album: Album = album
+        self._song_list: list[Song] = song_list
+        self._art_uri: str = art_uri
+        self._multi_codec_album: MultiCodecAlbum = multi_codec_album
 
     def getCodecSetByPath(self) -> dict[str, set[str]]:
         return copy.deepcopy(self._codec_set_by_path)
@@ -210,9 +212,10 @@ class AlbumTracks:
         return self._multi_codec_album
 
 
-def get_display_artist(artist : str) -> str:
-    if not artist or len(artist) == 0: return ""
-    artist_list : list[str] = artist.split(";")
+def get_display_artist(artist: str) -> str:
+    if not artist or len(artist) == 0:
+        return ""
+    artist_list: list[str] = artist.split(";")
     return ", ".join(artist_list)
 
 
@@ -222,24 +225,24 @@ def strip_substring(initial_str, pattern):
     if match:
         start = match.start()
         end = match.end()
-        left = initial_str[0 : start] if start > 0 else ""
+        left = initial_str[0:start] if start > 0 else ""
         right = initial_str[match.end():] if end < (len(initial_str) - 1) else ""
         result_str = left + right
     return result_str
 
 
-def to_codec_pattern(codec : str, style : CodecDelimiterStyle):
+def to_codec_pattern(codec: str, style: CodecDelimiterStyle):
     return f" \\{style.get_left()}{codec}\\{style.get_right()}"
 
 
-def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
-    stripped_title : str = album_title
+def strip_codec_from_album(album_title: str, codecs: set[str]) -> str:
+    stripped_title: str = album_title
     if len(codecs) == 1:
         # get first and only codec
-        codecs_str : str = list(codecs)[0]
-        style : CodecDelimiterStyle
+        codecs_str: str = list(codecs)[0]
+        style: CodecDelimiterStyle
         for style in CodecDelimiterStyle:
-            codec_pattern : str = to_codec_pattern(
+            codec_pattern: str = to_codec_pattern(
                 codecs_str,
                 CodecDelimiterStyle.ROUND)
             if not album_title.startswith(codec_pattern):
@@ -247,33 +250,38 @@ def strip_codec_from_album(album_title : str, codecs : set[str]) -> str:
     return stripped_title
 
 
-def has_year(album : Album) -> bool:
-    album_year : str = get_album_year_str(album)
+def has_year(album: Album) -> bool:
+    album_year: str = get_album_year_str(album)
     return album_year is not None and len(album_year) > 0
 
 
-def get_album_year_str(album : Album) -> str:
+def get_album_year_str(album: Album) -> str:
     # msgproc.log(f"get_album_year_str [{album.getId()}] -> "
     #             f"[{album.getOriginalReleaseDate()}] [{album.getYear()}]")
-    ord : str = album.getOriginalReleaseDate()
+    ord: str = album.getOriginalReleaseDate()
     # convert to str if needed
-    if ord and isinstance(ord, int): ord = str(ord)
+    if ord and isinstance(ord, int):
+        ord = str(ord)
     ord = (ord[0:4]
-        if ord and len(ord) >= 4
-        else None)
-    year : int = album.getYear()
-    ord_set : bool = ord and len(ord) > 0
-    if ord_set and year is None: return ord
-    if year is not None and not ord_set: return str(year)
-    if year is None and not ord_set: return None
+           if ord and len(ord) >= 4
+           else None)
+    year: int = album.getYear()
+    ord_set: bool = ord and len(ord) > 0
+    if ord_set and year is None:
+        return ord
+    if year is not None and not ord_set:
+        return str(year)
+    if year is None and not ord_set:
+        return None
     # both set
-    if ord_set and str(year) == ord: return ord
+    if ord_set and str(year) == ord:
+        return ord
     return f"{ord} ({str(year)})"
 
 
 # Tests
-a1d1 : str = "Disc 1 - Studio Album"
-a1d2 : str = "Disc 2 Live Album"
+a1d1: str = "Disc 1 - Studio Album"
+a1d2: str = "Disc 2 Live Album"
 
 if not _ignorable(a1d1):
     raise Exception(f"Ignorable not working properly, [{a1d1}] should be ignorable")

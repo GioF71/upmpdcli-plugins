@@ -28,17 +28,17 @@ class OptionKey(Enum):
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
     PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE = 8, "prepend-entry-number-in-album-title", None
     FORCE_LOAD_QUALITY_BADGE = 9, "force-load-quality-badge", False
-    ALBUM_ARTISTS_ONLY = 10, "album-artists-only", True
     USE_LAST_FOR_NEXT = 11, "use-last-for-next", False
-    SKIP_ARTIST = 12, "skip-artist", False
+    SKIP_ARTIST_ID = 12, "skip-artist-id", None
 
-    def __init__(self,
-            num : int,
-            element_name : str,
-            default_value : any):
-        self.num : int = num
-        self.element_name : str = element_name
-        self.default_value : any = default_value
+    def __init__(
+            self,
+            num: int,
+            element_name: str,
+            default_value: any):
+        self.num: int = num
+        self.element_name: str = element_name
+        self.default_value: any = default_value
 
     def get_name(self) -> str:
         return self.element_name
@@ -48,8 +48,8 @@ class OptionKey(Enum):
 
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in OptionKey:
     if v.get_name() in name_checker_set:
         raise Exception(f"Duplicated name [{v.get_name()}]")

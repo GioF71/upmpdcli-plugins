@@ -21,10 +21,11 @@ class CodecDelimiterStyle(Enum):
     SQUARE = 0, "[", "]"
     ROUND = 1, "(", ")"
 
-    def __init__(self, num : int, left : str, right : str):
-        self.__num : int = num
-        self.__left : str = left
-        self.__right : str = right
+    def __init__(self, num: int, left: str, right: str):
+        self.__num: int = num
+        self.__left: str = left
+        self.__right: str = right
 
+    def get_num(self) -> int: return self.__num
     def get_left(self) -> str: return self.__left
     def get_right(self) -> str: return self.__right
