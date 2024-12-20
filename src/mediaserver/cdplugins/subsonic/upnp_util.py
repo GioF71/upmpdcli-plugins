@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import converter
 import upmplgmodels
 
 
@@ -56,13 +55,6 @@ def set_class_album(target: dict):
 
 def set_class_artist(target: dict):
     target['upnp:class'] = upmplgmodels.Artist.upnpclass
-
-
-def set_album_art_from_album_id(
-        album_id: str,
-        target: dict[str, any]):
-    art_uri: str = converter.converter_album_id_to_url(album_id) if album_id else None
-    set_album_art_from_uri(art_uri, target)
 
 
 def set_bit_depth(bit_depth: int, target: dict):

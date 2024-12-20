@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.5
+
+- Updates for lms changes about coverArt
+- Some constants are now enumerated
+- Support for splitting releases by type
+- Improve album art for songs, prefer album
+
 ## Release 0.6.4
 
 - Simplified class RetrievedArt

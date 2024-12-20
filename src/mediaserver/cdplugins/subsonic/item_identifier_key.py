@@ -29,6 +29,7 @@ class ItemIdentifierKey(Enum):
     SONG_AS_ENTRY = 9, "sntr"
     RANDOM_VALUE = 21, "rnd"
     SKIP_ARTIST_ID = 23, "skprtstd"
+    ALBUM_RELEASE_TYPE = 24, "lbmrlst"
 
     def __init__(
             self,

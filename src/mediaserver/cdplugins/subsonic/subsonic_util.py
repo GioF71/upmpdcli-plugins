@@ -75,8 +75,18 @@ def get_random_art_by_genre(
         return None
     album: Album = secrets.choice(response.getObj().getAlbums())
     if album:
-        return album.getId()
+        return album.getCoverArt()
     return None
+
+
+def get_album_cover_art_by_id(album_id: str) -> str:
+    album_res: Response[Album] = connector_provider.get().getAlbum(album_id)
+    album: Album = album_res.getObj() if album_res.isOk() else None
+    return album.getCoverArt() if album else None
+
+
+def get_album_cover_art_url_by_id(album_id: str) -> str:
+    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_id(album_id))
 
 
 def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
@@ -89,13 +99,13 @@ def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
     album: Album = albumResponse.getObj()
     if album and album.getArtist():
         cache_actions.on_album(album)
-    albumArtURI: str = connector.buildCoverArtUrl(album.getId())
+    albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
-    albumArtURI: str = connector.buildCoverArtUrl(album.getId())
+    albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
     return album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
@@ -246,6 +256,10 @@ class ArtistsOccurrence:
         return self.__name
 
 
+def get_album_artists_from_album(album: Album) -> list[dict[str, str]]:
+    return album.getItem().getListByName("artists")
+
+
 def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOccurrence]:
     occ_list: list[ArtistsOccurrence] = list()
     artist_id_set: set[str] = set()
@@ -255,7 +269,7 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
     if artist_id and artist_name:
         occ_list.append(ArtistsOccurrence(id=artist_id, name=artist_name))
         artist_id_set.add(artist_id)
-    lst: list[dict[str, str]] = album.getItem().getListByName("artists")
+    lst: list[dict[str, str]] = get_album_artists_from_album(album)
     if not lst:
         lst = list()
     current: dict[str, str]
@@ -267,11 +281,15 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
     if song_list:
         current_song: Song
         for current_song in song_list:
-            sng_lst: list[dict[str, str]] = current_song.getItem().getListByName("artists")
-            if not sng_lst:
-                sng_lst = list()
+            song_artist_list: list[dict[str, str]] = list()
+            album_artist_list: list[str, str] = current_song.getItem().getListByName("albumArtists")
+            artist_list: list[str, str] = current_song.getItem().getListByName("artists")
+            if album_artist_list:
+                song_artist_list.extend(album_artist_list)
+            if artist_list:
+                song_artist_list.extend(artist_list)
             song_dict: dict[str, str]
-            for song_dict in sng_lst:
+            for song_dict in song_artist_list:
                 if "name" in song_dict and "id" in song_dict and not song_dict["id"] in artist_id_set:
                     occ_list.append(ArtistsOccurrence(id=song_dict["id"], name=song_dict["name"]))
                     artist_id_set.add(song_dict["id"])
@@ -306,7 +324,13 @@ def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album]) -> 
 class AlbumReleaseTypes:
 
     def __init__(self, types: list[str]):
-        self.__types: list[str] = copy.deepcopy(types if types and len(types) > 0 else list())
+        self.__types: list[str] = list()
+        t: str
+        for t in types:
+            splitted: list[str] = t.split("/")
+            s: str
+            for s in splitted if splitted and len(splitted) > 0 else list():
+                self.__types.append(s)
 
     @property
     def types(self) -> list[str]:
@@ -317,12 +341,34 @@ class AlbumReleaseTypes:
         return len(self.__types)
 
     @property
+    def display_name(self) -> str:
+        if (len(self.__types) == 0 or
+           (len(self.__types) == 1 and len(self.__types[0]) == 0)):
+            return "Unknown"
+        return "/".join(x.title() for x in self.__types)
+
+    @property
     def key(self) -> str:
         return "/".join(self.__types)
 
     @property
     def empty(self) -> str:
         return len(self.__types) == 0
+
+
+class ReleaseTypeAndCount:
+
+    def __init__(self, rt: AlbumReleaseTypes, count: int):
+        self.__rt: AlbumReleaseTypes = rt
+        self.__count: int = count
+
+    @property
+    def album_release_type(self) -> AlbumReleaseTypes:
+        return self.__rt
+
+    @property
+    def count(self) -> int:
+        return self.__count
 
 
 def compareAlbumReleaseTypes(left: AlbumReleaseTypes, right: AlbumReleaseTypes) -> int:
@@ -346,7 +392,7 @@ def get_release_types(album_list: list[Album]) -> dict[str, int]:
 
 def get_album_release_types(album: Album) -> AlbumReleaseTypes:
     result: list[str] = list()
-    album_release_types: list[str] = album.getItem().getByName(constants.item_key_release_types)
+    album_release_types: list[str] = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
     if album_release_types:
         release_type: str
         for release_type in album_release_types:

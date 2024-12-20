@@ -167,8 +167,8 @@ def __get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
     result: list[TrackInfo] = list()
     song: Song
     for song in track_list:
-        bit_depth: int = song.getItem().getByName(constants.item_key_bit_depth)
-        sampling_rate: int = song.getItem().getByName(constants.item_key_sampling_rate)
+        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         suffix: int = song.getSuffix()
         bitrate: int = song.getBitRate()
         current: TrackInfo = TrackInfo()
@@ -193,10 +193,10 @@ def __get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, l
     song: Song
     for song in track_list:
         # bit depth
-        bit_depth: int = song.getItem().getByName(constants.item_key_bit_depth)
+        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
         __maybe_append_to_dict_list(result, __DICT_KEY_BITDEPTH, bit_depth)
         # sampling rate
-        sampling_rate: int = song.getItem().getByName(constants.item_key_sampling_rate)
+        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         __maybe_append_to_dict_list(result, __DICT_KEY_SAMPLERATE, sampling_rate)
         # suffix
         suffix: int = song.getSuffix()
@@ -260,7 +260,7 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
         # we want the artist mb id, so we load the artist
         artist_res: Response[Artist] = connector_provider.get().getArtist(album.getArtistId())
         loaded_artist: Artist = artist_res.getObj() if artist_res and artist_res.isOk() else None
-        artist_mb_id: str = (loaded_artist.getItem().getByName(constants.item_key_musicbrainz_id)
+        artist_mb_id: str = (loaded_artist.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
                              if loaded_artist
                              else None)
         if artist_mb_id:
@@ -270,13 +270,9 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
         objid,
         title=entry_title)
     # get an album cover for the artist entry
-    art_uri = (art_retriever.get_artist_art_url_using_albums(artist_id=album.getArtistId())
-               if album.getArtistId()
-               else None)
-    if art_uri:
-        upnp_util.set_album_art_from_uri(
-            album_art_uri=art_uri,
-            target=artist_entry)
+    art_uri: str = (art_retriever.get_artist_art_url_using_albums(artist_id=album.getArtistId())
+                    if album.getArtistId() else None)
+    upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=artist_entry)
     cache_actions.on_album(album)
     return artist_entry
 
@@ -457,7 +453,7 @@ def album_to_navigable_entry(
         entry_title = f"{entry_title} [{album.getId()}]"
     if config.show_album_mb_id_in_album():
         # available here?
-        mb_id: str = album.getItem().getByName(constants.item_key_musicbrainz_id)
+        mb_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
         if not mb_id:
             # see if it's available in cache
             mb_id = cache_actions.get_album_mb_id(album.getId())
@@ -473,12 +469,8 @@ def album_to_navigable_entry(
         pid=objid,
         title=entry_title,
         artist=artist)
-    upnp_util.set_album_art_from_album_id(
-        album.getId(),
-        entry)
-    upnp_util.set_album_id(
-        album.getId(),
-        entry)
+    upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(album.getCoverArt()), entry)
+    upnp_util.set_album_id(album.getId(), entry)
     return entry
 
 
@@ -494,7 +486,11 @@ def genre_to_entry(
                             if genre_album_set and len(genre_album_set) > 0
                             else None)
     if random_album_id:
-        genre_art = random_album_id
+        # load the album
+        random_res: Response[Album] = connector_provider.get().getAlbum(albumId=random_album_id)
+        random_album: Album = random_res.getObj() if random_res.isOk() else None
+        # get album art
+        genre_art = random_album.getCoverArt() if random_album else None
     if not genre_art:
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_GENRE,
@@ -506,7 +502,7 @@ def genre_to_entry(
                     f"albums for genre [{name}]")
         if album_list and len(album_list.getAlbums()) > 0:
             album: Album = secrets.choice(album_list.getAlbums())
-            genre_art = album.getId()
+            genre_art = album.getCoverArt()
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.GENRE.getName(),
         current_genre.getName())
@@ -514,9 +510,7 @@ def genre_to_entry(
         objid,
         identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
-    upnp_util.set_album_art_from_album_id(
-        genre_art,
-        entry)
+    upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(genre_art), entry)
     return entry
 
 
@@ -537,10 +531,13 @@ def artist_to_entry(
         # find art
         art_album_id: str = cache_actions.get_cached_random_album_id_by_artist_id(artist_id=artist_id)
         if art_album_id:
-            msgproc.log(f"artist_to_entry cache hit for [{artist_id}]")
-            upnp_util.set_album_art_from_album_id(
-                album_id=art_album_id,
-                target=entry)
+            msgproc.log(f"artist_to_entry cache hit for [{artist_id}] -> [{art_album_id}]")
+            art_album_res: Response[Album] = connector_provider.get().getAlbum(art_album_id)
+            art_album: Album = art_album_res.getObj() if art_album_res.isOk() else None
+            art_album_cover_art_uri: str = (connector_provider.get().buildCoverArtUrl(art_album.getCoverArt())
+                                            if art_album
+                                            else None)
+            upnp_util.set_album_art_from_uri(album_art_uri=art_album_cover_art_uri, target=entry)
         else:
             msgproc.log(f"artist_to_entry loading artist by id [{artist_id}] ...")
             # load artist
@@ -551,8 +548,10 @@ def artist_to_entry(
                 select_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
                 cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
                 cache_actions.on_album(album=select_album)
-                upnp_util.set_album_art_from_album_id(
-                    album_id=select_album.getId() if select_album else None,
+                upnp_util.set_album_art_from_uri(
+                    album_art_uri=connector_provider.get().buildCoverArtUrl(select_album.getCoverArt())
+                    if select_album
+                    else None,
                     target=entry)
             except Exception as ex:
                 msgproc.log(f"artist_to_entry cannot load artist [{artist_id}] [{type(ex)}] [{ex}]")
@@ -617,24 +616,25 @@ def song_to_entry(
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
-    albumArtURI: str = get_option(options=options, option_key=OptionKey.ALBUM_ART_URI)
-    if not albumArtURI:
-        albumArtURI = connector_provider.get().buildCoverArtUrl(song.getId())
-    upnp_util.set_album_art_from_uri(albumArtURI, entry)
+    album_id: str = song.getAlbumId()
+    # prefer album for cover art
+    # album_art_uri: str = connector_provider.get().buildCoverArtUrl(album_id if album_id else song.getId())
+    album_art_uri: str = connector_provider.get().buildCoverArtUrl(song.getCoverArt())
+    upnp_util.set_album_art_from_uri(album_art_uri=album_art_uri, target=entry)
     entry['duration'] = str(song.getDuration())
     # channel count, bit depth, sample rate and bit rate
     cc: int = 2
     bd: int = 0
     sr: int = 0
     br: int = 0
-    if song.getItem().hasName(constants.item_key_channel_count):
-        cc = song.getItem().getByName(constants.item_key_channel_count)
+    if song.getItem().hasName(constants.ItemKey.CHANNEL_COUNT.value):
+        cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
         upnp_util.set_channel_count(cc, entry)
-    if song.getItem().hasName(constants.item_key_bit_depth):
-        bd = song.getItem().getByName(constants.item_key_bit_depth)
+    if song.getItem().hasName(constants.ItemKey.BIT_DEPTH.value):
+        bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
         upnp_util.set_bit_depth(bd, entry)
-    if song.getItem().hasName(constants.item_key_sampling_rate):
-        sr = song.getItem().getByName(constants.item_key_sampling_rate)
+    if song.getItem().hasName(constants.ItemKey.SAMPLING_RATE.value):
+        sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         upnp_util.set_sample_rate(sr, entry)
     br = song.getBitRate()
     if br:
@@ -655,10 +655,10 @@ def playlist_to_entry(
         ElementType.PLAYLIST.getName(),
         playlist.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    art_uri = connector_provider.get().buildCoverArtUrl(playlist.getCoverArt()) if playlist.getCoverArt() else None
     entry = upmplgutils.direntry(id, objid, playlist.getName())
-    if art_uri:
-        upnp_util.set_album_art_from_uri(art_uri, entry)
+    art_uri: str = (connector_provider.get().buildCoverArtUrl(playlist.getCoverArt())
+                    if playlist.getCoverArt() else None)
+    upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
 
 
@@ -722,9 +722,8 @@ def album_to_entry(
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
-    upnp_util.set_album_art_from_album_id(
-        album.getId(),
-        entry)
+    cover_art_url: str = connector_provider.get().buildCoverArtUrl(album.getCoverArt())
+    upnp_util.set_album_art_from_uri(cover_art_url, entry)
     upnp_util.set_album_id(album.getId(), entry)
     upnp_util.set_class_album(entry)
     return entry
@@ -745,15 +744,14 @@ def _load_album_version_tracks(
 
 def album_id_to_album_focus(
         objid,
-        album_id: str) -> dict[str, any]:
+        album: Album) -> dict[str, any]:
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALBUM_FOCUS.getName(),
-        album_id)
+        album.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    art_uri = connector_provider.get().buildCoverArtUrl(item_id=album_id)
+    art_uri = connector_provider.get().buildCoverArtUrl(item_id=album.getCoverArt())
     entry = upmplgutils.direntry(id, objid, "Focus")
-    if art_uri:
-        upnp_util.set_album_art_from_uri(art_uri, entry)
+    upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
 
 
@@ -797,7 +795,6 @@ def album_version_to_entry(
     artist = current_album.getArtist()
     cache_actions.on_album(current_album)
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
-    upnp_util.set_album_art_from_album_id(
-        current_album.getId(),
-        entry)
+    current_album_cover_art: str = connector_provider.get().buildCoverArtUrl(item_id=current_album.getCoverArt())
+    upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
     return entry

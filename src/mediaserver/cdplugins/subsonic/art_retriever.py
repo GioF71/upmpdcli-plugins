@@ -55,7 +55,7 @@ def __get_cover_art_from_album_list(album_list: list[Album], random: bool = Fals
     album: Album = (secrets.choice(album_list)
                     if random
                     else album_list[0])
-    album_url: str = connector_provider.get().buildCoverArtUrl(item_id=album.getId()) if album else None
+    album_url: str = connector_provider.get().buildCoverArtUrl(item_id=album.getCoverArt()) if album else None
     return RetrievedArt(art_url=album_url) if album_url else None
 
 
@@ -192,7 +192,7 @@ def __art_for_favourite_song(random: bool = False) -> RetrievedArt:
     if not song_list or len(song_list) == 0:
         return None
     select_song: Song = secrets.choice(song_list) if random else song_list[0]
-    art_url: str = (connector_provider.get().buildCoverArtUrl(item_id=select_song.getId())
+    art_url: str = (connector_provider.get().buildCoverArtUrl(item_id=select_song.getCoverArt())
                     if select_song
                     else None)
     return RetrievedArt(art_url=art_url)

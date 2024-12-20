@@ -29,5 +29,5 @@ def create_objid(objid, id: str) -> str:
     return objid + "/" + __escape_objid(id)
 
 
-def create_id_from_identifier(identifier: ItemIdentifier) -> str:
-    return codec.encode(json.dumps(identifier.getDictionary()))
+def create_id_from_identifier(item_identifier: ItemIdentifier) -> str:
+    return codec.encode(json.dumps(item_identifier.getDictionary()))

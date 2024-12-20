@@ -92,7 +92,7 @@ def detect_multiple_artists():
         for curr_artist in ali_list:
             artist_id: str = curr_artist.getId()
             artist_name: str = curr_artist.getName().lower()
-            artist_mb_id = curr_artist.getItem().getByName(constants.item_key_musicbrainz_id)
+            artist_mb_id = curr_artist.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
             existing: list[ArtistOccurrence] = artist_dict[artist_name] if artist_name in artist_dict else list()
             # there must not be artist_id duplicates!
             if artist_id in existing:

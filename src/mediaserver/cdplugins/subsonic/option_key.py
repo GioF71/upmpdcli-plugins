@@ -21,7 +21,6 @@ class OptionKey(Enum):
     SKIP_TRACK_NUMBER = 0, "skip-track-number", False
     PREPEND_ARTIST_IN_ALBUM_TITLE = 1, "prepend-artist-in-album-title", True
     FORCE_TRACK_NUMBER = 2, "force-track-number", None
-    ALBUM_ART_URI = 3, "album-art-uri", None
     MULTI_CODEC_ALBUM = 4, "multi-codec-album", MultiCodecAlbum.NO
     SKIP_ART = 5, "skip-art", False
     OFFSET = 6, "offset", 0

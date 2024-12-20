@@ -49,7 +49,7 @@ def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album
 
 
 def on_album(album: subsonic_connector.album.Album):
-    if not album.getId():
+    if not album or not album.getId():
         return
     cache_manager: CacheManager = cache_manager_provider.get()
     artists: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_artists_in_album(album)
@@ -60,7 +60,7 @@ def on_album(album: subsonic_connector.album.Album):
             key=artist.id,
             value=album.getId())
     # musicbrainz album id
-    mb_album_id: str = album.getItem().getByName(constants.item_key_musicbrainz_id)
+    mb_album_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
     if mb_album_id:
         msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
         cache_manager.cache_element_value(
