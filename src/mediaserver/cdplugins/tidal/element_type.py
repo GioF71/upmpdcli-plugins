@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ class ElementType(Enum):
     BOOKMARK_TRACK_ACTION = 61, "snglstnqctn"
     MISSING_ALBUM = 62, "msnglbm"
     MISSING_TRACK = 63, "msngtrk"
+    ALL_TRACKS_IN_PLAYLIST_OR_MIX = 64, "lltrksmxplst"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
 
@@ -95,7 +96,7 @@ class ElementType(Enum):
 
 
 def get_element_type_by_name(element_name: str) -> ElementType:
-    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    # msgproc.log(f"get_tidal_tag_type_by_name with {tag_name}")
     for _, member in ElementType.__members__.items():
         if element_name == member.getName():
             return member

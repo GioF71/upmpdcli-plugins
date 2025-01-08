@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import upmplgmodels
+import datetime
 
 
 def set_track_number(track_number: str, target: dict):
@@ -48,8 +49,16 @@ def set_album_title(album_title: str, target: dict):
     target['upnp:album'] = album_title
 
 
+def set_description(description: str, target: dict):
+    target['dc:description'] = description
+
+
 def set_album_id(album_id: str, target: dict):
     target['album_id'] = album_id
+
+
+def set_date(datetime: datetime.datetime, target: dict):
+    target['dc:date'] = datetime.strftime("%Y-%m-%d") if datetime else None
 
 
 def set_class(upnp_class: str, target: dict):

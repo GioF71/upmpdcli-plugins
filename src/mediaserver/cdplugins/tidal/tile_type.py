@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class TileType(Enum):
 
 
 def get_tile_type_by_name(tile_type_name: str) -> TileType:
-    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+    # msgproc.log(f"get_tidal_tag_type_by_name with {tag_name}")
     for _, member in TileType.__members__.items():
         if tile_type_name == member.tile_type_name:
             return member

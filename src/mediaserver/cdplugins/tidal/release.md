@@ -1,5 +1,24 @@
 # Tidal Plugin Release notes
 
+## 0.7.12
+
+- Add metadata for new upplay album view also from search album
+- Add Local Genres page
+- Featured page is now Home
+- Hi-Res as TidalPageDefinition
+- For You as TidalPageDefinition
+- Moods as TidalPageDefinition
+- Genres as TidalPageDefinition
+- Removed page "Home", because it was the same as "Featured"
+- Add enumerated for Tidal Page definitions
+- Add metadata for new upplay album view
+- Set correct object class for album entry
+- Bump to [tidalapi version 0.8.3](https://github.com/tamland/python-tidal/releases/tag/v0.8.3)
+- Add "Tidal Rising" to Page Selection
+- Add "All Tracks" in Playlist and Mix view for easy playback/queueing
+- Corrected support for hls mode
+- Misc code corrections, cleanup and refactoring
+
 ## 0.7.11
 
 - Bump to [tidalapi version 0.8.2](https://github.com/tamland/python-tidal/releases/tag/v0.8.2)

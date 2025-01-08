@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import random
 import secrets
 
 from typing import Callable
+from typing import Union
 from typing import Optional
 from pathlib import Path
 
@@ -41,7 +42,7 @@ import tidal_util
 from tidal_util import FavoriteAlbumsMode
 
 from tag_type import TagType
-from tag_type import get_tag_Type_by_name
+from tag_type import get_tidal_tag_type_by_name
 from element_type import ElementType
 from element_type import get_element_type_by_name
 from item_identifier import ItemIdentifier
@@ -84,6 +85,7 @@ from artist_sort_criteria import ArtistSortCriteria
 from functools import cmp_to_key
 
 from streaming_info import StreamingInfo
+from tidal_page_definition import TidalPageDefinition
 
 
 class SessionStatus:
@@ -284,15 +286,18 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
                 f"is_bts:[{stream.is_bts}] "
                 f"urls_available:[{urls_available}]")
     if stream.is_mpd:
-        data = stream.get_manifest_data()
+        data: any = None
         file_ext: str
         file_dir: str
+        msgproc.log(f"serve_mode=[{config.serve_mode}]")
         if "hls" == config.serve_mode:
-            file_ext = "hls"
-            file_dir = "hls-files"
+            file_ext = "m3u8"
+            file_dir = "m3u8-files"
+            data = manifest.get_hls()
         elif "mpd" == config.serve_mode:
             file_ext = "mpd"
             file_dir = "mpd-files"
+            data = stream.get_manifest_data()
         else:
             raise Exception(f"Invalid serve_mode: [{config.serve_mode}]")
         sub_dir_list: list[str] = [constants.plugin_name, file_dir]
@@ -300,6 +305,7 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
         file_name: str = "dash_{}.{}".format(track.id, file_ext)
         with open(os.path.join(write_dir, file_name), "w") as my_file:
             my_file.write(data)
+            msgproc.log(f"data=[{data}]")
         remove_older_files(files_path=write_dir, delta_sec=config.max_file_age_seconds)
         path: list[str] = list()
         path.extend([constants.plugin_name, file_dir])
@@ -877,7 +883,6 @@ def track_to_entry(
         # f"stream info obtained: [{stream_info_obtained}] "
         # f"bit_depth [{bit_depth if known else None}] "
         # f"sample_rate [{sample_rate if known else None}] "
-        # f"guessed from album track: [{guessed_from_album_track}] "
         # f"assumed from first track: [{assumed_from_first}] "
         # f"assumed by config quality: [{assumed_by_config_quality}]")
     return entry
@@ -948,7 +953,7 @@ def __context_contains_first_track_data(context: Context) -> bool:
         context.contains(ContextKey.ALBUM_FIRST_TRACK_AUDIO_QUALITY))
 
 
-def _context_increment_and_store_dict_of_bool(
+def context_increment_and_store_dict_of_bool(
         context: Context,
         counter_key: ContextKey,
         dict_key: ContextKey,
@@ -988,7 +993,7 @@ def set_stream_information_for_mix_or_playlist_entry(
     got_from_played: bool = False
     if __played_track_has_stream_info(played):
         got_from_played = True
-        _context_increment_and_store_dict_of_bool(
+        context_increment_and_store_dict_of_bool(
             context=context,
             counter_key=ContextKey.KNOWN_TRACKS_COUNT,
             dict_key=ContextKey.KNOWN_TRACK_DICT,
@@ -999,7 +1004,7 @@ def set_stream_information_for_mix_or_playlist_entry(
         # take first know track, and assume that stream info is the same for all
         # of the tracks in the same albums, which most of the times is true
         got_from_played = True
-        _context_increment_and_store_dict_of_bool(
+        context_increment_and_store_dict_of_bool(
             context=context,
             counter_key=ContextKey.GUESSED_TRACKS_COUNT,
             dict_key=ContextKey.GUESSED_TRACK_DICT,
@@ -1012,7 +1017,7 @@ def set_stream_information_for_mix_or_playlist_entry(
             sample_rate = context.get(key=ContextKey.ALBUM_FIRST_TRACK_SAMPLE_RATE, allow_empty=False)
             audio_quality = context.get(key=ContextKey.ALBUM_FIRST_TRACK_AUDIO_QUALITY, allow_empty=False)
             #  assumed_from_first = True
-            _context_increment_and_store_dict_of_bool(
+            context_increment_and_store_dict_of_bool(
                 context=context,
                 counter_key=ContextKey.ASSUMED_FROM_FIRST_ALBUM_TRACK_COUNT,
                 dict_key=ContextKey.ASSUMED_FROM_FIRST_ALBUM_TRACK_DICT,
@@ -1037,7 +1042,7 @@ def set_stream_information_for_mix_or_playlist_entry(
                     bit_depth = track_adapter.get_bit_depth()
                     sample_rate = track_adapter.get_sample_rate()
                     audio_quality = track_adapter.get_audio_quality()
-                    _context_increment_and_store_dict_of_bool(
+                    context_increment_and_store_dict_of_bool(
                         context=context,
                         counter_key=ContextKey.GET_STREAM_COUNT,
                         dict_key=ContextKey.GET_STREAM_DICT,
@@ -1094,7 +1099,6 @@ def set_stream_information_for_album_entry(
     bit_depth: int = None
     sample_rate: int = None
     audio_quality: str = None
-    # guessed_from_album_track: bool = False
     # do we know the track from our played tracks?
     played_album_tracks: list[PlayedTrack] = get_or_load_played_album_tracks(
         context=context,
@@ -1105,7 +1109,7 @@ def set_stream_information_for_album_entry(
     got_from_played: bool = False
     if __played_track_has_stream_info(played):
         got_from_played = True
-        _context_increment_and_store_dict_of_bool(
+        context_increment_and_store_dict_of_bool(
             context=context,
             counter_key=ContextKey.KNOWN_TRACKS_COUNT,
             dict_key=ContextKey.KNOWN_TRACK_DICT,
@@ -1115,10 +1119,9 @@ def set_stream_information_for_album_entry(
     elif len(played_album_tracks) > 0 and config.allow_guess_stream_info_from_other_album_track:
         # take first know track, and assume that stream info is the same for all
         # of the tracks in the same albums, which most of the times is true
-        # guessed_from_album_track = True
         got_from_played = True
         played = __select_played_track(played_album_tracks)
-        _context_increment_and_store_dict_of_bool(
+        context_increment_and_store_dict_of_bool(
             context=context,
             counter_key=ContextKey.GUESSED_TRACKS_COUNT,
             dict_key=ContextKey.GUESSED_TRACK_DICT,
@@ -1130,7 +1133,7 @@ def set_stream_information_for_album_entry(
             sample_rate = context.get(key=ContextKey.ALBUM_FIRST_TRACK_SAMPLE_RATE, allow_empty=False)
             audio_quality = context.get(key=ContextKey.ALBUM_FIRST_TRACK_AUDIO_QUALITY, allow_empty=False)
             #  assumed_from_first = True
-            _context_increment_and_store_dict_of_bool(
+            context_increment_and_store_dict_of_bool(
                 context=context,
                 counter_key=ContextKey.ASSUMED_FROM_FIRST_ALBUM_TRACK_COUNT,
                 dict_key=ContextKey.ASSUMED_FROM_FIRST_ALBUM_TRACK_DICT,
@@ -1152,7 +1155,7 @@ def set_stream_information_for_album_entry(
                 bit_depth = track_adapter.get_bit_depth()
                 sample_rate = track_adapter.get_sample_rate()
                 audio_quality = track_adapter.get_audio_quality()
-                _context_increment_and_store_dict_of_bool(
+                context_increment_and_store_dict_of_bool(
                     context=context,
                     counter_key=ContextKey.GET_STREAM_COUNT,
                     dict_key=ContextKey.GET_STREAM_DICT,
@@ -1380,6 +1383,7 @@ def album_adapter_to_entry(
     if badge:
         album_title = f"{album_title} [{badge}]"
     entry = upmplgutils.direntry(id, objid, title=album_title, artist=album_adapter.artist_name)
+    upnp_util.set_date(datetime=album_adapter.release_date, target=entry)
     if not as_container:
         upnp_util.set_class_album(entry)
     upnp_util.set_album_art_from_uri(
@@ -2240,10 +2244,23 @@ def handler_tag_genres_page(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: x.genres(),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.GENRES),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.GENRES_PAGE.getTagName())
+
+
+def handler_tag_local_genres_page(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.LOCAL_GENRES),
+        entries=entries,
+        offset=offset,
+        next_button_element_id=TagType.LOCAL_GENRES_PAGE.getTagName())
 
 
 def handler_tag_moods_page(
@@ -2253,23 +2270,10 @@ def handler_tag_moods_page(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: x.moods(),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.MOODS),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.MOODS_PAGE.getTagName())
-
-
-def handler_tag_home_page(
-        objid,
-        item_identifier: ItemIdentifier,
-        entries: list) -> list:
-    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    return handler_tag_page(
-        objid=objid,
-        page_extractor=lambda x: x.home(),
-        entries=entries,
-        offset=offset,
-        next_button_element_id=TagType.HOME_PAGE.getTagName())
 
 
 def handler_tag_explore_new_music(
@@ -2279,10 +2283,23 @@ def handler_tag_explore_new_music(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: get_explore_new_music_page(x),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.NEW_MUSIC),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.EXPLORE_NEW_MUSIC.getTagName())
+
+
+def handler_tag_explore_tidal_rising(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    return handler_tag_page(
+        objid=objid,
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.RISING),
+        entries=entries,
+        offset=offset,
+        next_button_element_id=TagType.EXPLORE_TIDAL_RISING.getTagName())
 
 
 def handler_tag_featured(
@@ -2292,10 +2309,10 @@ def handler_tag_featured(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: get_featured_page(x),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.HOME),
         entries=entries,
         offset=offset,
-        next_button_element_id=TagType.FEATURED.getTagName())
+        next_button_element_id=TagType.HOME.getTagName())
 
 
 def handler_tag_explore(
@@ -2305,7 +2322,7 @@ def handler_tag_explore(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: x.explore(),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.EXPLORE),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.EXPLORE.getTagName())
@@ -2318,7 +2335,7 @@ def handler_tag_for_you(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: x.for_you(),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.FOR_YOU),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.FOR_YOU.getTagName())
@@ -2331,7 +2348,7 @@ def handler_tag_hires_page(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     return handler_tag_page(
         objid=objid,
-        page_extractor=lambda x: x.hires_page(),
+        page_extractor=lambda x: get_tidal_page(x, TidalPageDefinition.HI_RES),
         entries=entries,
         offset=offset,
         next_button_element_id=TagType.HIRES_PAGE.getTagName())
@@ -2605,7 +2622,9 @@ def get_image_url_for_pagelink(page_link: TidalPageLink) -> str:
                 type_list=[TidalPlaylist, TidalMix, TidalAlbum, TidalTrack]):
             return tidal_util.get_image_url(first_item)
         else:
-            msgproc.log(f"get_image_url_for_pagelink skipping [{type(first_item).__name__}] [{first_item}]")
+            msgproc.log(f"get_image_url_for_pagelink [{page_link.title}] "
+                        f"skipping type [{type(first_item).__name__}] "
+                        f"first_item [{first_item}]")
 
 
 def convert_page_item_to_entry(objid, tidal_session: TidalSession, page_item: TidalPageItem) -> any:
@@ -2777,6 +2796,13 @@ def handler_element_album_container(
     if config.show_album_id:
         album_entry_title = f"{album_entry_title} [{album_id}]"
     entry = upmplgutils.direntry(entry_id, objid, album_entry_title)
+    upnp_util.set_class_album(target=entry)
+    upnp_util.set_artist(artist=album.artist.name if album.artist else None, target=entry)
+    # setting album title does not seem to be relevant for upplay
+    # upnp_util.set_album_title(album_title=album.name, target=entry)
+    # setting description does not seem to be relevant for upplay
+    # upnp_util.set_description(description=album.name, target=entry)
+    upnp_util.set_date(datetime=album.release_date, target=entry)
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), entry)
     entries.append(entry)
     # add Album track entry
@@ -3023,7 +3049,16 @@ def handle_element_mix_or_playlist_container(
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(mix_or_playlist), albums_entry)
     entries.append(albums_entry)
     # END add albums in mix or playlist
-    # add segmented entries
+    # Add "All tracks"
+    all_tracks_entry: dict[str, any] = tidal_util.create_mix_or_playlist_all_tracks_entry(
+                                        objid=objid,
+                                        element_type=element_type,
+                                        thing_id=mix_or_playlist.id,
+                                        thing=mix_or_playlist)
+    if all_tracks_entry:
+        entries.append(all_tracks_entry)
+    # END "All tracks"
+    # Add segmented entries
     playlist_size: int = mix_or_playlist_size
     modulo: int = playlist_size % config.max_playlist_or_mix_items_per_page
     tile_count = int(playlist_size / config.max_playlist_or_mix_items_per_page) + (1 if modulo > 0 else 0)
@@ -3213,6 +3248,48 @@ def handler_element_artists_in_mix_or_playlist(
                     artist_id=next_artist_id)),
             target=next_entry)
         entries.append(next_entry)
+    return entries
+
+
+def handler_all_tracks_in_playlist_or_mix(
+        objid: any,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    mix_or_playlist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    underlying_type_str: str = item_identifier.get(ItemIdentifierKey.UNDERLYING_TYPE)
+    underlying_type: ElementType = get_element_type_by_name(element_name=underlying_type_str)
+    msgproc.log(f"handler_all_tracks_in_playlist_or_mix id [{mix_or_playlist_id}] "
+                f"Underlying type [{underlying_type_str}] -> [{underlying_type}]")
+    if mix_or_playlist_id is None or underlying_type is None:
+        return entries
+    mix_or_playlist: Union[TidalPlaylist, TidalMix] = (get_session().playlist(mix_or_playlist_id)
+                                                       if ElementType.PLAYLIST == underlying_type
+                                                       else get_session().mix(mix_or_playlist_id))
+    tracks: list[TidalTrack] = (tidal_util.get_all_playlist_tracks(mix_or_playlist)
+                                if isinstance(mix_or_playlist, TidalPlaylist)
+                                else tidal_util.get_all_mix_tracks(mix_or_playlist))
+    context: Context = Context()
+    options: dict[str, any] = {}
+    track: TidalTrack
+    track_counter: int = 0
+    for track in tracks if tracks else []:
+        set_option(
+            options=options,
+            option_key=OptionKey.FORCED_TRACK_NUMBER,
+            option_value=track_counter + 1)
+        try:
+            track_entry: dict[str, any] = track_to_entry(
+                objid=objid,
+                track_adapter=instance_tidal_track_adapter(
+                    tidal_session=get_session(),
+                    track=track),
+                options=options,
+                context=context)
+            if track_entry:
+                entries.append(track_entry)
+        except Exception as ex:
+            msgproc.log(f"Cannot add track [{track.id}] [{track_counter}] due to [{type(ex)}] [{ex}]")
+        track_counter += 1
     return entries
 
 
@@ -5066,56 +5143,71 @@ def image_retriever_categories(
 def image_retriever_home_page(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.home()
-    return image_retriever_page(page=page)
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.HOME)
 
 
 def image_retriever_explore_new_music(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = get_explore_new_music_page(tidal_session)
-    return image_retriever_page(page=page)
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.NEW_MUSIC)
+
+
+def image_retriever_rising(
+        tidal_session: TidalSession,
+        tag_type: TagType) -> str:
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.RISING)
 
 
 def image_retriever_featured(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = get_featured_page(tidal_session)
-    return image_retriever_page(page=page)
-
-
-def image_retriever_explore(
-        tidal_session: TidalSession,
-        tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.explore()
-    return image_retriever_page(page=page)
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.HOME)
 
 
 def image_retriever_for_you(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.for_you()
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.FOR_YOU)
+
+
+def image_retriever_explore(
+        tidal_session: TidalSession,
+        tag_type: TagType) -> str:
+    return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.EXPLORE)
+
+
+def __image_retriever_by_page_definition(
+        tidal_session: TidalSession,
+        tidal_page_definition: TidalPageDefinition) -> str:
+    page: TidalPage = get_tidal_page(tidal_session, tidal_page_definition)
     return image_retriever_page(page=page)
 
 
 def image_retriever_hires_page(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.hires_page()
+    page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.HI_RES)
     return image_retriever_page(page=page)
 
 
 def image_retriever_genres_page(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.genres()
+    page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.GENRES)
+    return image_retriever_page(page=page)
+
+
+def image_retriever_local_genres_page(
+        tidal_session: TidalSession,
+        tag_type: TagType) -> str:
+    page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.LOCAL_GENRES)
     return image_retriever_page(page=page)
 
 
 def image_retriever_moods_page(
         tidal_session: TidalSession,
         tag_type: TagType) -> str:
-    page: TidalPage = tidal_session.moods()
+    page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.MOODS)
     return image_retriever_page(page=page)
 
 
@@ -5155,7 +5247,8 @@ def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loade
     image_url: str = tile_image.tile_image if tile_image else None
     # ignore cached images if caching is disabled
     if image_url:
-        if not config.get_enable_image_caching() and image_url.startswith(tidal_util.get_docroot_base_url()):
+        base_url: str = tidal_util.get_docroot_base_url()
+        if base_url and not config.get_enable_image_caching() and image_url.startswith(base_url):
             msgproc.log(f"Ignoring cached url [{image_url}]")
             image_url = None
     # msgproc.log(f"Image for tag [{tag_type.getTagName()}] "
@@ -5247,12 +5340,8 @@ def image_retriever_listen_queue(
         if select_album_id else None)
 
 
-def get_featured_page(tidal_session: TidalSession) -> TidalPage:
-    return __get_page(tidal_session, "pages/home")
-
-
-def get_explore_new_music_page(tidal_session: TidalSession) -> TidalPage:
-    return __get_page(tidal_session, "pages/explore_new_music")
+def get_tidal_page(tidal_session: TidalSession, tidal_page_def: TidalPageDefinition) -> TidalPage:
+    return __get_page(tidal_session, tidal_page_def.page_path)
 
 
 def __get_page(tidal_session: TidalSession, page_path: str) -> TidalPage:
@@ -5260,16 +5349,17 @@ def __get_page(tidal_session: TidalSession, page_path: str) -> TidalPage:
 
 
 __tag_image_retriever: dict = {
-    # image for PAGE_SELECTION is same as HOME_PAGE
-    TagType.PAGE_SELECTION.getTagName(): image_retriever_home_page,
+    # image for PAGE_SELECTION is same as featured
+    TagType.PAGE_SELECTION.getTagName(): image_retriever_featured,
     TagType.CATEGORIES.getTagName(): image_retriever_categories,
-    TagType.HOME_PAGE.getTagName(): image_retriever_home_page,
     TagType.EXPLORE_NEW_MUSIC.getTagName(): image_retriever_explore_new_music,
-    TagType.FEATURED.getTagName(): image_retriever_featured,
+    TagType.EXPLORE_TIDAL_RISING.getTagName(): image_retriever_rising,
+    TagType.HOME.getTagName(): image_retriever_featured,
     TagType.EXPLORE.getTagName(): image_retriever_explore,
     TagType.FOR_YOU.getTagName(): image_retriever_for_you,
     TagType.HIRES_PAGE.getTagName(): image_retriever_hires_page,
     TagType.GENRES_PAGE.getTagName(): image_retriever_genres_page,
+    TagType.LOCAL_GENRES_PAGE.getTagName(): image_retriever_local_genres_page,
     TagType.MOODS_PAGE.getTagName(): image_retriever_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): image_retriever_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): image_retriever_all_playlists,
@@ -5290,13 +5380,14 @@ def get_tidal_album_loader() -> Callable[[str], TidalAlbum]:
 __tag_action_dict: dict = {
     TagType.PAGE_SELECTION.getTagName(): handler_tag_page_selection,
     TagType.CATEGORIES.getTagName(): handler_tag_categories,
-    TagType.HOME_PAGE.getTagName(): handler_tag_home_page,
     TagType.EXPLORE_NEW_MUSIC.getTagName(): handler_tag_explore_new_music,
-    TagType.FEATURED.getTagName(): handler_tag_featured,
+    TagType.EXPLORE_TIDAL_RISING.getTagName(): handler_tag_explore_tidal_rising,
+    TagType.HOME.getTagName(): handler_tag_featured,
     TagType.EXPLORE.getTagName(): handler_tag_explore,
     TagType.FOR_YOU.getTagName(): handler_tag_for_you,
     TagType.HIRES_PAGE.getTagName(): handler_tag_hires_page,
     TagType.GENRES_PAGE.getTagName(): handler_tag_genres_page,
+    TagType.LOCAL_GENRES_PAGE.getTagName(): handler_tag_local_genres_page,
     TagType.MOODS_PAGE.getTagName(): handler_tag_moods_page,
     TagType.MY_PLAYLISTS.getTagName(): handler_tag_my_playlists,
     TagType.ALL_PLAYLISTS.getTagName(): handler_tag_all_playlists,
@@ -5321,6 +5412,7 @@ __elem_action_dict: dict = {
     ElementType.MIX_NAVIGABLE_ITEM.getName(): handler_element_mix_navigable_item,
     ElementType.ALBUMS_IN_MIX_OR_PLAYLIST.getName(): handler_element_albums_in_mix_or_playlist,
     ElementType.ARTISTS_IN_MIX_OR_PLAYLIST.getName(): handler_element_artists_in_mix_or_playlist,
+    ElementType.ALL_TRACKS_IN_PLAYLIST_OR_MIX.getName(): handler_all_tracks_in_playlist_or_mix,
     ElementType.PAGELINK.getName(): handler_element_pagelink,
     ElementType.PAGE.getName(): handler_element_page,
     ElementType.ARTIST.getName(): handler_element_artist,
@@ -5391,21 +5483,22 @@ def tag_to_entry(objid, tag: TagType) -> dict[str, any]:
     entry: dict = upmplgutils.direntry(
         id=id,
         pid=objid,
-        title=get_tag_Type_by_name(tag.getTagName()).getTagTitle())
+        title=get_tidal_tag_type_by_name(tag.getTagName()).getTagTitle())
     return entry
 
 
 def get_page_selection() -> list[TagType]:
     return [
         TagType.CATEGORIES,
-        TagType.HOME_PAGE,
-        TagType.EXPLORE_NEW_MUSIC,
-        TagType.FEATURED,
-        TagType.EXPLORE,
         TagType.FOR_YOU,
-        TagType.HIRES_PAGE,
+        TagType.EXPLORE_NEW_MUSIC,
+        TagType.EXPLORE_TIDAL_RISING,
         TagType.GENRES_PAGE,
-        TagType.MOODS_PAGE]
+        TagType.LOCAL_GENRES_PAGE,
+        TagType.MOODS_PAGE,
+        TagType.HOME,
+        TagType.HIRES_PAGE,
+        TagType.EXPLORE]
 
 
 def get_tag_hidden_from_front_page() -> list[TagType]:
@@ -5423,7 +5516,7 @@ def show_tags(objid, entries: list) -> list:
 
 
 def show_single_tag(objid, tidal_session: TidalSession, tag: TagType, entries: list) -> list:
-    tag_display_name: str = get_tag_Type_by_name(tag.getTagName())
+    tag_display_name: str = get_tidal_tag_type_by_name(tag.getTagName())
     curr_tag_img_retriever = (__tag_image_retriever[tag.getTagName()]
                               if tag.getTagName() in __tag_image_retriever
                               else None)
@@ -5495,7 +5588,7 @@ def browse(a):
                 entries = tag_handler(objid, item_identifier, entries)
                 # no_cache?
                 tag_no_cache: bool = True
-                tag: TagType = get_tag_Type_by_name(thing_value)
+                tag: TagType = get_tidal_tag_type_by_name(thing_value)
                 if tag and tag in cachable_tag_list:
                     tag_no_cache = False
                 # msgproc.log(f"Tag [{thing_value}] no_cache: [{tag_no_cache}]")
@@ -5650,9 +5743,11 @@ def _inittidal():
     msgproc.log(f"enable_assume_bitdepth=[{config.enable_assume_bitdepth}]")
     msgproc.log(f"enable_image_caching=[{config.get_enable_image_caching()}]")
     msgproc.log(f"Image caching enabled [{config.get_enable_image_caching()}], cleaning metadata cache ...")
-    persistence.clean_image_url_starting_with(
-        base_root=tidal_util.get_docroot_base_url(),
-        opposite=(True if config.get_enable_image_caching() else False))
+    docroot_base_url: str = tidal_util.get_docroot_base_url()
+    if docroot_base_url:
+        persistence.clean_image_url_starting_with(
+            base_root=docroot_base_url,
+            opposite=(True if config.get_enable_image_caching() else False))
     msgproc.log(f"Image caching enabled [{config.get_enable_image_caching()}], cleaning complete")
     cache_dir: str = upmplgutils.getcachedir(constants.plugin_name)
     msgproc.log(f"Cache dir for [{constants.plugin_name}] is [{cache_dir}]")

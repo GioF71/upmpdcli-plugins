@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,13 +19,14 @@ from enum import Enum
 class TagType(Enum):
     PAGE_SELECTION = 10, "pgslctn", "Page Selection"
     CATEGORIES = 100, "ctgrs", "Categories"
-    HOME_PAGE = 110, "home", "Home"
-    FEATURED = 112, "featured", "Featured"
+    HOME = 112, "home", "Home"
     EXPLORE = 113, "xplr", "Explore"
     EXPLORE_NEW_MUSIC = 114, "new", "New Music"
+    EXPLORE_TIDAL_RISING = 116, "rising", "Tidal Rising"
     FOR_YOU = 115, "foru", "For You"
     HIRES_PAGE = 120, "hires", "Hi-Res"
     GENRES_PAGE = 129, "genres", "Genres"
+    LOCAL_GENRES_PAGE = 140, "local_genres", "Local Genres"
     MOODS_PAGE = 130, "moods", "Moods"
     ALL_PLAYLISTS = 200, "allplsts", "Playlists"
     MY_PLAYLISTS = 300, "myplsts", "My Playlists"
@@ -51,12 +52,12 @@ class TagType(Enum):
         return self.tag_title
 
 
-def get_tag_Type_by_name(tag_name: str) -> TagType:
-    # msgproc.log(f"get_tag_Type_by_name with {tag_name}")
+def get_tidal_tag_type_by_name(tag_name: str) -> TagType:
+    # msgproc.log(f"get_tidal_tag_type_by_name with {tag_name}")
     for _, member in TagType.__members__.items():
         if tag_name == member.getTagName():
             return member
-    raise Exception(f"get_tag_Type_by_name with {tag_name} NOT found")
+    raise Exception(f"get_tidal_tag_type_by_name with {tag_name} NOT found")
 
 
 # duplicate check

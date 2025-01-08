@@ -36,13 +36,16 @@ class ItemIdentifier:
         return id
 
     def __check_mandatory(id_dict: dict[str, any], id_key: ItemIdentifierKey) -> any:
-        if not id_key.getName() in id_dict: raise Exception("Mandatory [{id_key.getName()}] missing")
+        if not id_key.getName() in id_dict:
+            raise Exception("Mandatory [{id_key.getName()}] missing")
         return id_dict[id_key.getName()]
 
     def __init__(self, name: str, value: any):
         self.__dict: dict[str, any] = {}
-        if not name: raise Exception("name cannot be empty")
-        if not value: raise Exception("value cannot be empty")
+        if not name:
+            raise Exception("name cannot be empty")
+        if not value:
+            raise Exception("value cannot be empty")
         self.set(ItemIdentifierKey.THING_NAME, name)
         self.set(ItemIdentifierKey.THING_VALUE, value)
         random_value: str = self.randomword(6)
@@ -64,11 +67,13 @@ class ItemIdentifier:
         return self.__dict[key_name] if key_name in self.__dict else defaultValue
 
     def set(self, key: ItemIdentifierKey, value):
-        if not self.__valid_key(key): raise Exception(f"Key {key.getName() if key else None} already set")
+        if not self.__valid_key(key):
+            raise Exception(f"Key {key.getName() if key else None} already set")
         self.__set(key.getName(), value)
 
     def __set(self, key_name: str, value):
-        if not self.__valid_key_name(key_name): raise Exception(f"Key {key_name} already set")
+        if not self.__valid_key_name(key_name):
+            raise Exception(f"Key {key_name} already set")
         self.__dict[key_name] = value
 
     def __valid_key(self, key: ItemIdentifierKey) -> bool:

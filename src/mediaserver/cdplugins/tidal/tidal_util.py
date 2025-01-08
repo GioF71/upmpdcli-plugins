@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2024 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ import constants
 import config
 import requests
 import os
+import secrets
+
 import upnp_util
 
 from tidalapi import Quality as TidalQuality
@@ -30,13 +32,20 @@ from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
+from tidalapi.media import Video as TidalVideo
 from tidalapi.media import AudioMode as TidalAudioMode
 from tidalapi.exceptions import ObjectNotFound
 
 from typing import Callable
+from typing import Union
 
 from element_type import ElementType
 from element_type import get_element_type_by_name
+
+from item_identifier import ItemIdentifier
+from item_identifier_key import ItemIdentifierKey
+
+import identifier_util
 
 from album_sort_criteria import AlbumSortCriteria
 
@@ -143,6 +152,8 @@ def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) ->
 
 
 def get_image_url(obj: any, refresh: bool = False) -> str:
+    if obj is None:
+        return None
     if isinstance(obj, TidalTrack):
         # use album instead
         track: TidalTrack = obj
@@ -173,6 +184,8 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
 
 
 def __get_image_url(obj: any) -> str:
+    if obj is None:
+        return None
     dimension_list: list[int] = __get_image_dimension_list(obj)
     if not dimension_list or len(dimension_list) == 0:
         msgproc.log(f"Type [{type(obj).__name__}] does not have an image sizes list!")
@@ -630,9 +643,13 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
 
 
 def get_docroot_base_url() -> str:
-    host_port: str = os.environ['UPMPD_UPNPHOSTPORT']
-    doc_root: str = os.environ['UPMPD_UPNPDOCROOT']
-    if not host_port and not doc_root:
+    host_port: str = (os.environ[constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value]
+                      if constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value in os.environ
+                      else None)
+    doc_root: str = (os.environ[constants.EnvironmentVariableName.UPMPD_UPNPDOCROOT.value]
+                     if constants.EnvironmentVariableName.UPMPD_UPNPDOCROOT.value in os.environ
+                     else None)
+    if not host_port or not doc_root:
         return None
     return f"http://{host_port}"
 
@@ -664,6 +681,62 @@ def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
         if isinstance(obj, t):
             return True
     return False
+
+
+def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> list[TidalTrack]:
+    result: list[TidalTrack] = []
+    offset: int = 0
+    default_limit: int = 100
+    limit: int = min(default_limit, max_tracks) if max_tracks else default_limit
+    finished: bool = False
+    while not finished:
+        slice: list[TidalTrack] = playlist.items(offset=offset, limit=limit)
+        slice_len: int = len(slice) if slice else 0
+        offset += slice_len
+        finished = slice_len < limit
+        item: Union[TidalTrack, TidalVideo]
+        for item in slice if slice else []:
+            if isinstance(item, TidalTrack):
+                result.append(item)
+                if max_tracks and len(result) >= max_tracks:
+                    break
+    return result
+
+
+def get_all_mix_tracks(mix: TidalMix) -> list[TidalTrack]:
+    result: list[TidalTrack] = []
+    items: list[TidalTrack] = mix.items()
+    item: Union[TidalTrack, TidalVideo]
+    for item in items:
+        if isinstance(item, TidalTrack):
+            result.append(item)
+    return result
+
+
+def create_mix_or_playlist_all_tracks_entry(
+        objid: any,
+        element_type: ElementType,
+        thing_id: str,
+        thing: Union[TidalPlaylist, TidalMix]) -> dict[str, any]:
+    all_tracks_identifier: ItemIdentifier = ItemIdentifier(
+        ElementType.ALL_TRACKS_IN_PLAYLIST_OR_MIX.getName(),
+        thing_id)
+    all_tracks_identifier.set(key=ItemIdentifierKey.UNDERLYING_TYPE, value=element_type.getName())
+    all_tracks_id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(all_tracks_identifier))
+    all_tracks_entry = upmplgutils.direntry(all_tracks_id, objid, "All Tracks")
+    # TODO maybe select a random cover art
+    some_tracks: list[TidalTrack] = (get_all_playlist_tracks(playlist=thing, max_tracks=50)
+                                     if isinstance(thing, TidalPlaylist)
+                                     else get_all_mix_tracks(mix=thing))
+    select_track_for_all_tracks: TidalTrack = (secrets.choice(some_tracks)
+                                               if some_tracks and len(some_tracks) > 0
+                                               else None)
+    upnp_util.set_album_art_from_uri(
+        get_image_url(select_track_for_all_tracks.album if select_track_for_all_tracks else None),
+        all_tracks_entry)
+    return all_tracks_entry
 
 
 class PageLinkIdentifier:

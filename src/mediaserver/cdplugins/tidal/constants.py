@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from enum import Enum
 from tidalapi import Quality as TidalQuality
 
 plugin_name: str = "tidal"
 
-tidal_plugin_release: str = "0.7.11"
+tidal_plugin_release: str = "0.7.12"
+
+
+class EnvironmentVariableName(Enum):
+    UPMPD_UPNPHOSTPORT = "UPMPD_UPNPHOSTPORT"
+    UPMPD_UPNPDOCROOT = "UPMPD_UPNPDOCROOT"
+
 
 listening_queue_action_key: str = "action"
 listening_queue_button_title_key: str = "button_title"
