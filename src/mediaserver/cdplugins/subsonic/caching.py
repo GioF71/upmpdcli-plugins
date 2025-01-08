@@ -49,6 +49,14 @@ class CacheManager:
         cache: dict[str, any] = self.__get_element_cache(cache_name)
         return cache[key] if key in cache else None
 
+    def delete_cached_element(self, cache_name: str, key: str) -> bool:
+        cache: dict[str, any] = self.__get_element_cache(cache_name)
+        # return cache[key] if key in cache else None
+        can_delete: bool = key in cache
+        if can_delete:
+            del cache[key]
+        return can_delete
+
     def get_cache_size(self, cache_name: str) -> int:
         element_cache: dict[str, any] = self.__get_element_cache(cache_name)
         return len(element_cache) if element_cache else 0

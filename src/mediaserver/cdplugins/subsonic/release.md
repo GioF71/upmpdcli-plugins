@@ -1,5 +1,26 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.6
+
+- Some more constants are now enumerated
+- Try to select albums as main artist for "Albums by release type" view if possible
+- Log genres from album
+- More appropriate caching for album by artist id
+- Try to select albums as main artist for artist entry if possible
+- Add metadata for album view in upplay
+- Avoid to raise unnecessary exception for missing tracks
+- Separate parameters for search limits
+- Avoid to display a lot of additional artists (slow loading)
+- Handle missing album more gracefully
+- In artist view, show artists with same name (case-insensitively) if artist has MusicBrainz id
+- In artist view, show "All Releases" only when there are more than one release types
+- Configurability for mb album id caching (dumpactiononmbalbumcache)
+- Case insensitive album release types
+- Removed some code duplication
+- Avoid some string duplication
+- Handle deletion event of previously cached album_id by artist_id
+- Release types default to just "album" if empty/missing
+
 ## Release 0.6.5
 
 - Updates for lms changes about coverArt

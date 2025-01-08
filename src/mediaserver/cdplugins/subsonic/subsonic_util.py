@@ -22,6 +22,7 @@ from subsonic_connector.album_list import AlbumList
 from subsonic_connector.album import Album
 from subsonic_connector.artist import Artist
 from subsonic_connector.song import Song
+from subsonic_connector.search_result import SearchResult
 
 import cache_actions
 from tag_type import TagType
@@ -79,9 +80,16 @@ def get_random_art_by_genre(
     return None
 
 
+def try_get_album(album_id: str) -> Album:
+    try:
+        album_res: Response[Album] = connector_provider.get().getAlbum(album_id)
+        return album_res.getObj() if album_res and album_res.isOk() else None
+    except Exception as e:
+        msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
+
+
 def get_album_cover_art_by_id(album_id: str) -> str:
-    album_res: Response[Album] = connector_provider.get().getAlbum(album_id)
-    album: Album = album_res.getObj() if album_res.isOk() else None
+    album: Album = try_get_album(album_id)
     return album.getCoverArt() if album else None
 
 
@@ -92,11 +100,7 @@ def get_album_cover_art_url_by_id(album_id: str) -> str:
 def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
     result: list[Song] = []
     connector: Connector = connector_provider.get()
-    albumResponse: Response[Album] = connector.getAlbum(album_id)
-    if not albumResponse.isOk():
-        raise Exception(f"Album with id {album_id} not found")
-    # cache
-    album: Album = albumResponse.getObj()
+    album: Album = try_get_album(album_id)
     if album and album.getArtist():
         cache_actions.on_album(album)
     albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
@@ -257,7 +261,7 @@ class ArtistsOccurrence:
 
 
 def get_album_artists_from_album(album: Album) -> list[dict[str, str]]:
-    return album.getItem().getListByName("artists")
+    return album.getItem().getListByName(constants.ItemKey.ARTISTS.value)
 
 
 def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOccurrence]:
@@ -279,11 +283,11 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
             artist_id_set.add(current["id"])
     song_list: list[Song] = album.getSongs() if in_songs else list()
     if song_list:
-        current_song: Song
-        for current_song in song_list:
+        song: Song
+        for song in song_list:
             song_artist_list: list[dict[str, str]] = list()
-            album_artist_list: list[str, str] = current_song.getItem().getListByName("albumArtists")
-            artist_list: list[str, str] = current_song.getItem().getListByName("artists")
+            album_artist_list: list[str, str] = song.getItem().getListByName(constants.ItemKey.ALBUM_ARTISTS.value)
+            artist_list: list[str, str] = song.getItem().getListByName(constants.ItemKey.ARTISTS.value)
             if album_artist_list:
                 song_artist_list.extend(album_artist_list)
             if artist_list:
@@ -311,12 +315,14 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
     return curr_dir
 
 
-def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album]) -> list[Album]:
+def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album], opposite: bool = False) -> list[Album]:
     result: list[Album] = list()
     current: Album
     for current in album_list if album_list else list():
         # artist is different from artist id
-        if current.getArtistId() and artist_id != current.getArtistId():
+        different: bool = current.getArtistId() and artist_id != current.getArtistId()
+        check: bool = not different if opposite else different
+        if check:
             result.append(current)
     return result
 
@@ -344,7 +350,7 @@ class AlbumReleaseTypes:
     def display_name(self) -> str:
         if (len(self.__types) == 0 or
            (len(self.__types) == 1 and len(self.__types[0]) == 0)):
-            return "Unknown"
+            return "*EMPTY*"
         return "/".join(x.title() for x in self.__types)
 
     @property
@@ -382,7 +388,7 @@ def get_release_types(album_list: list[Album]) -> dict[str, int]:
     current: Album
     for current in album_list if album_list else list():
         album_release_types: AlbumReleaseTypes = get_album_release_types(current)
-        key: str = album_release_types.key
+        key: str = album_release_types.key.lower()
         if key not in result:
             result[key] = 1
         else:
@@ -390,10 +396,41 @@ def get_release_types(album_list: list[Album]) -> dict[str, int]:
     return result
 
 
+def release_type_to_album_list_label(release_type: str) -> str:
+    return f"Release Type: {release_type.title()}"
+
+
+def get_artists_by_same_name(artist: Artist) -> list[Artist]:
+    artist_list: list[Artist] = list()
+    search_result: SearchResult = connector_provider.get().search(
+        query=artist.getName(),
+        artistCount=100,
+        albumCount=0,
+        songCount=0)
+    matching_list: list[Artist] = search_result.getArtists()
+    matching: Artist
+    for matching in matching_list:
+        if matching.getId() == artist.getId():
+            # skip same artist of course
+            continue
+        if not (matching.getName().lower() == artist.getName().lower()):
+            # skip artist which simply contain the artist name
+            continue
+        artist_list.append(matching)
+    return artist_list
+
+
+def album_has_release_types(album: Album) -> bool:
+    return album.getItem().hasName(constants.ItemKey.RELEASE_TYPES.value)
+
+
 def get_album_release_types(album: Album) -> AlbumReleaseTypes:
     result: list[str] = list()
-    album_release_types: list[str] = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
-    if album_release_types:
+    has_release_types: bool = album_has_release_types(album)
+    album_release_types: list[str] = (album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
+                                      if has_release_types
+                                      else list())
+    if album_release_types and len(album_release_types) > 0:
         release_type: str
         for release_type in album_release_types:
             # split by "/"
@@ -404,6 +441,9 @@ def get_album_release_types(album: Album) -> AlbumReleaseTypes:
             for rt in rt_splitted:
                 if rt not in result:
                     result.append(rt)
+    else:
+        # if release_types is empty we default to album
+        result = ["album"]
     return AlbumReleaseTypes(result)
 
 

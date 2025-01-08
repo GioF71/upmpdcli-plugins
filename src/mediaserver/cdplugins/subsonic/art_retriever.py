@@ -28,6 +28,7 @@ from retrieved_art import RetrievedArt
 
 import connector_provider
 import request_cache
+import subsonic_util
 
 import secrets
 
@@ -129,8 +130,19 @@ def get_artist_art_url_using_albums(artist_id: str) -> str:
     msgproc.log(f"artist_entry_for_album loaded artist for id [{artist_id}] -> "
                 f"[{'yes' if artist else 'no'}]")
     album_list: list[Album] = artist.getAlbumList() if artist else list()
-    msgproc.log(f"artist_entry_for_album album_list len is [{len(album_list)}]")
-    select_album: Album = secrets.choice(album_list) if len(album_list) > 0 else None
+    select_album_list: list[Album] = album_list
+    as_main_artist_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
+        artist_id=artist_id,
+        album_list=album_list,
+        opposite=True)
+    msgproc.log(f"get_artist_art_url_using_albums select_album_list for [{artist_id}] "
+                f"[{artist.getName() if artist else None}] "
+                f"full length [{len(album_list) if album_list else 0}] "
+                f"as main artist only [{len(as_main_artist_album_list)}]")
+    if len(as_main_artist_album_list) > 0:
+        select_album_list = as_main_artist_album_list
+    msgproc.log(f"artist_entry_for_album select_album_list len is [{len(select_album_list)}]")
+    select_album: Album = secrets.choice(select_album_list) if len(select_album_list) > 0 else None
     # load album
     msgproc.log(f"artist_entry_for_album selected album: [{select_album.getId() if select_album else None}]")
     load_album_res: Response[Album] = (connector_provider.get().getAlbum(albumId=select_album.getId())

@@ -16,9 +16,7 @@
 from enum import Enum
 
 plugin_name: str = "subsonic"
-subsonic_plugin_release: str = "0.6.5"
-
-subsonic_max_return_size: int = 500  # hard limit
+subsonic_plugin_release: str = "0.6.6"
 
 default_dump_streaming_properties: int = 0
 
@@ -29,14 +27,27 @@ class ItemKey(Enum):
     SAMPLING_RATE = "samplingRate"
     CHANNEL_COUNT = "channelCount"
     MUSICBRAINZ_ID = "musicBrainzId"
+    MEDIA_TYPE = "mediaType"
     RELEASE_TYPES = "releaseTypes"
+    ALBUM_ARTISTS = "albumArtists"
+    ARTISTS = "artists"
 
 
-default_max_artists_per_page: int = 25
+class Defaults(Enum):
+
+    SUBSONIC_API_MAX_RETURN_SIZE = 500  # API Hard Limit
+    DUMP_ACTION_ON_MB_ALBUM_CACHE = 0
+    ADDITIONAL_ARTISTS_MAX = 15
+    ALBUM_SEARCH_LIMIT = 50
+    ARTIST_SEARCH_LIMIT = 25
+    SONG_SEARCH_LIMIT = 100
+    MAX_ARTISTS_PER_PAGE = 25
+    ITEMS_PER_PAGE = 25
+    CACHED_REQUEST_TIMEOUT_SEC = 600
+
+
 default_show_empty_favorites: int = 0
 default_show_empty_playlists: int = 0
-default_items_per_page: int = 25
-default_cached_request_timeout_sec: int = 600
 fallback_transcode_codec: str = "ogg"
 default_debug_badge_mngmt: int = 0
 default_debug_artist_albums: int = 0

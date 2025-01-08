@@ -21,6 +21,7 @@ from caching import CacheManager
 import subsonic_util
 import constants
 import cmdtalkplugin
+import config
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -28,10 +29,18 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
-def get_cached_random_album_id_by_artist_id(artist_id: str) -> str:
+def get_album_id_by_artist_id(artist_id: str) -> str:
     return cache_manager_provider.get().get_cached_element(
         cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
         key=artist_id)
+
+
+def delete_album_by_artist_id(artist_id: str) -> bool:
+    return delete_key(cache_type.CacheType.ALBUMS_BY_ARTIST, artist_id)
+
+
+def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
+    return cache_manager_provider.get().delete_cached_element(cache_type.getName(), key)
 
 
 def get_album_mb_id(album_id: str) -> str | None:
@@ -52,17 +61,17 @@ def on_album(album: subsonic_connector.album.Album):
     if not album or not album.getId():
         return
     cache_manager: CacheManager = cache_manager_provider.get()
-    artists: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_artists_in_album(album)
-    artist: subsonic_util.ArtistsOccurrence
-    for artist in artists:
+    if album.getArtistId():
         cache_manager.cache_element_value(
             cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
-            key=artist.id,
+            key=album.getArtistId(),
             value=album.getId())
+
     # musicbrainz album id
     mb_album_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
     if mb_album_id:
-        msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
+        if config.get_dump_action_on_mb_album_cache():
+            msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
         cache_manager.cache_element_value(
             cache_name=cache_type.CacheType.MB_ALBUM_ID_BY_ALBUM_ID.getName(),
             key=album.getId(),

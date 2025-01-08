@@ -65,7 +65,7 @@ def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool
 
 def get_starred() -> Response[Artists]:
     global cached_starred
-    if __cached_response_is_expired(cached_starred, config.cached_request_timeout_sec):
+    if __cached_response_is_expired(cached_starred, config.get_cached_request_timeout_sec()):
         msgproc.log("subsonic_util.get_starred loading starred ...")
         # actually request starred
         res: Response[Starred] = connector_provider.get().getStarred()
@@ -81,7 +81,7 @@ def get_starred() -> Response[Artists]:
 
 def get_artists() -> Response[Artists]:
     global cached_response_artists
-    if __cached_response_is_expired(cached_response_artists, config.cached_request_timeout_sec):
+    if __cached_response_is_expired(cached_response_artists, config.get_cached_request_timeout_sec()):
         msgproc.log("subsonic_util.get_artists loading artists ...")
         # actually request artists
         res: Response[Artists] = connector_provider.get().getArtists()
@@ -127,7 +127,7 @@ def get_random_album_list(
             musicFolderId=musicFolderId)
     else:
         global cached_response_random_firstpage
-        if __cached_response_is_expired(cached_response_random_firstpage, config.cached_request_timeout_sec):
+        if __cached_response_is_expired(cached_response_random_firstpage, config.get_cached_request_timeout_sec()):
             msgproc.log("subsonic_util.get_random_album_list loading first random albums ...")
             # actually request first random albums
             res: Response[Artists] = connector_provider.get().getRandomAlbumList(size=config.items_per_page)
@@ -143,7 +143,7 @@ def get_random_album_list(
 
 def get_genres() -> Response[Genres]:
     global cached_response_genres
-    if __cached_response_is_expired(cached_response_genres, config.cached_request_timeout_sec):
+    if __cached_response_is_expired(cached_response_genres, config.get_cached_request_timeout_sec()):
         msgproc.log("subsonic_util.get_genres loading ...")
         # actually request genres
         res: Response[Genres] = connector_provider.get().getGenres()

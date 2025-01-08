@@ -33,13 +33,20 @@ def get_option_value(nm, dflt: any = None):
     return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
-items_per_page: int = min(
-    constants.subsonic_max_return_size,
-    get_option_value("itemsperpage", constants.default_items_per_page))
+def get_option_value_as_int(nm, dflt: any = None):
+    v: any = get_option_value(nm, any)
+    return v if isinstance(v, int) else int(v)
 
-cached_request_timeout_sec: int = min(
-    constants.subsonic_max_return_size,
-    get_option_value("cachedrequesttimeoutsec", constants.default_cached_request_timeout_sec))
+
+items_per_page: int = min(
+    constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value,
+    get_option_value("itemsperpage", constants.Defaults.ITEMS_PER_PAGE.value))
+
+
+def get_cached_request_timeout_sec() -> int:
+    return get_option_value(
+        "cachedrequesttimeoutsec",
+        constants.Defaults.CACHED_REQUEST_TIMEOUT_SEC.value)
 
 
 append_year_to_album: int = int(get_option_value("appendyeartoalbum", "1"))
@@ -58,8 +65,7 @@ prepend_number_in_album_list: bool = get_option_value("prependnumberinalbumlist"
 configured_transcode_codec: str = get_option_value("transcodecodec", "")
 configured_transcode_max_bitrate: str = get_option_value("transcodemaxbitrate", "")
 
-max_artists_per_page: int = get_option_value("maxartistsperpage", constants.default_max_artists_per_page)
-
+max_artists_per_page: int = get_option_value("maxartistsperpage", constants.Defaults.MAX_ARTISTS_PER_PAGE.value)
 
 show_empty_favorites: bool = get_option_value_as_bool("showemptyfavorites", constants.default_show_empty_favorites)
 show_empty_playlists: bool = get_option_value_as_bool("showemptyplaylists", constants.default_show_empty_playlists)
@@ -134,6 +140,36 @@ def show_paths_in_album() -> bool:
 
 def show_album_id_in_navigable_album() -> bool:
     return get_option_value_as_bool("showalbumidinnavigablealbum", 0)
+
+
+def get_dump_action_on_mb_album_cache() -> bool:
+    return get_option_value_as_bool(
+        "dumpactiononmbalbumcache",
+        constants.Defaults.DUMP_ACTION_ON_MB_ALBUM_CACHE.value)
+
+
+def get_additional_artists_max() -> int:
+    return get_option_value(
+        "maxadditionalartists",
+        constants.Defaults.ADDITIONAL_ARTISTS_MAX.value)
+
+
+def get_album_search_limit() -> int:
+    return get_option_value(
+        "albumsearchlimit",
+        constants.Defaults.ALBUM_SEARCH_LIMIT.value)
+
+
+def get_artist_search_limit() -> int:
+    return get_option_value(
+        "artistsearchlimit",
+        constants.Defaults.ARTIST_SEARCH_LIMIT.value)
+
+
+def get_song_search_limit() -> int:
+    return get_option_value(
+        "songsearchlimit",
+        constants.Defaults.SONG_SEARCH_LIMIT.value)
 
 
 def getWebServerDocumentRoot() -> str:

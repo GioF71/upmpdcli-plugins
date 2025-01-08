@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import upmplgmodels
+from subsonic_connector.album import Album
 
 
 def set_track_number(track_number: str, target: dict):
@@ -51,6 +52,18 @@ def set_class_music_track(target: dict):
 
 def set_class_album(target: dict):
     target['upnp:class'] = upmplgmodels.Album.upnpclass
+
+
+def set_date_from_album(album: Album, target: dict):
+    date_str: str = album.getOriginalReleaseDate()
+    if not date_str:
+        # fallback to year
+        date_str = str(album.getYear()) if album.getYear() else ""
+    set_date_str(date_str=date_str, target=target)
+
+
+def set_date_str(date_str: str, target: dict):
+    target['dc:date'] = date_str
 
 
 def set_class_artist(target: dict):
