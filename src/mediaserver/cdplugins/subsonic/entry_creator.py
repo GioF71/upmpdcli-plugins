@@ -252,10 +252,10 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
         name=ElementType.ARTIST.getName(),
         value=album.getArtistId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_identifier))
-    entry_title: str = album.getArtist()
+    artist_entry_title: str = album.getArtist()
     if config.show_artist_id() and album.getArtistId():
-        msgproc.log(f"artist_entry_for_album: Adding [{album.getArtistId()}] to [{entry_title}]")
-        entry_title = f"{entry_title} [{album.getArtistId()}]"
+        msgproc.log(f"artist_entry_for_album: Adding [{album.getArtistId()}] to [{artist_entry_title}]")
+        artist_entry_title = f"{artist_entry_title} [{album.getArtistId()}]"
     if config.show_artist_mb_id():
         # we want the artist mb id, so we load the artist
         artist_res: Response[Artist] = connector_provider.get().getArtist(album.getArtistId())
@@ -264,11 +264,14 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
                              if loaded_artist
                              else None)
         if artist_mb_id:
-            entry_title = f"{entry_title} [mb:{artist_mb_id}]"
+            if config.show_artist_mb_id_placeholder_only():
+                artist_entry_title = f"{artist_entry_title} [mb]"
+            else:
+                artist_entry_title = f"{artist_entry_title} [mb:{artist_mb_id}]"
     artist_entry: dict[str, any] = upmplgutils.direntry(
         id,
         objid,
-        title=entry_title)
+        title=artist_entry_title)
     # get an album cover for the artist entry
     art_uri: str = (art_retriever.get_artist_art_url_using_albums(artist_id=album.getArtistId())
                     if album.getArtistId() else None)
@@ -424,7 +427,14 @@ def album_to_navigable_entry(
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
     title: str = album.getTitle()
-    prepend_artist: bool = get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE)
+    # explicit?
+    title = subsonic_util.append_explicit_if_needed(title, album)
+    album_date_for_sorting: str = subsonic_util.get_album_date_for_sorting(album)
+    msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] "
+                f"by [{album.getArtist()}] "
+                f"Sortable Date [{album_date_for_sorting}]")
+    prepend_artist: bool = (config.get_allow_prepend_artist_in_album_lists() and
+                            get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE))
     if prepend_artist:
         artist: str = album.getArtist()
         if artist:
@@ -459,14 +469,17 @@ def album_to_navigable_entry(
             # see if it's available in cache
             mb_id = cache_actions.get_album_mb_id(album.getId())
             if config.get_dump_action_on_mb_album_cache():
-                msgproc.log(f"Got album mb_id from cache for [{album.getId()}] -> [{mb_id}]")
+                msgproc.log(f"Got album mb_id from cache for [{album.getId()}] -> [mb:{mb_id}]")
         else:
             if config.get_dump_action_on_mb_album_cache():
                 msgproc.log(f"Album mb_id for [{album.getId()}] -> [{mb_id}]")
 
         if mb_id:
             # we can display it!
-            entry_title = f"{entry_title} [{mb_id}]"
+            if config.show_album_mb_id_in_album_placeholder_only():
+                entry_title = f"{entry_title} [mb]"
+            else:
+                entry_title = f"{entry_title} [mb:{mb_id}]"
     entry: dict[str, any] = upmplgutils.direntry(
         id=id,
         pid=objid,
@@ -489,7 +502,7 @@ def genre_to_entry(
                             if genre_album_set and len(genre_album_set) > 0
                             else None)
     if random_album_id:
-        genre_art = subsonic_util.get_album_cover_art_url_by_id(random_album_id)
+        genre_art = subsonic_util.get_album_cover_art_url_by_album_id(random_album_id)
     if not genre_art:
         # load up to 5 albums
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
@@ -530,51 +543,57 @@ def artist_to_entry(
     skip_art: bool = get_option(options=options, option_key=OptionKey.SKIP_ART)
     if not skip_art and artist_id:
         # find art
-        art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
-        if art_album_id:
-            msgproc.log(f"artist_to_entry cache hit for [{artist_id}] -> [{art_album_id}]")
-            art_album: Album = subsonic_util.try_get_album(art_album_id)
-            if not art_album:
-                # delete offending album from cache
-                cache_actions.delete_album_by_artist_id(artist_id)
-            art_album_cover_art_uri: str = (connector_provider.get().buildCoverArtUrl(art_album.getCoverArt())
-                                            if art_album
-                                            else None)
-            upnp_util.set_album_art_from_uri(album_art_uri=art_album_cover_art_uri, target=entry)
-        else:
-            msgproc.log(f"artist_to_entry loading artist by id [{artist_id}] ...")
-            # load artist
-            try:
-                res: Response[Artist] = connector_provider.get().getArtist(artist_id=artist_id)
-                artist: Artist = res.getObj() if res and res.isOk() else None
-                album_list: list[Album] = artist.getAlbumList() if artist else []
-                select_album_list: list[Album] = album_list
-                # try to avoid "appearances" first
-                as_main_artist_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
-                    artist_id=artist_id,
-                    album_list=album_list,
-                    opposite=True)
-                msgproc.log(f"artist_to_entry select_album_list for [{artist_id}] "
-                            f"[{artist.getName() if artist else None}] "
-                            f"full length [{len(album_list) if album_list else 0}] "
-                            f"as main artist only [{len(as_main_artist_album_list)}]")
-                if len(as_main_artist_album_list) > 0:
-                    select_album_list = as_main_artist_album_list
-                select_album: Album = (secrets.choice(select_album_list)
-                                       if select_album_list and len(select_album_list) > 0
-                                       else None)
-                if select_album:
-                    cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
-                    cache_actions.on_album(album=select_album)
-                upnp_util.set_album_art_from_uri(
-                    album_art_uri=connector_provider.get().buildCoverArtUrl(select_album.getCoverArt())
-                    if select_album
-                    else None,
-                    target=entry)
-            except Exception as ex:
-                msgproc.log(f"artist_to_entry cannot load artist [{artist_id}] [{type(ex)}] [{ex}]")
+        album_art_uri: str = get_album_art_uri_for_artist_id(artist_id)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=album_art_uri,
+            target=entry)
     upnp_util.set_class_artist(entry)
     return entry
+
+
+def get_album_art_uri_for_artist_id(artist_id: str) -> str:
+    art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
+    if art_album_id:
+        msgproc.log(f"artist_to_entry cache hit for [{artist_id}] -> [{art_album_id}]")
+        art_album: Album = subsonic_util.try_get_album(art_album_id)
+        if not art_album:
+            # delete offending album from cache
+            cache_actions.delete_album_by_artist_id(artist_id)
+        art_album_cover_art_uri: str = (connector_provider.get().buildCoverArtUrl(art_album.getCoverArt())
+                                        if art_album
+                                        else None)
+        return art_album_cover_art_uri
+    else:
+        msgproc.log(f"artist_to_entry loading artist by id [{artist_id}] ...")
+        # load artist
+        try:
+            res: Response[Artist] = connector_provider.get().getArtist(artist_id=artist_id)
+            artist: Artist = res.getObj() if res and res.isOk() else None
+            album_list: list[Album] = artist.getAlbumList() if artist else []
+            select_album_list: list[Album] = album_list
+            # try to avoid "appearances" first
+            as_main_artist_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
+                artist_id=artist_id,
+                album_list=album_list,
+                opposite=True)
+            msgproc.log(f"artist_to_entry select_album_list for [{artist_id}] "
+                        f"[{artist.getName() if artist else None}] "
+                        f"full length [{len(album_list) if album_list else 0}] "
+                        f"as main artist only [{len(as_main_artist_album_list)}]")
+            if len(as_main_artist_album_list) > 0:
+                select_album_list = as_main_artist_album_list
+            select_album: Album = (secrets.choice(select_album_list)
+                                   if select_album_list and len(select_album_list) > 0
+                                   else None)
+            if select_album:
+                cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
+                cache_actions.on_album(album=select_album)
+            album_art_uri: str = (connector_provider.get().buildCoverArtUrl(select_album.getCoverArt())
+                                  if select_album
+                                  else None)
+            return album_art_uri
+        except Exception as ex:
+            msgproc.log(f"artist_to_entry cannot load artist [{artist_id}] [{type(ex)}] [{ex}]")
 
 
 def artist_initial_to_entry(
@@ -683,8 +702,12 @@ def album_to_entry(
         objid,
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
+    msgproc.log(f"album_to_entry for [{album.getId()}] ...")
     title: str = album.getTitle()
-    prepend_artist: bool = get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE)
+    # explicit?
+    title = subsonic_util.append_explicit_if_needed(title, album)
+    prepend_artist: bool = (config.get_allow_prepend_artist_in_album_lists() and
+                            get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE))
     if prepend_artist:
         artist: str = album.getArtist()
         if artist:

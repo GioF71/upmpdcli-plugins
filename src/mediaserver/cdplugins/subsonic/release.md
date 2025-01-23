@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.7
+
+- Add support for Explicit status
+- Support partial original release date
+- Let user configure parameter to allow Artist in entry title for album lists
+- Allow [mb] placeholder instead of full mbid
+- Add additional artists entry when there are too many additional artists (limit configurable)
+- Simply add artist name along with id where artists with same name as one with mbid exist
+- Improved linting
+
 ## Release 0.6.6
 
 - Some more constants are now enumerated

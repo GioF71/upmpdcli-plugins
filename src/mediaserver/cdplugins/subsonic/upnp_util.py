@@ -15,6 +15,7 @@
 
 import upmplgmodels
 from subsonic_connector.album import Album
+import album_util
 
 
 def set_track_number(track_number: str, target: dict):
@@ -55,7 +56,7 @@ def set_class_album(target: dict):
 
 
 def set_date_from_album(album: Album, target: dict):
-    date_str: str = album.getOriginalReleaseDate()
+    date_str: str = album_util.getOriginalReleaseDate(album)
     if not date_str:
         # fallback to year
         date_str = str(album.getYear()) if album.getYear() else ""

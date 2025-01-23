@@ -88,13 +88,13 @@ def try_get_album(album_id: str) -> Album:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
 
 
-def get_album_cover_art_by_id(album_id: str) -> str:
+def get_album_cover_art_by_album_id(album_id: str) -> str:
     album: Album = try_get_album(album_id)
     return album.getCoverArt() if album else None
 
 
-def get_album_cover_art_url_by_id(album_id: str) -> str:
-    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_id(album_id))
+def get_album_cover_art_url_by_album_id(album_id: str) -> str:
+    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_album_id(album_id))
 
 
 def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
@@ -300,6 +300,26 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
     return occ_list
 
 
+def filter_out_artist_id(artist_list: list[ArtistsOccurrence], artist_id: str) -> list[ArtistsOccurrence]:
+    result: list[ArtistsOccurrence] = []
+    occ: ArtistsOccurrence
+    for occ in artist_list:
+        if not occ.id == artist_id:
+            result.append(occ)
+    return result
+
+
+def get_album_date_for_sorting(album: Album) -> str:
+    result: str = album_util.getOriginalReleaseDate(album)
+    if not result:
+        # fallback to date.
+        y: int = album.getYear()
+        if y and isinstance(y, int):
+            # assume january 1st
+            result = f"{y:04}-01-01"
+    return result if result else "0000-01-01"
+
+
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
     curr_sub_dir: str
     curr_dir: str = base_dir
@@ -458,3 +478,26 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
         return True
     else:
         return False
+
+
+def get_explicit_status(album: Album) -> str:
+    return album.getItem().getByName(constants.ItemKey.EXPLICIT_STATUS.value)
+
+
+def get_explicit_status_display_value(explicit_status: str) -> str:
+    for _, v in constants.ExplicitStatus.__members__.items():
+        explicit_info: constants.ExplicitInfo = v.value
+        if explicit_info.tag_value == explicit_status:
+            return explicit_info.display_value
+    return None
+
+
+def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
+    explicit_status: str = get_explicit_status(album)
+    if explicit_status is not None and len(explicit_status) > 0:
+        msgproc.log(f"Explicit status is [{explicit_status}]")
+        # find match ...
+        display_value: str = get_explicit_status_display_value(explicit_status)
+        explicit_expression = display_value if display_value else explicit_status
+        return f"{current_albumtitle} [{explicit_expression}]"
+    return current_albumtitle

@@ -23,6 +23,7 @@ from subsonic_connector.song import Song
 from subsonic_connector.album import Album
 
 from codec_delimiter_style import CodecDelimiterStyle
+import constants
 
 
 __split_characters: list[str] = [' ', '-', '_']
@@ -149,6 +150,22 @@ class SortSongListResult:
         return self._multi_codec_album
 
 
+def getOriginalReleaseDate(album: Album) -> str:
+    ord_dict: dict[str, any] = album.getItem().getByName(constants.ItemKey.ORIGINAL_RELEASE_DATE.value)
+    if ord_dict is None:
+        return None
+    # split and return
+    y: int = ord_dict["year"] if "year" in ord_dict else None
+    if y is None:
+        return None
+    m: int = ord_dict["month"] if "month" in ord_dict else None
+    d: int = ord_dict["day"] if "day" in ord_dict else None
+    if (m is None or d is None):
+        return y
+    # ok to combine
+    return f"{y:04}-{m:02}-{d:02}"
+
+
 def sort_song_list(song_list: list[Song]) -> SortSongListResult:
     dec_list: list[__Decorated_Song] = []
     codec_dict: dict[str, int] = {}
@@ -256,12 +273,17 @@ def has_year(album: Album) -> bool:
 
 
 def get_album_year_str(album: Album) -> str:
-    # msgproc.log(f"get_album_year_str [{album.getId()}] -> "
-    #             f"[{album.getOriginalReleaseDate()}] [{album.getYear()}]")
-    ord: str = album.getOriginalReleaseDate()
+    ord: str = None
+    ord_any: any = getOriginalReleaseDate(album)
     # convert to str if needed
-    if ord and isinstance(ord, int):
-        ord = str(ord)
+    if ord_any is None:
+        return None
+    if isinstance(ord_any, int):
+        ord = str(ord_any)
+    elif isinstance(ord_any, str):
+        ord = ord_any
+    else:
+        raise Exception(f"Unsupported type [{type(ord_any)}]")
     ord = (ord[0:4]
            if ord and len(ord) >= 4
            else None)

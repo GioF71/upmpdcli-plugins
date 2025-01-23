@@ -118,6 +118,10 @@ def show_artist_mb_id() -> bool:
     return get_option_value_as_bool("showartistmbid", 0)
 
 
+def show_artist_mb_id_placeholder_only() -> bool:
+    return get_option_value_as_bool("showartistmbidplaceholderonly", 1)
+
+
 def show_artist_id() -> bool:
     return get_option_value_as_bool("showartistid", 0)
 
@@ -134,6 +138,10 @@ def show_album_mb_id_in_album() -> bool:
     return get_option_value_as_bool("showalbummbidinalbum", 0)
 
 
+def show_album_mb_id_in_album_placeholder_only() -> bool:
+    return get_option_value_as_bool("showalbummbidinalbumplaceholderonly", 1)
+
+
 def show_paths_in_album() -> bool:
     return get_option_value_as_bool("showpathsinalbum", 0)
 
@@ -146,6 +154,12 @@ def get_dump_action_on_mb_album_cache() -> bool:
     return get_option_value_as_bool(
         "dumpactiononmbalbumcache",
         constants.Defaults.DUMP_ACTION_ON_MB_ALBUM_CACHE.value)
+
+
+def get_allow_prepend_artist_in_album_lists() -> bool:
+    return get_option_value_as_bool(
+        "allowprependartistinalbumlists",
+        constants.Defaults.ALLOW_PREPEND_ARTIST_IN_ALBUM_LISTS.value)
 
 
 def get_additional_artists_max() -> int:

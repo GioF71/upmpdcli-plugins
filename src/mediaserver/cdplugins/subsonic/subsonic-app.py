@@ -425,7 +425,7 @@ def _albums_by_artist_to_entries(
             cache_actions.on_album(current_album)
         genre_list: list[str] = current_album.getGenres()
         for curr in genre_list:
-            # what do I do with these genres?
+            # TODO what do I do with these genres?
             pass
         options: dict[str, any] = {}
         option_util.set_option(
@@ -1315,7 +1315,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         for by_same_name in by_same_name_list:
             cnt += 1
             msgproc.log(f"Found artist #{cnt} by same name: [{by_same_name.getId()}]")
-            bsn_entry_name: str = f"Artist #{cnt} with same name [{by_same_name.getId()}]"
+            bsn_entry_name: str = f"{by_same_name.getName()} [{by_same_name.getId()}]"
             bsn_entry: dict[str, any] = entry_creator.artist_to_entry(
                 objid=objid,
                 artist_id=by_same_name.getId(),
@@ -1344,7 +1344,9 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         objid=objid,
         artist_id=artist_id,
         select_album=select_album,
-        album_entry_name=subsonic_util.release_type_to_album_list_label(single_release_type) if one_release_type else "All Releases")
+        album_entry_name=(subsonic_util.release_type_to_album_list_label(single_release_type)
+                          if one_release_type
+                          else "All Releases"))
     msgproc.log(f"handler_element_artist for {artist_id} -> "
                 f"selected album_id: {select_album.getId() if select_album else None}")
     if not one_release_type:
@@ -1487,7 +1489,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     if len(album_list) > 1:
         album_list_entry_album_id = album_list[1].getId()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.get_album_cover_art_url_by_id(album_list_entry_album_id),
+        album_art_uri=subsonic_util.get_album_cover_art_url_by_album_id(album_list_entry_album_id),
         target=album_list_entry)
     entries.append(album_list_entry)
     return entries
@@ -1588,7 +1590,10 @@ def handler_element_navigable_album(
     if config.show_album_id_in_album():
         title = f"{title} [{album_id}]"
     if album_mb_id and config.show_album_mb_id_in_album():
-        title = f"{title} [{album_mb_id}]"
+        if config.show_album_mb_id_in_album_placeholder_only():
+            title = f"{title} [mb]"
+        else:
+            title = f"{title} [mb:{album_mb_id}]"
     upnp_util.set_album_title(title, album_entry)
     entries.append(album_entry)
     # add artist if needed
@@ -1602,41 +1607,51 @@ def handler_element_navigable_album(
             entries.append(artist_entry)
             skip_artist_id_set.add(album.getArtistId())
         # additional...
+        inline_additional_artists_for_album: bool = True
         additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_artists_in_album(album=album)
         additional_artist_len: int = len(additional)
         if additional_artist_len > config.get_additional_artists_max():
-            msgproc.log(f"Suppressing additional artists because there are too many for this album, "
+            msgproc.log("Suppressing additional artists because there are too many "
+                        f"for album [{album.getId()}], "
                         f"limit is [{config.get_additional_artists_max()}], "
-                        f"we have [{additional_artist_len}]")
+                        f"but we have [{additional_artist_len}]")
             # reset additional so they are not presented
-            additional = []
+            inline_additional_artists_for_album = False
         curr_additional: subsonic_util.ArtistsOccurrence
         for curr_additional in additional:
             msgproc.log(f"For album_id [{album.getId()}] "
                         f"found artist id:[{curr_additional.id}] "
                         f"name:[{curr_additional.name}]")
-        curr_artist: subsonic_util.ArtistsOccurrence
-        for curr_artist in additional:
-            if curr_artist.id not in skip_artist_id_set:
-                entry_name: str = curr_artist.name
-                if config.show_artist_id():
-                    entry_name = f"{entry_name} [{curr_artist.id}]"
-                # do we know the artist mb id?
-                if config.show_artist_mb_id():
-                    # see if we have it cached.
-                    artist_mb_id: str = cache_actions.get_artist_mb_id(curr_artist.id)
-                    if artist_mb_id:
-                        if config.get_dump_action_on_mb_album_cache():
-                            msgproc.log(f"Found mbid for artist_id [{curr_artist.id}] -> [{artist_mb_id}]")
-                        entry_name = f"{entry_name} [{artist_mb_id}]"
-                    else:
-                        if config.get_dump_action_on_mb_album_cache():
-                            msgproc.log(f"Cannot find mbid for artist_id [{curr_artist.id}]")
-                entries.append(entry_creator.artist_to_entry(
-                    objid=objid,
-                    artist_id=curr_artist.id,
-                    entry_name=entry_name))
-                skip_artist_id_set.add(curr_artist.id)
+        if inline_additional_artists_for_album and len(additional) > 0:
+            msgproc.log(f"Adding {len(additional)} additional artists ...")
+            additional_artist_entries: list[dict, str] = create_entries_for_album_additional_artists(
+                objid=objid,
+                additional=additional,
+                skip_artist_id_set=skip_artist_id_set)
+            entries.extend(additional_artist_entries)
+        elif len(additional) > 0:
+            # create dedicated entry!
+            msgproc.log(f"Creating entry for {len(additional)} additional artists ...")
+            additional_album_artists_identifier: ItemIdentifier = ItemIdentifier(
+                name=ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(),
+                value=album_id)
+            additional_album_artists_identifier_id: str = identifier_util.create_objid(
+                 objid=objid,
+                 id=identifier_util.create_id_from_identifier(additional_album_artists_identifier))
+            additional_album_artists_entry: dict[str, any] = upmplgutils.direntry(
+                id=additional_album_artists_identifier_id,
+                pid=objid,
+                title="Additional Artists")
+            # select random artist
+            select_random_artist: subsonic_util.ArtistsOccurrence = secrets.choice(additional)
+            msgproc.log(f"Selected for additional artist entry [{select_random_artist.name}] "
+                        f"[{select_random_artist.id}]")
+            random_artist_cover_art_uri: str = entry_creator.get_album_art_uri_for_artist_id(select_random_artist.id)
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=random_artist_cover_art_uri,
+                target=additional_album_artists_entry)
+            entries.append(additional_album_artists_entry)
+            pass
     else:
         if not album.getArtistId():
             # we skip the artist because we have no artist_id
@@ -1646,6 +1661,93 @@ def handler_element_navigable_album(
     entry: dict[str, any] = entry_creator.album_id_to_album_focus(objid=objid, album=album)
     entries.append(entry)
     return entries
+
+
+def handler_additional_album_artists(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    page_size: int = config.max_artists_per_page
+    msgproc.log(f"handler_additional_album_artists for album_id [{album_id}] offset [{offset}]")
+    album: Album = subsonic_util.try_get_album(album_id)
+    if not album:
+        return entries
+    skip_artist_id_set: set[str] = set()
+    skip_artist_id_set.add(album.getArtistId())
+    additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.filter_out_artist_id(
+        artist_list=subsonic_util.get_artists_in_album(album=album),
+        artist_id=album.getArtistId())
+    current: subsonic_util.ArtistsOccurrence
+    # apply offset
+    additional = additional[offset:] if len(additional) > offset else []
+    next_artist: subsonic_util.ArtistsOccurrence = (additional[page_size]
+                                                    if len(additional) > page_size
+                                                    else None)
+    sliced: list[subsonic_util.ArtistsOccurrence] = additional[0:min(len(additional), page_size)]
+    for current in sliced:
+        curr_entry: dict[str, any] = entry_creator.artist_to_entry(
+            objid=objid,
+            artist_id=current.id,
+            entry_name=current.name)
+        if curr_entry:
+            entries.append(curr_entry)
+    if next_artist:
+        msgproc.log("handler_additional_album_artists "
+                    f"Adding next button for album [{album_id}] "
+                    f"for offset [{offset + config.max_artists_per_page}] ...")
+        next_identifier: ItemIdentifier = ItemIdentifier(
+            name=ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(),
+            value=album_id)
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.max_artists_per_page)
+        next_id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
+        next_entry: dict[str, any] = upmplgutils.direntry(
+            next_id,
+            objid,
+            title="Next")
+        next_album_art_uri: str = entry_creator.get_album_art_uri_for_artist_id(next_artist.id)
+        upnp_util.set_album_art_from_uri(album_art_uri=next_album_art_uri, target=next_entry)
+        entries.append(next_entry)
+    return entries
+
+
+def create_entries_for_album_additional_artists(
+        objid: any,
+        additional: list[subsonic_util.ArtistsOccurrence],
+        skip_artist_id_set: set[str]) -> list[dict[str, any]]:
+    artist_entries: list[dict[str, any]] = []
+    curr_artist: subsonic_util.ArtistsOccurrence
+    for curr_artist in additional:
+        msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] [{curr_artist.name}]")
+        if curr_artist.id not in skip_artist_id_set:
+            msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] "
+                        f"[{curr_artist.name}] -> adding ...")
+            entry_name: str = curr_artist.name
+            if config.show_artist_id():
+                entry_name = f"{entry_name} [{curr_artist.id}]"
+            # do we know the artist mb id?
+            if config.show_artist_mb_id():
+                # see if we have it cached.
+                artist_mb_id: str = cache_actions.get_artist_mb_id(curr_artist.id)
+                if artist_mb_id:
+                    if config.get_dump_action_on_mb_album_cache():
+                        msgproc.log(f"Found mbid for artist_id [{curr_artist.id}] -> [{artist_mb_id}]")
+                    entry_name = f"{entry_name} [{artist_mb_id}]"
+                else:
+                    if config.get_dump_action_on_mb_album_cache():
+                        msgproc.log(f"Cannot find mbid for artist_id [{curr_artist.id}]")
+            msgproc.log(f"Adding entry [{entry_name}] for [{curr_artist.id}] ...")
+            artist_entries.append(entry_creator.artist_to_entry(
+                objid=objid,
+                artist_id=curr_artist.id,
+                entry_name=entry_name))
+            msgproc.log(f"Adding [{curr_artist.id}] to skip set ...")
+            skip_artist_id_set.add(curr_artist.id)
+        else:
+            msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] "
+                        f"[{curr_artist.name}] -> not adding!")
+    return artist_entries
 
 
 def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, any]]:
@@ -1678,8 +1780,8 @@ def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict
             connector_provider.get().buildCoverArtUrl(second_art_album.getCoverArt() if second_art_album else None),
             radio_song_list_entry)
     else:
-        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_id(iid), radio_entry)
-        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_id(iid), radio_song_list_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_album_id(iid), radio_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_album_id(iid), radio_song_list_entry)
     return [radio_entry, radio_song_list_entry]
 
 
@@ -1941,6 +2043,7 @@ __elem_action_dict: dict = {
     ElementType.GENRE_ARTIST.getName(): handler_element_genre_artist,
     ElementType.ALBUM.getName(): handler_element_album,
     ElementType.NAVIGABLE_ALBUM.getName(): handler_element_navigable_album,
+    ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(): handler_additional_album_artists,
     ElementType.ALBUM_FOCUS.getName(): handler_element_album_focus,
     ElementType.GENRE_ARTIST_LIST.getName(): handler_element_genre_artists,
     ElementType.GENRE_ALBUM_LIST.getName(): handler_element_genre_album_list,
