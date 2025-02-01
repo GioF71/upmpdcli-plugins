@@ -161,7 +161,7 @@ def getOriginalReleaseDate(album: Album) -> str:
     m: int = ord_dict["month"] if "month" in ord_dict else None
     d: int = ord_dict["day"] if "day" in ord_dict else None
     if (m is None or d is None):
-        return y
+        return str(y)
     # ok to combine
     return f"{y:04}-{m:02}-{d:02}"
 
@@ -277,6 +277,10 @@ def get_album_year_str(album: Album) -> str:
     ord_any: any = getOriginalReleaseDate(album)
     # convert to str if needed
     if ord_any is None:
+        # fallback to year if available!
+        year_int: int = album.getYear()
+        if year_int:
+            return str(year_int)
         return None
     if isinstance(ord_any, int):
         ord = str(ord_any)

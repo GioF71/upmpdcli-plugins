@@ -42,6 +42,8 @@ import constants
 
 import copy
 import os
+from functools import cmp_to_key
+
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -64,6 +66,21 @@ class ArtistIdAndName:
         return self.__name
 
 
+class DiscTitle:
+
+    def __init__(self, disc_num: int, title: str):
+        self.__disc_num: str = disc_num
+        self.__title: str = title
+
+    @property
+    def disc_num(self) -> str:
+        return self.__disc_num
+
+    @property
+    def title(self) -> str:
+        return self.__title
+
+
 def get_random_art_by_genre(
         genre: str,
         max_items: int = 100) -> str:
@@ -82,10 +99,18 @@ def get_random_art_by_genre(
 
 def try_get_album(album_id: str) -> Album:
     try:
-        album_res: Response[Album] = connector_provider.get().getAlbum(album_id)
-        return album_res.getObj() if album_res and album_res.isOk() else None
+        res: Response[Album] = connector_provider.get().getAlbum(album_id)
+        return res.getObj() if res and res.isOk() else None
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
+
+
+def try_get_artist(artist_id: str) -> Artist:
+    try:
+        res: Response[Artist] = connector_provider.get().getArtist(artist_id)
+        return res.getObj() if res and res.isOk() else None
+    except Exception as e:
+        msgproc.log(f"Cannot find Artist by artist_id [{artist_id}] due to [{type(e)}] [{e}]")
 
 
 def get_album_cover_art_by_album_id(album_id: str) -> str:
@@ -501,3 +526,69 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
         explicit_expression = display_value if display_value else explicit_status
         return f"{current_albumtitle} [{explicit_expression}]"
     return current_albumtitle
+
+
+def append_number_of_discs(current_albumtitle: str, album: Album) -> str:
+    result: str = current_albumtitle
+    disc_titles: list[DiscTitle] = get_disc_titles_from_album(album)
+    if config.get_allow_prepend_disc_count_in_album_lists() and len(disc_titles) > 1:
+        result = f"{result} [{len(disc_titles)}]"
+    return result
+
+
+def append_number_of_tracks(current_albumtitle: str, album: Album) -> str:
+    result: str = current_albumtitle
+    number_of_tracks: int = album.getSongCount()
+    if config.get_allow_prepend_track_count_in_album_lists() and number_of_tracks is not None:
+        result = f"{result} [{number_of_tracks}]"
+    return result
+
+
+def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
+    lst: list[DiscTitle] = []
+    disc_title_list: list[dict[str, any]] = album.getItem().getByName(
+        constants.ItemKey.DISC_TITLES.value,
+        [])
+    dt: dict[str, any]
+    for dt in disc_title_list:
+        disc_n: int = dt[constants.ItemKey.DISC_TITLES_DISC.value]
+        disc_t: int = dt[constants.ItemKey.DISC_TITLES_TITLE.value]
+        disc_title: DiscTitle = DiscTitle(disc_n, disc_t)
+        lst.append(disc_title)
+    return lst
+
+
+def append_cached_mb_id_to_artist_entry_name(entry_name: str, artist_id: str) -> str:
+    if config.show_artist_mb_id():
+        # see if we have it cached.
+        artist_mb_id: str = cache_actions.get_artist_mb_id(artist_id)
+        if artist_mb_id:
+            if config.get_dump_action_on_mb_album_cache():
+                msgproc.log(f"Found mbid for artist_id [{artist_id}] -> [{artist_mb_id}]")
+            if artist_mb_id:
+                entry_name = f"{entry_name} [{'mb' if config.show_artist_mb_id_placeholder_only() else artist_mb_id}]"
+        else:
+            if config.get_dump_action_on_mb_album_cache():
+                msgproc.log(f"Cannot find mbid for artist_id [{artist_id}]")
+    return entry_name
+
+
+def append_mb_id_to_artist_entry_name(entry_name: str, artist_mb_id: str) -> str:
+    if config.show_artist_mb_id():
+        if artist_mb_id:
+            if artist_mb_id:
+                entry_name = f"{entry_name} [{'mb' if config.show_artist_mb_id_placeholder_only() else artist_mb_id}]"
+    return entry_name
+
+
+def __compare_album_by_date(left: Album, right: Album) -> int:
+    cmp: int = 0
+    left_v: str = get_album_date_for_sorting(left)
+    right_v: str = get_album_date_for_sorting(right)
+    cmp = -1 if left_v < right_v else 0 if left_v == right_v else 1
+    return cmp
+
+
+def sort_albums_by_date(album_list: list[Album]):
+    if album_list:
+        album_list.sort(key=cmp_to_key(__compare_album_by_date))

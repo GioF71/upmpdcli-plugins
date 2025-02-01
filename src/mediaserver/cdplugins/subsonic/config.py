@@ -156,10 +156,28 @@ def get_dump_action_on_mb_album_cache() -> bool:
         constants.Defaults.DUMP_ACTION_ON_MB_ALBUM_CACHE.value)
 
 
-def get_allow_prepend_artist_in_album_lists() -> bool:
+def get_allow_append_artist_in_album_lists() -> bool:
     return get_option_value_as_bool(
         "allowprependartistinalbumlists",
         constants.Defaults.ALLOW_PREPEND_ARTIST_IN_ALBUM_LISTS.value)
+
+
+def get_allow_prepend_disc_count_in_album_lists() -> bool:
+    return get_option_value_as_bool(
+        "allowprependtrackcountinalbumlists",
+        constants.Defaults.ALLOW_PREPEND_DISC_COUNT_IN_ALBUM_LISTS.value)
+
+
+def get_allow_prepend_track_count_in_album_lists() -> bool:
+    return get_option_value_as_bool(
+        "allowprependtrackcountinalbumlists",
+        constants.Defaults.ALLOW_PREPEND_TRACK_COUNT_IN_ALBUM_LISTS.value)
+
+
+def get_set_class_to_album_for_navigable_album() -> bool:
+    return get_option_value_as_bool(
+        "setclasstoalbumfornavigablealbum",
+        constants.Defaults.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM.value)
 
 
 def get_additional_artists_max() -> int:

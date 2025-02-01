@@ -1,8 +1,21 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.8
+
+- Introduced TODO.md file to keep track of new things to do
+- Add counters to albums by release type entries
+- Add support for Appearances
+- Fix date support, fallback to year when original release date is missing
+- Sort artist albums by date
+- Show album mbid in search results
+- Add album in lists after the title instead of before it
+- Show artist id and mbid in additional artists view
+- Show number of discs in album lists
+- Show number of tracks in album lists
+
 ## Release 0.6.7
 
-- Add support for Explicit status
+- Add support for Explicit status (ITUNESADVISORY tag for Lightweight Music Server)
 - Support partial original release date
 - Let user configure parameter to allow Artist in entry title for album lists
 - Allow [mb] placeholder instead of full mbid

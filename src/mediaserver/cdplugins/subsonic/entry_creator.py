@@ -427,18 +427,16 @@ def album_to_navigable_entry(
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
     title: str = album.getTitle()
+    # number of discs
+    title = subsonic_util.append_number_of_discs(title, album)
+    # number of tracks
+    title = subsonic_util.append_number_of_tracks(title, album)
     # explicit?
     title = subsonic_util.append_explicit_if_needed(title, album)
     album_date_for_sorting: str = subsonic_util.get_album_date_for_sorting(album)
     msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] "
                 f"by [{album.getArtist()}] "
                 f"Sortable Date [{album_date_for_sorting}]")
-    prepend_artist: bool = (config.get_allow_prepend_artist_in_album_lists() and
-                            get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE))
-    if prepend_artist:
-        artist: str = album.getArtist()
-        if artist:
-            title = f"{artist} - {title}"
     prepend_number: int = get_option(options=options, option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
     if prepend_number:
         title = f"[{prepend_number:02}] {title}"
@@ -452,12 +450,22 @@ def album_to_navigable_entry(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
     if has_year(album):
+        msgproc.log(f"Appending year [{get_album_year_str(album)}] to current title [{title}] ...")
         title = f"{title} [{get_album_year_str(album)}]"
+    else:
+        msgproc.log(f"Cannot find year for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
     album_badge: str = get_album_quality_badge(album=album, force_load=False)
     # msgproc.log(f"album_to_navigable_entry album [{album.getId()}] -> badge [{album_badge}]")
     if album_badge:
         title = f"{title} [{album_badge}]"
         # msgproc.log(f"album_to_navigable_entry title [{title}]")
+    append_artist: bool = (config.get_allow_append_artist_in_album_lists() and
+                           get_option(options=options, option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE))
+    if append_artist:
+        artist: str = album.getArtist()
+        if artist:
+            # title = f"{artist} - {title}"
+            title = f"{title} [{artist}]"
     entry_title: str = title
     if config.show_album_id_in_navigable_album() and album.getId():
         # msgproc.log(f"album_to_navigable_entry Adding [{album.getId()}] to [{entry_title}]")
@@ -467,6 +475,8 @@ def album_to_navigable_entry(
         mb_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
         if not mb_id:
             # see if it's available in cache
+            if config.get_dump_action_on_mb_album_cache():
+                msgproc.log(f"Trying to got album mb_id from cache for [{album.getId()}] ...")
             mb_id = cache_actions.get_album_mb_id(album.getId())
             if config.get_dump_action_on_mb_album_cache():
                 msgproc.log(f"Got album mb_id from cache for [{album.getId()}] -> [mb:{mb_id}]")
@@ -487,6 +497,8 @@ def album_to_navigable_entry(
         artist=artist)
     upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
+    if config.get_set_class_to_album_for_navigable_album():
+        upnp_util.set_class_album(entry)
     return entry
 
 
@@ -704,11 +716,15 @@ def album_to_entry(
         options: dict[str, any] = {}) -> dict[str, any]:
     msgproc.log(f"album_to_entry for [{album.getId()}] ...")
     title: str = album.getTitle()
+    # number of discs
+    title = subsonic_util.append_number_of_discs(title, album)
+    # number of tracks
+    title = subsonic_util.append_number_of_tracks(title, album)
     # explicit?
     title = subsonic_util.append_explicit_if_needed(title, album)
-    prepend_artist: bool = (config.get_allow_prepend_artist_in_album_lists() and
-                            get_option(options=options, option_key=OptionKey.PREPEND_ARTIST_IN_ALBUM_TITLE))
-    if prepend_artist:
+    append_artist: bool = (config.get_allow_append_artist_in_album_lists() and
+                           get_option(options=options, option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE))
+    if append_artist:
         artist: str = album.getArtist()
         if artist:
             title = f"{artist} - {title}"
@@ -759,6 +775,14 @@ def album_to_entry(
     if album_badge:
         title = f"{title} [{album_badge}]"
         # msgproc.log(f"album_to_entry title [{title}]")
+    # musicbrainz?
+    mb_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
+    msgproc.log(f"Found mb_id [{mb_id}] for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
+    if mb_id and config.show_album_mb_id_in_album:
+        if config.show_artist_mb_id_placeholder_only():
+            title = f"{title} [mb]"
+        else:
+            title = f"{title} [{mb_id}]"
     artist = album.getArtist()
     cache_actions.on_album(album)
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())

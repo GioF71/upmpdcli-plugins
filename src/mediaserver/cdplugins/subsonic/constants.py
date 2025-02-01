@@ -16,7 +16,7 @@
 from enum import Enum
 
 plugin_name: str = "subsonic"
-subsonic_plugin_release: str = "0.6.7"
+subsonic_plugin_release: str = "0.6.8"
 
 default_dump_streaming_properties: int = 0
 
@@ -33,6 +33,9 @@ class ItemKey(Enum):
     ARTISTS = "artists"
     ORIGINAL_RELEASE_DATE = "originalReleaseDate"
     EXPLICIT_STATUS = "explicitStatus"
+    DISC_TITLES = "discTitles"
+    DISC_TITLES_DISC = "disc"
+    DISC_TITLES_TITLE = "title"
 
 
 class Defaults(Enum):
@@ -47,6 +50,9 @@ class Defaults(Enum):
     ITEMS_PER_PAGE = 25
     CACHED_REQUEST_TIMEOUT_SEC = 600
     ALLOW_PREPEND_ARTIST_IN_ALBUM_LISTS = 1
+    ALLOW_PREPEND_TRACK_COUNT_IN_ALBUM_LISTS = 1
+    ALLOW_PREPEND_DISC_COUNT_IN_ALBUM_LISTS = 1
+    SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = 0
 
 
 class ExplicitInfo:

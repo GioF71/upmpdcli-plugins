@@ -19,7 +19,7 @@ from album_util import MultiCodecAlbum
 
 class OptionKey(Enum):
     SKIP_TRACK_NUMBER = 0, "skip-track-number", False
-    PREPEND_ARTIST_IN_ALBUM_TITLE = 1, "prepend-artist-in-album-title", True
+    APPEND_ARTIST_IN_ALBUM_TITLE = 1, "append-artist-in-album-title", True
     FORCE_TRACK_NUMBER = 2, "force-track-number", None
     MULTI_CODEC_ALBUM = 4, "multi-codec-album", MultiCodecAlbum.NO
     SKIP_ART = 5, "skip-art", False
