@@ -434,6 +434,18 @@ search, defaults to 15
 tidaloverridecountrycode:: Override the country code. This will allow you to specify the desired two-letter country code.
 When not specified, it should default to the country code of the profile.
 
+[[tidalallowfavoriteactions]]
+tidalallowfavoriteactions:: Enables adding entries that will add/remove items to/from Tidal Favorites.
+Defaults to 0
+
+[[tidalallowbookmarkactions]]
+tidalallowbookmarkactions:: Enables adding entries that will add/remove items to/from Bookmarks (stored in plugin db).
+Defaults to 0
+
+[[tidalallowstatisticsactions]]
+tidalallowstatisticsactions:: Enables adding entries that will remove items from playback statistics (stored in plugin db).
+Defaults to 0
+
 === UPRCL Local Media Server parameters 
 
 [[uprcluser]]

@@ -320,7 +320,9 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
                 streaming_url = streaming_url[0]
             else:
                 raise Exception(f"Invalid length from get_urls(), expected 1, got [{len(streaming_url)}]")
-
+        else:
+            raise Exception("Expecting a list from get_urls from mainfest of type bts, "
+                            f"got a [{type(streaming_url) if streaming_url else 'None'}]")
     else:
         raise Exception(f"Unrecognized stream type for track_id [{track_id}]")
     result: StreamingInfo = StreamingInfo()
@@ -2722,14 +2724,14 @@ def create_missing_album_entry(
     if in_metadata_cache:
         persistence.purge_album_from_metadata_cache(album_id)
     # add favorite action if needed
-    if in_favorites:
+    if config.get_allow_favorite_actions() and in_favorites:
         entries.append(__create_album_fav_action_button(
             objid=objid,
             album_id=album_id,
             album=None,
             in_favorites=True))
     # button for bookmark action if needed
-    if in_bookmarks:
+    if config.get_allow_bookmark_actions() and in_bookmarks:
         entries.append(__create_album_listen_queue_action_button(
             objid=objid,
             album_id=album_id,
@@ -2816,22 +2818,25 @@ def handler_element_album_container(
         album=album,
         entries=entries)
     # add favorite action
-    entries.append(__create_album_fav_action_button(
-        objid=objid,
-        album_id=album_id,
-        album=album,
-        in_favorites=in_favorites))
+    if config.get_allow_favorite_actions():
+        entries.append(__create_album_fav_action_button(
+            objid=objid,
+            album_id=album_id,
+            album=album,
+            in_favorites=in_favorites))
     # button for bookmark action
-    entries.append(__create_album_listen_queue_action_button(
-        objid=objid,
-        album_id=album_id,
-        album=album,
-        in_listen_queue=in_listen_queue))
+    if config.get_allow_bookmark_actions():
+        entries.append(__create_album_listen_queue_action_button(
+            objid=objid,
+            album_id=album_id,
+            album=album,
+            in_listen_queue=in_listen_queue))
     # button for removing from statistics
-    _add_album_rmv_from_stats(
-        objid=objid,
-        album=album,
-        entries=entries)
+    if config.get_allow_statistics_actions():
+        _add_album_rmv_from_stats(
+            objid=objid,
+            album=album,
+            entries=entries)
     return entries
 
 
@@ -3374,25 +3379,27 @@ def handler_element_mix_playlist_toptrack_navigable_item(
     in_fav: bool = is_favorite_track_id(tidal_session=tidal_session, track_id=track_id)
     msgproc.log(f"handler_element_mix_playlist_toptrack_navigable_item track [{track_id}] "
                 f"favorite: [{in_fav}]")
-    # add button to add or remove from favorites
-    fav_button_action: str = constants.fav_action_del if in_fav else constants.fav_action_add
-    fav_button_text: str = constants.fav_action_dict[fav_button_action][constants.fav_button_title_key]
-    fav_action_identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.TRACK_FAVORITE_ACTION.getName(),
-        track_id)
-    fav_action_identifier.set(ItemIdentifierKey.FAVORITE_ACTION, fav_button_action)
-    fav_action_id: str = identifier_util.create_objid(
-        objid=objid,
-        id=identifier_util.create_id_from_identifier(fav_action_identifier))
-    fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_button_text)
     album: TidalAlbum = tidal_util.try_get_album(tidal_session=tidal_session, album_id=track.album.id)
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album) if album else None, fav_entry)
-    entries.append(fav_entry)
+    # add button to add or remove from favorites, if allowed
+    if config.get_allow_favorite_actions():
+        fav_button_action: str = constants.fav_action_del if in_fav else constants.fav_action_add
+        fav_button_text: str = constants.fav_action_dict[fav_button_action][constants.fav_button_title_key]
+        fav_action_identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.TRACK_FAVORITE_ACTION.getName(),
+            track_id)
+        fav_action_identifier.set(ItemIdentifierKey.FAVORITE_ACTION, fav_button_action)
+        fav_action_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(fav_action_identifier))
+        fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_button_text)
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album) if album else None, fav_entry)
+        entries.append(fav_entry)
     # add bookmark action
-    _add_track_listen_queue_action_button(
-        objid=objid,
-        track=track,
-        entries=entries)
+    if config.get_allow_bookmark_actions():
+        _add_track_listen_queue_action_button(
+            objid=objid,
+            track=track,
+            entries=entries)
     # add link to artists
     artist_list: list[TidalArtist] = get_artist_list(
         artist=track.artist,
@@ -3408,11 +3415,12 @@ def handler_element_mix_playlist_toptrack_navigable_item(
             objid=objid,
             album=album))
     # add remove from stats if needed
-    entries = add_remove_track_from_stats_if_needed(
-        objid=objid,
-        track=track,
-        album=album,
-        entries=entries)
+    if config.get_allow_statistics_actions():
+        entries = add_remove_track_from_stats_if_needed(
+            objid=objid,
+            track=track,
+            album=album,
+            entries=entries)
     return entries
 
 
@@ -4294,25 +4302,27 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         "Focus")
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), entry)
     entries.append(entry)
-    in_favorites: bool = artist.id in get_favorite_artist_id_list(tidal_session=tidal_session)
-    fav_action_elem: ElementType
-    fav_action_text: str
-    fav_action_elem, fav_action_text = (
-        (ElementType.FAV_ARTIST_DEL, constants.button_title_remove_artist_from_favorites) if in_favorites
-        else (ElementType.FAV_ARTIST_ADD, constants.button_title_add_artist_to_favorites))
-    # msgproc.log(f"Artist with id [{artist_id}] name [{artist_name}] is in favorites: "
-    #             f"[{'yes' if in_favorites else 'no'}]")
-    fav_action: ItemIdentifier = ItemIdentifier(
-        fav_action_elem.getName(),
-        artist_id)
-    fav_action_id: str = identifier_util.create_objid(
-        objid=objid,
-        id=identifier_util.create_id_from_identifier(fav_action))
-    fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_action_text)
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), fav_entry)
-    entries.append(fav_entry)
-    lqb_entry: dict[str, any] = create_listen_queue_action_for_artist_view(objid, artist)
-    entries.append(lqb_entry)
+    if config.get_allow_favorite_actions():
+        in_favorites: bool = artist.id in get_favorite_artist_id_list(tidal_session=tidal_session)
+        fav_action_elem: ElementType
+        fav_action_text: str
+        fav_action_elem, fav_action_text = (
+            (ElementType.FAV_ARTIST_DEL, constants.button_title_remove_artist_from_favorites) if in_favorites
+            else (ElementType.FAV_ARTIST_ADD, constants.button_title_add_artist_to_favorites))
+        # msgproc.log(f"Artist with id [{artist_id}] name [{artist_name}] is in favorites: "
+        #             f"[{'yes' if in_favorites else 'no'}]")
+        fav_action: ItemIdentifier = ItemIdentifier(
+            fav_action_elem.getName(),
+            artist_id)
+        fav_action_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(fav_action))
+        fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_action_text)
+        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), fav_entry)
+        entries.append(fav_entry)
+    if config.get_allow_bookmark_actions():
+        lqb_entry: dict[str, any] = create_listen_queue_action_for_artist_view(objid, artist)
+        entries.append(lqb_entry)
     return entries
 
 
@@ -5515,7 +5525,17 @@ def show_tags(objid, entries: list) -> list:
     return entries
 
 
+def is_tag_enabled(tag: TagType) -> bool:
+    if TagType.BOOKMARKS == tag:
+        return config.get_allow_bookmark_actions()
+    else:
+        return True
+
+
 def show_single_tag(objid, tidal_session: TidalSession, tag: TagType, entries: list) -> list:
+    if not is_tag_enabled(tag):
+        # tag is disabled, we do nothing
+        return entries
     tag_display_name: str = get_tidal_tag_type_by_name(tag.getTagName())
     curr_tag_img_retriever = (__tag_image_retriever[tag.getTagName()]
                               if tag.getTagName() in __tag_image_retriever

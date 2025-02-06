@@ -173,7 +173,8 @@ __fallback_for_missing_quality: dict[str, str] = {
 
 
 def get_fallback_quality_when_missing() -> str:
-    if not max_audio_quality or max_audio_quality not in __fallback_for_missing_quality: return None
+    if not max_audio_quality or max_audio_quality not in __fallback_for_missing_quality:
+        return None
     return __fallback_for_missing_quality[max_audio_quality]
 
 
@@ -197,3 +198,21 @@ def get_page_items_for_tile_image() -> int:
     return getPluginOptionValue(
         "pageitemsfortileimage",
         constants.default_page_items_for_tile_image)
+
+
+def get_allow_favorite_actions() -> bool:
+    return __getPluginOptionAsBool(
+        constants.ConfigurationParameter.ALLOW_FAVORITE_ACTIONS.key,
+        constants.ConfigurationParameter.ALLOW_FAVORITE_ACTIONS.default_value)
+
+
+def get_allow_bookmark_actions() -> bool:
+    return __getPluginOptionAsBool(
+        constants.ConfigurationParameter.ALLOW_BOOKMARK_ACTIONS.key,
+        constants.ConfigurationParameter.ALLOW_BOOKMARK_ACTIONS.default_value)
+
+
+def get_allow_statistics_actions() -> bool:
+    return __getPluginOptionAsBool(
+        constants.ConfigurationParameter.ALLOW_STATISTICS_ACTIONS.key,
+        constants.ConfigurationParameter.ALLOW_STATISTICS_ACTIONS.default_value)

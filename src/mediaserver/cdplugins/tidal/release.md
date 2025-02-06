@@ -1,7 +1,10 @@
 # Tidal Plugin Release notes
 
-## 0.7.12
+## 0.8.0
 
+- Cleanup config parameters enum in constants
+- Do not add action buttons by default (bookmark, favorite, statistics)
+- Handle invalid type from manifest.get_url, unlikely to happen anyway
 - Add metadata for new upplay album view also from search album
 - Add Local Genres page
 - Featured page is now Home

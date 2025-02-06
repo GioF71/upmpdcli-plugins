@@ -18,7 +18,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name: str = "tidal"
 
-tidal_plugin_release: str = "0.7.12"
+tidal_plugin_release: str = "0.8.0"
 
 
 class EnvironmentVariableName(Enum):
@@ -79,6 +79,36 @@ tile_image_expiration_time_sec: int = 86400
 
 oauth2_credentials_file_name: str = "oauth2.credentials.json"
 pkce_credentials_file_name: str = "pkce.credentials.json"
+
+
+class ConfigurationParameterData:
+
+    def __init__(self, key: str, default_value: any):
+        self.__key: str = key
+        self.__default_value: any = default_value
+
+    @property
+    def key(self) -> str:
+        return self.__key
+
+    @property
+    def default_value(self) -> any:
+        return self.__default_value
+
+
+class ConfigurationParameter(Enum):
+    ALLOW_FAVORITE_ACTIONS = ConfigurationParameterData("allowfavoriteactions", False)
+    ALLOW_BOOKMARK_ACTIONS = ConfigurationParameterData("allowbookmarkactions", False)
+    ALLOW_STATISTICS_ACTIONS = ConfigurationParameterData("allowstatisticsactions", False)
+
+    @property
+    def key(self) -> str:
+        return self.value.key
+
+    @property
+    def default_value(self) -> any:
+        return self.value.default_value
+
 
 # remove if not really used
 default_max_album_tracks_per_page: int = 30
