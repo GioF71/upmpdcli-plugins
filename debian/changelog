@@ -1,3 +1,9 @@
+upmpdcli (1.9.1-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Multiple improvements in Tidal and Subsonic Media Server modules.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Fri, 07 Feb 2025 10:39:00 +0100
+
 upmpdcli (1.9.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Qobuz: updated the plugin to be closer to the choices on the Web

@@ -1,6 +1,7 @@
 #*
 **/.deps
 **/__pycache__
+**/TODO.md
 *~
 .ccls
 .ccls-cache
