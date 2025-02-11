@@ -84,7 +84,7 @@ executable(
   include_directories: upmpdcli_incdir,
   dependencies: deps,
   install: true,
-  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"', '-DMDU_INCLUDE_LOG=<libupnpp/log.h>'],
+  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"', '-DMDU_INCLUDE_LOG="libupnpp/log.h"'],
 )
 
 ########################### Optional Configuration GUI
