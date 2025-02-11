@@ -10,8 +10,12 @@ project(
 # Things that existed in the autoconf build
 # HAVE_EXP10: use cc.links()
 # https://mesonbuild.com/Compiler-properties.html
-# MDU_INCLUDE_LOG : actually not needed because include <log.h> works with -I/usr/include/libupnpp
 # CONFIGDIR not used at all in the code.
+#
+# MDU_INCLUDE_LOG (log.h include path in medocutils shared code): initially thought not needed
+# but actually now needed because libupnpp.pc was changed to not set -I${includedir}/libupnpp
+# in order to make sure of avoiding possible collisions by forcing user code to always use
+#  #include <libupnpp/xxx.h>
 
 
 deps = []
@@ -80,7 +84,7 @@ executable(
   include_directories: upmpdcli_incdir,
   dependencies: deps,
   install: true,
-  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"'],
+  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"', '-DMDU_INCLUDE_LOG=<libupnpp/log.h>'],
 )
 
 ########################### Optional Configuration GUI
