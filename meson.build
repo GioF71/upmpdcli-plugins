@@ -2,7 +2,7 @@ project(
   'upmpdcli',
   'cpp',
   license: 'LGPL 2.1+',
-  version: '1.9.1',
+  version: '1.9.2',
   default_options: ['cpp_std=c++17', 'buildtype=debugoptimized'],
   meson_version: '>=0.49',
 )

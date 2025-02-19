@@ -324,7 +324,7 @@ it may be necessary to use the right MPD and plugins versions.
 
 Upmpdcli implements an OpenHome Radio service which allows selecting and
 listening to internet radio stations when using an OpenHome-compatible
-Control Point (e.g. Kazoo, Lumin, Bubble UPnP, etc.).
+Control Point (e.g. Kazoo, Lumin, BubbleDS, etc.).
 
 This facility uses Python 3.x, which must be available on the system for
 the radio links to work.
@@ -387,7 +387,7 @@ source are playing (e.g. Skype phone conversations are out of reach).
 === Songcast Control Point compatibility
 
 Upmpdcli Senders and Receivers can be mixed with Linn ones and controlled
-from Upplay or Bubble DS (an maybe other control points).
+from Upplay or BubbleDS (and maybe other control points).
 
 Neither Linn nor upmpdcli receivers can be linked to an upmpdcli Sender using 
 Linn Kazoo (tested with release 4.11.226), the reason is unknown.
@@ -976,7 +976,7 @@ e.g. upmpdcli-qobuz on Debian), and adding your login and password to the config
 
 The configuration parameters are described in the <<qobuzuser,configuration section>>
 
-If you are using the Linn Kazoo Control Point, upmpdcli has support for the `Credentials` service,
+If you are using Linn Kazoo or BubbleDS, upmpdcli has support for the `Credentials` service,
 which facilitates configuration. Details xref:UPMPDCLI-MS-STR-CRED[here].
 
 
@@ -1440,30 +1440,32 @@ which way you are using will avoid confusion:
   of this approach is that the Control Point device must not go to sleep or out of reach, else the
   music will stop (maybe at the next track).
 
-- The third approach is to distribute the function between CP and
-  Renderer. The Control Point performs the browsing and access to special
-  functions, and the Renderer knows how to access the service streams. This
-  is the OpenHome approach and can be considered the best of both worlds,
-  at the price of complexity and compatibility issues. This method is
-  implemented by the Linn Kazoo Control Point, and a number of Renderers,
-  the Linn and Lumin ones of course, but also,
+- The third approach is to distribute the function between CP and Renderer. The Control Point
+  performs the browsing and access to special functions, and the Renderer knows how to access the
+  service streams. This is the OpenHome approach and can be considered the best of both worlds, at
+  the price of complexity and compatibility issues. This method is implemented by the Linn Kazoo and
+  BubbleDS Control Points, and a number of Renderers, the Linn and Lumin ones of course, but also,
   xref:UPMPDCLI-MS-STR-CRED[lately by upmpdcli]. +
-  * At the moment, the upmpdcli implementation only works for Qobuz, as
-    changes in the Tidal access method have made it impossible to support.
+  * At the moment, the upmpdcli implementation only works for Qobuz, as changes in the Tidal access
+    method have made it impossible to support.
 
 
 
 [[UPMPDCLI-MS-STR-CRED]]
-==== Accessing Qobuz with OpenHome from Kazoo
+==== Accessing Qobuz with OpenHome from Kazoo or BubbleDS
 
 This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
 work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
 corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
 should be necessary on the renderer.
 
-This should also work with Lumin devices, but it does not currently, the reason is unknown. When
-feature is active, it actually prevents Lumin from discovering upmpdcli at all, so there is a
-configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0 with Lumin.
+BubbleDS needs that the facility be activated: go to `Settings->Renderer Settings`, and
+activate the option for the chosen Renderer.
+
+This should also work with the Lumin Control Point, but it does not currently, the reason is
+unknown. When the feature is active, it actually prevents Lumin from discovering upmpdcli at all, so
+there is a configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0
+with Lumin.
 
 Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
 dependency, so you should check that it is installed. 
@@ -1475,12 +1477,10 @@ NOTE: the user name and password will be stored on the renderer in an insecure w
 someone steals the machine or obtains root access, there is nothing to prevent them from getting the
 credentials.
 
-Of course Kazoo or Lumin can also access the services through the media server interface (after
-configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]).
+Of course any renderer can also access the services through the Media Server interface
+(after configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]). 
 
-For reference, this method is *not* usable with *Upplay*
-
-The notes which follow relate to accessing the services through the Upmpdcli Media Server.
+For reference, this method is *not* usable with *Upplay*. 
 
 [[SC2MPD-INSTALL]]
 == Annex: Songcast installation walkthrough
