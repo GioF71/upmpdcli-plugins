@@ -141,8 +141,11 @@ def maybelogin(a={}):
         formatid, fetch_resource_info=needaudiodetails, show_album_maxaudio=showalbumrateandbits
     )
 
+    # Don't raise an error here because it happens if we are started as an ohcredentials helper with
+    # no login data stored: we are going to get the stuff through the ohcreds service further on.
     if not username or not password:
-        raise Exception("maybelogin: qobuzuser and/or qobuzpass not set.")
+        _g_loginok = False
+        return False
 
     _g_loginok = session.login(username, password, appid, cfvalue)
 
