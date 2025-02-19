@@ -152,7 +152,7 @@ class RawApi(object):
         r = None
         op = "GET" if useGet else "POST"
         # warn(f"{op} {url} params {params} headers {headers}")
-        warn(f"{op} {url} params {params}")
+        debug(f"{op} {url} params {params}")
         try:
             if useGet:
                 r = self.session.get(url, params=params, headers=headers)
