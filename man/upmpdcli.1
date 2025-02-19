@@ -8,7 +8,7 @@
 upmpdcli \- UPnP Media Renderer front-end to MPD, the Music Player Daemon
 .SH SYNOPSIS
 .B upmpdcli
-.RI [ options ] " files" ...
+.RI [ options ]
 .SH DESCRIPTION
 .PP
 \fBupmpdcli\fP is a program which should be run permanently (typically as a
@@ -19,6 +19,17 @@ inside an UPnP-based music network, typically with a remote running on a
 tablet or phone.
 .SH OPTIONS
 This program uses short options. A summary of options is included below.
+.TP
+.B \-c\fR \fIconfigfile\fP
+Use the configuration from \fIconfigfile\fP. The configuration file has a
+simple \fIname = value\fP format and can set the same values as the command
+line options (with a lower priority). The parameter names are
+\fImpdhost\fP, \fImpdport\fP, \fIfriendlyname\fP, \fIlogfilename\fP,
+\fIloglevel\fP, \fIupnpiface\fP, \fIupnpport\fP. The configuration file can
+also be used to set the MPD password (\fImpdpassword\fP), and the UPnP IP
+address (instead of interface name, \fIupnpip\fP). See upmpdcli.conf(5).
+Note that if this option is not given, no configuration file is read and the program runs entirely
+from its defaults, command line options, and environment.
 .TP
 .B \-h\fR \fIhost\fP
 Define the host machine on which \fBmpd\fP runs.
@@ -53,14 +64,5 @@ Start the OpenHome ohMedia services (esp. PlayList), or not.
 .TP
 .B \-P\fR \fIport\fP
 Define the IP port to use for UPnP.
-.TP
-.B \-c\fR \fIconfigfile\fP
-Use the configuration from \fIconfigfile\fP. The configuration file has a
-simple \fIname = value\fP format and can set the same values as the command
-line options (with a lower priority). The parameter names are
-\fImpdhost\fP, \fImpdport\fP, \fIfriendlyname\fP, \fIlogfilename\fP,
-\fIloglevel\fP, \fIupnpiface\fP, \fIupnpport\fP. The configuration file can
-also be used to set the MPD password (\fImpdpassword\fP), and the UPnP IP
-address (instead of interface name, \fIupnpip\fP).
 .SH SEE ALSO
 .BR mpd (1),
