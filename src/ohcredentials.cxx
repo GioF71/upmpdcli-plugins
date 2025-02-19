@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2020 J.F.Dockes
+/* Copyright (C) 2018-2025 J.F.Dockes
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -49,6 +49,8 @@
 using namespace std;
 using namespace std::placeholders;
 
+using NameVarMap = std::vector<std::pair<const char*, std::string&>>;
+
 const size_t ohcreds_segsize{3000};
 const int ohcreds_segid{923102018};
 const char *ohcreds_segpath = "/etc/upmpdcli.conf";
@@ -62,6 +64,8 @@ static const map<string, string> idmap {
     {"qobuz.com", "qobuz"}
 };
 
+// The stores the data (credentials, appid, whatever) for a given service and has the specific
+// knowledge of,e.g. how to obtain an appid, perform a login etc.
 // We might want to derive this into ServiceCredsQobuz,
 // ServiceCredsTidal, there is a lot in common and a few diffs.
 struct ServiceCreds {
@@ -113,7 +117,7 @@ struct ServiceCreds {
     }
 
     // We need a Python helper to perform the login. That's the media server gateway module, from
-    // which we only specific methods for getting the app id and performing a login.
+    // which we only use specific methods for getting the app id and performing a login.
     bool maybeStartCmd() {
         LOGDEB1("ServiceCreds: " << servicename << " maybeStartCmd()\n");
         if (nullptr == cmd) {
@@ -125,9 +129,8 @@ struct ServiceCreds {
         }
         LOGDEB("ServiceCreds: " << servicename << " starting cmd\n");
         // hostport is not needed by this login-only instance.
-        return PlgWithSlave::startPluginCmd(
-            *cmd, servicename, "bogus", 0,
-            CDPluginServices::getpathprefix(servicename));
+        return PlgWithSlave::startPluginCmd(*cmd, servicename, "bogus", 0,
+                                            CDPluginServices::getpathprefix(servicename));
     }
 
     string login() {
@@ -139,7 +142,7 @@ struct ServiceCreds {
                 return servicedata["token"];
             }
         } else {
-            LOGERR("Unsupported service: " << servicename << endl);
+            LOGERR("Unsupported service: " << servicename << '\n');
             return string();
         }
 
@@ -149,7 +152,7 @@ struct ServiceCreds {
         unordered_map<string,string> res;
         if (!cmd->callproc("login", {{"user", user}, {"password", password}}, res)) {
             LOGERR("ServiceCreds::login: slave failure. Service " <<
-                   servicename << " user " << user << endl);
+                   servicename << " user " << user << '\n');
             return string();
         }
 
@@ -163,15 +166,14 @@ struct ServiceCreds {
             auto it = res.find(toknm);
             if (it == res.end()) {
                 LOGERR("ServiceCreds::login: no " << toknm << ". Service " <<
-                       servicename << " user " << user << endl);
+                       servicename << " user " << user << '\n');
                 return string();
             }
             servicedata[toknm] = it->second;
         }
-        // Start a silent/crippled media server process (if not
-        // already done) to perform the URL redirections. If the media
-        // server was actually enabled by one of the services, this
-        // will do nothing.
+        // Start a silent/crippled media server process (if not already done) to perform the URL
+        // redirections. If the media server was actually enabled by one of the services, this will
+        // do nothing.
         startMediaServer(false);
         if (servicename == "qobuz") {
             data = servicedata["appid"];
@@ -215,12 +217,14 @@ struct ServiceCreds {
 
 class OHCredentials::Internal {
 public:
-    
+
+    // Constructor: initialize a key pair if not already stored.
+    // @param cd: my cache directory
     Internal(const string& cd) {
         getOptionValue("opensslcmd", opensslcmd, "openssl");
         cachedir = path_cat(cd, "ohcreds");
         if (!path_makepath(cachedir, 0700)) {
-            LOGERR("OHCredentials: can't create cache dir " << cachedir <<endl);
+            LOGERR("OHCredentials: can't create cache dir " << cachedir <<'\n');
             return;
         }
         keyfile = path_cat(cachedir, "credkey.pem");
@@ -249,10 +253,11 @@ public:
             LOGERR("OHCredentials: could not read public key\n");
             return;
         }
-        LOGDEB1("OHCredentials: my public key:\n" << pubkey << endl);
+        LOGDEB1("OHCredentials: my public key:\n" << pubkey << '\n');
         tryLoad();
     }
 
+    // Store credentials sent from the control point.
     int insertCreds(const std::string& in_Id, const std::string& in_UserName,
                     const string& plainpass, const string& in_Password) {
         const auto it1 = idmap.find(in_Id);
@@ -275,7 +280,7 @@ public:
 
     bool decrypt(const string& in, string& out) {
         vector<string> acmd{opensslcmd, "pkeyutl", "-inkey",
-                keyfile, "-pkeyopt", "rsa_padding_mode:oaep", "-decrypt"};
+                            keyfile, "-pkeyopt", "rsa_padding_mode:oaep", "-decrypt"};
         int status = cmd.doexec(acmd, &in, &out);
         if (status) {
             LOGERR("OHCredentials: decrypt failed\n");
@@ -296,27 +301,22 @@ public:
 
     bool save() {
         bool saveohcredentials = doingsavetofile();
-        // The media server process needs the credentials for
-        // translating the permanent URL into the actual media stream
-        // ones. We can use either a shared memory segment or a file
-        // for this purpose.
+        // The media server process needs the credentials for translating the permanent URL into the
+        // actual media stream ones. We can use either a shared memory segment or a file for this
+        // purpose.
         //
-        // Using a file offers less security (the creds are available
-        // to anyone with physical access to the device), but they can
-        // then also be used by the regular Media Server plugin,
-        // allowing access by a non-ohcredentials CP (e.g. upplay)
-        // without having to set them in upmpdcli.conf. In other
-        // words, the Credentials service utility is extended to
-        // regular CPs.
+        // Using a file offers less security (the creds are available to anyone with physical access
+        // to the device), but they can then also be used by the regular Media Server plugin,
+        // allowing access by a non-ohcredentials CP (e.g. upplay) without having to set them in
+        // upmpdcli.conf. In other words, the Credentials service utility is extended to regular
+        // CPs.
         // 
-        // The choice between shmem/file is decided by the
-        // saveohcredentials configuration variable
+        // The choice between shmem/file is decided by the saveohcredentials configuration variable
         if (saveohcredentials) {
             string credsfile = path_cat(cachedir, "screds");
             ConfSimple credsconf(credsfile.c_str());
             if (!credsconf.ok()) {
-                LOGERR("OHCredentials: error opening " << credsfile <<
-                       " errno " << errno << endl);
+                LOGSYSERR("OHCredentials", "open", credsfile);
                 return false;
             }
             saveToConfTree(credsconf);
@@ -373,7 +373,7 @@ public:
         ConfSimple credsconf(credsfile.c_str(), 1);
         if (!credsconf.ok()) {
             LOGDEB("OHCredentials: error opening for read (probably not an "
-                   "error)" << credsfile << " errno " << errno << endl);
+                   "error)" << credsfile << " errno " << errno << '\n');
             return;
         }
         for (const auto& service : idmap) {
@@ -383,7 +383,7 @@ public:
             if (credsconf.get(shortid + "user", user) && 
                 credsconf.get(shortid + "pass", pass) && 
                 credsconf.get(shortid + "epass", epass)) {
-                LOGDEB("OHCreds: using saved creds for " << id << endl);
+                LOGDEB("OHCreds: using saved creds for " << id << '\n');
                 creds[id] = std::make_unique<ServiceCreds>(shortid, user, pass, epass);
             }
         }
@@ -398,38 +398,21 @@ public:
 };
 
 
-OHCredentials::OHCredentials(UpMpd *dev, UpMpdOpenHome *udev,
-                             const string& cachedir)
+OHCredentials::OHCredentials(UpMpd *dev, UpMpdOpenHome *udev, const string& cachedir)
     : OHService(sTpCredentials, sIdCredentials, "OHCredentials.xml", dev, udev),
       m(new Internal(cachedir))
 {
-    udev->addActionMapping(
-        this, "Set",
-        bind(&OHCredentials::actSet, this, _1, _2));
-    udev->addActionMapping(
-        this, "Clear",
-        bind(&OHCredentials::actClear, this, _1, _2));
-    udev->addActionMapping(
-        this, "SetEnabled",
-        bind(&OHCredentials::actSetEnabled, this, _1, _2));
-    udev->addActionMapping(
-        this, "Get",
-        bind(&OHCredentials::actGet, this, _1, _2));
-    udev->addActionMapping(
-        this, "Login",
-        bind(&OHCredentials::actLogin, this, _1, _2));
-    udev->addActionMapping(
-        this, "ReLogin",
-        bind(&OHCredentials::actReLogin, this, _1, _2));
-    udev->addActionMapping(
-        this, "GetIds",
-        bind(&OHCredentials::actGetIds, this, _1, _2));
-    udev->addActionMapping(
-        this, "GetPublicKey",
-        bind(&OHCredentials::actGetPublicKey, this, _1, _2));
-    udev->addActionMapping(
-        this, "GetSequenceNumber",
-        bind(&OHCredentials::actGetSequenceNumber, this, _1, _2));
+    udev->addActionMapping(this, "Set", bind(&OHCredentials::actSet, this, _1, _2));
+    udev->addActionMapping(this, "Clear", bind(&OHCredentials::actClear, this, _1, _2));
+    udev->addActionMapping(this, "SetEnabled", bind(&OHCredentials::actSetEnabled, this, _1, _2));
+    udev->addActionMapping(this, "Get", bind(&OHCredentials::actGet, this, _1, _2));
+    udev->addActionMapping(this, "Login", bind(&OHCredentials::actLogin, this, _1, _2));
+    udev->addActionMapping(this, "ReLogin", bind(&OHCredentials::actReLogin, this, _1, _2));
+    udev->addActionMapping(this, "GetIds", bind(&OHCredentials::actGetIds, this, _1, _2));
+    udev->addActionMapping(this, "GetPublicKey",
+                           bind(&OHCredentials::actGetPublicKey, this, _1, _2));
+    udev->addActionMapping(this, "GetSequenceNumber",
+                           bind(&OHCredentials::actGetSequenceNumber, this, _1, _2));
 }
 
 OHCredentials::~OHCredentials()
@@ -451,28 +434,17 @@ bool OHCredentials::makestate(unordered_map<string, string> &st)
 
 int OHCredentials::actSet(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    bool ok = false;
-    std::string in_Id;
-    ok = sc.get("Id", &in_Id);
-    if (!ok) {
-        LOGERR("OHCredentials::actSet: no Id in params\n");
-        return UPNP_E_INVALID_PARAM;
-    }
-    std::string in_UserName;
-    ok = sc.get("UserName", &in_UserName);
-    if (!ok) {
-        LOGERR("OHCredentials::actSet: no UserName in params\n");
-        return UPNP_E_INVALID_PARAM;
-    }
-    string in_Password;
-    ok = sc.get("Password", &in_Password);
-    if (!ok) {
-        LOGERR("OHCredentials::actSet: no Password in params\n");
-        return UPNP_E_INVALID_PARAM;
+    std::string in_Id, in_UserName, in_Password;
+    for (auto& [nm, val] : NameVarMap
+             {{"Id", in_Id}, {"UserName", in_UserName}, {"Password", in_Password}}) {
+        if (!sc.get(nm, &val)) {
+            LOGERR("OHCredentials::actSet: no " << nm << " in params\n");
+            return UPNP_E_INVALID_PARAM;
+        }
     }
 
     LOGDEB("OHCredentials::actSet: " << " Id " << in_Id << " UserName " <<
-           in_UserName << " Password " << in_Password << endl);
+           in_UserName << " Password " << in_Password << '\n');
 
     string cpass = base64_decode(in_Password);
     string plainpass;
@@ -504,7 +476,7 @@ int OHCredentials::actLogin(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
 
-    LOGDEB("OHCredentials::actLogin: " << " Id " << in_Id << endl);
+    LOGDEB("OHCredentials::actLogin: " << " Id " << in_Id << '\n');
     auto it = m->creds.find(in_Id);
     if (it == m->creds.end()) {
         LOGERR("OHCredentials::Login: Id " << in_Id << " not found\n");
@@ -528,22 +500,16 @@ int OHCredentials::actLogin(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHCredentials::actReLogin(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    bool ok = false;
-    std::string in_Id;
-    ok = sc.get("Id", &in_Id);
-    if (!ok) {
-        LOGERR("OHCredentials::actReLogin: no Id in params\n");
-        return UPNP_E_INVALID_PARAM;
-    }
-    std::string in_CurrentToken;
-    ok = sc.get("CurrentToken", &in_CurrentToken);
-    if (!ok) {
-        LOGERR("OHCredentials::actReLogin: no CurrentToken in params\n");
-        return UPNP_E_INVALID_PARAM;
+    std::string in_Id, in_CurrentToken;
+    for (auto& [nm, val] : NameVarMap{{"Id", in_Id}, {"CurrentToken", in_CurrentToken}}) {
+        if (!sc.get(nm, &val)) {
+            LOGERR("OHCredentials::actReLogin: no " << nm << " in params\n");
+            return UPNP_E_INVALID_PARAM;
+        }
     }
 
     LOGDEB("OHCredentials::actReLogin: " << " Id " << in_Id << " CurrentToken "
-           << in_CurrentToken << endl);
+           << in_CurrentToken << '\n');
 
     auto it = m->creds.find(in_Id);
     if (it == m->creds.end()) {
@@ -570,7 +536,7 @@ int OHCredentials::actClear(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
 
-    LOGDEB("OHCredentials::actClear: " << " Id " << in_Id << endl);
+    LOGDEB("OHCredentials::actClear: " << " Id " << in_Id << '\n');
     if (idmap.find(in_Id) == idmap.end()) {
         LOGERR("OHCredentials::actClear: bad service id [" << in_Id <<"]\n");
         return 800;
@@ -582,23 +548,16 @@ int OHCredentials::actClear(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHCredentials::actSetEnabled(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    bool ok = false;
-    std::string in_Id;
-    ok = sc.get("Id", &in_Id);
-    if (!ok) {
-        LOGERR("OHCredentials::actSetEnabled: no Id in params\n");
-        return UPNP_E_INVALID_PARAM;
+    std::string in_Id, in_Enabled;
+    for (auto& [nm, val] : NameVarMap{{"Id", in_Id}, {"Enabled", in_Enabled}}) {
+        if (!sc.get(nm, &val)) {
+            LOGERR("OHCredentials::actReLogin: no " << nm << " in params\n");
+            return UPNP_E_INVALID_PARAM;
+        }
     }
-    bool in_Enabled;
-    ok = sc.get("Enabled", &in_Enabled);
-    if (!ok) {
-        LOGERR("OHCredentials::actSetEnabled: no Enabled in params\n");
-        return UPNP_E_INVALID_PARAM;
-    }
-
-    LOGDEB("OHCredentials::actSetEnabled: " << " Id " << in_Id << " Enabled " <<
-           in_Enabled << endl);
-    if (m->setEnabled(in_Id, in_Enabled)) {
+    bool enabled = stringToBool(in_Enabled);
+    LOGDEB("OHCredentials::actSetEnabled: " << " Id " << in_Id << " Enabled " << enabled << '\n');
+    if (m->setEnabled(in_Id, enabled)) {
         m->seq++;
         onEvent(nullptr);
         return UPNP_E_SUCCESS;
@@ -617,7 +576,7 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
 
-    LOGDEB("OHCredentials::actGet: " << " Id " << in_Id << endl);
+    LOGDEB("OHCredentials::actGet: " << " Id " << in_Id << '\n');
 
     // Does nothing if the creds are already there. Else will create an object which may perform
     // some init, like retrieving an appid
@@ -628,13 +587,12 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHCredentials::actGet: Id " << in_Id << " not found or insert failed\n");
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("OHCredentials::actGet: data for " << in_Id << " " << it->second->str() << endl);
+    LOGDEB("OHCredentials::actGet: data for " << in_Id << " " << it->second->str() << '\n');
     data.addarg("UserName", it->second->user);
     // Encrypted password !
     data.addarg("Password", it->second->encryptedpass);
-    // In theory enabled is set in response to setEnabled() or
-    // set(). In practise, if it is not set, we don't get to the qobuz
-    // settings screen in kazoo.
+    // In theory enabled is set in response to setEnabled() or set(). In practise, if it is not set,
+    // we don't get to the qobuz settings screen in kazoo.
     data.addarg("Enabled", it->second->enabled ? "1" : "1");
     data.addarg("Status", it->second->status);
     data.addarg("Data", it->second->data);
@@ -643,22 +601,21 @@ int OHCredentials::actGet(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHCredentials::actGetIds(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHCredentials::actGetIds: " << endl);
+    LOGDEB("OHCredentials::actGetIds: " << '\n');
     data.addarg("Ids", idstring);
     return UPNP_E_SUCCESS;
 }
 
 int OHCredentials::actGetPublicKey(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHCredentials::actGetPublicKey: pubkey: " << m->pubkey << endl);
+    LOGDEB("OHCredentials::actGetPublicKey: pubkey: " << m->pubkey << '\n');
     data.addarg("PublicKey", m->pubkey);
     return m->pubkey.empty() ? UPNP_E_INTERNAL_ERROR : UPNP_E_SUCCESS;
 }
 
-int OHCredentials::actGetSequenceNumber(const SoapIncoming& sc,
-                                        SoapOutgoing& data)
+int OHCredentials::actGetSequenceNumber(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHCredentials::actGetSequenceNumber: " << endl);
+    LOGDEB("OHCredentials::actGetSequenceNumber: " << '\n');
     data.addarg("SequenceNumber", SoapHelp::i2s(m->seq));
     onEvent(nullptr);
     return UPNP_E_SUCCESS;
