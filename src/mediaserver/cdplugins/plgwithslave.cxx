@@ -401,7 +401,7 @@ static void decodeResource(const Json::Value entry, UpSong::Res &res)
     }
 }
 
-#define JSONTOUPS(fld, nm) {catstring(song.fld, decoded[i].get(#nm, "").asString());}
+#define JSONTOUPS(fld, nm) {catstring(song.fld, decod_i.get(#nm, "").asString());}
 
 static int resultToEntries(const string& encoded, vector<UpSong>& entries,
                            const std::string& classfilter = std::string())
@@ -415,6 +415,19 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
     entries.reserve(decoded.size());
     for (unsigned int i = 0; i < decoded.size(); i++) {
         UpSong song;
+        Json::Value& decod_i = decoded[i];
+
+        // Possibly extract our vendor extension fields
+        for(Json::Value::const_iterator it = decod_i.begin(); it != decod_i.end(); it++) {
+            if (beginswith(it.key().asString(), "upmpd:")) {
+                if (song.upmpfields == nullptr)
+                    song.upmpfields = new std::unordered_map<std::string, std::string>;
+                LOGDEB1("resultToEntries: "<<it.key().asString()<<" -> "<<(*it).asString()<<'\n');
+                auto& flds{*(song.upmpfields)};
+                flds[it.key().asString()] = (*it).asString();
+            }
+        }
+
         JSONTOUPS(id, id);
         JSONTOUPS(parentid, pid);
         JSONTOUPS(title, tt);
@@ -423,13 +436,13 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
         JSONTOUPS(upnpClass, upnp:class);
         JSONTOUPS(dcdescription, dc:description);
         JSONTOUPS(dcdate, dc:date);
-        song.didlfrag = decoded[i].get("didlfrag", "").asString();
+        song.didlfrag = decod_i.get("didlfrag", "").asString();
     
         // tp is container ("ct") or item ("it")
-        string stp = decoded[i].get("tp", "").asString();
+        string stp = decod_i.get("tp", "").asString();
         if (!stp.compare("ct")) {
             song.iscontainer = true;
-            string ss = decoded[i].get("searchable", "").asString();
+            string ss = decod_i.get("searchable", "").asString();
             if (!ss.empty()) {
                 song.searchable = stringToBool(ss);
             }
@@ -440,14 +453,17 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
             JSONTOUPS(album, upnp:album);
             JSONTOUPS(tracknum, upnp:originalTrackNumber);
             // Decode resource data in base record
-            decodeResource(decoded[i], song.rsrc);
+            decodeResource(decod_i, song.rsrc);
             // Possibly add resources from resource array if present
-            const Json::Value &resources = decoded[i]["resources"];
+            const Json::Value &resources = decod_i["resources"];
             LOGDEB1("decoded['resources'] is type " << resources.type() << "\n");
             if (resources.isArray()) {
+                if (nullptr == song.resources) {
+                    song.resources = new std::vector<UpSong::Res>;
+                }
                 for (unsigned int i = 0; i < resources.size(); i++) {
-                    song.resources.push_back(UpSong::Res());
-                    decodeResource(resources[i], song.resources.back());
+                    song.resources->push_back(UpSong::Res());
+                    decodeResource(resources[i], song.resources->back());
                 }
             }
         } else {

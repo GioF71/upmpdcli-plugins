@@ -1106,10 +1106,9 @@ include::upmpdcli-config.txt[]
 [[UPMPDCLI-PACKAGES]]
 == Installation from packages
 
-The link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli
-downloads page] has a number of pointers to binary packages for a number of
-common distributions (Debian, Raspbian, Ubuntu, Fedora) and architectures
-(ARM and x86).
+The link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli downloads page] has a
+number of pointers to binary packages for a number of common distributions (Debian, Raspbian,
+Ubuntu) and architectures (ARM and x86).
 
 
 

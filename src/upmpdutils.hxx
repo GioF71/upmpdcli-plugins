@@ -28,14 +28,11 @@ namespace UPnPClient {
     class UPnPDirObject;
 };
 
-// This was originally purely a translation of data from mpd. Extended
-// to general purpose track/container descriptor
-class UpSong {
+// This base class exists just that we can implement a copy constructor without listing all the
+// copyable fields (just use the base class constructor instead).
+class UpSongBase {
 public:
-    UpSong() {}
-    void clear() {
-        *this = UpSong();
-    }
+    UpSongBase() {}
     std::string id;
     std::string parentid;
     std::string name; // only set for radios apparently. 
@@ -53,30 +50,82 @@ public:
     // A raw didl fragment to be added to the output when converting to DIDL. For Media Server
     // modules which know more than we do (e.g. uprcl)
     std::string didlfrag;
-    
+
     // The entries in the following struct have misc uses, but as a
     // group, they describe an UPnP resource (for converting to DIDL
     // for sending to CP).
     struct Res {
         std::string uri;
-        int duration_secs{0};
-        int64_t size{0};
-        int bitrate{0};
-        int samplefreq{0};
-        int bitsPerSample{0};
-        int channels{0};
         std::string mime;
+        int64_t size{0};
+        uint32_t duration_secs{0};
+        uint32_t bitrate{0};
+        uint32_t samplefreq{0};
+        uint16_t bitsPerSample{0};
+        uint16_t channels{0};
     };
     // Base data: all track upsongs have data in there
     Res rsrc;
-    // Additional resources for other formats etc. for the same
-    // track. Only used by the media server, and usually empty.
-    std::vector<Res> resources;
     
     int mpdid{0};
     bool iscontainer{false};
     bool searchable{false};
+};
 
+class UpSong : public UpSongBase {
+public:
+    // Our vendor metadata extension fields (contentDirectory v1 2.8.11). They must all be prefixed
+    // with "upmp:"
+    // Using a derived class for easy copy const and assign op. Would be simpler to just use
+    // shared_ptr...
+    std::unordered_map<std::string, std::string> *upmpfields{nullptr};
+    // Additional resources for other formats etc. for the same
+    // track. Only used by the media server, and usually empty.
+    std::vector<Res> *resources{nullptr};
+
+    UpSong() {}
+
+    ~UpSong() {
+        delete upmpfields;
+        delete resources;
+    }
+
+    UpSong& operator=(UpSong const& rhs) {
+        if (this != &rhs) {
+            UpSongBase::operator=(rhs);
+            if (rhs.upmpfields) {
+                upmpfields = new std::unordered_map<std::string, std::string>(*rhs.upmpfields);
+            } else {
+                upmpfields = nullptr;
+            }
+            if (rhs.resources) {
+                resources = new std::vector<Res>(*rhs.resources);
+            } else {
+                resources = nullptr;
+            }
+        }
+        return *this;
+    }
+
+    UpSong(UpSong const& l)
+        : UpSongBase(l) {
+        if (l.upmpfields) {
+            upmpfields = new std::unordered_map<std::string, std::string>(*l.upmpfields);
+        } else {
+            upmpfields = nullptr;
+        }
+        if (l.resources) {
+            resources = new std::vector<Res>(*l.resources);
+        } else {
+            resources = nullptr;
+        }
+    }
+    void clear() {
+        delete upmpfields;
+        delete resources;
+        *this = UpSong();
+    }
+    
     std::string dump() const {
         return std::string("class [" + upnpClass + "] Artist [" + artist +
                            "] Album [" +  album + " Title [" + title +

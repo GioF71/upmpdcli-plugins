@@ -207,8 +207,10 @@ string UpSong::didl(bool noresource) const
         UPNPXML(tracknum, upnp:originalTrackNumber);
         if (!noresource) {
             didlPrintResource(ss, rsrc);
-            for (const auto& res : resources) {
-                didlPrintResource(ss, res);
+            if (resources) {
+                for (const auto& res : *resources) {
+                    didlPrintResource(ss, res);
+                }
             }
         }
     }
@@ -221,9 +223,23 @@ string UpSong::didl(bool noresource) const
 
     // Raw didl emitted by whoever created us
     ss << didlfrag;
-    
+
+    // Our vendor stuff
+    if (upmpfields && !upmpfields->empty()) {
+        ss << R"(<desc nameSpace="urn:schemas-upmpdcli-com:upnpdesc" )"
+            R"(xmlns:upmpd="urn:schemas-upmpdcli-com:upnpdesc">)";
+        for (const auto& [key,value] : *upmpfields) {
+            if (!beginswith(key, "upmpd:")) {
+                LOGERR("Bad key in upmpdcli vendor block: [" << key << "]\n");
+                continue;
+            }
+            ss << "<" << key << ">" << SoapHelp::xmlQuote(value) << "</" << key << ">";
+        }
+        ss << "</desc>";
+    }
+
     ss << "</" << typetag << ">";
-    LOGDEB1("UpSong::didl(): " << ss.str() << endl);
+    LOGDEB1("UpSong::didl(): " << ss.str() << '\n');
     return ss.str();
 }
 
