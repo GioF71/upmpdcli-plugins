@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@ import subsonic_connector
 import cache_manager_provider
 from caching import CacheManager
 import subsonic_util
-import constants
 import cmdtalkplugin
 import config
+import constants
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -68,9 +68,9 @@ def on_album(album: subsonic_connector.album.Album):
             value=album.getId())
 
     # musicbrainz album id
-    mb_album_id: str = album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
+    mb_album_id: str = subsonic_util.get_album_musicbrainz_id(album)
     if mb_album_id:
-        if config.get_dump_action_on_mb_album_cache():
+        if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
             msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
         cache_manager.cache_element_value(
             cache_name=cache_type.CacheType.MB_ALBUM_ID_BY_ALBUM_ID.getName(),

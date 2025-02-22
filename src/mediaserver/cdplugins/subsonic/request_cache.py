@@ -105,14 +105,14 @@ def get_random_album_list(
         musicFolderId=None) -> Response[AlbumList]:
     # cache first page
     if not (
-            size == config.items_per_page and
+            size == config.get_items_per_page() and
             int(offset) == 0 and
             genre is None and
             fromYear is None and
             toYear is None and
             musicFolderId is None):
         msgproc.log(f"request_cache.get_random_album_list cannot be cached "
-                    f"size:[{size}] [{size == config.items_per_page}] "
+                    f"size:[{size}] [{size == config.get_items_per_page()}] "
                     f"offset:[{offset}] [{int(offset) == 0}] "
                     f"fromYear:[{fromYear}] [{fromYear is None}] "
                     f"toYear:[{toYear}] [{toYear is None}] "
@@ -130,7 +130,7 @@ def get_random_album_list(
         if __cached_response_is_expired(cached_response_random_firstpage, config.get_cached_request_timeout_sec()):
             msgproc.log("subsonic_util.get_random_album_list loading first random albums ...")
             # actually request first random albums
-            res: Response[Artists] = connector_provider.get().getRandomAlbumList(size=config.items_per_page)
+            res: Response[Artists] = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
             cached_response_random_firstpage = CachedResponse()
             cached_response_random_firstpage.last_response_obj = res
             cached_response_random_firstpage.last_response_time = datetime.datetime.now()

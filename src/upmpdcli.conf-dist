@@ -272,8 +272,12 @@ upradiostitle = Upmpdcli Radio List
 #subsonicitemsperpage = 36
 # SubSonic cache timeout for artists
 #subsoniccachetimeoutartists = 600
-# Append year to album
-#subsonicappendyeartoalbum = 1
+# Append year to album container
+#subsonicappendyeartoalbumcontainer = 1
+# Append year to album view
+#subsonicappendyeartoalbumview = 0
+# Append year to album as search result
+#appendyeartoalbumsearchresult = 0
 # Enable transcoding
 #subsonictranscodecodec = ogg
 # Set max bitrate for transcoding
@@ -290,6 +294,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicshowemptyplaylists = 0
 # Plugin Title.
 #subsonictitle = Subsonic
+# Genres in album view
+# subsonicallowappendgenreinalbumview = 0
+# Genres in album lists
+# subsonicallowgenreinalbumcontainer = 0
 
 # Upmpdcli BBC Sounds plugin parameters
 

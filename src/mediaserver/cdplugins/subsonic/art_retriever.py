@@ -123,10 +123,7 @@ def most_played_albums_art_retriever() -> RetrievedArt:
 
 def get_artist_art_url_using_albums(artist_id: str) -> str:
     # get an album cover for the artist entry
-    artist_res: Response[Artist] = (connector_provider.get().getArtist(artist_id=artist_id)
-                                    if artist_id
-                                    else None)
-    artist: Artist = artist_res.getObj() if artist_res and artist_res.isOk() else None
+    artist: Artist = subsonic_util.try_get_artist(artist_id)
     msgproc.log(f"artist_entry_for_album loaded artist for id [{artist_id}] -> "
                 f"[{'yes' if artist else 'no'}]")
     album_list: list[Album] = artist.getAlbumList() if artist else list()

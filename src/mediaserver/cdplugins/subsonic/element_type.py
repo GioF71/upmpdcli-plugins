@@ -45,6 +45,7 @@ class ElementType(Enum):
     ARTIST_FOCUS = 25, "rstsfcs"
     ADDITIONAL_ALBUM_ARTISTS = 26, "ddtlnlbmrtsts"
     ARTIST_APPEARANCES = 27, "rtstpprncs"
+    ALBUM_SONG_SELECTION_BY_ARTIST = 28, "lbmslct4rtst"
 
     def __init__(
             self,

@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ class OptionKey(Enum):
     FORCE_LOAD_QUALITY_BADGE = 9, "force-load-quality-badge", False
     USE_LAST_FOR_NEXT = 11, "use-last-for-next", False
     SKIP_ARTIST_ID = 12, "skip-artist-id", None
+    SEARCH_RESULT = 13, "search-result", False
 
     def __init__(
             self,

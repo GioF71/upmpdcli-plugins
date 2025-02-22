@@ -37,19 +37,21 @@ import shutil
 
 
 def subsonic_init():
-    msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initializing ...")
+    msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] Initializing ...")
     init_success: bool = False
     try:
-        cache_dir: str = upmplgutils.getcachedir(constants.plugin_name)
-        msgproc.log(f"Cache dir for [{constants.plugin_name}] is [{cache_dir}]")
-        msgproc.log(f"DB version for [{constants.plugin_name}] is [{persistence.get_db_version()}]")
+        cache_dir: str = upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value)
+        msgproc.log(f"Cache dir for [{constants.PluginConstant.PLUGIN_NAME.value}] is "
+                    f"[{cache_dir}]")
+        msgproc.log(f"DB version for [{constants.PluginConstant.PLUGIN_NAME.value}] is "
+                    f"[{persistence.get_db_version()}]")
         initial_caching()
         check_supports()
         detect_anomalies()
         if config.getWebServerDocumentRoot():
             images_static_dir: str = subsonic_util.ensure_directory(
                 config.getWebServerDocumentRoot(),
-                [constants.plugin_name,
+                [constants.PluginConstant.PLUGIN_NAME.value,
                  "images",
                  "static"])
             msgproc.log(f"Directories for static images [{images_static_dir}] created.")
@@ -62,8 +64,10 @@ def subsonic_init():
             msgproc.log("WebServer not available")
         init_success = True
     except Exception as e:
-        msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization failed [{e}]")
-    msgproc.log(f"Subsonic [{constants.subsonic_plugin_release}] Initialization success: [{init_success}]")
+        msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
+                    f"Initialization failed [{e}]")
+    msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
+                f"Initialization success: [{init_success}]")
 
 
 def detect_anomalies():
@@ -92,7 +96,7 @@ def detect_multiple_artists():
         for curr_artist in ali_list:
             artist_id: str = curr_artist.getId()
             artist_name: str = curr_artist.getName().lower()
-            artist_mb_id = curr_artist.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value)
+            artist_mb_id = subsonic_util.get_artist_musicbrainz_id(curr_artist)
             existing: list[ArtistOccurrence] = artist_dict[artist_name] if artist_name in artist_dict else list()
             # there must not be artist_id duplicates!
             if artist_id in existing:

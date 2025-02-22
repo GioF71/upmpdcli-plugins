@@ -40,6 +40,8 @@ class Starter(Enum):
     DISCO = 2
     DISK = 3
     D = 4
+    VOLUME = 5
+    VOL = 6
 
 
 def __is_int(value: str) -> bool:

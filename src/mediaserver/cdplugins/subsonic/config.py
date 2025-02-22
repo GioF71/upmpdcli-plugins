@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ from tag_type import TagType
 
 
 def get_plugin_config_variable_name(name: str) -> str:
-    return f"{constants.plugin_name}{name}"
+    return f"{constants.PluginConstant.PLUGIN_NAME.value}{name}"
 
 
 def get_option_value_as_bool(nm: str, default_value: int) -> bool:
@@ -33,50 +33,26 @@ def get_option_value(nm, dflt: any = None):
     return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
-def get_option_value_as_int(nm, dflt: any = None):
-    v: any = get_option_value(nm, any)
-    return v if isinstance(v, int) else int(v)
-
-
-items_per_page: int = min(
-    constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value,
-    get_option_value("itemsperpage", constants.Defaults.ITEMS_PER_PAGE.value))
-
-
 def get_cached_request_timeout_sec() -> int:
     return get_option_value(
         "cachedrequesttimeoutsec",
         constants.Defaults.CACHED_REQUEST_TIMEOUT_SEC.value)
 
 
-append_year_to_album: int = int(get_option_value("appendyeartoalbum", "1"))
-append_codecs_to_album: int = int(get_option_value("appendcodecstoalbum", "1"))
 whitelist_codecs: list[str] = str(get_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
 allow_blacklisted_codec_in_song: int = int(get_option_value("allowblacklistedcodecinsong", "1"))
-disable_navigable_album: int = int(get_option_value("disablenavigablealbumview", "0"))
 tag_initial_page_enabled_prefix: str = get_plugin_config_variable_name("taginitialpageenabled")
 autostart: int = int(get_option_value("autostart", "0"))
 log_intermediate_url: bool = get_option_value("logintermediateurl", "0") == "1"
 skip_intermediate_url: bool = get_option_value("skipintermediateurl", "0") == "1"
-allow_artist_art: bool = get_option_value("allowartistart", "0") == "1"
 server_side_scrobbling: bool = get_option_value("serversidescrobbling", "0") == "1"
 prepend_number_in_album_list: bool = get_option_value("prependnumberinalbumlist", "0") == "1"
 
-configured_transcode_codec: str = get_option_value("transcodecodec", "")
 configured_transcode_max_bitrate: str = get_option_value("transcodemaxbitrate", "")
 
-max_artists_per_page: int = get_option_value("maxartistsperpage", constants.Defaults.MAX_ARTISTS_PER_PAGE.value)
-
-show_empty_favorites: bool = get_option_value_as_bool("showemptyfavorites", constants.default_show_empty_favorites)
-show_empty_playlists: bool = get_option_value_as_bool("showemptyplaylists", constants.default_show_empty_playlists)
 debug_badge_mngmt: bool = get_option_value_as_bool("debugbadgemanagement", constants.default_debug_badge_mngmt)
 debug_artist_albums: bool = get_option_value_as_bool("debugartistalbums", constants.default_debug_artist_albums)
 
-
-dump_streaming_properties: bool = (
-    get_option_value(
-        "dumpstreamingproperties",
-        constants.default_dump_streaming_properties) == 1)
 
 # supported unless initializer understands it is not
 # begin
@@ -86,21 +62,24 @@ internet_radio_stations_supported: bool = True
 
 
 def is_transcode_enabled() -> bool:
-    return configured_transcode_codec or configured_transcode_max_bitrate
+    return (get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC) or
+            configured_transcode_max_bitrate)
 
 
 def get_transcode_codec() -> str:
-    if configured_transcode_codec:
-        return configured_transcode_codec
+    transcode_codec: str = get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC)
+    if transcode_codec:
+        return transcode_codec
     if is_transcode_enabled():
-        return constants.fallback_transcode_codec
+        return constants.Defaults.FALLBACK_TRANSCODE_CODEC.value
     return None
 
 
 def get_transcode_max_bitrate() -> int:
-    if configured_transcode_max_bitrate:
+    transcode_codec: str = get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC)
+    if transcode_codec:
         return int(configured_transcode_max_bitrate)
-    if configured_transcode_codec:
+    if transcode_codec:
         return 320
     return None
 
@@ -114,94 +93,50 @@ def is_tag_supported(tag: TagType) -> bool:
     return True
 
 
-def show_artist_mb_id() -> bool:
-    return get_option_value_as_bool("showartistmbid", 0)
+def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> str:
+    dv: str | None = configuration_parameter.default_value
+    if dv is not None and not isinstance(dv, str):
+        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
+    v: any = get_option_value(configuration_parameter.key, dv)
+    if v is None:
+        return None
+    # v is set, check type!
+    if isinstance(v, str):
+        return v
+    # try to convert to string
+    return str(v)
 
 
-def show_artist_mb_id_placeholder_only() -> bool:
-    return get_option_value_as_bool("showartistmbidplaceholderonly", 1)
+def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> str:
+    dv: int | None = configuration_parameter.default_value
+    if dv is not None and not isinstance(dv, int):
+        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
+    v: any = get_option_value(configuration_parameter.key, dv)
+    if v is None:
+        return None
+    # v is set, check type!
+    if isinstance(v, int):
+        return v
+    # try to convert to int
+    return int(v)
 
 
-def show_artist_id() -> bool:
-    return get_option_value_as_bool("showartistid", 0)
-
-
-def show_artist_id_in_album() -> bool:
-    return get_option_value_as_bool("showartistidinalbum", 0)
-
-
-def show_album_id_in_album() -> bool:
-    return get_option_value_as_bool("showalbumidinalbum", 0)
-
-
-def show_album_mb_id_in_album() -> bool:
-    return get_option_value_as_bool("showalbummbidinalbum", 0)
-
-
-def show_album_mb_id_in_album_placeholder_only() -> bool:
-    return get_option_value_as_bool("showalbummbidinalbumplaceholderonly", 1)
-
-
-def show_paths_in_album() -> bool:
-    return get_option_value_as_bool("showpathsinalbum", 0)
-
-
-def show_album_id_in_navigable_album() -> bool:
-    return get_option_value_as_bool("showalbumidinnavigablealbum", 0)
-
-
-def get_dump_action_on_mb_album_cache() -> bool:
+def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> bool:
+    default_value_as_int: int = 0
+    dv: any = configuration_parameter.default_value
+    if isinstance(dv, int):
+        default_value_as_int = 1 if dv == 1 else 0
+    elif isinstance(dv, bool):
+        default_value_as_int = 1 if dv else 0
     return get_option_value_as_bool(
-        "dumpactiononmbalbumcache",
-        constants.Defaults.DUMP_ACTION_ON_MB_ALBUM_CACHE.value)
+        configuration_parameter.key,
+        default_value_as_int)
 
 
-def get_allow_append_artist_in_album_lists() -> bool:
-    return get_option_value_as_bool(
-        "allowprependartistinalbumlists",
-        constants.Defaults.ALLOW_PREPEND_ARTIST_IN_ALBUM_LISTS.value)
-
-
-def get_allow_prepend_disc_count_in_album_lists() -> bool:
-    return get_option_value_as_bool(
-        "allowprependtrackcountinalbumlists",
-        constants.Defaults.ALLOW_PREPEND_DISC_COUNT_IN_ALBUM_LISTS.value)
-
-
-def get_allow_prepend_track_count_in_album_lists() -> bool:
-    return get_option_value_as_bool(
-        "allowprependtrackcountinalbumlists",
-        constants.Defaults.ALLOW_PREPEND_TRACK_COUNT_IN_ALBUM_LISTS.value)
-
-
-def get_set_class_to_album_for_navigable_album() -> bool:
-    return get_option_value_as_bool(
-        "setclasstoalbumfornavigablealbum",
-        constants.Defaults.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM.value)
-
-
-def get_additional_artists_max() -> int:
-    return get_option_value(
-        "maxadditionalartists",
-        constants.Defaults.ADDITIONAL_ARTISTS_MAX.value)
-
-
-def get_album_search_limit() -> int:
-    return get_option_value(
-        "albumsearchlimit",
-        constants.Defaults.ALBUM_SEARCH_LIMIT.value)
-
-
-def get_artist_search_limit() -> int:
-    return get_option_value(
-        "artistsearchlimit",
-        constants.Defaults.ARTIST_SEARCH_LIMIT.value)
-
-
-def get_song_search_limit() -> int:
-    return get_option_value(
-        "songsearchlimit",
-        constants.Defaults.SONG_SEARCH_LIMIT.value)
+def get_items_per_page() -> int:
+    return min(
+        constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value,
+        get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE))
 
 
 def getWebServerDocumentRoot() -> str:

@@ -181,11 +181,13 @@ def __do_create_table(table_name: str, sql: str):
 
 
 def __get_db_filename() -> str:
-    return f"{constants.plugin_name}.db"
+    return f"{constants.PluginConstant.PLUGIN_NAME.value}.db"
 
 
 def __get_db_full_path() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), __get_db_filename())
+    return os.path.join(
+        upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value),
+        __get_db_filename())
 
 
 def __get_connection() -> sqlite3.Connection:

@@ -1,5 +1,41 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.6.9
+
+- Reduced request cache timeout default to 30 seconds
+- Honor config.disable_navigable_album everytime we would want to create a navigable album entry
+- Added two more items to album subdivision folder name prefixes
+- Release number and plugin name to a new enum class in constants
+- Add song selection entry for additional artist in album
+- Add new method for reading config param as int from enum
+- Improved configuration support
+- Granular configurability for showing album mb id in album entries
+- Granular configurability for showing year in album entries
+- Configurability for dumping genres for album
+- Granular configurability for showing album id in album entries
+- Granular configurability for showing artist in album entries
+- Granular configurability for showing quality badge in album entries
+- Improved quality badge detection
+- Allow configuration for showing disc/track count in album as search results
+- More concise naming
+- Better configurability of entry title for album view and album container
+- Better parameter naming (maybe remove this entry when releasing)
+- Optionally allow search album results to be presented as containers
+- Respect show only placeholder config parameter for additional artists in album
+- Readable sampling rate for lossy quality badges
+- Add album count for artist with albums of a single release type
+- Add album count for artist with same name
+- Reviewed albums from Genre creating navigable entries
+- Add cover art to next button for genre albums
+- Search results show album mbid considering "show only placeholder" parameter
+- Add support for showing genres in album lists
+- Add optional support for showing genres in album view
+- Add counters to "All Releases" and to "Appearances" album lists
+- Use subsequent artist for selecting an album art for the "Next" button
+- Show WARN when an album without genre is met
+- Add m4a and mp3 as lossy format suffix
+- General code cleanup and optimizations
+
 ## Release 0.6.8
 
 - Introduced TODO.md file to keep track of new things to do

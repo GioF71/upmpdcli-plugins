@@ -671,9 +671,17 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Cache timeout for artists, defaults to 600</descr></var>
 #subsoniccachetimeoutartists = 600
 
-# <var name="subsonicappendyeartoalbum" type="bool"><brief>Append year to album</brief>
-# <descr>If enabled, the year will be appended to the album in the lists. Enabled by default.</descr></var>
-#subsonicappendyeartoalbum = 1
+# <var name="subsonicappendyeartoalbumcontainer" type="bool"><brief>Append year to album container</brief>
+# <descr>If enabled, the year will be appended to the album as a container. Enabled by default.</descr></var>
+#subsonicappendyeartoalbumcontainer = 1
+
+# <var name="subsonicappendyeartoalbumview" type="bool"><brief>Append year to album view</brief>
+# <descr>If enabled, the year will be appended to the album view. Disabled by default.</descr></var>
+#subsonicappendyeartoalbumview = 0
+
+# <var name="subsonicappendyeartoalbumsearchres" type="bool"><brief>Append year to album as search result</brief>
+# <descr>If enabled, the year will be appended to the album as a search result. Disabled by default.</descr></var>
+#subsonicappendyeartoalbumsearchres = 0
 
 # <var name="subsonictranscodecodec" type="string"><brief>Enable transcoding</brief>
 # <descr>If a value is set, it will be used as the codec for the transcoding process</descr></var>
@@ -714,6 +722,16 @@ upradiostitle = Upmpdcli Radio List
 # will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
 #subsonictitle = Subsonic
+
+# <var name="subsonicallowappendgenreinalbumview" type="int">
+# <brief>Subsonic show genres in album view</brief>
+# <descr>Show Genres in album view, disabled by defaults</descr></var>
+#subsonicallowappendgenreinalbumview = 0
+
+# <var name="subsonicallowgenreinalbumcontainer" type="int">
+# <brief>Subsonic show genres in album container entry</brief>
+# <descr>Show Genres in album container, used in album lists, disabled by defaults</descr></var>
+#subsonicallowgenreinalbumcontainer = 0
 
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 

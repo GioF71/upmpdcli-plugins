@@ -586,8 +586,14 @@ subsonicitemsperpage:: SubSonic items per page Number of items per page for SubS
 [[subsoniccachetimeoutartists]]
 subsoniccachetimeoutartists:: SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
 
-[[subsonicappendyeartoalbum]]
-subsonicappendyeartoalbum:: Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
+[[subsonicappendyeartoalbumcontainer]]
+subsonicappendyeartoalbumcontainer:: Append year to album container. If enabled, the year will be appended to the album container. Enabled by default.
+
+[[subsonicappendyeartoalbumview]]
+subsonicappendyeartoalbumview:: Append year to album view. If enabled, the year will be appended to the album container. Disabled by default.
+
+[[subsonicappendyeartoalbumsearchres]]
+subsonicappendyeartoalbumsearchres:: Append year to album search result. If enabled, the year will be appended to the album container. Disabled by default.
 
 [[subsonictranscodecodec]]
 subsonictranscodecodec:: Enable transcoding If a value is set, it will be used as the codec for the transcoding process
@@ -596,7 +602,7 @@ subsonictranscodecodec:: Enable transcoding If a value is set, it will be used a
 subsonictranscodemaxbitrate:: Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
 
 [[subsonicserversidescrobbling]]
-subsonicserversidescrobbling:: Enable server-side scrobbling If enabled, we will scrobble the song when streaming starts. Disabled by default.
+subsonicserversidescrobbling:: Enable server-side scrobbling. If enabled, we will scrobble the song when streaming starts. Disabled by default.
 
 [[subsonicprependnumberinalbumlist]]
 subsonicprependnumberinalbumlist:: Add a progressive number to album in album lists. Mostly for Kodi compatibility and usability. Enabled by default.
@@ -617,6 +623,12 @@ disabled by default
 subsonictitle:: Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
+
+[[subsonicallowappendgenreinalbumview]]
+subsonicallowappendgenreinalbumview:: Allow genres in album view, defaults to 0.
+
+[[subsonicallowgenreinalbumcontainer]]
+subsonicallowgenreinalbumcontainer:: Allow genres in an album container entry, defaults to 0.
 
 === Upmpdcli BBC Sounds plugin parameters 
 

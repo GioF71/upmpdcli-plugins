@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,11 @@
 
 from enum import Enum
 
-plugin_name: str = "subsonic"
-subsonic_plugin_release: str = "0.6.8"
 
-default_dump_streaming_properties: int = 0
+class PluginConstant(Enum):
+
+    PLUGIN_RELEASE = "0.6.9"
+    PLUGIN_NAME = "subsonic"
 
 
 class ItemKey(Enum):
@@ -38,24 +39,91 @@ class ItemKey(Enum):
     DISC_TITLES_TITLE = "title"
 
 
+class AlbumEntryType(Enum):
+    ALBUM_VIEW = 1,
+    ALBUM_CONTAINER = 2
+
+
 class Defaults(Enum):
 
     SUBSONIC_API_MAX_RETURN_SIZE = 500  # API Hard Limit
-    DUMP_ACTION_ON_MB_ALBUM_CACHE = 0
-    ADDITIONAL_ARTISTS_MAX = 15
-    ALBUM_SEARCH_LIMIT = 50
-    ARTIST_SEARCH_LIMIT = 25
-    SONG_SEARCH_LIMIT = 100
-    MAX_ARTISTS_PER_PAGE = 25
-    ITEMS_PER_PAGE = 25
-    CACHED_REQUEST_TIMEOUT_SEC = 600
-    ALLOW_PREPEND_ARTIST_IN_ALBUM_LISTS = 1
-    ALLOW_PREPEND_TRACK_COUNT_IN_ALBUM_LISTS = 1
-    ALLOW_PREPEND_DISC_COUNT_IN_ALBUM_LISTS = 1
-    SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = 0
+    CACHED_REQUEST_TIMEOUT_SEC = 30
+    FALLBACK_TRANSCODE_CODEC = "ogg"
 
 
-class ExplicitInfo:
+# we should remove the Defaults enumerated and converge to this new enumerated
+class _ConfigParamData:
+
+    def __init__(self, key: str, default_value: any):
+        self.__key: str = key
+        self.__default_value: any = default_value
+
+    @property
+    def key(self) -> str:
+        return self.__key
+
+    @property
+    def default_value(self) -> any:
+        return self.__default_value
+
+
+class ConfigParam(Enum):
+    ALLOW_GENRE_IN_ALBUM_VIEW = _ConfigParamData("allowgenreinalbumview", False)
+    ALLOW_GENRE_IN_ALBUM_CONTAINER = _ConfigParamData("allowgenreinalbumcontainer", True)
+    SHOW_EMPTY_FAVORITES = _ConfigParamData("showemptyfavorites", False)
+    SEARCH_RESULT_ALBUM_AS_CONTAINER = _ConfigParamData("searchresultalbumascontainer", False)
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappenddisccountinalbumcontainer", True)
+    APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappenddisccountinalbumview", False)
+    APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendtrackcountinalbumcontainer", True)
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappendtrackcountinalbumview", False)
+    ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData("allowprependartistinalbumcontainer", True)
+    ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW = _ConfigParamData("allowappendartistinalbumview", True)
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappenddisccountinalbumsearchresult", False)
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappendtrackcountinalbumsearchresult", False)
+    ARTIST_ALBUM_NEWEST_FIRST = _ConfigParamData("artistalbumnewestfirst", True)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER = _ConfigParamData("allowqbadgeinalbumcontainer", True)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData("allowqbadgeinalbumview", False)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowqbadgeinalbumsearchresult", False)
+    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbumidinalbumcontainer", True)
+    APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData("showalbumidinalbumview", False)
+    APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbumidinalbumsearchresult", False)
+    SHOW_ALBUM_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showalbummbidasplaceholder", True)
+    SHOW_ARTIST_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showartistmbidasplaceholder", True)
+    DUMP_ACTION_ON_MB_ALBUM_CACHE = _ConfigParamData("dumpactiononmbalbumcache", False)
+    DUMP_ALBUM_GENRE = _ConfigParamData("dumpalbumgenre", False)
+    APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData("appendyeartoalbumcontainer", True)
+    APPEND_YEAR_TO_ALBUM_VIEW = _ConfigParamData("appendyeartoalbumview", False)
+    APPEND_YEAR_TO_ALBUM_SEARCH_RES = _ConfigParamData("appendyeartoalbumsearchresult", False)
+    SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = _ConfigParamData("setclasstoalbumfornavigablealbum", False)
+    DUMP_ALBUM_SORTABLE_DATE = _ConfigParamData("dumpalbumsortabledate", False)
+    SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbummbidinalbumcontainer", False)
+    SHOW_ALBUM_MBID_IN_ALBUM_VIEW = _ConfigParamData("showalbummbidinalbumview", False)
+    SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbummbidinalbumsearchres", False)
+    SHOW_PATHS_IN_ALBUM = _ConfigParamData("showpathsinalbum", False)
+    SHOW_ARTIST_MB_ID = _ConfigParamData("showartistmbid", False)
+    SHOW_ARTIST_ID = _ConfigParamData("showartistid", False)
+    ALBUM_SEARCH_LIMIT = _ConfigParamData("albumsearchlimit", 50)
+    ARTIST_SEARCH_LIMIT = _ConfigParamData("artistsearchlimit", 50)
+    SONG_SEARCH_LIMIT = _ConfigParamData("albumsearchlimit", 100)
+    ITEMS_PER_PAGE = _ConfigParamData("itemsperpage", 20)
+    ADDITIONAL_ARTISTS_MAX = _ConfigParamData("maxadditionalartists", 10)
+    MAX_ARTISTS_PER_PAGE = _ConfigParamData("maxartistsperpage", 20)
+    DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", 0)
+    APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
+    SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
+    TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
+    DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
+
+    @property
+    def key(self) -> str:
+        return self.value.key
+
+    @property
+    def default_value(self) -> any:
+        return self.value.default_value
+
+
+class _ExplicitStatusData:
 
     def __init__(self, tag_value: str, display_value: str):
         self.__tag_value: str = tag_value
@@ -72,12 +140,9 @@ class ExplicitInfo:
 
 class ExplicitStatus(Enum):
 
-    EXPLICIT = ExplicitInfo("explicit", "E")
-    CLEAN = ExplicitInfo("clean", "C")
+    EXPLICIT = _ExplicitStatusData("explicit", "E")
+    CLEAN = _ExplicitStatusData("clean", "C")
 
 
-default_show_empty_favorites: int = 0
-default_show_empty_playlists: int = 0
-fallback_transcode_codec: str = "ogg"
 default_debug_badge_mngmt: int = 0
 default_debug_artist_albums: int = 0

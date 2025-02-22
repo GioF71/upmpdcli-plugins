@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ import constants
 import copy
 import os
 from functools import cmp_to_key
+from typing import Callable
 
 
 # Func name to method mapper
@@ -113,16 +114,24 @@ def try_get_artist(artist_id: str) -> Artist:
         msgproc.log(f"Cannot find Artist by artist_id [{artist_id}] due to [{type(e)}] [{e}]")
 
 
+def get_album_cover_art_by_album(album: Album) -> str:
+    return album.getCoverArt() if album else None
+
+
 def get_album_cover_art_by_album_id(album_id: str) -> str:
     album: Album = try_get_album(album_id)
-    return album.getCoverArt() if album else None
+    return get_album_cover_art_by_album(album)
+
+
+def get_album_cover_art_url_by_album(album: Album) -> str:
+    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_album(album))
 
 
 def get_album_cover_art_url_by_album_id(album_id: str) -> str:
     return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_album_id(album_id))
 
 
-def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
+def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     result: list[Song] = []
     connector: Connector = connector_provider.get()
     album: Album = try_get_album(album_id)
@@ -135,7 +144,7 @@ def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
     albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
-    return album_util.AlbumTracks(
+    return album, album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
         song_list=result,
@@ -145,7 +154,7 @@ def get_album_tracks(album_id: str) -> album_util.AlbumTracks:
 
 def get_albums(
         query_type: str,
-        size: int = config.items_per_page,
+        size: int = config.get_items_per_page(),
         offset: int = 0,
         fromYear=None,
         toYear=None) -> list[Album]:
@@ -312,7 +321,7 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
         for song in song_list:
             song_artist_list: list[dict[str, str]] = list()
             album_artist_list: list[str, str] = song.getItem().getListByName(constants.ItemKey.ALBUM_ARTISTS.value)
-            artist_list: list[str, str] = song.getItem().getListByName(constants.ItemKey.ARTISTS.value)
+            artist_list: list[dict[str, str]] = song.getItem().getListByName(constants.ItemKey.ARTISTS.value)
             if album_artist_list:
                 song_artist_list.extend(album_artist_list)
             if artist_list:
@@ -441,8 +450,11 @@ def get_release_types(album_list: list[Album]) -> dict[str, int]:
     return result
 
 
-def release_type_to_album_list_label(release_type: str) -> str:
-    return f"Release Type: {release_type.title()}"
+def release_type_to_album_list_label(release_type: str, album_count: int = None) -> str:
+    if album_count is not None:
+        return f"Release Type: {release_type.title()} [{album_count}]"
+    else:
+        return f"Release Type: {release_type.title()}"
 
 
 def get_artists_by_same_name(artist: Artist) -> list[Artist]:
@@ -511,16 +523,78 @@ def get_explicit_status(album: Album) -> str:
 
 def get_explicit_status_display_value(explicit_status: str) -> str:
     for _, v in constants.ExplicitStatus.__members__.items():
-        explicit_info: constants.ExplicitInfo = v.value
+        explicit_info: constants._ExplicitStatusData = v.value
         if explicit_info.tag_value == explicit_status:
             return explicit_info.display_value
     return None
 
 
+def append_something_to_album_title(
+        current_albumtitle: str,
+        something: str,
+        album_entry_type: constants.AlbumEntryType,
+        is_search_result: bool,
+        container_config: constants.ConfigParam,
+        view_config: constants.ConfigParam,
+        search_res_config: constants.ConfigParam) -> str:
+    if not something:
+        return current_albumtitle
+    album_title: str = current_albumtitle
+    do_append: bool = False
+    if constants.AlbumEntryType.ALBUM_CONTAINER == album_entry_type:
+        do_append = config.get_config_param_as_bool(container_config)
+    elif constants.AlbumEntryType.ALBUM_VIEW == album_entry_type:
+        # do we want the badge?
+        if is_search_result:
+            do_append = config.get_config_param_as_bool(search_res_config)
+        else:
+            do_append = config.get_config_param_as_bool(view_config)
+    # msgproc.log(f"append_something_to_album_title EntryType [{album_entry_type}] "
+    #             f"SearchResult [{is_search_result}] -> "
+    #             f"do_append [{do_append}]")
+    if do_append:
+        # msgproc.log(f"append_something_to_album_title appending [{something}] to [{album_title}] ...")
+        album_title = f"{album_title} [{something}]"
+    # else:
+        # msgproc.log(f"append_something_to_album_title NOT appending [{something}] to [{album_title}]!")
+    return album_title
+
+
+def append_album_id_to_album_title(
+        current_albumtitle: str,
+        album_id: str,
+        album_entry_type: constants.AlbumEntryType,
+        is_search_result: bool) -> str:
+    return append_something_to_album_title(
+        current_albumtitle=current_albumtitle,
+        something=album_id,
+        album_entry_type=album_entry_type,
+        is_search_result=is_search_result,
+        container_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_CONTAINER,
+        view_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_VIEW,
+        search_res_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES)
+
+
+def append_album_badge_to_album_title(
+        current_albumtitle: str,
+        album_badge: str,
+        album_entry_type: constants.AlbumEntryType,
+        is_search_result: bool) -> str:
+    return append_something_to_album_title(
+        current_albumtitle=current_albumtitle,
+        something=album_badge,
+        album_entry_type=album_entry_type,
+        is_search_result=is_search_result,
+        container_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER,
+        view_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW,
+        search_res_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES)
+
+
 def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
     explicit_status: str = get_explicit_status(album)
     if explicit_status is not None and len(explicit_status) > 0:
-        msgproc.log(f"Explicit status is [{explicit_status}]")
+        msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
+                    f"[{album.getTitle()}] by [{album.getArtist()}]")
         # find match ...
         display_value: str = get_explicit_status_display_value(explicit_status)
         explicit_expression = display_value if display_value else explicit_status
@@ -528,18 +602,24 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
     return current_albumtitle
 
 
-def append_number_of_discs(current_albumtitle: str, album: Album) -> str:
+def append_number_of_discs_to_album_title(
+        current_albumtitle: str,
+        album: Album,
+        config_getter: Callable[[], bool]) -> str:
     result: str = current_albumtitle
     disc_titles: list[DiscTitle] = get_disc_titles_from_album(album)
-    if config.get_allow_prepend_disc_count_in_album_lists() and len(disc_titles) > 1:
+    if config_getter() and len(disc_titles) > 1:
         result = f"{result} [{len(disc_titles)}]"
     return result
 
 
-def append_number_of_tracks(current_albumtitle: str, album: Album) -> str:
+def append_number_of_tracks_to_album_title(
+        current_albumtitle: str,
+        album: Album,
+        config_getter: Callable[[], bool]) -> str:
     result: str = current_albumtitle
     number_of_tracks: int = album.getSongCount()
-    if config.get_allow_prepend_track_count_in_album_lists() and number_of_tracks is not None:
+    if config_getter() and number_of_tracks is not None:
         result = f"{result} [{number_of_tracks}]"
     return result
 
@@ -558,27 +638,41 @@ def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
     return lst
 
 
-def append_cached_mb_id_to_artist_entry_name(entry_name: str, artist_id: str) -> str:
-    if config.show_artist_mb_id():
+def append_cached_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_id: str) -> str:
+    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
         # see if we have it cached.
         artist_mb_id: str = cache_actions.get_artist_mb_id(artist_id)
         if artist_mb_id:
-            if config.get_dump_action_on_mb_album_cache():
+            if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                 msgproc.log(f"Found mbid for artist_id [{artist_id}] -> [{artist_mb_id}]")
-            if artist_mb_id:
-                entry_name = f"{entry_name} [{'mb' if config.show_artist_mb_id_placeholder_only() else artist_mb_id}]"
+            as_ph: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER)
+            mb_val: str = ('mb' if as_ph else artist_mb_id)
+            entry_name = f"{entry_name} [{mb_val}]"
         else:
-            if config.get_dump_action_on_mb_album_cache():
+            if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                 msgproc.log(f"Cannot find mbid for artist_id [{artist_id}]")
     return entry_name
 
 
-def append_mb_id_to_artist_entry_name(entry_name: str, artist_mb_id: str) -> str:
-    if config.show_artist_mb_id():
+def append_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_mb_id: str) -> str:
+    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
         if artist_mb_id:
-            if artist_mb_id:
-                entry_name = f"{entry_name} [{'mb' if config.show_artist_mb_id_placeholder_only() else artist_mb_id}]"
+            as_ph: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER)
+            mb_val: str = ('mb' if as_ph else artist_mb_id)
+            entry_name = f"{entry_name} [{mb_val}]"
     return entry_name
+
+
+def append_genre_to_artist_entry_name_if_allowed(
+        entry_name: str,
+        album: Album,
+        config_getter: Callable[[], bool]) -> str:
+    result: str = entry_name
+    if config_getter():
+        genres: list[str] = album.getGenres()
+        if genres and len(genres) > 0:
+            result = f"{result} [{', '.join(genres)}]"
+    return result
 
 
 def __compare_album_by_date(left: Album, right: Album) -> int:
@@ -590,5 +684,14 @@ def __compare_album_by_date(left: Album, right: Album) -> int:
 
 
 def sort_albums_by_date(album_list: list[Album]):
+    reverse: bool = config.get_config_param_as_bool(constants.ConfigParam.ARTIST_ALBUM_NEWEST_FIRST)
     if album_list:
-        album_list.sort(key=cmp_to_key(__compare_album_by_date))
+        album_list.sort(key=cmp_to_key(mycmp=__compare_album_by_date), reverse=reverse)
+
+
+def get_album_musicbrainz_id(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value) if album else None
+
+
+def get_artist_musicbrainz_id(artist: Artist) -> str | None:
+    return artist.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value) if artist else None
