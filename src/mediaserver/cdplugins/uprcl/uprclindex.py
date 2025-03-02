@@ -45,7 +45,8 @@ def _initconfdir(confdir, topdirs):
         src = os.path.join(datadir, "rclconfig-" + fn)
         shutil.copyfile(src, dst)
     try:
-        os.truncate(os.path.join(confdir, "backends"), 0)
+        with open(os.path.join(confdir, "backends"), "wb") as f:
+            pass
     except Exception as err:
         uplog(f"Failed truncating backends: {err}")
 
