@@ -51,7 +51,7 @@ public:
 
     // This is for internal use only, but moving it to Internal would
     // make things quite more complicated for a number of reasons.
-    virtual std::string get_media_url(const std::string& path);
+    virtual std::string get_media_url(const std::string& path, const std::string& useragent);
 
     // used for plugins which should start initialization asap
     bool startInit();

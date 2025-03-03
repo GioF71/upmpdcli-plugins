@@ -144,6 +144,7 @@ static StreamProxy *o_proxy;
 
 StreamProxy::UrlTransReturn translateurl(
     CDPluginServices *cdsrv,
+    const std::string& useragent,
     std::string& url,
     const std::unordered_map<std::string, std::string>& querymap,
     std::unique_ptr<NetFetch>& fetcher
@@ -170,7 +171,7 @@ StreamProxy::UrlTransReturn translateurl(
     }
 
     // Translate to Tidal/Qobuz etc real temporary URL
-    url = realplg->get_media_url(path);
+    url = realplg->get_media_url(path, useragent);
     if (url.empty()) {
         LOGERR("answer_to_connection: no media_uri for: " << url << "\n");
         return StreamProxy::Error;
@@ -243,7 +244,7 @@ bool PlgWithSlave::maybeStartProxy(CDPluginServices *cdsrv)
 {
     if (nullptr == o_proxy) {
         int port = CDPluginServices::microhttpport();
-        o_proxy = new StreamProxy(port, std::bind(&translateurl, cdsrv, _1, _2, _3));
+        o_proxy = new StreamProxy(port, std::bind(&translateurl, cdsrv, _1, _2, _3, _4));
             
         if (nullptr == o_proxy) {
             LOGERR("PlgWithSlave: Proxy creation failed\n");
@@ -312,7 +313,7 @@ bool PlgWithSlave::startInit()
 // The Python code calls the service to translate the trackid to a temp
 // URL. We cache the result for a few seconds to avoid multiple calls
 // to tidal.
-string PlgWithSlave::get_media_url(const string& path)
+string PlgWithSlave::get_media_url(const string& path, const std::string& useragent)
 {
     LOGDEB0("PlgWithSlave::get_media_url: " << path << "\n");
     if (!m->maybeStartCmd()) {
@@ -322,7 +323,7 @@ string PlgWithSlave::get_media_url(const string& path)
     if (m->laststream.path.compare(path) ||
         (now - m->laststream.opentime > 10)) {
         unordered_map<string, string> res;
-        if (!m->cmd.callproc("trackuri", {{"path", path}}, res)) {
+        if (!m->cmd.callproc("trackuri", {{"path", path}, {"user-agent", useragent}}, res)) {
             LOGERR("PlgWithSlave::get_media_url: slave failure\n");
             return string();
         }

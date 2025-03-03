@@ -296,7 +296,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         uint64_t offset = 0;
         // First call, look at headers, method etc.
 #ifdef PRINT_KEYS
-        MHD_get_connection_values(mhdconn,MHD_HEADER_KIND,&print_out_key,0);
+        MHD_get_connection_values(mhdconn, MHD_HEADER_KIND, &print_out_key, 0);
 #endif
         if (strcmp("GET", method) && strcmp("HEAD", method)) {
             LOGERR("StreamProxy::answerConn: method is not GET or HEAD\n");
@@ -309,11 +309,15 @@ MHD_Result StreamProxy::Internal::answerConn(
         // Compute destination url
         unordered_map<string,string>querydata;
         MHD_get_connection_values(mhdconn, MHD_GET_ARGUMENT_KIND, &mapvalues_cb, &querydata);
+        std::string useragent;
+        const char *ua = MHD_lookup_connection_value(mhdconn,MHD_HEADER_KIND, "user-agent");
+        if (ua)
+            useragent = ua;
 
         // Request the method (redirect or proxy), and the fetcher if we are proxying.
         string url(_url);
         std::unique_ptr<NetFetch> fetcher;
-        UrlTransReturn ret = urltrans(url, querydata, fetcher);
+        UrlTransReturn ret = urltrans(useragent, url, querydata, fetcher);
         
         if (ret == Error) {
             return MHD_NO;

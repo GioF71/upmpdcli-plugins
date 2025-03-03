@@ -43,9 +43,10 @@ public:
      */
     enum UrlTransReturn {Error, Proxy, Redirect};
     typedef std::function<UrlTransReturn
-                          (std::string& url,
-        const std::unordered_map<std::string, std::string>& queryparams,
-        std::unique_ptr<NetFetch>& fetcher)> UrlTransFunc;
+                          (const std::string& useragent,
+                           std::string& url,
+                           const std::unordered_map<std::string, std::string>& queryparams,
+                           std::unique_ptr<NetFetch>& fetcher)> UrlTransFunc;
 
     StreamProxy(int listenport, UrlTransFunc urltrans);
     ~StreamProxy();
