@@ -1769,8 +1769,8 @@ def handler_element_navigable_album(
     upnp_util.set_album_title(title, album_entry)
     if album_quality_badge:
         msgproc.log(f"Setting quality metadata to {album_quality_badge}")
-        upnp_util.set_metadata("quality", album_quality_badge, album_entry)
-        upnp_util.set_metadata("version", album_quality_badge, album_entry)
+        upnp_util.set_metadata("albumquality", album_quality_badge, album_entry)
+        upnp_util.set_metadata("albumversion", album_quality_badge, album_entry)
     entries.append(album_entry)
     # add artist if needed
     skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)
