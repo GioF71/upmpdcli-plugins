@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.1
+
+- Added quality badge as version until subsonic provides the version field
+- Added quality badge to album
+- Initial support for additional metadata
+
 ## Release 0.7.0
 
 - Albums by release type include only albums for the selected artist_id (others go to Appearances)

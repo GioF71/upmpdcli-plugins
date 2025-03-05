@@ -85,3 +85,7 @@ def set_sample_rate(sample_rate: int, target: dict):
 
 def set_bit_rate(bit_rate: int, target: dict):
     target['kbs'] = str(bit_rate)
+
+
+def set_metadata(metadata_name: str, metadata_value: str, target: dict):
+    target[f"upmpd:{metadata_name}"] = metadata_value
