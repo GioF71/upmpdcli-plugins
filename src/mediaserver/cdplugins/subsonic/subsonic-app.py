@@ -412,7 +412,7 @@ def _load_albums_by_artist(artist_id: str, release_types: subsonic_util.AlbumRel
         raise Exception(f"Cannot get albums for artist_id {artist_id}")
     album_list: list[Album] = artist_response.getObj().getAlbumList()
     if release_types:
-        album_list = albums_by_release_type(album_list, release_types)
+        album_list = albums_by_release_type(artist_id, album_list, release_types)
     return album_list
 
 
@@ -1436,6 +1436,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     appearance_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
         artist_id=artist_id,
         album_list=album_list)
+    has_appearances: bool = len(appearance_album_list) > 0
     msgproc.log(f"Artist [{artist_id}] has \"Appears on\" albums: [{len(appearance_album_list)}]")
     artist_release_types: dict[str, int] = subsonic_util.get_release_types(album_list)
     msgproc.log(f"Artist [{artist_id}] release types counters are: [{artist_release_types}]")
@@ -1447,46 +1448,52 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         msgproc.log("We can add by-releasetype album entries!")
     else:
         msgproc.log("No need for by-releasetype album entries.")
-    select_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
+    cover_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
     albums_entry: dict[str, any] = create_artist_albums_entry(
         objid=objid,
         artist_id=artist_id,
-        select_album=select_album,
+        cover_art_album=cover_art_album,
         album_entry_name=(subsonic_util.release_type_to_album_list_label(single_release_type, len(album_list))
                           if one_release_type
                           else f"All Releases [{len(album_list)}]"))
     msgproc.log(f"handler_element_artist for {artist_id} -> "
-                f"selected album_id: {select_album.getId() if select_album else None}")
+                f"selected album_id: {cover_art_album.getId() if cover_art_album else None}")
     if not one_release_type:
         # add by release type.
         current_rt_str: str
         for current_rt_str in artist_release_types.keys():
             release_types: subsonic_util.AlbumReleaseTypes = subsonic_util.AlbumReleaseTypes(current_rt_str.split("/"))
-            msgproc.log(f"Processing release type [{release_types.key}] [{release_types.display_name}]...")
-            by_rt_list: list[Album] = albums_by_release_type(album_list, release_types)
+            msgproc.log(f"Processing release type [{release_types.key}] [{release_types.display_name}] ...")
+            by_rt_list: list[Album] = albums_by_release_type(artist_id, album_list, release_types)
             by_type_album: Album = secrets.choice(by_rt_list) if len(by_rt_list) > 0 else None
+            by_type_album_count: int = len(by_rt_list)
+            if by_type_album_count == 0:
+                # skip release type, no albums (should appear among "Appearances")
+                msgproc.log(f"Skipping release type [{release_types.key}] [{release_types.display_name}] "
+                            f"because there are no albums for artist_id [{artist_id}], look in the Appearances")
+                continue
             by_type_entry_name: str = subsonic_util.release_type_to_album_list_label(
                 release_type=release_types.display_name,
-                album_count=len(by_rt_list))
+                album_count=by_type_album_count)
             rt_entry: dict[str, any] = create_artist_albums_entry(
                 objid=objid,
                 artist_id=artist_id,
-                select_album=by_type_album,
+                cover_art_album=by_type_album,
                 album_entry_name=by_type_entry_name,
                 release_types=release_types)
             entries.append(rt_entry)
-    # add fallback albums entry, can be "all releases" or just one entry because there are no release types
-    entries.append(albums_entry)
     # do we have appearances?
-    if len(appearance_album_list) > 0:
+    if has_appearances:
         # we have appearances
         msgproc.log(f"We add the \"Appears on\" entry as we have [{len(appearance_album_list)}] appearances")
         appearances_entry: dict[str, any] = create_artist_albums_entry_for_appearances(
             objid=objid,
             artist_id=artist_id,
             album_entry_name=f"Appearances [{len(appearance_album_list)}]",
-            select_album=secrets.choice(appearance_album_list))
+            cover_art_album=secrets.choice(appearance_album_list))
         entries.append(appearances_entry)
+    # add fallback albums entry, can be "all releases" or just one entry because there are no release types
+    entries.append(albums_entry)
     # add artist focus ...
     artist_focus_entry = entry_creator.artist_id_to_artist_focus(objid, artist_id)
     # possibly select another album for artist focus
@@ -1500,6 +1507,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
 
 
 def albums_by_release_type(
+        artist_id: str,
         album_list: list[Album],
         release_types: subsonic_util.AlbumReleaseTypes) -> list[Album]:
     msgproc.log(f"albums_by_release_type with release_types=[{release_types.key}]")
@@ -1507,6 +1515,9 @@ def albums_by_release_type(
     rt_key: str = release_types.key
     current: Album
     for current in album_list if album_list else list():
+        # must belong to artist id
+        if current.getArtistId() != artist_id:
+            continue
         # check release type
         if subsonic_util.album_has_release_types(current):
             current_rt: subsonic_util.AlbumReleaseTypes = subsonic_util.get_album_release_types(current)
@@ -1518,7 +1529,7 @@ def albums_by_release_type(
 def create_artist_albums_entry(
         objid: any,
         artist_id: str,
-        select_album: Album,
+        cover_art_album: Album,
         album_entry_name: str,
         release_types: subsonic_util.AlbumReleaseTypes = None) -> dict[str, any]:
     msgproc.log(f"create_artist_albums_entry for [{artist_id}] "
@@ -1537,7 +1548,7 @@ def create_artist_albums_entry(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        connector_provider.get().buildCoverArtUrl(select_album.getCoverArt()) if select_album else None,
+        connector_provider.get().buildCoverArtUrl(cover_art_album.getCoverArt()) if cover_art_album else None,
         albums_entry)
     return albums_entry
 
@@ -1545,7 +1556,7 @@ def create_artist_albums_entry(
 def create_artist_albums_entry_for_appearances(
         objid: any,
         artist_id: str,
-        select_album: Album,
+        cover_art_album: Album,
         album_entry_name: str) -> dict[str, any]:
     msgproc.log(f"create_artist_albums_entry_for_appearances for [{artist_id}]")
     item_identifier: ItemIdentifier = ItemIdentifier(
@@ -1559,33 +1570,27 @@ def create_artist_albums_entry_for_appearances(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        connector_provider.get().buildCoverArtUrl(select_album.getCoverArt()) if select_album else None,
+        connector_provider.get().buildCoverArtUrl(cover_art_album.getCoverArt()) if cover_art_album else None,
         albums_entry)
     return albums_entry
 
 
 def handler_element_artist_focus(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    artist_response: Response[Artist] = None
-    try:
-        artist_response = connector_provider.get().getArtist(artist_id)
-    except Exception as ex:
-        msgproc.log(f"handler_element_artist_focus Cannot get artist with id {artist_id} [{type(ex)}] [{ex}]")
-    if not artist_response or not artist_response.isOk():
-        msgproc.log(f"handler_element_artist_focus Cannot retrieve artist by id {artist_id}")
+    artist: Artist = subsonic_util.try_get_artist(artist_id)
+    if artist is None:
         return entries
-    artist: Artist = artist_response.getObj()
     try:
-        top_songs_entry_list: list[dict[str, any]] = _artist_to_top_songs_entry(
-            objid,
-            artist_id,
-            artist.getName())
+        top_songs_entry_list: list[dict[str, any]] = create_artist_top_songs_entry(
+            objid=objid,
+            artist_id=artist_id,
+            artist_name=artist.getName())
         top_songs_entry: dict[str, any]
         for top_songs_entry in top_songs_entry_list:
             entries.append(top_songs_entry)
     except Exception as ex:
         msgproc.log(f"Cannot get top songs for artist_id [{artist_id}] [{type(ex)}] [{ex}]")
-    similar_artists_entry: dict[str, any] = _similar_artists_for_artist(objid, artist_id)
+    similar_artists_entry: dict[str, any] = create_similar_artists_entry(objid, artist_id)
     if similar_artists_entry:
         entries.append(similar_artists_entry)
     radio_entry_list: list[dict[str, any]] = _radio_entry(
@@ -1644,10 +1649,8 @@ def handler_element_album_focus(
         item_identifier: ItemIdentifier,
         entries: list) -> list:
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    album_res: Response[Album] = connector_provider.get().getAlbum(album_id)
-    album: Album = album_res.getObj() if album_res and album_res.isOk() else None
+    album: Album = subsonic_util.try_get_album(album_id)
     if not album:
-        msgproc.log(f"Cannot retrieve album with id [{album_id}]")
         return entries
     start_time: float = time.time()
     get_top_songs_elapsed_time: float = 0
@@ -1655,10 +1658,10 @@ def handler_element_album_focus(
     get_top_songs_elapsed_time: float = None
     if album.getArtistId():
         try:
-            top_songs_entry_list: list[dict[str, any]] = _artist_to_top_songs_entry(
-                objid,
-                album.getArtistId(),
-                album.getArtist())
+            top_songs_entry_list: list[dict[str, any]] = create_artist_top_songs_entry(
+                objid=objid,
+                artist_id=album.getArtistId(),
+                artist_name=album.getArtist())
             top_songs_entry: dict[str, any]
             get_top_songs_elapsed_time = time.time() - get_top_songs_start_time
             for top_songs_entry in top_songs_entry_list:
@@ -1672,7 +1675,7 @@ def handler_element_album_focus(
     get_similar_artists_start_time: float = time.time()
     get_similar_artists_elapsed_time: float = None
     if album.getArtistId():
-        similar_artist_entry: dict[str, any] = _similar_artists_for_artist(objid, album.getArtistId())
+        similar_artist_entry: dict[str, any] = create_similar_artists_entry(objid, album.getArtistId())
         get_similar_artists_elapsed_time = time.time() - get_similar_artists_start_time
         if similar_artist_entry:
             entries.append(similar_artist_entry)
@@ -1980,7 +1983,7 @@ def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict
     return [radio_entry, radio_song_list_entry]
 
 
-def _similar_artists_for_artist(objid, artist_id: str) -> dict[str, any]:
+def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
     res_artist_info: Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
     if not res_artist_info.isOk():
         raise Exception(f"Cannot get artist info for artist_id {artist_id}")
@@ -2007,11 +2010,11 @@ def _similar_artists_for_artist(objid, artist_id: str) -> dict[str, any]:
         return similar_artists_entry
 
 
-def _artist_to_top_songs_entry(objid, artist_id: str, artist: str) -> list[dict[str, any]]:
+def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> list[dict[str, any]]:
     result: list[dict[str, any]] = list()
-    res_top_songs: Response[TopSongs] = connector_provider.get().getTopSongs(artist)
+    res_top_songs: Response[TopSongs] = connector_provider.get().getTopSongs(artist_name)
     if not res_top_songs.isOk():
-        raise Exception(f"Cannot load top songs for artist {artist}")
+        raise Exception(f"Cannot load top songs for artist {artist_name}")
     if len(res_top_songs.getObj().getSongs()) > 0:
         # ok to create top songs entry, else None
         top_songs_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS.getName(), artist_id)
@@ -2021,7 +2024,7 @@ def _artist_to_top_songs_entry(objid, artist_id: str, artist: str) -> list[dict[
         top_songs_entry: dict[str, any] = upmplgutils.direntry(
             top_songs_id,
             objid,
-            title=f"Top Songs by {artist}")
+            title=f"Top Songs by {artist_name}")
         top_songs: list[Song] = res_top_songs.getObj().getSongs()
         art_select_song: Song = secrets.choice(top_songs) if top_songs and len(top_songs) > 0 else None
         art_select_song_art: str = art_select_song.getCoverArt() if art_select_song else None
@@ -2038,7 +2041,7 @@ def _artist_to_top_songs_entry(objid, artist_id: str, artist: str) -> list[dict[
         top_songs_list_entry: dict[str, any] = upmplgutils.direntry(
             top_songs_list_id,
             objid,
-            title=f"Top Songs (List) by {artist}")
+            title=f"Top Songs (List) by {artist_name}")
         art_select_song = secrets.choice(res_top_songs.getObj().getSongs())
         upnp_util.set_album_art_from_uri(
             connector_provider.get().buildCoverArtUrl(art_select_song.getCoverArt()),

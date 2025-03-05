@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.6.9"
+    PLUGIN_RELEASE = "0.7.0"
     PLUGIN_NAME = "subsonic"
 
 
@@ -84,7 +84,7 @@ class ConfigParam(Enum):
     ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER = _ConfigParamData("allowqbadgeinalbumcontainer", True)
     ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData("allowqbadgeinalbumview", False)
     ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowqbadgeinalbumsearchresult", False)
-    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbumidinalbumcontainer", True)
+    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbumidinalbumcontainer", False)
     APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData("showalbumidinalbumview", False)
     APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbumidinalbumsearchresult", False)
     SHOW_ALBUM_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showalbummbidasplaceholder", True)
@@ -113,6 +113,7 @@ class ConfigParam(Enum):
     SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
+    DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
 
     @property
     def key(self) -> str:

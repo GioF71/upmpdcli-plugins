@@ -592,7 +592,9 @@ def append_album_badge_to_album_title(
 
 def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
     explicit_status: str = get_explicit_status(album)
-    if explicit_status is not None and len(explicit_status) > 0:
+    if (explicit_status is not None
+            and len(explicit_status) > 0
+            and config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS)):
         msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
                     f"[{album.getTitle()}] by [{album.getArtist()}]")
         # find match ...

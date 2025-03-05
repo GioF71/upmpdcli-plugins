@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.0
+
+- Albums by release type include only albums for the selected artist_id (others go to Appearances)
+- Only dump explicit status if configured to do so
+- Default to not show artist id even for album container
+
 ## Release 0.6.9
 
 - Reduced request cache timeout default to 30 seconds
