@@ -2,9 +2,9 @@
 
 ## Release 0.7.1
 
-- Added quality badge as version until subsonic provides the version field
-- Added quality badge to album
+- Added quality badge to album (also search results)
 - Initial support for additional metadata
+- General code cleanup and optimizations
 
 ## Release 0.7.0
 
