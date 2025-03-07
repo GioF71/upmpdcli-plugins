@@ -36,6 +36,9 @@ import uprclinit
 import uprcltagscreate
 from uprcltagscreate import _clid, _junctb, recolltosql
 
+_albumclass = "object.container.album.musicAlbum"
+_artistclass = "object.container.person.musicArtist"
+_completealbum = ">> Complete Album"
 
 def _tblst(tabnames):
     return ",".join(tabnames)
@@ -329,14 +332,14 @@ class Tagged(object):
                     arturi=r[2],
                     date=r[3],
                     artist=r[4],
-                    upnpclass="object.container.album.musicAlbum",
+                    upnpclass=_albumclass,
                 )
             )
         return entries
 
     # Called when the search finds one of our synthetic album search
     # results. Create a container entry for it
-    def direntryforalbid(self, albid):
+    def direntryforalbid(self, albid, title=None):
         intalbid = int(albid)
         c = self._conn.cursor()
         stmt = """SELECT album_id, albtitle, albarturi, albdate, artist.value
@@ -345,16 +348,18 @@ class Tagged(object):
         args = (intalbid,)
         c.execute(stmt, args)
         for r in c:
+            if not title:
+                title = r[1]
             pid = uprclinit.getObjPrefix() + "albums"
             id = pid + "$" + albid
             return direntry(
                 id,
                 pid,
-                r[1],
+                title,
                 arturi=r[2],
                 date=r[3],
                 artist=r[4],
-                upnpclass="object.container.album.musicAlbum",
+                upnpclass=_albumclass,
             )
         return None
 
@@ -368,7 +373,7 @@ class Tagged(object):
         for r in c:
             pid = uprclinit.getObjPrefix() + "=Artist"
             id = pid + "$" + artid
-            return direntry(id, pid, r[0], upnpclass="object.container.person.musicArtist")
+            return direntry(id, pid, r[0], upnpclass=_artistclass)
         return None
 
     # This is called when an 'albums' element is encountered in the
@@ -408,7 +413,7 @@ class Tagged(object):
             entries = self._trackentriesforstmt(stmt, rawalbids + docidsl, pid)
             if ntracks != len(entries):
                 id = pid + "$" + "showca"
-                entries = [direntry(id, pid, ">> Complete Album")] + entries
+                entries = [self.direntryforalbid(str(albid), title=_completealbum)] + entries
         elif i == len(qpath) - 3:
             # 'Complete album' entry
             # Note that minim has an additional level here, probably to
@@ -417,7 +422,8 @@ class Tagged(object):
             #    0$=Composer$17738$albums$2$showca.0$hcalbum$*i13458
             # I don't know what the .0 is for.
             # The 'hcalbum' level usually has 2 entries '>> Hide Content'
-            # and the album title. TBD
+            # and the album title. TBD the way we do it currently, we lose the album title in the
+            # tracks screen header (it's "Complete Album")
             albid = int(qpath[-2])
             entries = self._trackentriesforalbum(albid, pid)
 
@@ -441,7 +447,8 @@ class Tagged(object):
             # Replace $items with $albums for the album entry
             id = pid.replace("$items", "$albums") + f"${albid}$showca"
             if len(tlist) != len(docids):
-                entries.append(direntry(id, pid, ">> Complete Album"))
+                entries.append(self.direntryforalbid(str(albid), title=_completealbum))
+
             # We used to show an album entry here, but the album was probably already shown at the
             # level above (because there is only one), and it's better to show the tracks in title
             # order. Kept around because I'm not sure that there are not cases where we'd want it
@@ -555,7 +562,7 @@ class Tagged(object):
                 tlist = self._trackentriesforalbum(albid, pid)
                 id = pid + "$albums$" + str(albid) + "$showca"
                 if len(tlist) != len(docids):
-                    entries.append(direntry(id, pid, ">> Complete Album"))
+                    entries.append(self.direntryforalbid(str(albid), title=_completealbum))
                 else:
                     displaytracks = False
                     el = self._direntriesforalbums(pid, "WHERE album_id = %s" % albid)
