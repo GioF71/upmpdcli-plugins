@@ -163,6 +163,12 @@ def rcldoctoentry(id, pid, httphp, pathprefix, doc):
             + xml.sax.saxutils.escape(doc["conductor"])
             + "</upnp:artist>"
         )
+    if doc["albumartist"]:
+        didlfrag += (
+            '<upnp:artist role="AlbumArtist">'
+            + xml.sax.saxutils.escape(doc["albumartist"])
+            + "</upnp:artist>"
+        )
     if didlfrag:
         li["didlfrag"] = didlfrag
 
