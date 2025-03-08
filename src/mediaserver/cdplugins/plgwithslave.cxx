@@ -220,11 +220,10 @@ bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
 
     // Send the UPnP (libnpupnp) HTTP IP address and port. This allows using the internal
     // lib(np)upnp HTTP server to serve local files (if enabled by setting webserverdocumentroot in
-    // the config accordingly).
-    std::string val;
-    if (getOptionValue("webserverdocumentroot", val) && !val.empty()) {
+    // the config accordingly, see main.hxx).
+    if (!g_npupnpwebdocroot.empty()) {
         env.push_back(string("UPMPD_UPNPHOSTPORT=") + upnphost + ":" + lltodecstr(upnpport));
-        env.push_back(string("UPMPD_UPNPDOCROOT=") + path_cat(g_datadir, {"www", appname}));
+        env.push_back(string("UPMPD_UPNPDOCROOT=") + g_npupnpwebdocroot);
     }
 
     string exepath = path_cat(g_datadir, "cdplugins");

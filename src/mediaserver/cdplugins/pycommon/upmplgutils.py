@@ -113,9 +113,23 @@ def trackid_from_urlpath(pathprefix, a):
     return trackid
 
 
+# NPUPNP web server document root if set. This does not come directly from the config, but uses a
+# specific environment variable (upmpdcli does some processing on the configuration value).
+def getUpnpWebDocRoot(servicename):
+    try:
+        d = os.environ["UPMPD_UPNPDOCROOT"]
+        dp = os.path.join(d, servicename)
+        if not os.path.exists(dp):
+            os.makedirs(dp)
+        # returning /.../cachedir/www not /.../cachedir/www/pluginname 
+        return d
+    except Exception as ex:
+        #uplog(f"NO UPNPWEBDOCROOT: {ex}")
+        return ""
+    
+
+# Generic option retrieval: get the value from the configuration file or the environment.
 _g_upconfig = None
-
-
 def getOptionValue(nm, dflt=None):
     global _g_upconfig
     if _g_upconfig is None:

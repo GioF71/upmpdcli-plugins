@@ -23,6 +23,16 @@ extern const std::string g_upmpdcli_package_version;
 extern std::string g_configfilename;
 extern std::string g_datadir;
 extern std::string g_cachedir;
+// If enabled by the configuration this is the document root for the libnpupnp Web server, possibly
+// used by mediaserver plugins to serve misc local files
+// Note that this is not a direct read of the configuration variable which has special values:
+//   0: web server is disabled
+//   1: determine an appropriate location depending on who we are running as
+//   absolute path: use it
+// 0 results into an empty value here.
+// 1 into typically /var/cache/upmpdcli/www or $HOME/.cache/upmpdcli/www
+extern std::string g_npupnpwebdocroot;
+
 extern bool g_enableL16;
 extern bool g_lumincompat;
 class ConfSimple;
