@@ -142,6 +142,7 @@ ConfSimple *g_state;
 bool g_enableL16 = true;
 bool g_lumincompat = false;
 bool g_mainShouldExit{false};
+std::string g_npupnpwebdocroot{"1"};
 
 static void onsig(int)
 {
@@ -189,12 +190,8 @@ bool startMediaServer(bool enable)
     if (nullptr == mediaserver)
         return false;
     auto lib = LibUPnP::getLibUPnP();
-
-    std::string documentroot;
-    if (getOptionValue("webserverdocumentroot", documentroot)) {
-        if (!documentroot.empty() && path_isabsolute(documentroot)) {
-            lib->setWebServerDocumentRoot(documentroot);
-        }
+    if (!g_npupnpwebdocroot.empty() && path_isabsolute(g_npupnpwebdocroot)) {
+        lib->setWebServerDocumentRoot(g_npupnpwebdocroot);
     }
     
     devs.push_back(mediaserver);
@@ -531,6 +528,17 @@ int main(int argc, char *argv[])
 
     string statefn = path_cat(opts.cachedir, "/upmstate");
     g_state = new ConfSimple(statefn.c_str());
+
+    std::string docroot;
+    if (getOptionValue("webserverdocumentroot", docroot)) {
+        if (docroot == "1") {
+            g_npupnpwebdocroot = path_cat(g_cachedir, "www");
+        } else if (path_isabsolute(docroot)) {
+            g_npupnpwebdocroot = docroot;
+        } else {
+            g_npupnpwebdocroot.clear();
+        }
+    }
     
     opts.cachefn.clear();
     if (!msonly && ohmetapersist) {

@@ -18,12 +18,11 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name: str = "tidal"
 
-tidal_plugin_release: str = "0.8.0"
+tidal_plugin_release: str = "0.8.1"
 
 
 class EnvironmentVariableName(Enum):
     UPMPD_UPNPHOSTPORT = "UPMPD_UPNPHOSTPORT"
-    UPMPD_UPNPDOCROOT = "UPMPD_UPNPDOCROOT"
 
 
 listening_queue_action_key: str = "action"

@@ -402,12 +402,13 @@
 # The icon will only be read once, when upmpdcli starts up.</descr></var>
 #msiconpath = /usr/share/upmpdcli/icon.png
 
-# <var name="webserverdocumentroot" type="fn">
-# <brief>Directory from which the internal HTTP server will directly serve files</brief>
-# <descr>This is disabled by default for compatibility with older versions which never served
-# files directly from the filesystem. Some Mediaserver plugins ask to enable it, e.g. for
-# serving icon files (normally from directories under /usr/share/upmpdcli/www).</descr></var>
-#webserverdocumentroot = 
+# <var name="webserverdocumentroot" type="string">
+# <brief>Path from which the UPnP HTTP server will serve files: 0:none, 1:auto, abs. path: use
+# it.</brief> 
+# <descr>Some Mediaserver plugins need it, e.g. for serving icon files or cached data. The default
+# value is 1, resulting into an actual path of /var/cache/upmpdcli/www or ~/.cache/upmpdcli/www.
+# </descr></var>
+#webserverdocumentroot = 1
 
 # <grouptitle>Highresaudio streaming service parameters</grouptitle>
 

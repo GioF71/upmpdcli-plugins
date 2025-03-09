@@ -140,7 +140,7 @@ def get_items_per_page() -> int:
 
 
 def getWebServerDocumentRoot() -> str:
-    return upmplgutils.getOptionValue("webserverdocumentroot")
+    return upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
 
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
