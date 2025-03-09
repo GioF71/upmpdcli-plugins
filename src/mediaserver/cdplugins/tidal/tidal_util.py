@@ -646,9 +646,7 @@ def get_docroot_base_url() -> str:
     host_port: str = (os.environ[constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value]
                       if constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value in os.environ
                       else None)
-    doc_root: str = (os.environ[constants.EnvironmentVariableName.UPMPD_UPNPDOCROOT.value]
-                     if constants.EnvironmentVariableName.UPMPD_UPNPDOCROOT.value in os.environ
-                     else None)
+    doc_root: str = upmplgutils.getUpnpWebDocRoot(constants.plugin_name)
     if not host_port or not doc_root:
         return None
     return f"http://{host_port}"

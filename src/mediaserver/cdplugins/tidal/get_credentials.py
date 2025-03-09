@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 """Use this program to obtain credentials for the tidal plugin."""
 

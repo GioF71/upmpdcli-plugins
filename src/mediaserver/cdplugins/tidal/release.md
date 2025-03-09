@@ -1,5 +1,10 @@
 # Tidal Plugin Release notes
 
+## 0.8.1
+
+- Changes to adapt to upcoming upmpdcli 1.9.2 (webserver document root)
+- Fix tidal plugin executable files using #!/usr/bin/env python3
+
 ## 0.8.0
 
 - Cleanup config parameters enum in constants
