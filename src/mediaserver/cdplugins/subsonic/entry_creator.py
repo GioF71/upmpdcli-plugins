@@ -494,11 +494,11 @@ def album_to_navigable_entry(
         entry_name=title,
         album=album,
         config_getter=(lambda: config.get_config_param_as_bool(constants.ConfigParam.ALLOW_GENRE_IN_ALBUM_CONTAINER)))
-    album_badge: str = get_album_quality_badge(album=album, force_load=False)
-    # msgproc.log(f"album_to_navigable_entry album [{album.getId()}] -> badge [{album_badge}]")
+    album_quality_badge: str = get_album_quality_badge(album=album, force_load=False)
+    # msgproc.log(f"album_to_navigable_entry album [{album.getId()}] -> badge [{album_quality_badge}]")
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
-        album_badge=album_badge,
+        album_quality_badge=album_quality_badge,
         album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
         is_search_result=False)
     # msgproc.log(f"album_to_navigable_entry title [{title}]")
@@ -543,6 +543,8 @@ def album_to_navigable_entry(
         pid=objid,
         title=entry_title,
         artist=artist)
+    if album_quality_badge:
+        upnp_util.set_metadata("albumquality", album_quality_badge, entry)
     upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
@@ -824,12 +826,12 @@ def album_to_entry(
     if append_year and has_year(album):
         title = "{} [{}]".format(title, get_album_year_str(album))
     force_load: bool = get_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE)
-    album_badge: str = get_album_quality_badge(album=album, force_load=force_load)
-    msgproc.log(f"album_to_entry album_badge for [{album.getId()}] is [{album_badge}] force_load was [{force_load}]")
+    album_quality_badge: str = get_album_quality_badge(album=album, force_load=force_load)
+    msgproc.log(f"album_to_entry album_quality_badge for [{album.getId()}] is [{album_quality_badge}] force_load was [{force_load}]")
     if force_load and config.get_config_param_as_bool(constants.ConfigParam.APPEND_CODEC_TO_ALBUM):
         msgproc.log(f"album_to_entry for "
                     f"album_id: [{album.getId()}] "
-                    f"badge [{album_badge if album_badge else 'not available'}] "
+                    f"badge [{album_quality_badge if album_quality_badge else 'not available'}] "
                     "loading songs ...")
         song_list: list[Song] = album.getSongs()
         # load album
@@ -860,12 +862,12 @@ def album_to_entry(
                 title = strip_codec_from_album(title, codecs)
             codecs_str: str = ",".join(codecs)
             # add codecs if more than one or there is no quality_badge
-            if (len(codecs) > 1) or (not album_badge or len(album_badge) == 0):
+            if (len(codecs) > 1) or (not album_quality_badge or len(album_quality_badge) == 0):
                 title = "{} [{}]".format(title, codecs_str)
     # set badge
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
-        album_badge=album_badge,
+        album_quality_badge=album_quality_badge,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
     # show album id
@@ -897,6 +899,8 @@ def album_to_entry(
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
+    if album_quality_badge:
+        upnp_util.set_metadata("albumquality", album_quality_badge, entry)
     return entry
 
 
@@ -959,10 +963,10 @@ def album_version_to_entry(
     track_list: list[Song] = _load_album_version_tracks(
         album=current_album,
         album_version_path=album_version_path)
-    album_badge: str = get_track_list_badge(track_list)
-    msgproc.log(f"album_version_to_entry album [{current_album.getId()}] -> badge [{album_badge}]")
-    if album_badge:
-        title = f"{title} [{album_badge}]"
+    album_quality_badge: str = get_track_list_badge(track_list)
+    msgproc.log(f"album_version_to_entry album [{current_album.getId()}] -> badge [{album_quality_badge}]")
+    if album_quality_badge:
+        title = f"{title} [{album_quality_badge}]"
         msgproc.log(f"album_version_to_entry title [{title}]")
     artist = current_album.getArtist()
     cache_actions.on_album(current_album)

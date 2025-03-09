@@ -577,12 +577,12 @@ def append_album_id_to_album_title(
 
 def append_album_badge_to_album_title(
         current_albumtitle: str,
-        album_badge: str,
+        album_quality_badge: str,
         album_entry_type: constants.AlbumEntryType,
         is_search_result: bool) -> str:
     return append_something_to_album_title(
         current_albumtitle=current_albumtitle,
-        something=album_badge,
+        something=album_quality_badge,
         album_entry_type=album_entry_type,
         is_search_result=is_search_result,
         container_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER,

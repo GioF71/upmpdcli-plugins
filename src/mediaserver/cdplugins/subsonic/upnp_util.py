@@ -16,6 +16,7 @@
 import upmplgmodels
 from subsonic_connector.album import Album
 import album_util
+from msgproc_provider import msgproc
 
 
 def set_track_number(track_number: str, target: dict):
@@ -85,3 +86,9 @@ def set_sample_rate(sample_rate: int, target: dict):
 
 def set_bit_rate(bit_rate: int, target: dict):
     target['kbs'] = str(bit_rate)
+
+
+def set_metadata(metadata_name: str, metadata_value: str, target: dict):
+    k: str = f"upmpd:{metadata_name}"
+    msgproc.log(f"set_metadata setting [{k}] to [{metadata_value}]")
+    target[k] = metadata_value

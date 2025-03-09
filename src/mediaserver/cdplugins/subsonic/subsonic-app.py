@@ -1753,7 +1753,7 @@ def handler_element_navigable_album(
     album_quality_badge: str = entry_creator.get_album_quality_badge(album=album, force_load=True)
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
-        album_badge=album_quality_badge,
+        album_quality_badge=album_quality_badge,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=False)
     title = subsonic_util.append_album_id_to_album_title(
@@ -1767,6 +1767,8 @@ def handler_element_navigable_album(
         else:
             title = f"{title} [mb:{album_mb_id}]"
     upnp_util.set_album_title(title, album_entry)
+    if album_quality_badge:
+        upnp_util.set_metadata("albumquality", album_quality_badge, album_entry)
     entries.append(album_entry)
     # add artist if needed
     skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)

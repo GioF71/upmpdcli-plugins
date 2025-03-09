@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.1
+
+- Changes to adapt to upcoming upmpdcli 1.9.2 (webserver document root)
+- Added quality badge to album (also search results)
+- Initial support for additional metadata
+- General code cleanup and optimizations
+
 ## Release 0.7.0
 
 - Albums by release type include only albums for the selected artist_id (others go to Appearances)
