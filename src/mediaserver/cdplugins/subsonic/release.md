@@ -2,6 +2,7 @@
 
 ## Release 0.7.1
 
+- Use new method available in upcoming upmpdcli 1.9.2 for retrieving the plugin path
 - Changes to adapt to upcoming upmpdcli 1.9.2 (webserver document root)
 - Added quality badge to album (also search results)
 - Initial support for additional metadata

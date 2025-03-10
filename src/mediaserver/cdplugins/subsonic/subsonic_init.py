@@ -55,7 +55,7 @@ def subsonic_init():
                  "images",
                  "static"])
             msgproc.log(f"Directories for static images [{images_static_dir}] created.")
-            src_path: str = "/usr/share/upmpdcli/cdplugins/subsonic"
+            src_path: str = upmplgutils.getOptionValue("pkgdatadir")
             src_static_images_path: str = f"{src_path}/images/static"
             for img in ["unknown-artist.svg", "unknown-cover.svg"]:
                 shutil.copyfile(f"{src_static_images_path}/{img}",
