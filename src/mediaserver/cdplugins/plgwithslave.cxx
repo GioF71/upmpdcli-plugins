@@ -226,6 +226,8 @@ bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
         env.push_back(string("UPMPD_UPNPDOCROOT=") + g_npupnpwebdocroot);
     }
 
+    env.push_back(string("UPMPD_PKGDATADIR=") + g_datadir);
+
     string exepath = path_cat(g_datadir, "cdplugins");
     exepath = path_cat(exepath, appname);
     exepath = path_cat(exepath, appname + "-app.py");
