@@ -55,7 +55,7 @@ def subsonic_init():
                  "images",
                  "static"])
             msgproc.log(f"Directories for static images [{images_static_dir}] created.")
-            src_path: str = (f"{upmplgutils.getOptionValue("pkgdatadir")}/"
+            src_path: str = (f"{upmplgutils.getOptionValue('pkgdatadir')}/"
                              f"cdplugins/{constants.PluginConstant.PLUGIN_NAME.value}")
             src_static_images_path: str = f"{src_path}/images/static"
             for img in ["unknown-artist.svg", "unknown-cover.svg"]:
