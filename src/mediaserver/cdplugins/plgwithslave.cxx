@@ -420,12 +420,12 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
         Json::Value& decod_i = decoded[i];
 
         // Possibly extract our vendor extension fields
-        for(Json::Value::const_iterator it = decod_i.begin(); it != decod_i.end(); it++) {
+        for(auto it = decod_i.begin(); it != decod_i.end(); it++) {
             if (beginswith(it.key().asString(), "upmpd:")) {
                 if (song.upmpfields == nullptr)
                     song.upmpfields = new std::unordered_map<std::string, std::string>;
                 LOGDEB1("resultToEntries: "<<it.key().asString()<<" -> "<<(*it).asString()<<'\n');
-                auto& flds{*(song.upmpfields)};
+                auto& flds(*(song.upmpfields));
                 flds[it.key().asString()] = (*it).asString();
             }
         }
