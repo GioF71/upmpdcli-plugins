@@ -150,8 +150,8 @@
 #plgproxymethod = redirect
 # Path to the Media Server icon.
 #msiconpath = /usr/share/upmpdcli/icon.png
-# Directory from which the internal HTTP server will directly serve files
-#webserverdocumentroot =
+# Path from which the UPnP HTTP server will serve files: 0:none, 1:auto, abs. path: use it.
+#webserverdocumentroot = 1
 
 # Highresaudio streaming service parameters
 
@@ -205,6 +205,10 @@
 #uprcluser = bugsbunny
 # Plugin Title.
 uprcltitle = Local Music
+# Media directories
+#uprclmediadirs =
+# Don't make the local radio list as a playlist.
+#uprnoradioconf = 0
 # Uprcl HTTP server host and port for serving media files.
 #uprclhostport =
 # Uprcl HTTP server port for serving media files.
@@ -215,8 +219,6 @@ uprcltitle = Local Music
 #uprclconfrecolluser = /var/cache/upmpdcli/uprcl/recoll.conf.user
 # Name of the Minim Server configuration file
 #uprclminimconfig =
-# Media directories
-#uprclmediadirs =
 # Suppress folder "Tag View" entries.
 #uprclnotagview=false
 # Path translations.
@@ -277,7 +279,7 @@ upradiostitle = Upmpdcli Radio List
 # Append year to album view
 #subsonicappendyeartoalbumview = 0
 # Append year to album as search result
-#appendyeartoalbumsearchresult = 0
+#subsonicappendyeartoalbumsearchres = 0
 # Enable transcoding
 #subsonictranscodecodec = ogg
 # Set max bitrate for transcoding
@@ -294,10 +296,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicshowemptyplaylists = 0
 # Plugin Title.
 #subsonictitle = Subsonic
-# Genres in album view
-# subsonicallowappendgenreinalbumview = 0
-# Genres in album lists
-# subsonicallowgenreinalbumcontainer = 0
+# Subsonic show genres in album view
+#subsonicallowappendgenreinalbumview = 0
+# Subsonic show genres in album container entry
+#subsonicallowgenreinalbumcontainer = 0
 
 # Upmpdcli BBC Sounds plugin parameters
 

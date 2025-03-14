@@ -511,6 +511,25 @@
 # directory.</descr></var>
 uprcltitle = Local Music
 
+# <var name="uprclmediadirs" type="string">
+# <brief>Media directories</brief>
+# <descr>This is a space-separated list of directories to explore for music
+# files. This is used directly as the recoll "topdirs" value, so you can use
+# double-quote quoting for paths with embedded spaces. If not set, we will try
+# to use contentDirs from the Minim config. An error will occur if both are
+# empty.</descr>
+# </var>
+#uprclmediadirs = 
+
+# <var name="uprclnoradioconf" type="bool">
+# <brief>Don't make the local radio list as a playlist.</brief>
+#
+# <descr>By default, uprcl will process the local radio list and make it available as a playlist (in
+# the Playlists top container). This can slow down the initialisation and is useless if the upradios
+# plugin is also running, so you can disable it with this variable.</descr>
+# </var>
+#uprnoradioconf = 0
+
 # <var name="uprclhostport" type="string">
 # <brief>Uprcl HTTP server host and port for serving media files.</brief>
 # <descr>Uprcl uses a separate HTTP server based on the Python Bottle framework
@@ -559,16 +578,6 @@ uprcltitle = Local Music
 # manual). Not set by default, and optional.</descr>
 # </var>
 #uprclminimconfig =
-
-# <var name="uprclmediadirs" type="string">
-# <brief>Media directories</brief>
-# <descr>This is a space-separated list of directories to explore for music
-# files. This is used directly as the recoll "topdirs" value, so you can use
-# double-quote quoting for paths with embedded spaces. If not set, we will try
-# to use contentDirs from the Minim config. An error will occur if both are
-# empty.</descr>
-# </var>
-#uprclmediadirs = 
 
 # <var name="uprclnotagview" type="bool">
 # <brief>Suppress folder "Tag View" entries.</brief>

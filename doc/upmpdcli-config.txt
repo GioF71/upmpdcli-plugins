@@ -353,9 +353,10 @@ image file *must* be a 64x64 32 bits-per-pixel png file. Default: '$pkgdatadir/i
 The icon will only be read once, when upmpdcli starts up.
 
 [[webserverdocumentroot]]
-webserverdocumentroot:: Directory from which the internal HTTP server will directly serve files This is disabled by default for compatibility with older versions which never served
-files directly from the filesystem. Some Mediaserver plugins ask to enable it, e.g. for
-serving icon files (normally from directories under /usr/share/upmpdcli/www).
+webserverdocumentroot:: Path from which the UPnP HTTP server will serve files: 0:none, 1:auto, abs. path: use
+it. Some Mediaserver plugins need it, e.g. for serving icon files or cached data. The default
+value is 1, resulting into an actual path of /var/cache/upmpdcli/www or ~/.cache/upmpdcli/www.
+
 
 === Highresaudio streaming service parameters 
 
@@ -434,18 +435,6 @@ search, defaults to 15
 tidaloverridecountrycode:: Override the country code. This will allow you to specify the desired two-letter country code.
 When not specified, it should default to the country code of the profile.
 
-[[tidalallowfavoriteactions]]
-tidalallowfavoriteactions:: Enables adding entries that will add/remove items to/from Tidal Favorites.
-Defaults to 0
-
-[[tidalallowbookmarkactions]]
-tidalallowbookmarkactions:: Enables adding entries that will add/remove items to/from Bookmarks (stored in plugin db).
-Defaults to 0
-
-[[tidalallowstatisticsactions]]
-tidalallowstatisticsactions:: Enables adding entries that will remove items from playback statistics (stored in plugin db).
-Defaults to 0
-
 === UPRCL Local Media Server parameters 
 
 [[uprcluser]]
@@ -457,6 +446,18 @@ so that initialisation starts as soon as the program does.
 uprcltitle:: Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
+
+[[uprclmediadirs]]
+uprclmediadirs:: Media directories This is a space-separated list of directories to explore for music
+files. This is used directly as the recoll "topdirs" value, so you can use
+double-quote quoting for paths with embedded spaces. If not set, we will try
+to use contentDirs from the Minim config. An error will occur if both are
+empty.
+
+[[uprclnoradioconf]]
+uprclnoradioconf:: Don't make the local radio list as a playlist. By default, uprcl will process the local radio list and make it available as a playlist (in
+the Playlists top container). This can slow down the initialisation and is useless if the upradios
+plugin is also running, so you can disable it with this variable.
 
 [[uprclhostport]]
 uprclhostport:: Uprcl HTTP server host and port for serving media files. Uprcl uses a separate HTTP server based on the Python Bottle framework
@@ -489,13 +490,6 @@ set, should be an absolute path.
 uprclminimconfig:: Name of the Minim Server configuration file If set, this is the name of a Minim Server configuration file from
 which we should fetch parameters like aliasTags, etc. (See the
 manual). Not set by default, and optional.
-
-[[uprclmediadirs]]
-uprclmediadirs:: Media directories This is a space-separated list of directories to explore for music
-files. This is used directly as the recoll "topdirs" value, so you can use
-double-quote quoting for paths with embedded spaces. If not set, we will try
-to use contentDirs from the Minim config. An error will occur if both are
-empty.
 
 [[uprclnotagview]]
 uprclnotagview:: Suppress folder "Tag View" entries. The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
@@ -587,13 +581,13 @@ subsonicitemsperpage:: SubSonic items per page Number of items per page for SubS
 subsoniccachetimeoutartists:: SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
 
 [[subsonicappendyeartoalbumcontainer]]
-subsonicappendyeartoalbumcontainer:: Append year to album container. If enabled, the year will be appended to the album container. Enabled by default.
+subsonicappendyeartoalbumcontainer:: Append year to album container If enabled, the year will be appended to the album as a container. Enabled by default.
 
 [[subsonicappendyeartoalbumview]]
-subsonicappendyeartoalbumview:: Append year to album view. If enabled, the year will be appended to the album container. Disabled by default.
+subsonicappendyeartoalbumview:: Append year to album view If enabled, the year will be appended to the album view. Disabled by default.
 
 [[subsonicappendyeartoalbumsearchres]]
-subsonicappendyeartoalbumsearchres:: Append year to album search result. If enabled, the year will be appended to the album container. Disabled by default.
+subsonicappendyeartoalbumsearchres:: Append year to album as search result If enabled, the year will be appended to the album as a search result. Disabled by default.
 
 [[subsonictranscodecodec]]
 subsonictranscodecodec:: Enable transcoding If a value is set, it will be used as the codec for the transcoding process
@@ -602,7 +596,7 @@ subsonictranscodecodec:: Enable transcoding If a value is set, it will be used a
 subsonictranscodemaxbitrate:: Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
 
 [[subsonicserversidescrobbling]]
-subsonicserversidescrobbling:: Enable server-side scrobbling. If enabled, we will scrobble the song when streaming starts. Disabled by default.
+subsonicserversidescrobbling:: Enable server-side scrobbling If enabled, we will scrobble the song when streaming starts. Disabled by default.
 
 [[subsonicprependnumberinalbumlist]]
 subsonicprependnumberinalbumlist:: Add a progressive number to album in album lists. Mostly for Kodi compatibility and usability. Enabled by default.
@@ -625,10 +619,10 @@ will be displayed as the plugin entry in the Media Server root
 directory.
 
 [[subsonicallowappendgenreinalbumview]]
-subsonicallowappendgenreinalbumview:: Allow genres in album view, defaults to 0.
+subsonicallowappendgenreinalbumview:: Subsonic show genres in album view Show Genres in album view, disabled by defaults
 
 [[subsonicallowgenreinalbumcontainer]]
-subsonicallowgenreinalbumcontainer:: Allow genres in an album container entry, defaults to 0.
+subsonicallowgenreinalbumcontainer:: Subsonic show genres in album container entry Show Genres in album container, used in album lists, disabled by defaults
 
 === Upmpdcli BBC Sounds plugin parameters 
 

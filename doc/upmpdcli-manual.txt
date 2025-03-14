@@ -650,6 +650,10 @@ In general, a plugin is activated by being installed, and having its user name d
 configuration file (e.g. for a plugin named _myplugin_ `mypluginuser = somevalue`). Depending on the
 plugin, the variable value maybe real (e.g. a Qobuz user name), or bogus and unused. 
 
+For each plugin, a second variable, `mypluginautostart` decides if the function is activated when
+*upmpdcli* starts or at the time of first use. Some plugins with lengthy initialisations profit from
+being started as soon as possible (e.g. *uprcl*).
+
 A description of each of the plugins follows. Some of them need the additional installation of
 Python extensions from Pypi. These should be done globally, or in some alternate way ensuring that
 they are visible to the boot-started `upmpdcli`. If a given dependency is packaged by your
