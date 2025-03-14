@@ -41,9 +41,10 @@ class Playlists(object):
         self._httphp = httphp
         self._rcldocs = rcldocs
         self.recoll2playlists()
-        self._radios = []
-        radiolistid = self._idprefix + "$p" + str(len(self._pldocsidx))
-        if not conftree.valToBool(getOptionValue("uprclnoradioconf")):
+        self._noradios = conftree.valToBool(getOptionValue("uprclnoradioconf"))
+        if not self._noradios:
+            self._radios = []
+            radiolistid = self._idprefix + "$p" + str(len(self._pldocsidx))
             radios = upradioconf.UpmpdcliRadios(getConfigObject())
             for radio in radios:
                 self._radios.append(upradioconf.radioToEntry(radiolistid, None, radio))
@@ -89,14 +90,18 @@ class Playlists(object):
                 idx1 = int(path[epos + 2 :])
             else:
                 idx0 = int(path[2:])
-        if idx0 > len(self._pldocsidx):
+        if self._noradios:
+            maxidx = len(self._pldocsidx)-1
+        else:
+            maxidx = len(self._pldocsidx)
+        if idx0 > maxidx:
             raise Exception(f"playlists:browse: bad objid {objid} idx0 {idx0} not in range")
         return idx0, idx1
 
     def _idxtoentry(self, idx):
         upnpclass = "object.container.playlistContainer"
         id = self._idprefix + "$p" + str(idx)
-        if idx == len(self._pldocsidx):
+        if not self._noradios and idx == len(self._pldocsidx):
             title = "*Upmpdcli Radios*"
         elif idx >= 1 and idx < len(self._pldocsidx):
             doc = self._rcldocs[self._pldocsidx[idx]]
@@ -159,7 +164,7 @@ class Playlists(object):
                         return [
                             entries[idx1],
                         ]
-            elif idx0 == len(self._pldocsidx):
+            elif not self._noradios and idx0 == len(self._pldocsidx):
                 if idx1 == -1:
                     return [
                         self._idxtoentry(idx0),
@@ -179,11 +184,12 @@ class Playlists(object):
             for i in range(len(self._pldocsidx))[1:]:
                 entries.append(self._idxtoentry(i))
             # Special entry for our radio list. The id is 1 beyond valid playlist ids
-            entries.append(self._idxtoentry(len(self._pldocsidx)))
-        elif idx0 == len(self._pldocsidx):
+            if not self._noradios:
+                entries.append(self._idxtoentry(len(self._pldocsidx)))
+        elif not self._noradios and idx0 == len(self._pldocsidx):
             # Browsing the radio list
             entries = self._radios
-        else:
+        elif idx0 < len(self._pldocsidx):
             entries = self._playlistatidx(idx0)
 
         return entries
