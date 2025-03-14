@@ -212,7 +212,7 @@ def build_session(audio_quality: str = config.max_audio_quality) -> TidalSession
         if not res:
             msgproc.log("build oauth2 session failed")
             return None
-        session.audio_quality = config.max_audio_quality
+        session.audio_quality = audio_quality
         msgproc.log(f"Built a oauth2 session successfully, using audio_quality [{session.audio_quality}]")
         return session
 
@@ -357,7 +357,24 @@ def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     track_id: str = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}]")
-    tidal_session: TidalSession = get_session()
+    whitelisted: bool = False
+    select_quality: str = config.max_audio_quality
+    if config.max_audio_quality == TidalQuality.hi_res_lossless:
+        # select quality is dropped to high lossless if there is no match
+        select_quality = TidalQuality.high_lossless
+        user_agent: str = a['user-agent']
+        msgproc.log(f"Max quality is [{config.max_audio_quality}], "
+                    f"applying whitelist on useragent [{user_agent}] ...")
+        current: constants.UserAgentHiResWhitelist
+        for current in constants.UserAgentHiResWhitelist:
+            if user_agent and current.value.matcher(user_agent, current.user_agent_str):
+                msgproc.log(f"User Agent [{user_agent}] is in whitelist because of match with [{current.name}]")
+                whitelisted = True
+                break
+        msgproc.log(f"User Agent [{user_agent}] is whitelisted: [{whitelisted}] "
+                    f"select_quality: [{select_quality if not whitelisted else config.max_audio_quality}]")
+    # we get a regular session if there is a match, otherwise we build a session with lower quality
+    tidal_session: TidalSession = get_session() if whitelisted else build_session(audio_quality=select_quality)
     tidal_track: TidalTrack
     ex: Exception
     tidal_track, ex = tidal_util.try_get_track(tidal_session=tidal_session, track_id=track_id)

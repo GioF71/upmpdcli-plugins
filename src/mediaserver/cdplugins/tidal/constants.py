@@ -14,11 +14,56 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+from typing import Callable
 from tidalapi import Quality as TidalQuality
 
 plugin_name: str = "tidal"
 
 tidal_plugin_release: str = "0.8.1"
+
+
+class _FunctionProxy:
+    """Allow to mask a function as an Object."""
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self, *args, **kwargs):
+        return self.function(*args, **kwargs)
+
+
+class UserAgentMatcher(Enum):
+    EXACT = _FunctionProxy(lambda x, y: x == y)
+    STARTS_WITH = _FunctionProxy(lambda x, y: x.startswith(y))
+    ENDS_WITH = _FunctionProxy(lambda x, y: x.endswith(y))
+    CONTAINS = _FunctionProxy(lambda x, y: x in y)
+
+
+class UserAgentMatcherData:
+
+    def __init__(self, user_agent_str: str, matcher: Callable[[str, str], bool]):
+        self.__user_agent_str: str = user_agent_str
+        self.__matcher: Callable[[str, str], bool] = matcher
+
+    @property
+    def user_agent_str(self) -> str:
+        return self.__user_agent_str
+
+    @property
+    def matcher(self) -> Callable[[str, str], bool]:
+        return self.__matcher
+
+
+class UserAgentHiResWhitelist(Enum):
+    MPD = UserAgentMatcherData("Music Player Daemon", UserAgentMatcher.STARTS_WITH.value)
+    GMRENDER_RESURRECT = UserAgentMatcherData("Lavf/ffprobe", UserAgentMatcher.EXACT.value)
+
+    @property
+    def user_agent_str(self) -> str:
+        return self.value.user_agent_str
+
+    @property
+    def matcher(self) -> Callable[[str, str], bool]:
+        return self.value.matcher
 
 
 class EnvironmentVariableName(Enum):

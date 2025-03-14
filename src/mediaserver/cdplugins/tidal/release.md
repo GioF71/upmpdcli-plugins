@@ -1,8 +1,13 @@
 # Tidal Plugin Release notes
 
+## 0.8.2
+
+- Tidal Plugin: HiRes lossless whitelisted for mpd and gmrender-resurrect
+- Tidal Plugin: use user-agent to lower quality when player cannot do hires lossless
+
 ## 0.8.1
 
-- Changes to adapt to upcoming upmpdcli 1.9.2 (webserver document root)
+- Changes to adapt to upcoming upmpdcli 1.9.3 (webserver document root)
 - Fix tidal plugin executable files using #!/usr/bin/env python3
 
 ## 0.8.0

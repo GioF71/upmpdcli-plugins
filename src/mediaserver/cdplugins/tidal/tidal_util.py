@@ -642,11 +642,29 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
     return curr_dir
 
 
+# only temporarily here
+# NPUPNP web server document root if set. This does not come directly from the config, but uses a
+# specific environment variable (upmpdcli does some processing on the configuration value).
+def getUpnpWebDocRoot(servicename):
+    try:
+        d = os.environ["UPMPD_UPNPDOCROOT"]
+        dp = os.path.join(d, servicename)
+        if not os.path.exists(dp):
+            os.makedirs(dp)
+        # returning /.../cachedir/www not /.../cachedir/www/pluginname
+        return d
+    except Exception as ex:
+        msgproc.log(f"NO UPNPWEBDOCROOT: {ex}")
+        return ""
+
+
 def get_docroot_base_url() -> str:
     host_port: str = (os.environ[constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value]
                       if constants.EnvironmentVariableName.UPMPD_UPNPHOSTPORT.value in os.environ
                       else None)
-    doc_root: str = upmplgutils.getUpnpWebDocRoot(constants.plugin_name)
+    doc_root: str = (os.environ["UPMPD_UPNPDOCROOT"]
+                     if "UPMPD_UPNPDOCROOT" in os.environ
+                     else None)
     if not host_port or not doc_root:
         return None
     return f"http://{host_port}"
@@ -654,6 +672,7 @@ def get_docroot_base_url() -> str:
 
 def compose_docroot_url(right: str) -> str:
     doc_root_base_url: str = get_docroot_base_url()
+    msgproc.log(f"compose_docroot_url with doc_root_base_url: [{doc_root_base_url}] right: [{right}]")
     return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
 
 

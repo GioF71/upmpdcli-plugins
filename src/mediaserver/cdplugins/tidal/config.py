@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import upmplgutils
 import constants
 from tidalapi import Quality as TidalQuality
@@ -32,7 +33,23 @@ def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int = 
     return (getPluginOptionValue(plugin_param_name, sanitized_default_value) == 1)
 
 
+# only temporarily here
+# NPUPNP web server document root if set. This does not come directly from the config, but uses a
+# specific environment variable (upmpdcli does some processing on the configuration value).
+def getUpnpWebDocRoot(servicename):
+    try:
+        d = os.environ["UPMPD_UPNPDOCROOT"]
+        dp = os.path.join(d, servicename)
+        if not os.path.exists(dp):
+            os.makedirs(dp)
+        # returning /.../cachedir/www not /.../cachedir/www/pluginname
+        return d
+    except Exception:
+        return ""
+
+
 def getWebServerDocumentRoot() -> str:
+    # return getUpnpWebDocRoot(constants.plugin_name)
     return upmplgutils.getOptionValue("webserverdocumentroot")
 
 
