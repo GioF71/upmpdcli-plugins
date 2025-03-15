@@ -51,8 +51,16 @@ class Playlists(object):
 
     # Return entry to be created in the top-level directory ([playlists]).
     def rootentries(self, pid):
+        # The -1 entry does not count
+        nlists = len(self._pldocsidx) - 1
+        if not self._noradios:
+            nlists += 1
+        if nlists > 0:
+            nlists = str(nlists) + " "
+        else:
+            nlists = ""
         return [
-            direntry(pid + "playlists", pid, str(len(self._pldocsidx)) + " playlists"),
+            direntry(pid + "playlists", pid, nlists + "playlists"),
         ]
 
     # Create the playlists static vector by filtering the global doc vector, storing the indexes of
