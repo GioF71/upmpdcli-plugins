@@ -19,7 +19,7 @@ from tidalapi import Quality as TidalQuality
 
 plugin_name: str = "tidal"
 
-tidal_plugin_release: str = "0.8.1"
+tidal_plugin_release: str = "0.8.2"
 
 
 class _FunctionProxy:
