@@ -4,6 +4,7 @@
 
 - Tidal Plugin: HiRes lossless whitelisted for mpd and gmrender-resurrect
 - Tidal Plugin: use user-agent to lower quality when player cannot do hires lossless
+- Tidal Plugin: make use of user-agent, thanks to [this commit](https://framagit.org/medoc92/upmpdcli/-/commit/2c742f13eb81c4fd1bf3270fa24877e04aadbaed) by J.F. Dockes
 
 ## 0.8.1
 
