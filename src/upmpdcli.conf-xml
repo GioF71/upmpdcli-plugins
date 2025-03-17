@@ -653,23 +653,24 @@ upradiostitle = Upmpdcli Radio List
 
 # <grouptitle>SubSonic plugin parameters</grouptitle>
 
-# <var name="subsonicuser" type="string"><brief>SubSonic User name variable.</brief>
+# <var name="subsonicuser" type="string"><brief>SubSonic User name.</brief>
 # <descr>Decides if the service should be started. Set it to the appropriate user name.</descr></var>
 #subsonicuser = subsonic
 
-# <var name="subsonicpassword" type="string"><brief>SubSonic Password variable.</brief>
+# <var name="subsonicpassword" type="string"><brief>SubSonic Password.</brief>
 # <descr>Required for SubSonic authentication. Set it to the appropriate password.</descr></var>
 #subsonicpassword = subsonicpassword
 
 # <var name="subsoniclegacyauth" type="bool"><brief>SubSonic legacy authentication mode.</brief>
-# <descr>Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.</descr></var>
+# <descr>Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.
+# </descr></var>
 #subsoniclegacyauth = 0
 
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
 #subsonicbaseurl = http://subsonic.localdomain.local
 
-# <var name="subsonicport" type="int" values="2000 65535 4533">
+# <var name="subsonicport" type="int" values="0 65535 4533">
 # <brief>SubSonic server port.</brief>
 # <descr>The port of the SubSonic server</descr></var>
 #subsonicport = 4533

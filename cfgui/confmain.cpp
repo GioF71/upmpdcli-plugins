@@ -27,6 +27,7 @@
 #include <QAction>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QShortcut>
 
 #include "confgui.h"
 #include "conftree.h"
@@ -42,13 +43,12 @@ using namespace confgui;
 #endif
 string g_datadir(DATADIR "/");
 
-// g_csdef holds the defaults from the XML. g_csout values from a file
-// specified on the command line or opened through the menu. The
-// latter values override the defaults and will be output in addition
-// to user changes.
+// g_csdef holds the defaults from the XML. g_csout values from a file specified on the command line
+// or opened through the menu. The latter values override the defaults and will be output in
+// addition to user changes.
 static ConfSimple g_csdef, g_csout;
-// The file we write to. Not necessarily the same as the input one
-// (same if coming from the command line).
+// The file we write to. Not necessarily the same as the input one (same if coming from the command
+// line).
 static string g_outfile;
 
 // Pour the values from src into dest
@@ -141,6 +141,19 @@ public:
     ConfSimple *m_csdef;
 };
 
+void maybeexit(ConfTabsW *w, MainWindow *m)
+{
+    auto mod = w->modified();
+    if (!mod) {
+        m->close();
+    } else {
+        auto rep = QMessageBox::question(w, "Exit?", "Modified parameters exists. Exit anyway?");
+        if (rep == QMessageBox::StandardButton::Yes) {
+            m->close();
+        }
+    }
+}
+
 MainWindow::MainWindow(ConfTabsW *w)
     : m_tabs(w)
 {
@@ -165,7 +178,7 @@ MainWindow::MainWindow(ConfTabsW *w)
 
     act = new QAction(tr("&Quit"), this);
     act->setShortcuts(QKeySequence::Quit);
-    connect(act, &QAction::triggered, this, &QWidget::close);
+    connect(act, &QAction::triggered, [w,this](){maybeexit(w,this);});
     fileMenu->addAction(act);
 }
 
@@ -240,13 +253,13 @@ static char *thisprog;
 void Usage()
 {
     cerr << "Usage: " << thisprog << " [configfile]\n";
-    cerr << " The configuration file parameter will first be used as input,\n"
-        "for initializing the current non-default values, and it is also the\n"
-        "default output. Use 'Save As' if you can't write to it. \n"
-        "If no parameter is given, the initial values will all be defaults.\n";
+    cerr <<
+        "  A configuration file parameter will be used as input for initializing the current\n"
+        "  non-default values, and will also be the default output.\n"
+        "  Use 'Save As' if you can't write to it.\n"
+        "  If no parameter is given, the initial values will all be defaults.\n";
     exit(1);
 }
-
 
 int main(int argc, char **argv)
 {
@@ -357,7 +370,8 @@ int main(int argc, char **argv)
         }
     }
     w->hideButtons();
-    MainWindow mainWin(w);
-    mainWin.show();
+    MainWindow *m = new MainWindow(w);
+    new QShortcut(QKeySequence("Ctrl+Q"), w, [w,m] () {maybeexit(w,m);});
+    m->show();
     return app.exec();
 }
