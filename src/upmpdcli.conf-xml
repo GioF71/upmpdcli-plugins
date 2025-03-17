@@ -528,7 +528,7 @@ uprcltitle = Local Music
 # the Playlists top container). This can slow down the initialisation and is useless if the upradios
 # plugin is also running, so you can disable it with this variable.</descr>
 # </var>
-#uprnoradioconf = 0
+#uprclnoradioconf = 0
 
 # <var name="uprclhostport" type="string">
 # <brief>Uprcl HTTP server host and port for serving media files.</brief>
