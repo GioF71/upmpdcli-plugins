@@ -76,7 +76,7 @@
 # Media Renderer.</brief><descr>This will be displayed by most Control
 # Points to identify the Renderer. Some OpenHome Control Points may display
 # the 'ohproductroom' value instead.</descr></var>
-#friendlyname = UpMpd
+#friendlyname = UpMpd-%h
 
 # <var name="avfriendlyname" type="string">
 # <brief>Specific friendly name for the UPnP/AV Media Renderer.</brief>
@@ -436,7 +436,7 @@
 # <var name="qobuzpass" type="string"><brief>Qobuz password.</brief>
 # <descr>The password for your Qobuz account.</descr></var>
 #qobuzpass = agoodpassword
-# <var name="qobuzformatid" type="cstr" values="5 7 27">
+# <var name="qobuzformatid" type="cstr" values="5 6 7 27">
 # <brief>Qobuz stream quality.</brief>
 # <descr>5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
 # allows streaming each of the formats).</descr></var>
@@ -486,10 +486,9 @@
 # <descr>Allows the plugin to cache images for Artists and Albums, requires
 # webdocumentroot and some disk space, recommended</descr></var>
 #tidalenableimagecaching = 0
-# <var name="tidalsearchlimit" type="int">
+# <var name="tidalsearchlimit" type="int" values="1 1000 15">
 # <brief>Tidal search limit</brief>
-# <descr>Set the maximum numbers of item returned by
-# search, defaults to 15</descr></var>
+# <descr>Set the maximum numbers of items returned by search, defaults to 15</descr></var>
 #tidalsearchlimit = 15
 # <var name="tidaloverridecountrycode" type="string">
 # <brief>Override the country code.</brief>
@@ -509,6 +508,7 @@
 # <var name="uprcltitle" type="string"> <brief>Plugin Title.</brief><descr>This
 # will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
+#uprcltitle = Uprcl
 uprcltitle = Local Music
 
 # <var name="uprclmediadirs" type="string">
@@ -606,7 +606,7 @@ uprcltitle = Local Music
 # directory.</descr></var>
 upradiostitle = Upmpdcli Radio List
 
-# <var name="upradiosmaxthreads" type="int">
+# <var name="upradiosmaxthreads" type="int" values="1 10 5">
 # <brief>Maximum number of threads to use while initializing the radio list</brief>
 # <descr>Most radios are defined by playlist files which may need several network interactions
 # before the actual URL usable by the control point can be reached. We use multiple threads to speed
@@ -669,20 +669,25 @@ upradiostitle = Upmpdcli Radio List
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
 #subsonicbaseurl = http://subsonic.localdomain.local
 
-# <var name="subsonicport" type="int"><brief>SubSonic server port.</brief>
+# <var name="subsonicport" type="int" values="2000 65535 4533">
+# <brief>SubSonic server port.</brief>
 # <descr>The port of the SubSonic server</descr></var>
 #subsonicport = 4533
 
-# <var name="subsonicitemsperpage" type="int"><brief>SubSonic items per page</brief>
+# <var name="subsonicitemsperpage" type="int" values="1 200 36">
+# <brief>SubSonic items per page</brief>
 # <descr>Number of items per page for SubSonic</descr></var>
 #subsonicitemsperpage = 36
 
-# <var name="subsoniccachetimeoutartists" type="int"><brief>SubSonic cache timeout for artists</brief>
+# <var name="subsoniccachetimeoutartists" type="int" values="180 1800 600">
+# <brief>SubSonic cache timeout for artists</brief>
 # <descr>Cache timeout for artists, defaults to 600</descr></var>
 #subsoniccachetimeoutartists = 600
 
-# <var name="subsonicappendyeartoalbumcontainer" type="bool"><brief>Append year to album container</brief>
-# <descr>If enabled, the year will be appended to the album as a container. Enabled by default.</descr></var>
+# <var name="subsonicappendyeartoalbumcontainer" type="bool">
+# <brief>Append year to album container</brief>
+# <descr>If enabled, the year will be appended to the album as a container.
+# Enabled by default.</descr></var>
 #subsonicappendyeartoalbumcontainer = 1
 
 # <var name="subsonicappendyeartoalbumview" type="bool"><brief>Append year to album view</brief>
@@ -697,8 +702,10 @@ upradiostitle = Upmpdcli Radio List
 # <descr>If a value is set, it will be used as the codec for the transcoding process</descr></var>
 #subsonictranscodecodec = ogg
 
-# <var name="subsonictranscodemaxbitrate" type="int"><brief>Set max bitrate for transcoding</brief>
-# <descr>If a value is set, it will be used as the max bitrate for the transcoding process</descr></var>
+# <var name="subsonictranscodemaxbitrate" type="int" values="32 320 320">
+# <brief>Set max bitrate for transcoding</brief>
+# <descr>If a value is set, it will be used as the max bitrate for the transcoding process</descr>
+# </var>
 #subsonictranscodemaxbitrate = 320
 
 # <var name="subsonicserversidescrobbling" type="bool"><brief>Enable server-side scrobbling</brief>
@@ -710,19 +717,19 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Mostly for Kodi compatibility and usability. Enabled by default.</descr></var>
 #subsonicprependnumberinalbumlist = 1
 
-# <var name="subsonictaginitialpageenabledir" type="int">
+# <var name="subsonictaginitialpageenabledir" type="bool">
 # <brief>Subsonic enable Internet Radios</brief>
 # <descr>Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling
 # Internet Radios</descr></var>
 #subsonictaginitialpageenabledir = 0
 
-# <var name="subsonicshowemptyfavorites" type="int">
+# <var name="subsonicshowemptyfavorites" type="bool">
 # <brief>Subsonic show empty Favorites entries</brief>
 # <descr>Force entries for Favorites, even if there are no Favorites, 
 # disabled by default</descr></var>
 #subsonicshowemptyfavorites = 0
 
-# <var name="subsonicshowemptyplaylists" type="int">
+# <var name="subsonicshowemptyplaylists" type="bool">
 # <brief>Subsonic show empty Playlists entry</brief>
 # <descr>Force entry for Playlists, even if there are no Playlists, 
 # disabled by default</descr></var>
@@ -733,12 +740,12 @@ upradiostitle = Upmpdcli Radio List
 # directory.</descr></var>
 #subsonictitle = Subsonic
 
-# <var name="subsonicallowappendgenreinalbumview" type="int">
+# <var name="subsonicallowappendgenreinalbumview" type="bool">
 # <brief>Subsonic show genres in album view</brief>
 # <descr>Show Genres in album view, disabled by defaults</descr></var>
 #subsonicallowappendgenreinalbumview = 0
 
-# <var name="subsonicallowgenreinalbumcontainer" type="int">
+# <var name="subsonicallowgenreinalbumcontainer" type="bool">
 # <brief>Subsonic show genres in album container entry</brief>
 # <descr>Show Genres in album container, used in album lists, disabled by defaults</descr></var>
 #subsonicallowgenreinalbumcontainer = 0
@@ -757,7 +764,8 @@ upradiostitle = Upmpdcli Radio List
 # <var name="bbctitle" type="string"> <brief>Plugin Title.</brief><descr>This
 # will be displayed as the plugin entry in the Media Server root
 # directory.</descr></var>
-#bbctitle = Upmpdcli Radio List
+#bbctitle = Bbc
+bbctitle = BBC Sounds
 
 # <grouptitle>Songcast Receiver parameters</grouptitle>
 
