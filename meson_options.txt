@@ -1,5 +1,9 @@
+option('upmpdcli', type : 'boolean', value : true,
+       description: 'Build upmpdcli itself. Disable to build confgui only without needing upnp libs')
 option('confgui', type : 'boolean', value : false,
-       description: 'Enable building the Qt-based configuration editor GUI')
+       description: 'Build the Qt-based configuration editor upmpdcli-config')
+option('confgui_listifs', type : 'boolean', value : false,
+       description: 'Build upmcli-config to run on the renderer: enable net interface enumerating')
 option('scctl', type : 'boolean', value : false,
-       description: 'Enable building the scctl songcast control command and the web interface')
+       description: 'Build the scctl songcast control command and the web interface')
 

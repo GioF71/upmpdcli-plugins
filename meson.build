@@ -17,75 +17,78 @@ project(
 # in order to make sure of avoiding possible collisions by forcing user code to always use
 #  #include <libupnpp/xxx.h>
 
-
-deps = []
-dep_libupnpp = dependency('libupnpp')
-deps += dep_libupnpp
-deps += dependency('libcurl')
-deps += dependency('libmicrohttpd')
-deps += dependency('jsoncpp')
-deps += dependency('libmpdclient')
-deps += dependency('threads')
-
-upmpdcli_incdir = include_directories('src')
-
-upmpdcli_sources = files(
-  'src/avtransport.cxx',
-  'src/chrono.cpp',
-  'src/closefrom.cpp',
-  'src/conftree.cpp',
-  'src/conman.cxx',
-  'src/execmd.cpp',
-  'src/main.cxx',
-  'src/mediaserver/cdplugins/cmdtalk.cpp',
-  'src/mediaserver/cdplugins/curlfetch.cpp',
-  'src/mediaserver/cdplugins/netfetch.cpp',
-  'src/mediaserver/cdplugins/plgwithslave.cxx',
-  'src/mediaserver/cdplugins/streamproxy.cpp',
-  'src/mediaserver/contentdirectory.cxx',
-  'src/mediaserver/mediaserver.cxx',
-  'src/mpdcli.cxx',
-  'src/netcon.cpp',
-  'src/ohcredentials.cxx',
-  'src/ohinfo.cxx',
-  'src/ohmetacache.cxx',
-  'src/ohplaylist.cxx',
-  'src/ohproduct.cxx',
-  'src/ohradio.cxx',
-  'src/ohreceiver.cxx',
-  'src/ohservice.cxx',
-  'src/ohsndrcv.cxx',
-  'src/ohtime.cxx',
-  'src/ohvolume.cxx',
-  'src/pathut.cpp',
-  'src/protocolinfo.cxx',
-  'src/readfile.cpp',
-  'src/renderctl.cxx',
-  'src/smallut.cpp',
-  'src/sysvshm.cpp',
-  'src/upmpd.cxx',
-  'src/upmpdutils.cxx',
-  'src/urlmorph.cxx',
-)
-
-auto = configuration_data()
-auto.set_quoted('UPMPDCLI_VERSION', meson.project_version())
-configure_file(
-  input: 'src/config.h.in',
-  output: 'config.h',
-  configuration: auto,
-)
-
-upmpdcli_datadir = get_option('prefix') / get_option('datadir') / 'upmpdcli'
-
-executable(
-  'upmpdcli',
-  upmpdcli_sources,
-  include_directories: upmpdcli_incdir,
-  dependencies: deps,
-  install: true,
-  cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"', '-DMDU_INCLUDE_LOG="libupnpp/log.h"'],
-)
+######## upmpdcli itself
+if get_option('upmpdcli')
+  deps = []
+  dep_libupnpp = dependency('libupnpp')
+  deps += dep_libupnpp
+  deps += dependency('libcurl')
+  deps += dependency('libmicrohttpd')
+  deps += dependency('jsoncpp')
+  deps += dependency('libmpdclient')
+  deps += dependency('threads')
+  
+  upmpdcli_incdir = include_directories('src')
+  
+  upmpdcli_sources = files(
+    'src/avtransport.cxx',
+    'src/chrono.cpp',
+    'src/closefrom.cpp',
+    'src/conftree.cpp',
+    'src/conman.cxx',
+    'src/execmd.cpp',
+    'src/main.cxx',
+    'src/mediaserver/cdplugins/cmdtalk.cpp',
+    'src/mediaserver/cdplugins/curlfetch.cpp',
+    'src/mediaserver/cdplugins/netfetch.cpp',
+    'src/mediaserver/cdplugins/plgwithslave.cxx',
+    'src/mediaserver/cdplugins/streamproxy.cpp',
+    'src/mediaserver/contentdirectory.cxx',
+    'src/mediaserver/mediaserver.cxx',
+    'src/mpdcli.cxx',
+    'src/netcon.cpp',
+    'src/ohcredentials.cxx',
+    'src/ohinfo.cxx',
+    'src/ohmetacache.cxx',
+    'src/ohplaylist.cxx',
+    'src/ohproduct.cxx',
+    'src/ohradio.cxx',
+    'src/ohreceiver.cxx',
+    'src/ohservice.cxx',
+    'src/ohsndrcv.cxx',
+    'src/ohtime.cxx',
+    'src/ohvolume.cxx',
+    'src/pathut.cpp',
+    'src/protocolinfo.cxx',
+    'src/readfile.cpp',
+    'src/renderctl.cxx',
+    'src/smallut.cpp',
+    'src/sysvshm.cpp',
+    'src/upmpd.cxx',
+    'src/upmpdutils.cxx',
+    'src/urlmorph.cxx',
+  )
+  
+  auto = configuration_data()
+  auto.set_quoted('UPMPDCLI_VERSION', meson.project_version())
+  configure_file(
+    input: 'src/config.h.in',
+    output: 'config.h',
+    configuration: auto,
+  )
+  
+  upmpdcli_datadir = get_option('prefix') / get_option('datadir') / 'upmpdcli'
+  
+  executable(
+    'upmpdcli',
+    upmpdcli_sources,
+    include_directories: upmpdcli_incdir,
+    dependencies: deps,
+    install: true,
+    cpp_args: ['-DDATADIR="' + upmpdcli_datadir + '"', '-DMDU_INCLUDE_LOG="libupnpp/log.h"'],
+  )
+endif
+#### End upmpdcli
 
 ########################### Optional Configuration GUI
 if get_option('confgui')
@@ -99,25 +102,37 @@ if get_option('confgui')
 
   upmpdcli_config_sources = files(
     'cfgui/confgui.cpp',
+    'cfgui/xmltoconfgui.cpp',
     'cfgui/confmain.cpp',
+    'cfgui/loclog/log.cpp',
     'src/conftree.cpp',
     'src/pathut.cpp',
     'src/smallut.cpp',
   )
   upmpdcli_config_sources += processed
 
+  deps = [qt5widgets,]
+  cppargs = []
+  idir = 'src'
+  if get_option('confgui_listifs')
+    deps += dep_libupnpp
+    cppargs += '-DENABLE_NETIF=1 -DMDU_INCLUDE_LOG="loclog/log.h"'
+    idir = dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp'
+  endif
   cfgincludes = include_directories(
-    dep_libupnpp.get_pkgconfig_variable('includedir') / 'libupnpp',
     'src',
     'cfgui',
+    'cfgui/loclog',
+     idir,
   )
+
   executable(
     'upmpdcli-config',
     sources: upmpdcli_config_sources,
     install: true,
-    dependencies: [qt5widgets, dep_libupnpp],
+    dependencies: deps,
     include_directories: cfgincludes,
-    cpp_args: '-DENABLE_XMLCONF',
+    cpp_args: cppargs,
   )
 
 endif

@@ -47,7 +47,7 @@
 
 # <grouptitle>UPnP network parameters</grouptitle>
 
-# <var name="upnpiface" type="cstr" values="dynamic">
+# <var name="upnpiface" type="cstr" values="">
 # <brief>Network interface(s) to use for UPnP.</brief>
 # <descr>This can be left empty to use the first found suitable interface, or set to a single "*"
 # character for using all interfaces. Else set it to a space-separated list of interface names (use

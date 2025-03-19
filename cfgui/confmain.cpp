@@ -30,10 +30,13 @@
 #include <QShortcut>
 
 #include "confgui.h"
+#include "xmltoconfgui.h"
 #include "conftree.h"
 #include "mainwindow.h"
 
+#ifdef ENABLE_NETIF
 #include "libupnpp/upnpputils.hxx"
+#endif
 
 using namespace std;
 using namespace confgui;
@@ -350,6 +353,7 @@ int main(int argc, char **argv)
     }
     w->reloadPanels();
 
+#ifdef ENABLE_NETIF
     // Find the network interfaces choice and load the interfaces names
     ConfParamW *pw = w->findParamW("upnpiface");
     if (pw == 0) {
@@ -369,6 +373,8 @@ int main(int argc, char **argv)
             cerr << "upnpiface not a cstrl?\n";
         }
     }
+#endif
+    
     w->hideButtons();
     MainWindow *m = new MainWindow(w);
     new QShortcut(QKeySequence("Ctrl+Q"), w, [w,m] () {maybeexit(w,m);});
