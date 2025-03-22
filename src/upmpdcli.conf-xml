@@ -751,6 +751,12 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Show Genres in album container, used in album lists, disabled by defaults</descr></var>
 #subsonicallowgenreinalbumcontainer = 0
 
+# <var name="subsonicenableimagecaching" type="bool">
+# <brief>Enables image caching, requires webdocumentroot</brief>
+# <descr>Allows the plugin to cache images from the server, requires
+# webdocumentroot and some disk space, recommended</descr></var>
+#subsonicenableimagecaching = 0
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

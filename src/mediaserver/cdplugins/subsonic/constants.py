@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.7.1"
+    PLUGIN_RELEASE = "0.7.2"
     PLUGIN_NAME = "subsonic"
 
 
@@ -37,6 +37,7 @@ class ItemKey(Enum):
     DISC_TITLES = "discTitles"
     DISC_TITLES_DISC = "disc"
     DISC_TITLES_TITLE = "title"
+    COVER_ART = "coverArt"
 
 
 class AlbumEntryType(Enum):
@@ -108,12 +109,14 @@ class ConfigParam(Enum):
     ITEMS_PER_PAGE = _ConfigParamData("itemsperpage", 20)
     ADDITIONAL_ARTISTS_MAX = _ConfigParamData("maxadditionalartists", 10)
     MAX_ARTISTS_PER_PAGE = _ConfigParamData("maxartistsperpage", 20)
+    MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData("maxadditionalalbumartistsperpage", 10)
     DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", 0)
     APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
     SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
+    ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
 
     @property
     def key(self) -> str:

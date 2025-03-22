@@ -300,6 +300,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonicallowappendgenreinalbumview = 0
 # Subsonic show genres in album container entry
 #subsonicallowgenreinalbumcontainer = 0
+# Enables image caching, requires webdocumentroot
+#subsonicenableimagecaching = 0
 
 # Upmpdcli BBC Sounds plugin parameters
 

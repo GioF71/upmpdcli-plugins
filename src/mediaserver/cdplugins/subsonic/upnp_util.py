@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 import upmplgmodels
 from subsonic_connector.album import Album
 import album_util
-from msgproc_provider import msgproc
 
 
 def set_track_number(track_number: str, target: dict):
@@ -90,5 +89,4 @@ def set_bit_rate(bit_rate: int, target: dict):
 
 def set_metadata(metadata_name: str, metadata_value: str, target: dict):
     k: str = f"upmpd:{metadata_name}"
-    msgproc.log(f"set_metadata setting [{k}] to [{metadata_value}]")
     target[k] = metadata_value

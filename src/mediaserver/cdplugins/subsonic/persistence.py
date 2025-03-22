@@ -86,6 +86,16 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
     return result
 
 
+def delete_album_metadata(album_id: str):
+    t = (album_id, )
+    cursor = __connection.cursor()
+    q: str = f"""
+            DELETE FROM {__table_name_album_metadata_v1}
+            WHERE {__field_name_album_id} = ?"""
+    cursor.execute(q, t)
+    __connection.commit()
+
+
 def save_quality_badge(album_id: str, quality_badge: str):
     # msgproc.log(f"save_quality_badge for album_id: {album_id} "
     #             f"quality_badge: {quality_badge}")

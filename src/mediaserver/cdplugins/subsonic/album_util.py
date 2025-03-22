@@ -179,12 +179,12 @@ def sort_song_list(song_list: list[Song]) -> SortSongListResult:
         if not dec.getPath() in codec_set_by_path:
             codec_set_by_path[dec.getPath()] = set()
         codec_per_path_set: set[str] = codec_set_by_path[dec.getPath()]
-        if not song.getSuffix() in codec_per_path_set:
-            codec_per_path_set.add(song.getSuffix())
-        if not song.getSuffix() in codec_dict:
-            codec_dict[song.getSuffix()] = 1
+        if not song.getSuffix().lower() in codec_per_path_set:
+            codec_per_path_set.add(song.getSuffix().lower())
+        if not song.getSuffix().lower() in codec_dict:
+            codec_dict[song.getSuffix().lower()] = 1
         else:
-            codec_dict[song.getSuffix()] = codec_dict[song.getSuffix()] + 1
+            codec_dict[song.getSuffix().lower()] = codec_dict[song.getSuffix().lower()] + 1
     multi_codec = MultiCodecAlbum.YES if len(codec_dict) > 1 else MultiCodecAlbum.NO
     dec_list.sort(key=cmp_to_key(__compare_decorated_song))
     result: list[Song] = []

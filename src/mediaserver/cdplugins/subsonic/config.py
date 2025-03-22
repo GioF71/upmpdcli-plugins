@@ -143,6 +143,20 @@ def getWebServerDocumentRoot() -> str:
     return upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
 
 
+def get_webserver_path_images() -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        "images"]
+
+
+def get_webserver_path_images_static() -> list[str]:
+    return get_webserver_path_images() + ["static"]
+
+
+def get_webserver_path_images_cache() -> list[str]:
+    return get_webserver_path_images() + ["cache"]
+
+
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
 
     def getBaseUrl(self) -> str: return get_option_value("baseurl")

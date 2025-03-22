@@ -39,6 +39,7 @@ import cmdtalkplugin
 
 import secrets
 import constants
+import requests
 
 import copy
 import os
@@ -98,12 +99,14 @@ def get_random_art_by_genre(
     return None
 
 
-def try_get_album(album_id: str) -> Album:
+def try_get_album(album_id: str, propagate_fail: bool = False) -> Album:
     try:
         res: Response[Album] = connector_provider.get().getAlbum(album_id)
         return res.getObj() if res and res.isOk() else None
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
+        if propagate_fail:
+            raise e
 
 
 def try_get_artist(artist_id: str) -> Artist:
@@ -124,26 +127,27 @@ def get_album_cover_art_by_album_id(album_id: str) -> str:
 
 
 def get_album_cover_art_url_by_album(album: Album) -> str:
-    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_album(album))
+    return buildCoverArtUrl(get_album_cover_art_by_album(album))
 
 
 def get_album_cover_art_url_by_album_id(album_id: str) -> str:
-    return connector_provider.get().buildCoverArtUrl(get_album_cover_art_by_album_id(album_id))
+    return buildCoverArtUrl(get_album_cover_art_by_album_id(album_id))
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     result: list[Song] = []
-    connector: Connector = connector_provider.get()
     album: Album = try_get_album(album_id)
     if album and album.getArtist():
         cache_actions.on_album(album)
-    albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
+    else:
+        return None, []
+    albumArtURI: str = buildCoverArtUrl(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
-    albumArtURI: str = connector.buildCoverArtUrl(album.getCoverArt())
+    albumArtURI: str = buildCoverArtUrl(album.getCoverArt())
     return album, album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
@@ -593,10 +597,10 @@ def append_album_badge_to_album_title(
 def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
     explicit_status: str = get_explicit_status(album)
     if (explicit_status is not None
-            and len(explicit_status) > 0
-            and config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS)):
-        msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
-                    f"[{album.getTitle()}] by [{album.getArtist()}]")
+            and len(explicit_status) > 0):
+        if config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS):
+            msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
+                        f"[{album.getTitle()}] by [{album.getArtist()}]")
         # find match ...
         display_value: str = get_explicit_status_display_value(explicit_status)
         explicit_expression = display_value if display_value else explicit_status
@@ -697,3 +701,69 @@ def get_album_musicbrainz_id(album: Album) -> str | None:
 
 def get_artist_musicbrainz_id(artist: Artist) -> str | None:
     return artist.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value) if artist else None
+
+
+def get_artist_cover_art(artist: Artist) -> str | None:
+    return artist.getItem().getByName(constants.ItemKey.COVER_ART.value) if artist else None
+
+
+def get_docroot_base_url() -> str:
+    host_port: str = (os.environ["UPMPD_UPNPHOSTPORT"]
+                      if "UPMPD_UPNPHOSTPORT" in os.environ
+                      else None)
+    doc_root: str = (os.environ["UPMPD_UPNPDOCROOT"]
+                     if "UPMPD_UPNPDOCROOT" in os.environ
+                     else None)
+    if not host_port or not doc_root:
+        return None
+    return f"http://{host_port}"
+
+
+def compose_docroot_url(right: str) -> str:
+    doc_root_base_url: str = get_docroot_base_url()
+    # msgproc.log(f"compose_docroot_url with doc_root_base_url: [{doc_root_base_url}] right: [{right}]")
+    return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
+
+
+def buildCoverArtUrl(item_id: str, force_save: bool = False) -> str:
+    if not item_id:
+        # msgproc.log("buildCoverArtUrl got empty item_id")
+        return None
+    cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
+    if not cover_art_url:
+        # msgproc.log(f"buildCoverArtUrl cannot build coverArtUrl for item_id [{item_id}]")
+        return None
+    if (config.getWebServerDocumentRoot() and
+            config.get_config_param_as_bool(constants.ConfigParam.ENABLE_IMAGE_CACHING)):
+        images_cached_dir: str = ensure_directory(
+            config.getWebServerDocumentRoot(),
+            config.get_webserver_path_images_cache())
+        # msgproc.log(f"images_cached_dir=[{images_cached_dir}] item_id=[{item_id}]")
+        cached_file_name: str = item_id
+        cached_file: str = os.path.join(images_cached_dir, cached_file_name)
+        exists: bool = os.path.exists(cached_file)
+        serve_local: bool = False
+        if exists and not force_save:
+            # file exists or force_save not set
+            # msgproc.log(f"Cached file for [{item_id}] exists [{exists}] force_save [{force_save}]")
+            serve_local = True
+        else:
+            # file does not exist or must be saved
+            msgproc.log(f"Saving file for [{item_id}] exists [{exists}] force_save [{force_save}] ...")
+            try:
+                img_data: bytes = requests.get(cover_art_url).content
+                with open(cached_file, 'wb') as handler:
+                    handler.write(img_data)
+                serve_local = True
+            except Exception as ex:
+                msgproc.log(f"Could not save file [{cached_file}] due to [{type(ex)}] [{ex}]")
+        # can we serve the local file?
+        if serve_local:
+            path: list[str] = list()
+            path.extend(config.get_webserver_path_images_cache())
+            path.append(cached_file_name)
+            cached_image_url: str = compose_docroot_url("/".join(path))
+            # msgproc.log(f"For item_id [{item_id}] cached -> [{cached_image_url}]")
+            return cached_image_url
+    else:
+        return cover_art_url

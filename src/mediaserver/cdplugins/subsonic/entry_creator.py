@@ -183,7 +183,7 @@ def __get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
     for song in track_list:
         bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
         sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        suffix: int = song.getSuffix()
+        suffix: str = song.getSuffix()
         bitrate: int = song.getBitRate()
         current: TrackInfo = TrackInfo()
         current.bit_depth = bit_depth
@@ -213,7 +213,7 @@ def __get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, l
         sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         __maybe_append_to_dict_list(result, __DICT_KEY_SAMPLERATE, sampling_rate)
         # suffix
-        suffix: int = song.getSuffix()
+        suffix: str = song.getSuffix()
         __maybe_append_to_dict_list(result, __DICT_KEY_SUFFIX, suffix)
         # bitrate
         bitrate: int = song.getBitRate()
@@ -289,9 +289,14 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
         pid=objid,
         title=artist_entry_title))
     if artist_entry:
-        # get an album cover for the artist entry
-        art_uri: str = (art_retriever.get_artist_art_url_using_albums(artist_id=album.getArtistId())
-                        if album.getArtistId() else None)
+        art_uri: str = None
+        # does the artist has coverArt?
+        artist_cover_art: str = subsonic_util.get_artist_cover_art(artist)
+        # if not already found from the artist, we try to get an album cover for the artist entry
+        if artist_cover_art:
+            art_uri = subsonic_util.buildCoverArtUrl(item_id=artist_cover_art, force_save=True)
+        else:
+            art_uri = art_retriever.get_artist_art_url_using_albums_by_artist_id(artist_id=album.getArtistId())
         upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=artist_entry)
         cache_actions.on_album(album)
     return artist_entry
@@ -406,7 +411,7 @@ def __get_track_list_badge(track_list: list[Song], list_identifier: str = None) 
             if unique_bitrate:
                 display_codec = f"{display_codec}@{unique_bitrate}"
             return f"{display_codec}/{sr}"
-        if unique_suffix and unique_suffix in config.whitelist_codecs:
+        if unique_suffix and unique_suffix.lower() in config.whitelist_codecs:
             if best_bit_depth == 1:
                 return f"DSD {sr}"
             else:
@@ -441,7 +446,7 @@ def genre_artist_to_entry(
         objid,
         artist_name)
     if artist_id:
-        entry = artist_to_entry(
+        entry = artist_to_entry_raw(
             objid=objid,
             artist_id=artist_id,
             entry_name=artist_name)
@@ -545,7 +550,7 @@ def album_to_navigable_entry(
         artist=artist)
     if album_quality_badge:
         upnp_util.set_metadata("albumquality", album_quality_badge, entry)
-    upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(album.getCoverArt()), entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
@@ -596,14 +601,34 @@ def genre_to_entry(
         objid,
         identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
-    upnp_util.set_album_art_from_uri(connector_provider.get().buildCoverArtUrl(genre_art), entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(genre_art), entry)
     return entry
 
 
 def artist_to_entry(
         objid,
+        artist: Artist,
+        entry_name: str = None,
+        additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
+        options: dict[str, any] = {}) -> dict[str, any]:
+    cover_art: str = subsonic_util.get_artist_cover_art(artist)
+    # msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
+    #             f"coverArt [{cover_art}]")
+    select_entry_name: str = entry_name if entry_name else artist.getName()
+    return artist_to_entry_raw(
+        objid=objid,
+        artist_id=artist.getId(),
+        entry_name=select_entry_name,
+        artist_cover_art=cover_art,
+        additional_identifier_properties=additional_identifier_properties,
+        options=options)
+
+
+def artist_to_entry_raw(
+        objid,
         artist_id: str,
         entry_name: str,
+        artist_cover_art: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
     identifier: ItemIdentifier = ItemIdentifier(
@@ -618,59 +643,18 @@ def artist_to_entry(
         id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, entry_name)
     skip_art: bool = get_option(options=options, option_key=OptionKey.SKIP_ART)
-    if not skip_art and artist_id:
+    album_art_uri: str = (subsonic_util.buildCoverArtUrl(artist_cover_art)
+                          if artist_cover_art is not None
+                          else None)
+    if not album_art_uri and (not skip_art and artist_id):
         # find art
-        album_art_uri: str = get_album_art_uri_for_artist_id(artist_id)
+        album_art_uri = art_retriever.get_album_art_uri_for_artist_id(artist_id)
+    if album_art_uri:
         upnp_util.set_album_art_from_uri(
             album_art_uri=album_art_uri,
             target=entry)
     upnp_util.set_class_artist(entry)
     return entry
-
-
-def get_album_art_uri_for_artist_id(artist_id: str) -> str:
-    art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
-    if art_album_id:
-        msgproc.log(f"artist_to_entry cache hit for [{artist_id}] -> [{art_album_id}]")
-        art_album: Album = subsonic_util.try_get_album(art_album_id)
-        if not art_album:
-            # delete offending album from cache
-            cache_actions.delete_album_by_artist_id(artist_id)
-        art_album_cover_art_uri: str = (connector_provider.get().buildCoverArtUrl(art_album.getCoverArt())
-                                        if art_album
-                                        else None)
-        return art_album_cover_art_uri
-    else:
-        msgproc.log(f"artist_to_entry loading artist by id [{artist_id}] ...")
-        # load artist
-        try:
-            res: Response[Artist] = connector_provider.get().getArtist(artist_id=artist_id)
-            artist: Artist = res.getObj() if res and res.isOk() else None
-            album_list: list[Album] = artist.getAlbumList() if artist else []
-            select_album_list: list[Album] = album_list
-            # try to avoid "appearances" first
-            as_main_artist_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
-                artist_id=artist_id,
-                album_list=album_list,
-                opposite=True)
-            msgproc.log(f"artist_to_entry select_album_list for [{artist_id}] "
-                        f"[{artist.getName() if artist else None}] "
-                        f"full length [{len(album_list) if album_list else 0}] "
-                        f"as main artist only [{len(as_main_artist_album_list)}]")
-            if len(as_main_artist_album_list) > 0:
-                select_album_list = as_main_artist_album_list
-            select_album: Album = (secrets.choice(select_album_list)
-                                   if select_album_list and len(select_album_list) > 0
-                                   else None)
-            if select_album:
-                cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
-                cache_actions.on_album(album=select_album)
-            album_art_uri: str = (connector_provider.get().buildCoverArtUrl(select_album.getCoverArt())
-                                  if select_album
-                                  else None)
-            return album_art_uri
-        except Exception as ex:
-            msgproc.log(f"artist_to_entry cannot load artist [{artist_id}] [{type(ex)}] [{ex}]")
 
 
 def artist_initial_to_entry(
@@ -704,6 +688,7 @@ def build_intermediate_url(track_id: str) -> str:
 def song_to_entry(
         objid,
         song: Song,
+        force_cover_art_save: bool = False,
         options: dict[str, any] = {}) -> dict:
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
@@ -717,7 +702,7 @@ def song_to_entry(
     multi_codec_album: MultiCodecAlbum = get_option(options=options, option_key=OptionKey.MULTI_CODEC_ALBUM)
     if (MultiCodecAlbum.YES == multi_codec_album and
         config.allow_blacklisted_codec_in_song == 1 and
-            (not song.getSuffix() in config.whitelist_codecs)):
+            (not song.getSuffix().lower() in config.whitelist_codecs)):
         title = "{} [{}]".format(title, song.getSuffix())
     upnp_util.set_album_title(title, entry)
     entry['tp'] = 'it'
@@ -731,9 +716,7 @@ def song_to_entry(
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
-    # prefer album for cover art
-    # album_art_uri: str = connector_provider.get().buildCoverArtUrl(album_id if album_id else song.getId())
-    album_art_uri: str = connector_provider.get().buildCoverArtUrl(song.getCoverArt())
+    album_art_uri: str = subsonic_util.buildCoverArtUrl(item_id=song.getCoverArt(), force_save=force_cover_art_save)
     upnp_util.set_album_art_from_uri(album_art_uri=album_art_uri, target=entry)
     entry['duration'] = str(song.getDuration())
     # channel count, bit depth, sample rate and bit rate
@@ -770,7 +753,7 @@ def playlist_to_entry(
         playlist.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, playlist.getName())
-    art_uri: str = (connector_provider.get().buildCoverArtUrl(playlist.getCoverArt())
+    art_uri: str = (subsonic_util.buildCoverArtUrl(playlist.getCoverArt())
                     if playlist.getCoverArt() else None)
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
@@ -827,7 +810,8 @@ def album_to_entry(
         title = "{} [{}]".format(title, get_album_year_str(album))
     force_load: bool = get_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE)
     album_quality_badge: str = get_album_quality_badge(album=album, force_load=force_load)
-    msgproc.log(f"album_to_entry album_quality_badge for [{album.getId()}] is [{album_quality_badge}] force_load was [{force_load}]")
+    msgproc.log(f"album_to_entry album_quality_badge for [{album.getId()}] is [{album_quality_badge}] "
+                f"force_load was [{force_load}]")
     if force_load and config.get_config_param_as_bool(constants.ConfigParam.APPEND_CODEC_TO_ALBUM):
         msgproc.log(f"album_to_entry for "
                     f"album_id: [{album.getId()}] "
@@ -845,9 +829,9 @@ def album_to_entry(
         blacklist_count: int = 0
         song: Song
         for song in song_list:
-            if not song.getSuffix() in codecs:
-                codecs.append(song.getSuffix())
-                if not song.getSuffix() in config.whitelist_codecs:
+            if not song.getSuffix().lower() in codecs:
+                codecs.append(song.getSuffix().lower())
+                if not song.getSuffix().lower() in config.whitelist_codecs:
                     blacklist_count += 1
                 else:
                     whitelist_count += 1
@@ -893,7 +877,8 @@ def album_to_entry(
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
-    cover_art_url: str = connector_provider.get().buildCoverArtUrl(album.getCoverArt())
+    # we save the cover art even if it's already there
+    cover_art_url: str = subsonic_util.buildCoverArtUrl(item_id=album.getCoverArt(), force_save=True)
     upnp_util.set_album_art_from_uri(cover_art_url, entry)
     upnp_util.set_album_id(album.getId(), entry)
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
@@ -924,7 +909,7 @@ def album_id_to_album_focus(
         ElementType.ALBUM_FOCUS.getName(),
         album.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    art_uri = connector_provider.get().buildCoverArtUrl(item_id=album.getCoverArt())
+    art_uri = subsonic_util.buildCoverArtUrl(item_id=album.getCoverArt())
     entry = upmplgutils.direntry(id, objid, "Focus")
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
@@ -971,6 +956,6 @@ def album_version_to_entry(
     artist = current_album.getArtist()
     cache_actions.on_album(current_album)
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
-    current_album_cover_art: str = connector_provider.get().buildCoverArtUrl(item_id=current_album.getCoverArt())
+    current_album_cover_art: str = subsonic_util.buildCoverArtUrl(item_id=current_album.getCoverArt())
     upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
     return entry

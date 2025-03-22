@@ -1,5 +1,21 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.2
+
+- Advance subsonic-connector to 0.3.9, fixed url encoding (covers now show in Moode Audio)
+- Add All Artists (unsorted), marked others as Slow
+- Disable request cache for Favorite Albums
+- Reload and save coverArt for tracks when opening and album
+- Introduced image caching, requires webdocument root, disabled by default
+- Reduce paging for additional artists to 10
+- Fixed bug that would cause to not show explicit status when dump explicit status is disabled
+- Handle album that do not return an artistId, but return a list of "artists"
+- Create artist entries using Artist object when possible
+- Initial use of coverArt from Artist data structure
+- Add logging for initialization process
+- Treat codecs (suffixex) case-insensitively
+- General code cleanup and optimizations
+
 ## Release 0.7.1
 
 - Use new method available in upcoming upmpdcli 1.9.2 for retrieving the plugin path

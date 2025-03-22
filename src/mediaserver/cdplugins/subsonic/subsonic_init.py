@@ -49,14 +49,20 @@ def subsonic_init():
         check_supports()
         detect_anomalies()
         if config.getWebServerDocumentRoot():
+            msgproc.log("WebServer is enabled ...")
+            path_images_static: list[str] = config.get_webserver_path_images_static()
             images_static_dir: str = subsonic_util.ensure_directory(
                 config.getWebServerDocumentRoot(),
-                [constants.PluginConstant.PLUGIN_NAME.value,
-                 "images",
-                 "static"])
-            msgproc.log(f"Directories for static images [{images_static_dir}] created.")
-            src_path: str = (f"{upmplgutils.getOptionValue('pkgdatadir')}/"
-                             f"cdplugins/{constants.PluginConstant.PLUGIN_NAME.value}")
+                path_images_static)
+            msgproc.log(f"Directory for static images [{images_static_dir}] created.")
+            path_images_subsonic: list[str] = config.get_webserver_path_images_cache()
+            images_cached_dir: str = subsonic_util.ensure_directory(
+                config.getWebServerDocumentRoot(),
+                path_images_subsonic)
+            msgproc.log(f"Directory for cached images [{images_cached_dir}] created.")
+            pkg_datadir: str = upmplgutils.getOptionValue('pkgdatadir')
+            msgproc.log(f"pkg_datadir: [{pkg_datadir}]")
+            src_path: str = (f"{pkg_datadir}/cdplugins/{constants.PluginConstant.PLUGIN_NAME.value}")
             src_static_images_path: str = f"{src_path}/images/static"
             for img in ["unknown-artist.svg", "unknown-cover.svg"]:
                 shutil.copyfile(f"{src_static_images_path}/{img}",

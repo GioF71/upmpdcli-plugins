@@ -27,8 +27,9 @@ class TagType(Enum):
     NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
     RANDOM = 160, "r", "Random Albums", "random"
     ARTISTS = 200, "grtsts", "Artists", None
-    ALL_ARTISTS = 212, "llrtsts", "All Artists", None
-    ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial)", None
+    ALL_ARTISTS = 212, "llrtsts", "All Artists (Sorted) (slow!)", None
+    ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial) (slow!)", None
+    ALL_ARTISTS_UNSORTED = 222, "ll_nst", "All Artists", None
     FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,
     RANDOM_SONGS = 310, "rs", "Random Songs", None,
