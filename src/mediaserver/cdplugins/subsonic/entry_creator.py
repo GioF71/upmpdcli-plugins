@@ -294,7 +294,7 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
         artist_cover_art: str = subsonic_util.get_artist_cover_art(artist)
         # if not already found from the artist, we try to get an album cover for the artist entry
         if artist_cover_art:
-            art_uri = subsonic_util.buildCoverArtUrl(item_id=artist_cover_art, force_save=True)
+            art_uri = subsonic_util.build_cover_art_url(item_id=artist_cover_art, force_save=True)
         else:
             art_uri = art_retriever.get_artist_art_url_using_albums_by_artist_id(artist_id=album.getArtistId())
         upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=artist_entry)
@@ -550,7 +550,7 @@ def album_to_navigable_entry(
         artist=artist)
     if album_quality_badge:
         upnp_util.set_metadata("albumquality", album_quality_badge, entry)
-    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(album.getCoverArt()), entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
@@ -601,7 +601,7 @@ def genre_to_entry(
         objid,
         identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
-    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(genre_art), entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(genre_art), entry)
     return entry
 
 
@@ -643,7 +643,7 @@ def artist_to_entry_raw(
         id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, entry_name)
     skip_art: bool = get_option(options=options, option_key=OptionKey.SKIP_ART)
-    album_art_uri: str = (subsonic_util.buildCoverArtUrl(artist_cover_art)
+    album_art_uri: str = (subsonic_util.build_cover_art_url(artist_cover_art)
                           if artist_cover_art is not None
                           else None)
     if not album_art_uri and (not skip_art and artist_id):
@@ -716,7 +716,7 @@ def song_to_entry(
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
-    album_art_uri: str = subsonic_util.buildCoverArtUrl(item_id=song.getCoverArt(), force_save=force_cover_art_save)
+    album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
     upnp_util.set_album_art_from_uri(album_art_uri=album_art_uri, target=entry)
     entry['duration'] = str(song.getDuration())
     # channel count, bit depth, sample rate and bit rate
@@ -753,7 +753,7 @@ def playlist_to_entry(
         playlist.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, playlist.getName())
-    art_uri: str = (subsonic_util.buildCoverArtUrl(playlist.getCoverArt())
+    art_uri: str = (subsonic_util.build_cover_art_url(playlist.getCoverArt())
                     if playlist.getCoverArt() else None)
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
@@ -878,7 +878,7 @@ def album_to_entry(
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     # we save the cover art even if it's already there
-    cover_art_url: str = subsonic_util.buildCoverArtUrl(item_id=album.getCoverArt(), force_save=True)
+    cover_art_url: str = subsonic_util.build_cover_art_url(item_id=album.getCoverArt(), force_save=True)
     upnp_util.set_album_art_from_uri(cover_art_url, entry)
     upnp_util.set_album_id(album.getId(), entry)
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
@@ -909,7 +909,7 @@ def album_id_to_album_focus(
         ElementType.ALBUM_FOCUS.getName(),
         album.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    art_uri = subsonic_util.buildCoverArtUrl(item_id=album.getCoverArt())
+    art_uri = subsonic_util.build_cover_art_url(item_id=album.getCoverArt())
     entry = upmplgutils.direntry(id, objid, "Focus")
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
     return entry
@@ -956,6 +956,6 @@ def album_version_to_entry(
     artist = current_album.getArtist()
     cache_actions.on_album(current_album)
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
-    current_album_cover_art: str = subsonic_util.buildCoverArtUrl(item_id=current_album.getCoverArt())
+    current_album_cover_art: str = subsonic_util.build_cover_art_url(item_id=current_album.getCoverArt())
     upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
     return entry

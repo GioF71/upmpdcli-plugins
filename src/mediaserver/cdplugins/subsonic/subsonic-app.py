@@ -268,7 +268,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     entry['res:mime'] = song.getContentType()
     entry['upnp:genre'] = song.getGenre()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.buildCoverArtUrl(song.getCoverArt()),
+        album_art_uri=subsonic_util.build_cover_art_url(song.getCoverArt()),
         target=entry)
     entry['duration'] = str(song.getDuration())
     return entry
@@ -409,7 +409,7 @@ def _load_albums_by_type(
             objid=objid,
             tag=tag_type,
             offset=offset + len(entries))
-        next_cover_art: str = subsonic_util.buildCoverArtUrl(for_next.getCoverArt())
+        next_cover_art: str = subsonic_util.build_cover_art_url(for_next.getCoverArt())
         upnp_util.set_album_art_from_uri(next_cover_art, next_page)
         entries.append(next_page)
     return entries
@@ -634,7 +634,7 @@ def _playlist_entry_to_entry(
     entry['upnp:album'] = playlist_entry.getAlbum()
     entry['res:mime'] = playlist_entry.getContentType()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.buildCoverArtUrl(playlist_entry.getCoverArt()),
+        album_art_uri=subsonic_util.build_cover_art_url(playlist_entry.getCoverArt()),
         target=entry)
     entry['duration'] = str(playlist_entry.getDuration())
     return entry
@@ -906,7 +906,7 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
         song.getId())
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
-    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(song_cover_art), entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(song_cover_art), entry)
     return entry
 
 
@@ -920,7 +920,7 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
         objid,
         identifier_util.create_id_from_identifier(song_identifier))
     song_entry = upmplgutils.direntry(song_entry_id, objid, "Song")
-    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(song.getCoverArt()), song_entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(song.getCoverArt()), song_entry)
     entries.append(song_entry)
     msgproc.log(f"handler_element_song_entry start song_id {song_id} go on with album")
     album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId(), propagate_fail=True)
@@ -1017,7 +1017,7 @@ def _genre_add_artists_node(objid, item_identifier: ItemIdentifier, entries: lis
     artists_entry = upmplgutils.direntry(id, objid, name)
     cover_art: str = get_random_art_by_genre(genre)
     if cover_art:
-        upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(cover_art), artists_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), artists_entry)
     entries.append(artists_entry)
     return entries
 
@@ -1039,7 +1039,7 @@ def _genre_add_albums_node(
     albums_entry = upmplgutils.direntry(id, objid, name)
     if offset == 0:
         art_id: str = get_random_art_by_genre(genre)
-        upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(art_id), albums_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(art_id), albums_entry)
     entries.append(albums_entry)
     return entries
 
@@ -1193,7 +1193,7 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
             title="Next")
         cover_art: str = next_album.getCoverArt()
         upnp_util.set_album_art_from_uri(
-            album_art_uri=subsonic_util.buildCoverArtUrl(cover_art),
+            album_art_uri=subsonic_util.build_cover_art_url(cover_art),
             target=next_entry)
         entries.append(next_entry)
     return entries
@@ -1373,7 +1373,7 @@ def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entrie
                 title="Next")
             next_album: Album = album_list[offset + num_albums_to_show]
             cover_art: str = next_album.getCoverArt()
-            upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(cover_art), next_entry)
+            upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), next_entry)
             entries.append(next_entry)
     return entries
 
@@ -1422,7 +1422,7 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
                 title="Next")
             next_album: Album = album_list[offset + num_albums_to_show]
             cover_art: str = next_album.getCoverArt()
-            upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(cover_art), next_entry)
+            upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), next_entry)
             entries.append(next_entry)
     return entries
 
@@ -1553,7 +1553,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     select_album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
     select_album_cover_art: str = select_album.getCoverArt() if select_album else None
     upnp_util.set_album_art_from_uri(
-        subsonic_util.buildCoverArtUrl(select_album_cover_art),
+        subsonic_util.build_cover_art_url(select_album_cover_art),
         artist_focus_entry)
     entries.append(artist_focus_entry)
     return entries
@@ -1601,7 +1601,7 @@ def create_artist_albums_entry(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        subsonic_util.buildCoverArtUrl(cover_art_album.getCoverArt()) if cover_art_album else None,
+        subsonic_util.build_cover_art_url(cover_art_album.getCoverArt()) if cover_art_album else None,
         albums_entry)
     return albums_entry
 
@@ -1623,7 +1623,7 @@ def create_artist_albums_entry_for_appearances(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        subsonic_util.buildCoverArtUrl(cover_art_album.getCoverArt()) if cover_art_album else None,
+        subsonic_util.build_cover_art_url(cover_art_album.getCoverArt()) if cover_art_album else None,
         albums_entry)
     return albums_entry
 
@@ -1672,7 +1672,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     # load the album
     album: Album = subsonic_util.try_get_album(artist_entry_album_id)
     album_cover_art: str = album.getCoverArt() if album else None
-    upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(album_cover_art), artist_entry)
+    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album_cover_art), artist_entry)
     entries.append(artist_entry)
     # entry for albums from artist within genre
     album_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
@@ -2024,10 +2024,10 @@ def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict
         first_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
         second_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
         upnp_util.set_album_art_from_uri(
-            subsonic_util.buildCoverArtUrl(first_art_album.getCoverArt()) if first_art_album else None,
+            subsonic_util.build_cover_art_url(first_art_album.getCoverArt()) if first_art_album else None,
             radio_entry)
         upnp_util.set_album_art_from_uri(
-            subsonic_util.buildCoverArtUrl(second_art_album.getCoverArt() if second_art_album else None),
+            subsonic_util.build_cover_art_url(second_art_album.getCoverArt() if second_art_album else None),
             radio_song_list_entry)
     else:
         upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_album_id(iid), radio_entry)
@@ -2057,7 +2057,7 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
             album: Album = subsonic_util.try_get_album(similar_artist_art)
             album_cover_art: str = album.getCoverArt() if album else None
             upnp_util.set_album_art_from_uri(
-                subsonic_util.buildCoverArtUrl(album_cover_art),
+                subsonic_util.build_cover_art_url(album_cover_art),
                 similar_artists_entry)
         return similar_artists_entry
 
@@ -2081,7 +2081,7 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
         art_select_song: Song = secrets.choice(top_songs) if top_songs and len(top_songs) > 0 else None
         art_select_song_art: str = art_select_song.getCoverArt() if art_select_song else None
         upnp_util.set_album_art_from_uri(
-            subsonic_util.buildCoverArtUrl(art_select_song_art),
+            subsonic_util.build_cover_art_url(art_select_song_art),
             top_songs_entry)
         result.append(top_songs_entry)
         top_songs_list_identifier: ItemIdentifier = ItemIdentifier(
@@ -2096,7 +2096,7 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
             title=f"Top Songs (List) by {artist_name}")
         art_select_song = secrets.choice(res_top_songs.getObj().getSongs())
         upnp_util.set_album_art_from_uri(
-            subsonic_util.buildCoverArtUrl(art_select_song.getCoverArt()),
+            subsonic_util.build_cover_art_url(art_select_song.getCoverArt()),
             top_songs_list_entry)
         result.append(top_songs_list_entry)
     return result
@@ -2258,7 +2258,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
         res: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=1)
         random_song: Song = res.getObj().getSongs()[0] if res and len(res.getObj().getSongs()) > 0 else None
         cover_art: str = random_song.getCoverArt() if random_song else None
-        upnp_util.set_album_art_from_uri(subsonic_util.buildCoverArtUrl(cover_art), target=entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), target=entry)
         entries.append(entry)
     fav_artists: list[Artist] = list()
     select_fav: Artist = None

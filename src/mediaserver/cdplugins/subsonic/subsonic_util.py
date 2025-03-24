@@ -40,6 +40,8 @@ import cmdtalkplugin
 import secrets
 import constants
 import requests
+import mimetypes
+import glob
 
 import copy
 import os
@@ -127,11 +129,11 @@ def get_album_cover_art_by_album_id(album_id: str) -> str:
 
 
 def get_album_cover_art_url_by_album(album: Album) -> str:
-    return buildCoverArtUrl(get_album_cover_art_by_album(album))
+    return build_cover_art_url(get_album_cover_art_by_album(album))
 
 
 def get_album_cover_art_url_by_album_id(album_id: str) -> str:
-    return buildCoverArtUrl(get_album_cover_art_by_album_id(album_id))
+    return build_cover_art_url(get_album_cover_art_by_album_id(album_id))
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
@@ -141,13 +143,13 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
         cache_actions.on_album(album)
     else:
         return None, []
-    albumArtURI: str = buildCoverArtUrl(album.getCoverArt())
+    albumArtURI: str = build_cover_art_url(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
-    albumArtURI: str = buildCoverArtUrl(album.getCoverArt())
+    albumArtURI: str = build_cover_art_url(album.getCoverArt())
     return album, album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
@@ -725,13 +727,13 @@ def compose_docroot_url(right: str) -> str:
     return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
 
 
-def buildCoverArtUrl(item_id: str, force_save: bool = False) -> str:
+def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
     if not item_id:
-        # msgproc.log("buildCoverArtUrl got empty item_id")
+        # msgproc.log("build_cover_art_url got empty item_id")
         return None
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
     if not cover_art_url:
-        # msgproc.log(f"buildCoverArtUrl cannot build coverArtUrl for item_id [{item_id}]")
+        # msgproc.log(f"build_cover_art_url cannot build coverArtUrl for item_id [{item_id}]")
         return None
     if (config.getWebServerDocumentRoot() and
             config.get_config_param_as_bool(constants.ConfigParam.ENABLE_IMAGE_CACHING)):
@@ -739,9 +741,32 @@ def buildCoverArtUrl(item_id: str, force_save: bool = False) -> str:
             config.getWebServerDocumentRoot(),
             config.get_webserver_path_images_cache())
         # msgproc.log(f"images_cached_dir=[{images_cached_dir}] item_id=[{item_id}]")
+        exists: str = False
+        matching_files: list[str] = []
         cached_file_name: str = item_id
-        cached_file: str = os.path.join(images_cached_dir, cached_file_name)
-        exists: bool = os.path.exists(cached_file)
+        cached_file_path: str = os.path.join(images_cached_dir, item_id)
+        item_id_ext: str = os.path.splitext(cached_file_path)[1]
+        if item_id_ext:
+            # cached_file_path has extension, we convert that to lower case
+            item_id_ext = item_id_ext.lower()
+        item_id_with_ext: str = cached_file_path if item_id_ext else None
+        if not item_id_with_ext:
+            # item_id does not have an extension
+            matching_files = glob.glob(f"{cached_file_path}.*")
+            # msgproc.log(f"Files matching_files [{item_id}] -> [{matching_files if matching_files else None}]")
+            if matching_files and len(matching_files) > 0:
+                item_id_with_ext = os.path.basename(matching_files[0])
+                # msgproc.log(f"item_id_with_ext = [{item_id_with_ext}]")
+                # remove other matching_files files ...
+                to_remove: str
+                for to_remove in matching_files[1:]:
+                    msgproc.log(f"build_cover_art_url Removing spurious file [{to_remove}] ...")
+                    os.remove(to_remove)
+                exists = True
+        else:
+            exists = os.path.exists(cached_file_path)
+            if exists:
+                matching_files = [cached_file_path]
         serve_local: bool = False
         if exists and not force_save:
             # file exists or force_save not set
@@ -749,19 +774,51 @@ def buildCoverArtUrl(item_id: str, force_save: bool = False) -> str:
             serve_local = True
         else:
             # file does not exist or must be saved
-            msgproc.log(f"Saving file for [{item_id}] exists [{exists}] force_save [{force_save}] ...")
+            # msgproc.log(f"Saving file for [{item_id}] [{cached_file_path}] "
+            #             f"exists [{exists}] force_save [{force_save}] ...")
+            if exists and force_save:
+                # msgproc.log(f"force_save [{force_save}] -> Removing [{len(matching_files)}] files ...")
+                # remove matching_files
+                to_remove: str
+                for to_remove in matching_files:
+                    # msgproc.log(f"force_save [{force_save}] -> Removing file [{to_remove}] ...")
+                    try:
+                        os.remove(to_remove)
+                    except Exception as ex:
+                        msgproc.log(f"Failed to remove [{to_remove}] due to [{type(ex)}] [{ex}]")
             try:
-                img_data: bytes = requests.get(cover_art_url).content
-                with open(cached_file, 'wb') as handler:
-                    handler.write(img_data)
-                serve_local = True
+                response = requests.get(cover_art_url)
+                content_type = response.headers.get('content-type')
+                file_type: str = mimetypes.guess_all_extensions(content_type)
+                item_id_ext: str = os.path.splitext(cached_file_path)[1]
+                # msgproc.log(f"content_type [{content_type}] file_type [{file_type}] extension [{item_id_ext}]")
+                # is cached_file_path without extension?
+                if item_id_ext is None or len(item_id_ext) == 0:
+                    if file_type and len(file_type) > 0:
+                        cached_file_name = cached_file_name + file_type[0]
+                        item_id_with_ext = cached_file_name
+                        # msgproc.log(f"cached_file_name with extension added: [{cached_file_name}]")
+                        cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
+                        # msgproc.log(f"cached_file_path: [{cached_file_path}]")
+                    else:
+                        # we cannot save!
+                        cached_file_path = None
+                else:
+                    cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
+                    item_id_with_ext = item_id
+                # msgproc.log(f"About to save file for [{item_id}] -> [{cached_file_path}] ...")
+                if cached_file_path:
+                    img_data: bytes = response.content
+                    with open(cached_file_path, 'wb') as handler:
+                        handler.write(img_data)
+                    serve_local = True
             except Exception as ex:
-                msgproc.log(f"Could not save file [{cached_file}] due to [{type(ex)}] [{ex}]")
+                msgproc.log(f"Could not save file [{cached_file_path}] due to [{type(ex)}] [{ex}]")
         # can we serve the local file?
         if serve_local:
             path: list[str] = list()
             path.extend(config.get_webserver_path_images_cache())
-            path.append(cached_file_name)
+            path.append(item_id_with_ext)
             cached_image_url: str = compose_docroot_url("/".join(path))
             # msgproc.log(f"For item_id [{item_id}] cached -> [{cached_image_url}]")
             return cached_image_url

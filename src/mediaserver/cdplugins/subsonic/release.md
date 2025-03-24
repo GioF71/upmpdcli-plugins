@@ -2,6 +2,7 @@
 
 ## Release 0.7.2
 
+- Review image caching, get mimetype and extension from server in order to store and serve the file properly
 - Advance subsonic-connector to 0.3.9, fixed url encoding (covers now show in Moode Audio)
 - Add All Artists (unsorted), marked others as Slow
 - Disable request cache for Favorite Albums
