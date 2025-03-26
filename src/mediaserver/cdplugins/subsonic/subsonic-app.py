@@ -2154,10 +2154,6 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
     album: Album
     album_tracks: AlbumTracks
     album, album_tracks = get_album_tracks(album_id) if not album_version_path else (None, None)
-    if album is None:
-        # album could not be found
-        msgproc.log(f"Album [{album_id}] not found")
-        return entries
     if album_tracks and album_tracks.getAlbumVersionCount() > 1:
         version_counter: int = 0
         album_version_path: str

@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.4
+
+- Remove unnecessary check for null album on handler_element_album
+
 ## Release 0.7.3
 
 - Review image caching, get mimetype and extension from server in order to store and serve the file properly
