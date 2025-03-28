@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.7.4"
+    PLUGIN_RELEASE = "0.7.5"
     PLUGIN_NAME = "subsonic"
 
 
@@ -38,6 +38,9 @@ class ItemKey(Enum):
     DISC_TITLES_DISC = "disc"
     DISC_TITLES_TITLE = "title"
     COVER_ART = "coverArt"
+    VERSION = "version"
+    ALBUM_RECORD_LABELS = "recordLabels"
+    ALBUM_IS_COMPILATION = "isCompilation"
 
 
 class AlbumEntryType(Enum):
@@ -69,27 +72,44 @@ class _ConfigParamData:
 
 
 class ConfigParam(Enum):
+
     ALLOW_GENRE_IN_ALBUM_VIEW = _ConfigParamData("allowgenreinalbumview", False)
-    ALLOW_GENRE_IN_ALBUM_CONTAINER = _ConfigParamData("allowgenreinalbumcontainer", True)
+    ALLOW_GENRE_IN_ALBUM_CONTAINER = _ConfigParamData("allowgenreinalbumcontainer", False)
+
     SHOW_EMPTY_FAVORITES = _ConfigParamData("showemptyfavorites", False)
+    SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
+
     SEARCH_RESULT_ALBUM_AS_CONTAINER = _ConfigParamData("searchresultalbumascontainer", False)
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappenddisccountinalbumcontainer", True)
-    APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappenddisccountinalbumview", False)
-    APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendtrackcountinalbumcontainer", True)
+
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappenddisccountinalbumcontainer", False)
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappenddisccountinalbumview", False)
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappenddisccountinalbumsearchresult", False)
+
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendtrackcountinalbumcontainer", False)
     ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappendtrackcountinalbumview", False)
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappendtrackcountinalbumsearchresult", False)
+
     ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData("allowprependartistinalbumcontainer", True)
     ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW = _ConfigParamData("allowappendartistinalbumview", True)
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappenddisccountinalbumsearchresult", False)
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappendtrackcountinalbumsearchresult", False)
+    ALLOW_APPEND_ARTIST_IN_SEARCH_RES = _ConfigParamData("allowappendartistinsearchresult", False)
+
     ARTIST_ALBUM_NEWEST_FIRST = _ConfigParamData("artistalbumnewestfirst", True)
+
     ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER = _ConfigParamData("allowqbadgeinalbumcontainer", True)
-    ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData("allowqbadgeinalbumview", False)
-    ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowqbadgeinalbumsearchresult", False)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData("allowqbadgeinalbumview", True)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowqbadgeinalbumsearchresult", True)
+
+    ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER = _ConfigParamData("allowversioninalbumcontainer", True)
+    ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW = _ConfigParamData("allowversioninalbumview", True)
+    ALLOW_ALBUM_VERSION_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowversioninalbumsearchresult", True)
+
     APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbumidinalbumcontainer", False)
     APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData("showalbumidinalbumview", False)
     APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbumidinalbumsearchresult", False)
+
     SHOW_ALBUM_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showalbummbidasplaceholder", True)
     SHOW_ARTIST_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showartistmbidasplaceholder", True)
+
     DUMP_ACTION_ON_MB_ALBUM_CACHE = _ConfigParamData("dumpactiononmbalbumcache", False)
     DUMP_ALBUM_GENRE = _ConfigParamData("dumpalbumgenre", False)
     APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData("appendyeartoalbumcontainer", True)
@@ -112,7 +132,6 @@ class ConfigParam(Enum):
     MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData("maxadditionalalbumartistsperpage", 10)
     DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", 0)
     APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
-    SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
@@ -129,9 +148,10 @@ class ConfigParam(Enum):
 
 class _ExplicitStatusData:
 
-    def __init__(self, tag_value: str, display_value: str):
+    def __init__(self, tag_value: str, display_value: str, display_value_long: str):
         self.__tag_value: str = tag_value
         self.__display_value: str = display_value
+        self.__display_value_long: str = display_value_long
 
     @property
     def tag_value(self) -> str:
@@ -141,11 +161,39 @@ class _ExplicitStatusData:
     def display_value(self) -> str:
         return self.__display_value
 
+    @property
+    def display_value_long(self) -> str:
+        return self.__display_value_long
+
+
+class ExplicitDiplayMode:
+
+    SHORT = 1
+    LONG = 2
+
 
 class ExplicitStatus(Enum):
 
-    EXPLICIT = _ExplicitStatusData("explicit", "E")
-    CLEAN = _ExplicitStatusData("clean", "C")
+    EXPLICIT = _ExplicitStatusData("explicit", "E", "Explicit")
+    CLEAN = _ExplicitStatusData("clean", "C", "Clean")
+
+
+class UpmpdMetadata(Enum):
+    ALBUM_QUALITY = "albumquality"
+    ALBUM_VERSION = "albumversion"
+    ALBUM_EXPLICIT_STATUS = "albumexplicitstatus"
+    ALBUM_GENRES = "albumgenres"
+    ALBUM_ID = "albumid"
+    ALBUM_MUSICBRAINZ_ID = "albummusicbrainzid"
+    ALBUM_RECORD_LABELS = "albumrecordlabels"
+    ALBUM_DURATION = "albumduration"
+    ALBUM_DISC_AND_TRACK_COUNTERS = "albumdisctrackcounters"
+    ALBUM_ARTIST = "albumartist"
+    ALBUM_TITLE = "albumtitle"
+    ALBUM_YEAR = "albumyear"
+    ALBUM_ORIGINAL_RELEASE_DATE = "albumoriginalreleasedate"
+    ALBUM_IS_COMPILATION = "albumiscompilation"
+    ALBUM_RELEASE_TYPES = "albumreleasetypes"
 
 
 default_debug_badge_mngmt: int = 0

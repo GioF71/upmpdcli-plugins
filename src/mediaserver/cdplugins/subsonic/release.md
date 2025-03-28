@@ -1,5 +1,26 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.5
+
+- Add support for album version
+- Avoid to add disc/tracks in album containers by default
+- Populate fields in upmpd vendor tags:
+  - albumtitle
+  - albumartist
+  - albumyear
+  - albumoriginalreleasedate
+  - albumduration
+  - albumiscompilation
+  - albumreleasetypes
+  - albumversion
+  - albumgenres
+  - albumrecordlabels
+  - albumexplicitstatus
+  - albumquality
+  - albumdisctrackcounters
+  - albummusicbrainzid
+  - albumid
+
 ## Release 0.7.4
 
 - Remove unnecessary check for null album on handler_element_album

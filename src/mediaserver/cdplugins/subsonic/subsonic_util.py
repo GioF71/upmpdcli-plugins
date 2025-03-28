@@ -33,6 +33,7 @@ import connector_provider
 import cache_manager_provider
 
 import album_util
+import upnp_util
 import config
 
 import cmdtalkplugin
@@ -45,6 +46,7 @@ import glob
 
 import copy
 import os
+
 from functools import cmp_to_key
 from typing import Callable
 
@@ -527,11 +529,15 @@ def get_explicit_status(album: Album) -> str:
     return album.getItem().getByName(constants.ItemKey.EXPLICIT_STATUS.value)
 
 
-def get_explicit_status_display_value(explicit_status: str) -> str:
+def get_explicit_status_display_value(
+        explicit_status: str,
+        display_mode: constants.ExplicitDiplayMode = constants.ExplicitDiplayMode.SHORT) -> str:
     for _, v in constants.ExplicitStatus.__members__.items():
         explicit_info: constants._ExplicitStatusData = v.value
         if explicit_info.tag_value == explicit_status:
-            return explicit_info.display_value
+            return (explicit_info.display_value
+                    if display_mode == constants.ExplicitDiplayMode.SHORT
+                    else explicit_info.display_value_long)
     return None
 
 
@@ -594,6 +600,21 @@ def append_album_badge_to_album_title(
         container_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER,
         view_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW,
         search_res_config=constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES)
+
+
+def append_album_version_to_album_title(
+        current_albumtitle: str,
+        album_version: str,
+        album_entry_type: constants.AlbumEntryType,
+        is_search_result: bool) -> str:
+    return append_something_to_album_title(
+        current_albumtitle=current_albumtitle,
+        something=album_version,
+        album_entry_type=album_entry_type,
+        is_search_result=is_search_result,
+        container_config=constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER,
+        view_config=constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW,
+        search_res_config=constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_SEARCH_RES)
 
 
 def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
@@ -707,6 +728,20 @@ def get_artist_musicbrainz_id(artist: Artist) -> str | None:
 
 def get_artist_cover_art(artist: Artist) -> str | None:
     return artist.getItem().getByName(constants.ItemKey.COVER_ART.value) if artist else None
+
+
+def get_album_version(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.VERSION.value) if album else None
+
+
+def get_album_record_label_names(album: Album) -> list[str]:
+    result: list[str] = []
+    rl: list[dict[str, str]] = album.getItem().getListByName(constants.ItemKey.ALBUM_RECORD_LABELS.value) if album else None
+    current: dict[str, str]
+    for current in rl:
+        if "name" in current:
+            result.append(current["name"])
+    return result
 
 
 def get_docroot_base_url() -> str:
@@ -824,3 +859,66 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
             return cached_image_url
     else:
         return cover_art_url
+
+
+def get_album_duration_display(album: Album) -> str:
+    duration_sec: int = album.getDuration()
+    # hours, minutes, seconds
+    remaining_sec: int = duration_sec
+    seconds: int = duration_sec % 60
+    remaining_sec -= seconds
+    minutes: int = int(int(remaining_sec / 60) % 60)
+    remaining_sec -= (minutes * 60)
+    hours: int = int(remaining_sec / 3600)
+    result: str = ""
+    # format it!
+    if hours > 0:
+        result += f"{hours}h"
+    if minutes > 0:
+        if len(result) > 0:
+            result += " "
+        result += f"{minutes :02d}m"
+    # add seconds in any case
+    if len(result) > 0:
+        result += " "
+    result += f"{seconds :02d}s"
+    return result
+
+
+def get_album_disc_and_track_counters(album: Album) -> str:
+    disc_title_list: list[dict[str, any]] = album.getItem().getByName(
+        constants.ItemKey.DISC_TITLES.value,
+        [])
+    disc_count: int = len(disc_title_list) if len(disc_title_list) > 1 else 1
+    result: str = f"{disc_count} Disc{'s' if disc_count > 1 else ''}, "
+    result += f"{album.getSongCount()} Track{'s' if album.getSongCount() > 1 else ''}"
+    return result
+
+
+def set_album_metadata(album: Album, target: dict):
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ARTIST.value, album.getArtist(), target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_TITLE.value, album.getTitle(), target)
+    album_year: str = str(album.getYear()) if album.getYear() else None
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_YEAR.value, album_year, target)
+    original_release_date_int: int = album.getOriginalReleaseDate()
+    original_release_date: str = str(original_release_date_int) if original_release_date_int else None
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ORIGINAL_RELEASE_DATE.value, original_release_date, target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_VERSION.value, get_album_version(album), target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_GENRES.value, ", ".join(album.getGenres()), target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ID.value, album.getId(), target)
+    record_label_names: str = ", ".join(get_album_record_label_names(album))
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_RECORD_LABELS.value, record_label_names, target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_MUSICBRAINZ_ID.value, get_album_musicbrainz_id(album), target)
+    explicit_status: str = get_explicit_status_display_value(
+        explicit_status=get_explicit_status(album),
+        display_mode=constants.ExplicitDiplayMode.LONG)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_EXPLICIT_STATUS.value, explicit_status, target)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_DURATION.value, get_album_duration_display(album), target)
+    disc_track_counters: str = get_album_disc_and_track_counters(album)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_DISC_AND_TRACK_COUNTERS.value, disc_track_counters, target)
+    is_compilation_bool: bool = album.getItem().getByName(constants.ItemKey.ALBUM_IS_COMPILATION.value, False)
+    is_compilation: str = "yes" if is_compilation_bool else "no"
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_IS_COMPILATION.value, is_compilation, target)
+    album_release_types: AlbumReleaseTypes = get_album_release_types(album)
+    album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_RELEASE_TYPES.value, album_release_types_display, target)

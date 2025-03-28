@@ -458,6 +458,7 @@ def album_to_navigable_entry(
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
     title: str = album.getTitle()
+    album_version: str = subsonic_util.get_album_version(album)
     # number of discs
     title = subsonic_util.append_number_of_discs_to_album_title(
         current_albumtitle=title,
@@ -469,7 +470,7 @@ def album_to_navigable_entry(
         current_albumtitle=title,
         album=album,
         config_getter=lambda: config.get_config_param_as_bool(
-            constants.ConfigParam.APPEND_TRACK_CNT_IN_ALBUM_CONTAINER))
+            constants.ConfigParam.ALLOW_APPEND_TRACK_CNT_IN_ALBUM_CONTAINER))
     # explicit?
     title = subsonic_util.append_explicit_if_needed(title, album)
     album_date_for_sorting: str = subsonic_util.get_album_date_for_sorting(album)
@@ -504,6 +505,11 @@ def album_to_navigable_entry(
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
         album_quality_badge=album_quality_badge,
+        album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
+        is_search_result=False)
+    title = subsonic_util.append_album_version_to_album_title(
+        current_albumtitle=title,
+        album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
         is_search_result=False)
     # msgproc.log(f"album_to_navigable_entry title [{title}]")
@@ -548,8 +554,8 @@ def album_to_navigable_entry(
         pid=objid,
         title=entry_title,
         artist=artist)
-    if album_quality_badge:
-        upnp_util.set_metadata("albumquality", album_quality_badge, entry)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, entry)
+    subsonic_util.set_album_metadata(album=album, target=entry)
     upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
@@ -763,7 +769,7 @@ def get_allow_disc_count_in_album_entry(is_search_result: bool) -> bool:
     if is_search_result:
         return config.get_config_param_as_bool(constants.ConfigParam.ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT)
     else:
-        return config.get_config_param_as_bool(constants.ConfigParam.APPEND_DISC_CNT_IN_ALBUM_VIEW)
+        return config.get_config_param_as_bool(constants.ConfigParam.ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW)
 
 
 def get_allow_track_count_in_album_entry(is_search_result: bool) -> bool:
@@ -780,6 +786,7 @@ def album_to_entry(
     is_search_result: bool = get_option(options=options, option_key=OptionKey.SEARCH_RESULT)
     msgproc.log(f"album_to_entry for [{album.getId()}] SearchResult [{is_search_result}] ...")
     title: str = album.getTitle()
+    album_version: str = subsonic_util.get_album_version(album)
     # number of discs
     title = subsonic_util.append_number_of_discs_to_album_title(
         current_albumtitle=title,
@@ -794,7 +801,9 @@ def album_to_entry(
     title = subsonic_util.append_explicit_if_needed(title, album)
     append_artist: bool = (config.get_config_param_as_bool(
                            constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW) and
-                           get_option(options=options, option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE))
+                           get_option(options=options, option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE)
+                           if not is_search_result
+                           else config.get_config_param_as_bool(constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_SEARCH_RES))
     if append_artist:
         artist: str = album.getArtist()
         if artist:
@@ -854,6 +863,11 @@ def album_to_entry(
         album_quality_badge=album_quality_badge,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
+    title = subsonic_util.append_album_version_to_album_title(
+        current_albumtitle=title,
+        album_version=album_version,
+        album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
+        is_search_result=is_search_result)
     # show album id
     title = subsonic_util.append_album_id_to_album_title(
         current_albumtitle=title,
@@ -884,8 +898,8 @@ def album_to_entry(
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
-    if album_quality_badge:
-        upnp_util.set_metadata("albumquality", album_quality_badge, entry)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, entry)
+    subsonic_util.set_album_metadata(album=album, target=entry)
     return entry
 
 

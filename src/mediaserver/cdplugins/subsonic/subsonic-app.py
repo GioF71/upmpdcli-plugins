@@ -1769,11 +1769,15 @@ def handler_element_navigable_album(
     media_type: str = album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value)
     release_types: str = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value, [])
     genres: list[str] = album.getGenres()
+    album_version: str = subsonic_util.get_album_version(album)
+    record_label_names: list[str] = subsonic_util.get_album_record_label_names(album)
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> artist_id: [{album.getArtistId()}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> mb_id: [{album_mb_id}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> media type [{media_type}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> release types [{release_types}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> genres [{genres}]")
+    msgproc.log(f"handler_element_navigable_album album [{album_id}] -> version [{album_version}]")
+    msgproc.log(f"handler_element_navigable_album album [{album_id}] -> record label names [{record_label_names}]")
     album_entry: dict[str, any] = entry_creator.album_to_entry(objid=objid, album=album)
     # which album art?
     album_art_uri: str = upnp_util.get_album_art_uri(album_entry)
@@ -1785,7 +1789,7 @@ def handler_element_navigable_album(
         current_albumtitle=title,
         album=album,
         config_getter=lambda: config.get_config_param_as_bool(
-            constants.ConfigParam.APPEND_DISC_CNT_IN_ALBUM_VIEW))
+            constants.ConfigParam.ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW))
     # number of tracks
     title = subsonic_util.append_number_of_tracks_to_album_title(
         current_albumtitle=title,
@@ -1807,6 +1811,11 @@ def handler_element_navigable_album(
         album_quality_badge=album_quality_badge,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=False)
+    title = subsonic_util.append_album_version_to_album_title(
+        current_albumtitle=title,
+        album_version=album_version,
+        album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
+        is_search_result=False)
     title = subsonic_util.append_album_id_to_album_title(
         current_albumtitle=title,
         album_id=album_id,
@@ -1818,8 +1827,8 @@ def handler_element_navigable_album(
         else:
             title = f"{title} [mb:{album_mb_id}]"
     upnp_util.set_album_title(title, album_entry)
-    if album_quality_badge:
-        upnp_util.set_metadata("albumquality", album_quality_badge, album_entry)
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, album_entry)
+    subsonic_util.set_album_metadata(album=album, target=album_entry)
     entries.append(album_entry)
     # add artist if needed
     skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)
