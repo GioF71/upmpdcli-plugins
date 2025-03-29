@@ -89,8 +89,14 @@ def set_bit_rate(bit_rate: int, target: dict):
     target['kbs'] = str(bit_rate)
 
 
-def set_metadata(metadata_name: str, metadata_value: str, target: dict):
+def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
     if metadata_value is not None and len(metadata_value) > 0:
-        # msgproc.log(f"set_metadata setting [{metadata_name}] to [{metadata_value}]")
-        k: str = f"upmpd:{metadata_name}"
+        k: str = raw_metadata_name
         target[k] = metadata_value
+
+
+def set_metadata(metadata_name: str, metadata_value: str, target: dict):
+    set_raw_metadata(
+        raw_metadata_name=f"upmpd:{metadata_name}",
+        metadata_value=metadata_value,
+        target=target)

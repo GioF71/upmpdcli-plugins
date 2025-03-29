@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,15 +31,39 @@ msgproc = cmdtalkplugin.Processor(dispatcher)
 
 class AlbumMetadata:
 
-    def __init__(self):
-        self.created_timestamp: datetime.datetime = datetime.datetime.now()
-        self.updated_timestamp = self.created_timestamp
+    def __init__(
+            self,
+            album_id: str,
+            quality_badge: str,
+            created_timestamp: datetime.datetime = None,
+            updated_timestamp: datetime.datetime = None):
+        self.__album_id: str = album_id
+        self.__quality_badge: str = quality_badge
+        self.__created_timestamp: datetime.datetime = created_timestamp if created_timestamp else datetime.datetime.now()
+        self.__updated_timestamp: datetime.datetime = updated_timestamp if updated_timestamp else self.created_timestamp
 
-    album_id: str = None
-    quality_badge: str = None
-    created_timestamp: datetime.datetime = None
-    updated_timestamp: datetime.datetime = None
+    @property
+    def album_id(self) -> str:
+        return self.__album_id
 
+    @property
+    def quality_badge(self) -> str:
+        return self.__quality_badge
+
+    @property
+    def created_timestamp(self) -> datetime.datetime:
+        return self.__created_timestamp
+
+    @property
+    def updated_timestamp(self) -> datetime.datetime:
+        return self.__updated_timestamp
+
+    def update(self, quality_badge: str):
+        self.__quality_badge = quality_badge
+        self.__updated_timestamp = datetime.datetime.now()
+
+
+__album_metadata_cache: dict[str, AlbumMetadata] = {}
 
 __table_name_album_metadata_v1: str = "album_metadata_v1"
 
@@ -59,6 +83,20 @@ __sql_create_table_album_metadata_v1: str = f"""
 
 
 def get_album_metadata(album_id: str) -> AlbumMetadata:
+    # try in cache first, otherwise load.
+    album_metadata: AlbumMetadata = (__album_metadata_cache[album_id]
+                                     if album_id in __album_metadata_cache
+                                     else None)
+    # msgproc.log(f"get_album_metadata cache [{'hit' if album_metadata else 'miss'}] for album_id [{album_id}]")
+    if not album_metadata:
+        album_metadata = _load_album_metadata(album_id=album_id)
+        # add to cache if correctly loaded from db
+        if album_metadata:
+            __album_metadata_cache[album_id] = album_metadata
+    return album_metadata
+
+
+def _load_album_metadata(album_id: str) -> AlbumMetadata:
     t = (album_id, )
     cursor = __connection.cursor()
     q: str = f"""
@@ -78,15 +116,22 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
     if len(rows) > 1:
         raise Exception(f"Multiple {__table_name_album_metadata_v1} records for [{album_id}]")
     row = rows[0]
-    result: AlbumMetadata = AlbumMetadata()
-    result.album_id = row[0]
-    result.quality_badge = row[1]
-    result.created_timestamp = row[2]
-    result.updated_timestamp = row[3]
+    result: AlbumMetadata = AlbumMetadata(
+        album_id=row[0],
+        quality_badge=row[1],
+        created_timestamp=row[2],
+        updated_timestamp=row[3])
     return result
 
 
 def delete_album_metadata(album_id: str):
+    # remove from cache, then actually delete from db
+    if album_id in __album_metadata_cache:
+        del __album_metadata_cache[album_id]
+    _delete_album_metadata_from_db(album_id=album_id)
+
+
+def _delete_album_metadata_from_db(album_id: str):
     t = (album_id, )
     cursor = __connection.cursor()
     q: str = f"""
@@ -104,6 +149,7 @@ def save_quality_badge(album_id: str, quality_badge: str):
         to_update: bool = quality_badge != album_metadata.quality_badge
         # msgproc.log(f"{AlbumMetadata.__name__} exists for album_id {album_id}, updating: [{to_update}] ...")
         if to_update:
+            album_metadata.update(quality_badge=quality_badge)
             if config.debug_badge_mngmt:
                 msgproc.log(f"{AlbumMetadata.__name__} exists for album_id {album_id}, "
                             f"needs updating to [{quality_badge}]...")
@@ -127,9 +173,8 @@ def save_quality_badge(album_id: str, quality_badge: str):
             msgproc.log(f"{AlbumMetadata.__name__} not found for "
                         f"album_id {album_id}, inserting ...")
         # just create a new AlbumMetaData with just the quality badge and save it
-        album_metadata = AlbumMetadata()
-        album_metadata.album_id = album_id
-        album_metadata.quality_badge = quality_badge
+        album_metadata = AlbumMetadata(album_id=album_id, quality_badge=quality_badge)
+        __album_metadata_cache[album_id] = album_metadata
         insert_album_metadata(album_metadata=album_metadata)
 
 
@@ -171,6 +216,36 @@ def insert_album_metadata(album_metadata: AlbumMetadata):
         ) VALUES (?, ?, ?, ?)
     """
     __execute_update(insert_sql, insert_values)
+
+
+def preload_album_metadata():
+    cursor = __connection.cursor()
+    q: str = f"""
+        SELECT
+            {__field_name_album_id},
+            {__field_name_album_quality_badge},
+            {__field_name_created_timestamp},
+            {__field_name_updated_timestamp}
+        FROM
+            {__table_name_album_metadata_v1}
+    """
+    cursor.execute(q)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows or len(rows) == 1:
+        return
+    for row in rows:
+        albumMetaData: AlbumMetadata = AlbumMetadata(
+            album_id=row[0],
+            quality_badge=row[1],
+            created_timestamp=row[2],
+            updated_timestamp=row[3])
+        __album_metadata_cache[albumMetaData.album_id] = albumMetaData
+    msgproc.log(f"Loaded {len(rows)} {AlbumMetadata.__name__} records.")
+
+
+def preload():
+    preload_album_metadata()
 
 
 def __execute_update(sql: str, data: tuple, cursor=None, do_commit: bool = True):
@@ -319,3 +394,6 @@ for current_migration in migrations:
 
 migrated_db_version: str = get_db_version()
 msgproc.log(f"Current db version is [{migrated_db_version}]")
+msgproc.log("Preloading ...")
+preload()
+msgproc.log("Finished preloading.")

@@ -519,8 +519,7 @@ def album_to_navigable_entry(
     if append_artist:
         artist: str = album.getArtist()
         if artist:
-            # title = f"{artist} - {title}"
-            title = f"{title} [{artist}]"
+            title = f"{title} - {artist}"
     entry_title: str = title
     entry_title = subsonic_util.append_album_id_to_album_title(
         current_albumtitle=entry_title,

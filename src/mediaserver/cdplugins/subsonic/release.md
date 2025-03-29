@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.6
+
+- Artist is appended using a dash as the separator, instead of putting it inside square brackets
+- Try to use upnp:genre for genres instead of upmpd:albumgenres
+
 ## Release 0.7.5
 
 - Add support for album version

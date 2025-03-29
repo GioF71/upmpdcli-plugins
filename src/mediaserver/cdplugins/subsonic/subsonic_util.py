@@ -904,7 +904,9 @@ def set_album_metadata(album: Album, target: dict):
     original_release_date: str = str(original_release_date_int) if original_release_date_int else None
     upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ORIGINAL_RELEASE_DATE.value, original_release_date, target)
     upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_VERSION.value, get_album_version(album), target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_GENRES.value, ", ".join(album.getGenres()), target)
+    joined_genres: str = ", ".join(album.getGenres())
+    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_GENRES.value, joined_genres, target)
+    upnp_util.set_raw_metadata("upnp:genre", joined_genres, target)
     upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ID.value, album.getId(), target)
     record_label_names: str = ", ".join(get_album_record_label_names(album))
     upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_RECORD_LABELS.value, record_label_names, target)
