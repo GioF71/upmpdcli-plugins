@@ -46,15 +46,16 @@ def setidprefix(idprefix):
 
 
 def direntry(
-    id,
-    pid,
-    title,
-    arturi=None,
-    artist=None,
-    upnpclass=None,
-    searchable="1",
-    date=None,
-    description=None,
+        id,
+        pid,
+        title,
+        arturi=None,
+        artist=None,
+        upnpclass=None,
+        searchable="1",
+        date=None,
+        description=None,
+        genre=None,
 ):
     """Create container entry in format expected by parent"""
     # uplog(f"rcldirentry: id {id} pid {pid} tt {title} date {date} clss {upnpclass} artist {artist} arturi {arturi}")
@@ -71,6 +72,8 @@ def direntry(
         ret["upnp:class"] = "object.container.storageFolder"
     if description:
         ret["dc:description"] = description
+    if genre:
+        ret["upnp:genre"] = genre
     return ret
 
 
@@ -293,7 +296,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums=False):
             # Do we really want to do this ? This would currently be the only way to display the,
             # e.gh. Qobuz album description in upplay (because the description is not set in album
             # lists used by the dir browser, only when querying a specific album), but it does not
-            # seem quite write to set it on each track. Longer discussion in notes.
+            # seem quite right to set it on each track. Longer discussion in notes.
             # if not 'dc:description' in li and track.album.description:
             # uplog(f"trackentries: setting dc:description on track: {track.album.description}")
             # li['dc:description'] = track.album.description

@@ -369,7 +369,7 @@ static void catstring(string& dest, const string& s2)
     if (dest.empty()) {
         dest = s2;
     } else {
-        dest += string(" ") + s2;
+        dest += string(", ") + s2;
     }
 }
 
@@ -412,7 +412,6 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
     istringstream input(encoded);
     input >> decoded;
     LOGDEB0("PlgWithSlave::results: got " << decoded.size() << " entries \n");
-    LOGDEB1("PlgWithSlave::results: undecoded: " << decoded.dump() << "\n");
 
     entries.reserve(decoded.size());
     for (unsigned int i = 0; i < decoded.size(); i++) {
@@ -435,9 +434,15 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
         JSONTOUPS(title, tt);
         JSONTOUPS(artUri, upnp:albumArtURI);
         JSONTOUPS(artist, upnp:artist);
+        auto cr = decod_i.get("dc:creator", "").asString();
+        if (cr != song.artist) {
+            catstring(song.artist, cr);
+        }
         JSONTOUPS(upnpClass, upnp:class);
         JSONTOUPS(dcdescription, dc:description);
+        JSONTOUPS(album, upnp:album);
         JSONTOUPS(dcdate, dc:date);
+        JSONTOUPS(genre, upnp:genre);
         song.didlfrag = decod_i.get("didlfrag", "").asString();
     
         // tp is container ("ct") or item ("it")
@@ -450,9 +455,6 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
             }
         } else  if (!stp.compare("it")) {
             song.iscontainer = false;
-            JSONTOUPS(artist, dc:creator);
-            JSONTOUPS(genre, upnp:genre);
-            JSONTOUPS(album, upnp:album);
             JSONTOUPS(tracknum, upnp:originalTrackNumber);
             // Decode resource data in base record
             decodeResource(decod_i, song.rsrc);
