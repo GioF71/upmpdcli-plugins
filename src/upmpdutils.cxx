@@ -196,11 +196,6 @@ string UpSong::didl(bool noresource) const
 
     if (iscontainer) {
         UPNPXMLD(upnpClass, upnp:class, "object.container");
-        // tracknum is reused for annotations for containers
-        ss << (tracknum.empty() ? string() :
-               string("<upnp:userAnnotation>" + SoapHelp::xmlQuote(tracknum) +
-                      "</upnp:userAnnotation>"));
-        
     } else {
         UPNPXMLD(upnpClass, upnp:class, "object.item.audioItem.musicTrack");
         UPNPXML(album, upnp:album);

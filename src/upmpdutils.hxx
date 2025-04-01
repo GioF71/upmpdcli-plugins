@@ -135,15 +135,13 @@ public:
     std::string didl(bool nobitrate = false) const;
 
     static UpSong container(const std::string& id, const std::string& pid,
-                            const std::string& title, bool sable = true,
-                            const std::string& annot = std::string()) {
+                            const std::string& title, bool searchable = true) {
         UpSong song;
         song.iscontainer = true;
         song.id = id;
         song.parentid = pid;
         song.title = title;
-        song.searchable = sable;
-        song.tracknum = annot;
+        song.searchable = searchable;
         return song;
     }
     static UpSong item(const std::string& id, const std::string& parentid,
