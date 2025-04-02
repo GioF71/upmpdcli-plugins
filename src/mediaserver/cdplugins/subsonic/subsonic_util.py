@@ -734,6 +734,14 @@ def get_album_version(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.VERSION.value) if album else None
 
 
+def get_album_mediatype(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if album else None
+
+
+def get_artist_mediatype(artist: Artist) -> str | None:
+    return artist.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if artist else None
+
+
 def get_album_record_label_names(album: Album) -> list[str]:
     result: list[str] = []
     rl: list[dict[str, str]] = album.getItem().getListByName(constants.ItemKey.ALBUM_RECORD_LABELS.value) if album else None
@@ -895,30 +903,55 @@ def get_album_disc_and_track_counters(album: Album) -> str:
     return result
 
 
+def set_artist_metadata(artist: Artist, target: dict):
+    upnp_util.set_upnp_meta(
+        constants.UpnpMeta.ARTIST,
+        artist.getName(),
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_ID,
+        artist.getId(),
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_MUSICBRAINZ_ID,
+        get_artist_musicbrainz_id(artist),
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_ALBUM_COUNT,
+        str(artist.getAlbumCount()),
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_MEDIA_TYPE,
+        get_artist_mediatype(artist),
+        target)
+
+
 def set_album_metadata(album: Album, target: dict):
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ARTIST.value, album.getArtist(), target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_TITLE.value, album.getTitle(), target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_ARTIST, album.getArtist(), target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
     album_year: str = str(album.getYear()) if album.getYear() else None
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_YEAR.value, album_year, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_YEAR, album_year, target)
     original_release_date_int: int = album.getOriginalReleaseDate()
-    original_release_date: str = str(original_release_date_int) if original_release_date_int else None
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ORIGINAL_RELEASE_DATE.value, original_release_date, target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_VERSION.value, get_album_version(album), target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_GENRES.value, ", ".join(album.getGenres()), target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_ID.value, album.getId(), target)
+    original_reldate: str = str(original_release_date_int) if original_release_date_int else None
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE, original_reldate, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
+    joined_genres: str = ", ".join(album.getGenres())
+    upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_ID, album.getId(), target)
     record_label_names: str = ", ".join(get_album_record_label_names(album))
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_RECORD_LABELS.value, record_label_names, target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_MUSICBRAINZ_ID.value, get_album_musicbrainz_id(album), target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_RECORD_LABELS, record_label_names, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, get_album_musicbrainz_id(album), target)
     explicit_status: str = get_explicit_status_display_value(
         explicit_status=get_explicit_status(album),
         display_mode=constants.ExplicitDiplayMode.LONG)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_EXPLICIT_STATUS.value, explicit_status, target)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_DURATION.value, get_album_duration_display(album), target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_EXPLICIT_STATUS, explicit_status, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_DURATION, get_album_duration_display(album), target)
     disc_track_counters: str = get_album_disc_and_track_counters(album)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_DISC_AND_TRACK_COUNTERS.value, disc_track_counters, target)
-    is_compilation_bool: bool = album.getItem().getByName(constants.ItemKey.ALBUM_IS_COMPILATION.value, False)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_DISC_AND_TRACK_COUNTERS, disc_track_counters, target)
+    is_compilation_bool: bool = album.getItem().getByName(constants.ItemKey.IS_COMPILATION.value, False)
     is_compilation: str = "yes" if is_compilation_bool else "no"
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_IS_COMPILATION.value, is_compilation, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.IS_COMPILATION, is_compilation, target)
     album_release_types: AlbumReleaseTypes = get_album_release_types(album)
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_RELEASE_TYPES.value, album_release_types_display, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_MEDIA_TYPE, get_album_mediatype(album), target)

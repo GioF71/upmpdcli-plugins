@@ -1766,7 +1766,7 @@ def handler_element_navigable_album(
         return entries
     clean_title: str = album.getTitle()
     album_mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
-    media_type: str = album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value)
+    media_type: str = subsonic_util.get_album_mediatype(album)
     release_types: str = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value, [])
     genres: list[str] = album.getGenres()
     album_version: str = subsonic_util.get_album_version(album)
@@ -1827,7 +1827,7 @@ def handler_element_navigable_album(
         else:
             title = f"{title} [mb:{album_mb_id}]"
     upnp_util.set_album_title(title, album_entry)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, album_entry)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, album_entry)
     subsonic_util.set_album_metadata(album=album, target=album_entry)
     entries.append(album_entry)
     # add artist if needed

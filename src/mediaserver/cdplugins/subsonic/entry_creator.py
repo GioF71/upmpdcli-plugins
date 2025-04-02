@@ -312,11 +312,12 @@ def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
             list_identifier=album.getId())
         msgproc.log(f"get_album_quality_badge for album_id: [{album.getId()}] "
                     f"force_load: [{force_load}] -> [{quality_badge}]")
+        # save
+        
         return quality_badge
     else:
         album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
-        if album_metadata:
-            return album_metadata.quality_badge
+        return album_metadata.quality_badge if album_metadata else None
 
 
 def __store_album_badge(album_id: str, quality_badge: str) -> str:
@@ -519,8 +520,7 @@ def album_to_navigable_entry(
     if append_artist:
         artist: str = album.getArtist()
         if artist:
-            # title = f"{artist} - {title}"
-            title = f"{title} [{artist}]"
+            title = f"{title} - {artist}"
     entry_title: str = title
     entry_title = subsonic_util.append_album_id_to_album_title(
         current_albumtitle=entry_title,
@@ -554,7 +554,7 @@ def album_to_navigable_entry(
         pid=objid,
         title=entry_title,
         artist=artist)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, entry)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(album=album, target=entry)
     upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
@@ -621,13 +621,15 @@ def artist_to_entry(
     # msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
     #             f"coverArt [{cover_art}]")
     select_entry_name: str = entry_name if entry_name else artist.getName()
-    return artist_to_entry_raw(
+    artist_entry: dict[str, any] = artist_to_entry_raw(
         objid=objid,
         artist_id=artist.getId(),
         entry_name=select_entry_name,
         artist_cover_art=cover_art,
         additional_identifier_properties=additional_identifier_properties,
         options=options)
+    subsonic_util.set_artist_metadata(artist=artist, target=artist_entry)
+    return artist_entry
 
 
 def artist_to_entry_raw(
@@ -898,7 +900,7 @@ def album_to_entry(
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
-    upnp_util.set_metadata(constants.UpmpdMetadata.ALBUM_QUALITY.value, album_quality_badge, entry)
+    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(album=album, target=entry)
     return entry
 

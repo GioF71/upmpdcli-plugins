@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.7.5"
+    PLUGIN_RELEASE = "0.7.6"
     PLUGIN_NAME = "subsonic"
 
 
@@ -40,7 +40,7 @@ class ItemKey(Enum):
     COVER_ART = "coverArt"
     VERSION = "version"
     ALBUM_RECORD_LABELS = "recordLabels"
-    ALBUM_IS_COMPILATION = "isCompilation"
+    IS_COMPILATION = "isCompilation"
 
 
 class AlbumEntryType(Enum):
@@ -178,11 +178,15 @@ class ExplicitStatus(Enum):
     CLEAN = _ExplicitStatusData("clean", "C", "Clean")
 
 
-class UpmpdMetadata(Enum):
+class UpnpMeta(Enum):
+    GENRE = "genre"
+    ARTIST = "artist"
+
+
+class UpMpdMeta(Enum):
     ALBUM_QUALITY = "albumquality"
     ALBUM_VERSION = "albumversion"
     ALBUM_EXPLICIT_STATUS = "albumexplicitstatus"
-    ALBUM_GENRES = "albumgenres"
     ALBUM_ID = "albumid"
     ALBUM_MUSICBRAINZ_ID = "albummusicbrainzid"
     ALBUM_RECORD_LABELS = "albumrecordlabels"
@@ -191,9 +195,14 @@ class UpmpdMetadata(Enum):
     ALBUM_ARTIST = "albumartist"
     ALBUM_TITLE = "albumtitle"
     ALBUM_YEAR = "albumyear"
+    ALBUM_MEDIA_TYPE = "albummediatype"
     ALBUM_ORIGINAL_RELEASE_DATE = "albumoriginalreleasedate"
-    ALBUM_IS_COMPILATION = "albumiscompilation"
-    ALBUM_RELEASE_TYPES = "albumreleasetypes"
+    IS_COMPILATION = "albumiscompilation"
+    RELEASE_TYPES = "albumreleasetypes"
+    ARTIST_ID = "artistid"
+    ARTIST_MUSICBRAINZ_ID = "artistmusicbrainzid"
+    ARTIST_ALBUM_COUNT = "artistalbumcount"
+    ARTIST_MEDIA_TYPE = "artistmediatype"
 
 
 default_debug_badge_mngmt: int = 0

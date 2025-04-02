@@ -1,5 +1,13 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.6
+
+- Add artist metadata using upnp:artist
+- Artist is appended using a dash as the separator, instead of putting it inside square brackets
+- Try to use upnp:genre for album genres
+- Remove upmpd:albumgenres in favor of standard and already available upnp:genre
+- Add new table kv_cache_v1 for simple key-value caches
+
 ## Release 0.7.5
 
 - Add support for album version

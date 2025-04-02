@@ -15,6 +15,7 @@
 
 import upmplgmodels
 import album_util
+import constants
 
 from subsonic_connector.album import Album
 from msgproc_provider import msgproc
@@ -89,8 +90,21 @@ def set_bit_rate(bit_rate: int, target: dict):
     target['kbs'] = str(bit_rate)
 
 
-def set_metadata(metadata_name: str, metadata_value: str, target: dict):
+def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
     if metadata_value is not None and len(metadata_value) > 0:
-        # msgproc.log(f"set_metadata setting [{metadata_name}] to [{metadata_value}]")
-        k: str = f"upmpd:{metadata_name}"
-        target[k] = metadata_value
+        # msgproc.log(f"Setting [{raw_metadata_name}]=[{metadata_value}]")
+        target[raw_metadata_name] = metadata_value
+
+
+def set_upnp_meta(metadata_name: constants.UpnpMeta, metadata_value: str, target: dict):
+    set_raw_metadata(
+        raw_metadata_name=f"upnp:{metadata_name.value}",
+        metadata_value=metadata_value,
+        target=target)
+
+
+def set_upmpd_meta(metadata_name: constants.UpMpdMeta, metadata_value: str, target: dict):
+    set_raw_metadata(
+        raw_metadata_name=f"upmpd:{metadata_name.value}",
+        metadata_value=metadata_value,
+        target=target)
