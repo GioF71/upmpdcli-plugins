@@ -602,8 +602,8 @@ def __store_db_version(version: str):
         cursor.execute("INSERT INTO db_version(version) VALUES(?)", insert_tuple)
         cursor.close()
     else:
-        msgproc.log(f"Updating db version to [{version}] from [{current_db_version}] ...")
-        update_tuple = (version, current_db_version)
+        msgproc.log(f"Updating db version to [{version}] from [{db_version}] ...")
+        update_tuple = (version, db_version)
         cursor = __connection.cursor()
         cursor.execute("UPDATE db_version set version = ? WHERE version = ?", update_tuple)
         cursor.close()
@@ -687,8 +687,6 @@ def migration_template(new_version: str, migration_function: Callable):
 __connection: sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
 
-current_db_version: str = get_db_version()
-
 
 class Migration:
 
@@ -741,16 +739,20 @@ def __init():
             apply_on="6",
             migration_function=migration_6)]
     current_migration: Migration
+    migration_counter: int = 0
     for current_migration in migrations:
-        current_db_version: int = get_db_version()
-        if not current_db_version or current_db_version == current_migration.apply_on:
+        db_version: str = get_db_version()
+        msgproc.log(f"Current db version is [{db_version}] -> "
+                    f"Examining migration [{current_migration.migration_name}] "
+                    f"index [{migration_counter}] ...")
+        if not db_version or db_version == current_migration.apply_on:
             msgproc.log(f"Migration [{current_migration.migration_name}] "
-                        f"is executing on current db version [{current_db_version}] ...")
+                        f"is executing on current db version [{db_version}] ...")
             current_migration.migration_function()
             msgproc.log(f"Migration [{current_migration.migration_name}] executed.")
         else:
             msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
-
+        migration_counter += 1
     migrated_db_version: str = get_db_version()
     msgproc.log(f"Current db version is [{migrated_db_version}]")
     msgproc.log("Preloading ...")
