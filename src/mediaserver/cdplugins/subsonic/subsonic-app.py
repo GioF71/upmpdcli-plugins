@@ -285,16 +285,19 @@ def _load_album_tracks(
     album, album_tracks = get_album_tracks(album_id)
     if album is None or album_tracks is None:
         return None
+    artist_id: str = album.getArtistId()
     mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
     album_quality_badge: str = entry_creator.get_track_list_badge(
         track_list=album_tracks.getSongList(),
         list_identifier=album_id)
     if config.debug_badge_mngmt:
         msgproc.log(f"Quality badge for [{album_id}] -> [{album_quality_badge}]")
-    if album_quality_badge:
-        persistence.save_quality_badge(
+    if album_quality_badge or mb_id or artist_id:
+        persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album_id,
-            quality_badge=album_quality_badge)
+            quality_badge=album_quality_badge,
+            album_musicbrainz_id=mb_id,
+            album_artist_id=artist_id))
     song_list: list[Song] = album_tracks.getSongList()
     multi_codec_album: MultiCodecAlbum = album_tracks.getMultiCodecAlbum()
     current_base_path: str = None
@@ -525,13 +528,32 @@ def _create_list_of_genres(objid, entries: list) -> list:
     if not genres_response.isOk():
         return entries
     genre_list = genres_response.getObj().getGenres()
+    # we try to retrieve some random albums and match them with genres in order to improve performance
+    # size is number of genres * 2
+    album_res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=len(genre_list) * 2)
+    random_albums: list[AlbumList] = album_res.getObj().getAlbums() if album_res and album_res.isOk() else []
+    album_by_genre: dict[str, Album] = {}
+    random_album: Album
+    for random_album in random_albums:
+        if not random_album.getCoverArt():
+            # an album without cover
+            msgproc.log(f"Album with id [{random_album.getId()}] [{random_album.getTitle()}] "
+                        f"by [{random_album.getArtist()}] does not have cover art")
+            continue
+        album_genre_list: list[str] = random_album.getGenres()
+        album_genre: str
+        for album_genre in album_genre_list:
+            if album_genre not in album_by_genre:
+                # associate this album with the genre
+                album_by_genre[album_genre] = random_album
     genre_list.sort(key=lambda x: x.getName())
     current_genre: Genre
     for current_genre in genre_list:
         if current_genre.getAlbumCount() > 0:
             entry: dict[str, any] = entry_creator.genre_to_entry(
                 objid,
-                current_genre)
+                current_genre,
+                album_by_genre=album_by_genre)
             entries.append(entry)
     return entries
 
@@ -957,6 +979,7 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
     song_list: list[Song] = response.getObj().getSongs()
     need_next: bool = song_list and len(song_list) > (offset + config.get_items_per_page())
     song_slice: list[Song] = song_list[offset:min(len(song_list), offset + config.get_items_per_page())]
+    next_song: Song = song_list[offset + config.get_items_per_page()] if need_next else None
     current_song: Song
     for current_song in song_slice if song_slice and len(song_slice) > 0 else []:
         entry: dict[str, any] = _song_to_song_entry(
@@ -974,32 +997,42 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
             next_id,
             objid,
             title="Next")
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(next_song.getCoverArt()),
+            target=next_entry)
         entries.append(next_entry)
     return entries
 
 
 def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     song_as_entry: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
-    response: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=config.get_items_per_page())
+    req_song_count: int = config.get_items_per_page() + 1
+    response: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=req_song_count)
     if not response.isOk():
         raise Exception("Cannot get random songs")
     song_list: list[Song] = response.getObj().getSongs()
+    next_song: Song = song_list[len(song_list) - 1] if len(song_list) == req_song_count else None
+    to_display: list[Song] = song_list[0:config.get_items_per_page()] if next_song else song_list
     song: Song
-    for song in song_list:
+    for song in to_display:
         song_entry = _song_to_song_entry(
             objid=objid,
             song=song,
             song_as_entry=song_as_entry)
         entries.append(song_entry)
-    # no offset, so we always add next
-    next_identifier: ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
-    next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
-    next_id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
-    next_entry: dict[str, any] = upmplgutils.direntry(
-        id=next_id,
-        pid=objid,
-        title="Next")
-    entries.append(next_entry)
+    if next_song:
+        # no offset, so we always add next
+        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
+        next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
+        next_id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
+        next_entry: dict[str, any] = upmplgutils.direntry(
+            id=next_id,
+            pid=objid,
+            title="Next")
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=next_song.getCoverArt()),
+            target=next_entry)
+        entries.append(next_entry)
     return entries
 
 
@@ -1450,21 +1483,20 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
                 album_art_uri=subsonic_util.get_album_cover_art_url_by_album(album=ref_album),
                 target=songsel_entry)
             entries.append(songsel_entry)
-    artist_response: Response[Artist] = None
-    try:
-        artist_response = connector_provider.get().getArtist(artist_id)
-    except Exception as ex:
-        msgproc.log(f"Cannot get artist with id {artist_id} [{type(ex)}] [{ex}]")
-    if not artist_response or not artist_response.isOk():
+    artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
+    if not artist:
         msgproc.log(f"Cannot retrieve artist by id {artist_id}")
         return entries
-    artist: Artist = artist_response.getObj()
     artist_mb_id: str = subsonic_util.get_artist_musicbrainz_id(artist)
+    # store artist metadata
+    artist_metadata: persistence.ArtistMetadata = persistence.ArtistMetadata(
+        artist_id=artist.getId(),
+        artist_name=artist.getName(),
+        artist_musicbrainz_id=artist_mb_id)
+    persistence.save_artist_metadata(artist_metadata)
     if artist_mb_id:
         # at least the musicbrainz artist id is logged
         msgproc.log(f"Artist [{artist_id}] -> [{artist.getName()}] [{artist_mb_id}]")
-        # cache it!
-        cache_actions.store_artist_mbid(artist_id, artist_mb_id)
     # do other artist by the same name exist?
     by_same_name_list: list[Artist] = (subsonic_util.get_artists_by_same_name(artist)
                                        if artist_mb_id
@@ -1832,7 +1864,8 @@ def handler_element_navigable_album(
     entries.append(album_entry)
     # add artist if needed
     skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)
-    # msgproc.log(f"handler_element_navigable_album skip_artist_id: [{skip_artist_id}]")
+    if skip_artist_id:
+        msgproc.log(f"handler_element_navigable_album skip_artist_id: [{skip_artist_id}]")
     skip_artist_id_set: set[str] = set()
     if skip_artist_id:
         skip_artist_id_set.add(skip_artist_id)
@@ -1864,7 +1897,18 @@ def handler_element_navigable_album(
             skip_artist_id_set=skip_artist_id_set)
         entries.extend(additional_artist_entries)
     elif len(additional) > 0:
-        # create dedicated entry!
+        # create main artist entry if album has artist id
+        if album.getArtistId():
+            main_artist: Artist = subsonic_util.try_get_artist(artist_id=album.getArtistId())
+            if main_artist:
+                entries.append(
+                    entry_creator.artist_to_entry(
+                        objid=objid,
+                        artist=main_artist))
+            else:
+                msgproc.log(f"handler_element_navigable_album cannot load main artist [{album.getArtistId()}] "
+                            f"for album_id [{album.getId()}]")
+        # create dedicated entry for additional album artists
         msgproc.log(f"handler_element_navigable_album creating entry for {len(additional)} additional artists ...")
         additional_album_artists_identifier: ItemIdentifier = ItemIdentifier(
             name=ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(),
@@ -1967,17 +2011,19 @@ def create_entries_for_album_additional_artists(
     artist_entries: list[dict[str, any]] = []
     curr_artist: subsonic_util.ArtistsOccurrence
     for curr_artist in additional:
-        msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] [{curr_artist.name}]")
-        if curr_artist.id not in skip_artist_id_set:
-            msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] "
-                        f"[{curr_artist.name}] -> adding ...")
+        add_current: bool = curr_artist.id not in skip_artist_id_set
+        msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.id}] [{curr_artist.name}] "
+                    f"adding [{'yes' if add_current else 'no'}]")
+        if add_current:
             entry_name: str = curr_artist.name
             if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_ID):
                 entry_name = f"{entry_name} [{curr_artist.id}]"
             # do we know the artist mb id?
             if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
                 # see if we have it cached.
-                artist_mb_id: str = cache_actions.get_artist_mb_id(curr_artist.id)
+                artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=curr_artist.id)
+                # artist_mb_id: str = cache_actions.get_artist_mb_id(curr_artist.id)
+                artist_mb_id: str = artist_metadata.artist_musicbrainz_id if artist_metadata else None
                 if artist_mb_id:
                     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                         msgproc.log(f"Found mbid for artist_id [{curr_artist.id}] -> [{artist_mb_id}]")
@@ -2120,9 +2166,10 @@ def handler_element_similar_artists(objid, item_identifier: ItemIdentifier, entr
     sim_artist_list: list[SimilarArtist] = res.getObj().getSimilarArtists()
     sim_artist: SimilarArtist
     for sim_artist in sim_artist_list:
-        entries.append(entry_creator.artist_to_entry(
+        entries.append(entry_creator.artist_to_entry_raw(
             objid=objid,
-            artist=sim_artist))
+            artist_id=sim_artist.getId(),
+            entry_name=sim_artist.getName()))
     return entries
 
 
@@ -2393,11 +2440,11 @@ def tag_to_entry(objid, tag: TagType) -> dict[str, any]:
 
 
 def show_tag_entries(objid, entries: list) -> list:
-    msgproc.log("show_tag_entries starting ...")
+    # msgproc.log("show_tag_entries starting ...")
     for tag in TagType:
         if config.is_tag_supported(tag):
             if tag_enabled_in_initial_page(tag):
-                msgproc.log(f"show_tag_entries adding tag [{tag}] ...")
+                # msgproc.log(f"show_tag_entries adding tag [{tag}] ...")
                 start_time: float = time.time()
                 # is there a precondition?
                 precondition: Callable[[], bool] = (
@@ -2406,11 +2453,13 @@ def show_tag_entries(objid, entries: list) -> list:
                     else None)
                 do_show: bool = not precondition or precondition()
                 if do_show:
-                    msgproc.log(f"show_tag_entries actually showing tag [{tag}] ...")
+                    # msgproc.log(f"show_tag_entries actually showing tag [{tag}] ...")
                     entries.append(tag_to_entry(objid, tag))
-                    msgproc.log(f"show_tag_entries finished showing tag [{tag}].")
+                    # msgproc.log(f"show_tag_entries finished showing tag [{tag}]")
                 elapsed: float = time.time() - start_time
-                msgproc.log(f"show_tag_entries adding tag [{tag}] took [{elapsed:.3f}].")
+                msgproc.log(f"show_tag_entries adding tag [{tag}] "
+                            f"shown [{'yes' if do_show else 'no'}] "
+                            f"took [{elapsed:.3f}].")
         # else:
         #     msgproc.log(f"show_tag_entries skipping unsupported [{tag}]")
     msgproc.log("show_tag_entries finished.")

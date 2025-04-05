@@ -1,5 +1,18 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.7
+
+- Review persistence.py
+- Drop musicbrainz id by artist_id in-memory cache in favor of persistent caches (artist_metadata)
+- Add artist musicbrainz id to artist metadata table
+- Add album musicbrainz id to album metadata table
+- Add album artist id to album metadata table
+- Add cover art to next button for favorite and random songs
+- Improve artist entry for album navigable view
+- Add some caching in genres view (still a bit slow)
+- Fixed "Similar artists" not loading
+- General code cleanup and optimizations
+
 ## Release 0.7.6
 
 - Add artist metadata using upnp:artist

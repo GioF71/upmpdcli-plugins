@@ -35,6 +35,7 @@ import cache_manager_provider
 import album_util
 import upnp_util
 import config
+import persistence
 
 import cmdtalkplugin
 
@@ -670,7 +671,8 @@ def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
 def append_cached_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_id: str) -> str:
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
         # see if we have it cached.
-        artist_mb_id: str = cache_actions.get_artist_mb_id(artist_id)
+        artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
+        artist_mb_id: str = artist_metadata.artist_musicbrainz_id if artist_metadata else None
         if artist_mb_id:
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                 msgproc.log(f"Found mbid for artist_id [{artist_id}] -> [{artist_mb_id}]")

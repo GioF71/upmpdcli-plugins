@@ -18,8 +18,6 @@ from enum import Enum
 
 class CacheType(Enum):
     ALBUMS_BY_ARTIST = 1, "lbm4rtst"
-    MB_ALBUM_ID_BY_ALBUM_ID = 2, "mblbmidbylbmid"
-    MB_ARTIST_ID_BY_ARTIST_ID = 3, "mbrtstidbyrtstid"
 
     def __init__(
             self,

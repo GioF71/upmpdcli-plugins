@@ -22,6 +22,7 @@ import subsonic_util
 import cmdtalkplugin
 import config
 import constants
+import persistence
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -41,12 +42,6 @@ def delete_album_by_artist_id(artist_id: str) -> bool:
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
     return cache_manager_provider.get().delete_cached_element(cache_type.getName(), key)
-
-
-def get_album_mb_id(album_id: str) -> str | None:
-    return cache_manager_provider.get().get_cached_element(
-        cache_name=cache_type.CacheType.MB_ALBUM_ID_BY_ALBUM_ID.getName(),
-        key=album_id)
 
 
 def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album):
@@ -72,21 +67,6 @@ def on_album(album: subsonic_connector.album.Album):
     if mb_album_id:
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
             msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
-        cache_manager.cache_element_value(
-            cache_name=cache_type.CacheType.MB_ALBUM_ID_BY_ALBUM_ID.getName(),
-            key=album.getId(),
-            value=mb_album_id)
-
-
-def get_artist_mb_id(artist_id: str) -> str | None:
-    return cache_manager_provider.get().get_cached_element(
-        cache_name=cache_type.CacheType.MB_ARTIST_ID_BY_ARTIST_ID.getName(),
-        key=artist_id)
-
-
-def store_artist_mbid(artist_id: str, artist_mb_id: str):
-    cache_manager: CacheManager = cache_manager_provider.get()
-    cache_manager.cache_element_value(
-        cache_name=cache_type.CacheType.MB_ARTIST_ID_BY_ARTIST_ID.getName(),
-        key=artist_id,
-        value=artist_mb_id)
+        persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
+            album_id=album.getId(),
+            album_musicbrainz_id=mb_album_id))

@@ -312,24 +312,23 @@ def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
             list_identifier=album.getId())
         msgproc.log(f"get_album_quality_badge for album_id: [{album.getId()}] "
                     f"force_load: [{force_load}] -> [{quality_badge}]")
+        artist_id: str = album.getArtistId()
+        mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
         # save
-        
+        persistence.save_album_metadata(
+            album_metadata=persistence.AlbumMetadata(
+                album_id=album.getId(),
+                quality_badge=quality_badge,
+                album_musicbrainz_id=mb_id,
+                album_artist_id=artist_id))
         return quality_badge
     else:
         album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
         return album_metadata.quality_badge if album_metadata else None
 
 
-def __store_album_badge(album_id: str, quality_badge: str) -> str:
-    if album_id:
-        persistence.save_quality_badge(album_id=album_id, quality_badge=quality_badge)
-    return quality_badge
-
-
 def get_track_list_badge(track_list: list[Song], list_identifier: str = None) -> str:
     quality_badge: str = __get_track_list_badge(track_list, list_identifier)
-    if quality_badge and list_identifier:
-        __store_album_badge(album_id=list_identifier, quality_badge=quality_badge)
     return quality_badge
 
 
@@ -459,6 +458,16 @@ def album_to_navigable_entry(
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
     title: str = album.getTitle()
+    artist_id: str = album.getArtistId()
+    album_mbid: str = subsonic_util.get_album_musicbrainz_id(album=album)
+    if album_mbid or artist_id:
+        # msgproc.log(f"Metadata for album_id [{album.getId()}] -> "
+        #             f"artist_id [{artist_id}] "
+        #             f"album_mb_id [{'mb' if album_mbid else ''}], persisting ...")
+        persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
+            album_id=album.getId(),
+            album_musicbrainz_id=album_mbid,
+            album_artist_id=artist_id))
     album_version: str = subsonic_util.get_album_version(album)
     # number of discs
     title = subsonic_util.append_number_of_discs_to_album_title(
@@ -534,7 +543,8 @@ def album_to_navigable_entry(
             # see if it's available in cache
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                 msgproc.log(f"Trying to got album mb_id from cache for [{album.getId()}] ...")
-            mb_id = cache_actions.get_album_mb_id(album.getId())
+            album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
+            mb_id = album_metadata.album_musicbrainz_id if album_metadata else None
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                 msgproc.log(f"Got album mb_id from cache for [{album.getId()}] -> [mb:{mb_id}]")
         else:
@@ -575,39 +585,63 @@ def show_album_genre_information(album: Album):
 
 def genre_to_entry(
         objid,
-        current_genre: Genre) -> dict[str, any]:
-    name: str = current_genre.getName()
+        current_genre: Genre,
+        album_by_genre: dict[str, Album] = {}) -> dict[str, any]:
+    genre_name: str = current_genre.getName()
+    # album_by_genre might contain an album for each genre, we can use it instead of loading albums
+    cached_by_genre: Album = album_by_genre[genre_name] if album_by_genre and genre_name in album_by_genre else None
     genre_art: str = None
-    genre_album_set: set[str] = cache_manager_provider.get().get_cached_element(
-        ElementType.GENRE,
-        name)
-    random_album_id: str = (secrets.choice(tuple(genre_album_set))
-                            if genre_album_set and len(genre_album_set) > 0
-                            else None)
-    if random_album_id:
-        genre_art = subsonic_util.get_album_cover_art_url_by_album_id(random_album_id)
-    if not genre_art:
+    genre_art_url: str = None
+    # msgproc.log(f"For genre [{genre_name}] cache hit [{'yes' if cached_by_genre else 'no'}]")
+    if cached_by_genre:
+        # best case, we found an album for the genre in the cache
+        genre_art = cached_by_genre.getCoverArt()
+        genre_art_url = subsonic_util.build_cover_art_url(item_id=genre_art)
+        cache_manager_provider.get().cache_element_multi_value(
+            cache_name=ElementType.GENRE,
+            key=genre_name,
+            value=cached_by_genre.getId())
+    else:
+        genre_album_set: set[str] = cache_manager_provider.get().get_cached_element(
+            ElementType.GENRE,
+            genre_name)
+        random_album_id: str = (secrets.choice(tuple(genre_album_set))
+                                if genre_album_set and len(genre_album_set) > 0
+                                else None)
+        if random_album_id:
+            genre_art_url = subsonic_util.get_album_cover_art_url_by_album_id(random_album_id)
+    if not genre_art_url:
         # load up to 5 albums
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_GENRE,
-            genre=name,
+            genre=genre_name,
             size=5)
         if not res or not res.isOk():
-            msgproc.log(f"Cannot get albums by genre [{name}]")
+            msgproc.log(f"Cannot get albums by genre [{genre_name}]")
         album_list: AlbumList = res.getObj()
         msgproc.log(f"Loaded [{len(album_list.getAlbums()) if album_list and album_list.getAlbums() else 0}] "
-                    f"albums for genre [{name}]")
+                    f"albums for genre [{genre_name}]")
         if album_list and len(album_list.getAlbums()) > 0:
-            album: Album = secrets.choice(album_list.getAlbums())
-            genre_art = album.getCoverArt()
+            # look for one with a cover art
+            # album: Album = secrets.choice(album_list.getAlbums())
+            album: Album
+            for album in album_list.getAlbums():
+                if not album.getCoverArt():
+                    continue
+                genre_art = album.getCoverArt()
+                genre_art_url = subsonic_util.build_cover_art_url(item_id=genre_art)
+                cache_manager_provider.get().cache_element_multi_value(
+                    cache_name=ElementType.GENRE,
+                    key=genre_name,
+                    value=album.getId())
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.GENRE.getName(),
         current_genre.getName())
     id: str = identifier_util.create_objid(
         objid,
         identifier_util.create_id_from_identifier(identifier))
-    entry = upmplgutils.direntry(id, objid, name)
-    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(genre_art), entry)
+    entry = upmplgutils.direntry(id, objid, genre_name)
+    upnp_util.set_album_art_from_uri(genre_art_url, entry)
     return entry
 
 
@@ -786,7 +820,7 @@ def album_to_entry(
         album: Album,
         options: dict[str, any] = {}) -> dict[str, any]:
     is_search_result: bool = get_option(options=options, option_key=OptionKey.SEARCH_RESULT)
-    msgproc.log(f"album_to_entry for [{album.getId()}] SearchResult [{is_search_result}] ...")
+    # msgproc.log(f"album_to_entry for [{album.getId()}] SearchResult [{is_search_result}] ...")
     title: str = album.getTitle()
     album_version: str = subsonic_util.get_album_version(album)
     # number of discs
@@ -816,13 +850,13 @@ def album_to_entry(
     append_year: bool = (config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_SEARCH_RES)
                          if is_search_result
                          else config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW))
-    msgproc.log(f"album_to_entry append_year [{append_year}]")
+    # msgproc.log(f"album_to_entry append_year [{append_year}]")
     if append_year and has_year(album):
         title = "{} [{}]".format(title, get_album_year_str(album))
     force_load: bool = get_option(options=options, option_key=OptionKey.FORCE_LOAD_QUALITY_BADGE)
     album_quality_badge: str = get_album_quality_badge(album=album, force_load=force_load)
-    msgproc.log(f"album_to_entry album_quality_badge for [{album.getId()}] is [{album_quality_badge}] "
-                f"force_load was [{force_load}]")
+    # msgproc.log(f"album_to_entry album_quality_badge for [{album.getId()}] is [{album_quality_badge}] "
+    #             f"force_load was [{force_load}]")
     if force_load and config.get_config_param_as_bool(constants.ConfigParam.APPEND_CODEC_TO_ALBUM):
         msgproc.log(f"album_to_entry for "
                     f"album_id: [{album.getId()}] "

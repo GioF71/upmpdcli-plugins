@@ -6,7 +6,7 @@
         "${workspaceFolder}/src/mediaserver/cdplugins/pycommon"
     ],
     "flake8.args": [
-        "--max-line-length=120"
+        "--max-line-length=132"
     ],
     "pylint.enabled": false
 }

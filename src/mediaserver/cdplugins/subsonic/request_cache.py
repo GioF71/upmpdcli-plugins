@@ -150,6 +150,7 @@ def get_genres() -> Response[Genres]:
         cached_response_genres = CachedResponse()
         cached_response_genres.last_response_obj = res
         cached_response_genres.last_response_time = datetime.datetime.now()
+        msgproc.log(f"subsonic_util.get_genres finished loading [{len(res.getObj().getGenres())}] genres")
         return res
     else:
         # use cached!
