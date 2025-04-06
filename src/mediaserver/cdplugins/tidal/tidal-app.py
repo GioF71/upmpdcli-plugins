@@ -109,8 +109,8 @@ class SessionStatus:
 session_status: SessionStatus = None
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
-_g_myprefix = f"0${constants.plugin_name}$"
-upmplgutils.setidprefix(constants.plugin_name)
+_g_myprefix = f"0${constants.PluginConstant.PLUGIN_NAME.value}$"
+upmplgutils.setidprefix(constants.PluginConstant.PLUGIN_NAME.value)
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -236,7 +236,7 @@ def get_session(force_recreate: bool = False) -> TidalSession:
 
 def build_intermediate_url(track_id: str) -> str:
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
-    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{track_id}"
+    url = f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}/track/version/1/trackId/{track_id}"
     if config.log_intermediate_url:
         msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
     return url
@@ -300,15 +300,16 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
             data = stream.get_manifest_data()
         else:
             raise Exception(f"Invalid serve_mode: [{config.serve_mode}]")
-        sub_dir_list: list[str] = [constants.plugin_name, file_dir]
+        sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, file_dir]
         write_dir: str = tidal_util.ensure_directory(document_root_dir, sub_dir_list)
         file_name: str = "dash_{}.{}".format(track.id, file_ext)
         with open(os.path.join(write_dir, file_name), "w") as my_file:
             my_file.write(data)
-            msgproc.log(f"data=[{data}]")
+            if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_DUMP_STREAM_DATA):
+                msgproc.log(f"data=[{data}]")
         remove_older_files(files_path=write_dir, delta_sec=config.max_file_age_seconds)
         path: list[str] = list()
-        path.extend([constants.plugin_name, file_dir])
+        path.extend([constants.PluginConstant.PLUGIN_NAME.value, file_dir])
         path.append(file_name)
         streaming_url = tidal_util.compose_docroot_url("/".join(path))
     elif stream.is_bts:
@@ -359,7 +360,8 @@ def trackuri(a):
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}]")
     whitelisted: bool = False
     select_quality: str = config.max_audio_quality
-    if config.max_audio_quality == TidalQuality.hi_res_lossless:
+    if (config.get_config_param_as_bool(constants.ConfigParam.ENABLE_USER_AGENT_WHITELIST) and
+            config.max_audio_quality == TidalQuality.hi_res_lossless):
         # select quality is dropped to high lossless if there is no match
         select_quality = TidalQuality.high_lossless
         user_agent: str = a['user-agent']
@@ -2943,8 +2945,8 @@ def __create_album_listen_queue_action_button(
     listen_queue_action_dict: dict[str, str] = (constants.listening_queue_action_del_dict
                                                 if in_listen_queue
                                                 else constants.listening_queue_action_add_dict)
-    listen_queue_action: str = listen_queue_action_dict[constants.listening_queue_action_key]
-    listen_queue_button_name: str = listen_queue_action_dict[constants.listening_queue_button_title_key]
+    listen_queue_action: str = listen_queue_action_dict[constants.ListeningQueueKey.ACTION_KEY.value]
+    listen_queue_button_name: str = listen_queue_action_dict[constants.ListeningQueueKey.BUTTON_TITLE_KEY.value]
     lqb_identifier: ItemIdentifier = ItemIdentifier(ElementType.BOOKMARK_ALBUM_ACTION.getName(), album_id)
     lqb_identifier.set(ItemIdentifierKey.LISTEN_QUEUE_ACTION, listen_queue_action)
     lqb_id: str = identifier_util.create_objid(
@@ -2969,8 +2971,8 @@ def _add_track_listen_queue_action_button(
     listen_queue_action_dict: dict[str, str] = (constants.listening_queue_action_del_dict
                                                 if in_listen_queue
                                                 else constants.listening_queue_action_add_dict)
-    listen_queue_action: str = listen_queue_action_dict[constants.listening_queue_action_key]
-    listen_queue_button_name: str = listen_queue_action_dict[constants.listening_queue_button_title_key]
+    listen_queue_action: str = listen_queue_action_dict[constants.ListeningQueueKey.ACTION_KEY.value]
+    listen_queue_button_name: str = listen_queue_action_dict[constants.ListeningQueueKey.BUTTON_TITLE_KEY.value]
     lqb_identifier: ItemIdentifier = ItemIdentifier(ElementType.BOOKMARK_TRACK_ACTION.getName(), track.id)
     lqb_identifier.set(ItemIdentifierKey.LISTEN_QUEUE_ACTION, listen_queue_action)
     lqb_id: str = identifier_util.create_objid(
@@ -4351,8 +4353,8 @@ def create_listen_queue_action_for_artist_view(
     listen_queue_action_dict: dict[str, str] = (constants.listening_queue_action_del_dict
                                                 if in_listen_queue
                                                 else constants.listening_queue_action_add_dict)
-    listen_queue_action: str = listen_queue_action_dict[constants.listening_queue_action_key]
-    listen_queue_button_name: str = listen_queue_action_dict[constants.listening_queue_button_title_key]
+    listen_queue_action: str = listen_queue_action_dict[constants.ListeningQueueKey.ACTION_KEY.value]
+    listen_queue_button_name: str = listen_queue_action_dict[constants.ListeningQueueKey.BUTTON_TITLE_KEY.value]
     lqb_identifier: ItemIdentifier = ItemIdentifier(ElementType.BOOKMARK_ARTIST_ACTION.getName(), artist_id)
     lqb_identifier.set(ItemIdentifierKey.LISTEN_QUEUE_ACTION, listen_queue_action)
     lqb_id: str = identifier_util.create_objid(
@@ -4519,7 +4521,7 @@ def track_data_to_entry(objid, entry_id: str, track: TidalTrack) -> dict:
     track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
         tidal_session=get_session(),
         track=track)
-    if config.enable_read_stream_metadata:
+    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA):
         bit_depth: int = track_adapter.get_bit_depth()
         sample_rate: int = track_adapter.get_sample_rate()
         upnp_util.set_bit_depth(bit_depth, entry)
@@ -5002,9 +5004,9 @@ def handler_element_track_bookmark_action(objid, item_identifier: ItemIdentifier
     listen_queue_action: str = item_identifier.get(ItemIdentifierKey.LISTEN_QUEUE_ACTION)
     msgproc.log(f"handler_element_track_bookmark_action on [{track_id} -> [{listen_queue_action}]")
     # perform requested action
-    if constants.listening_queue_action_add == listen_queue_action:
+    if constants.ListeningQueueAction.ADD.value == listen_queue_action:
         persistence.add_to_track_listen_queue(track_id)
-    if constants.listening_queue_action_del == listen_queue_action:
+    if constants.ListeningQueueAction.DEL.value == listen_queue_action:
         persistence.remove_from_track_listen_queue(track_id)
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.NAVIGABLE_TRACK.getName(),
@@ -5017,9 +5019,9 @@ def handler_element_album_bookmark_action(objid, item_identifier: ItemIdentifier
     listen_queue_action: str = item_identifier.get(ItemIdentifierKey.LISTEN_QUEUE_ACTION)
     msgproc.log(f"handler_element_album_bookmark_action on [{album_id} -> [{listen_queue_action}]")
     # perform requested action
-    if constants.listening_queue_action_add == listen_queue_action:
+    if constants.ListeningQueueAction.ADD.value == listen_queue_action:
         persistence.add_to_album_listen_queue(album_id)
-    if constants.listening_queue_action_del == listen_queue_action:
+    if constants.ListeningQueueAction.DEL.value == listen_queue_action:
         persistence.remove_from_album_listen_queue(album_id)
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALBUM_CONTAINER.getName(),
@@ -5032,9 +5034,9 @@ def handler_element_artist_bookmark_action(objid, item_identifier: ItemIdentifie
     listen_queue_action: str = item_identifier.get(ItemIdentifierKey.LISTEN_QUEUE_ACTION)
     msgproc.log(f"handler_element_artist_bookmark_action on [{artist_id} -> [{listen_queue_action}]")
     # perform requested action
-    if constants.listening_queue_action_add == listen_queue_action:
+    if constants.ListeningQueueAction.ADD.value == listen_queue_action:
         persistence.add_to_artist_listen_queue(artist_id)
-    if constants.listening_queue_action_del == listen_queue_action:
+    if constants.ListeningQueueAction.DEL.value == listen_queue_action:
         persistence.remove_from_artist_listen_queue(artist_id)
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(),
@@ -5073,7 +5075,7 @@ def choose_track_adapter_by_tidal_track(
         track: TidalTrack) -> TrackAdapter:
     return (__choose_track_adapter_by_track_id(
         tidal_session=tidal_session,
-        track_id=track.id) if config.enable_read_stream_metadata
+        track_id=track.id) if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA)
         else __load_tidal_track_adapter_by_track(
             tidal_session=tidal_session,
             track=track))
@@ -5099,7 +5101,7 @@ def __load_tidal_track_adapter_by_track_id(
         track=tidal_session.track(track_id),
         album_retriever=album_retriever)
     # maybe update on db?
-    if config.enable_read_stream_metadata:
+    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA):
         current: PlayedTrack = persistence.get_played_track_entry(track_id=track_id)
         request: PlayedTrackRequest = PlayedTrackRequest()
         request.track_id = track_id
@@ -5146,7 +5148,7 @@ def __choose_track_adapter_by_track_id(
         tidal_session: TidalSession,
         track_id: str) -> TrackAdapter:
     played_track: PlayedTrack = (persistence.get_played_track_entry(track_id=track_id)
-                                 if config.enable_read_stream_metadata
+                                 if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA)
                                  else None)
     return (choose_track_adapter(
             tidal_session=tidal_session,
@@ -5775,8 +5777,9 @@ def _inittidal():
     if _g_init:
         return True
     # Do whatever is needed here
-    msgproc.log(f"Tidal Plugin Release {constants.tidal_plugin_release}")
-    msgproc.log(f"enable_read_stream_metadata=[{config.enable_read_stream_metadata}]")
+    msgproc.log(f"Tidal Plugin Release {constants.PluginConstant.PLUGIN_RELEASE.value}")
+    msgproc.log(f"enable_read_stream_metadata=["
+                f"{config.get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA)}]")
     msgproc.log(f"enable_assume_bitdepth=[{config.enable_assume_bitdepth}]")
     msgproc.log(f"enable_image_caching=[{config.get_enable_image_caching()}]")
     msgproc.log(f"Image caching enabled [{config.get_enable_image_caching()}], cleaning metadata cache ...")
@@ -5786,9 +5789,9 @@ def _inittidal():
             base_root=docroot_base_url,
             opposite=(True if config.get_enable_image_caching() else False))
     msgproc.log(f"Image caching enabled [{config.get_enable_image_caching()}], cleaning complete")
-    cache_dir: str = upmplgutils.getcachedir(constants.plugin_name)
-    msgproc.log(f"Cache dir for [{constants.plugin_name}] is [{cache_dir}]")
-    msgproc.log(f"DB version for [{constants.plugin_name}] is [{persistence.get_db_version()}]")
+    cache_dir: str = upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value)
+    msgproc.log(f"Cache dir for [{constants.PluginConstant.PLUGIN_NAME.value}] is [{cache_dir}]")
+    msgproc.log(f"DB version for [{constants.PluginConstant.PLUGIN_NAME.value}] is [{persistence.get_db_version()}]")
     _g_init = True
     return True
 

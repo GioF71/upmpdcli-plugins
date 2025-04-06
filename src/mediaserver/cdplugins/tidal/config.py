@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,14 +13,61 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import upmplgutils
 import constants
 from tidalapi import Quality as TidalQuality
 
 
-def getPluginOptionValue(option_key: str, dflt=None):
-    return upmplgutils.getOptionValue(f"{constants.plugin_name}{option_key}", dflt)
+def get_plugin_config_variable_name(name: str) -> str:
+    return f"{constants.PluginConstant.PLUGIN_NAME.value}{name}"
+
+
+def get_option_value_as_bool(nm: str, default_value: int) -> bool:
+    return get_option_value(nm, default_value) == 1
+
+
+def get_option_value(nm, dflt: any = None):
+    return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
+
+
+def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> str:
+    dv: str | None = configuration_parameter.default_value
+    if dv is not None and not isinstance(dv, str):
+        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
+    v: any = get_option_value(configuration_parameter.key, dv)
+    if v is None:
+        return None
+    # v is set, check type!
+    if isinstance(v, str):
+        return v
+    # try to convert to string
+    return str(v)
+
+
+def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> str:
+    dv: int | None = configuration_parameter.default_value
+    if dv is not None and not isinstance(dv, int):
+        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
+    v: any = get_option_value(configuration_parameter.key, dv)
+    if v is None:
+        return None
+    # v is set, check type!
+    if isinstance(v, int):
+        return v
+    # try to convert to int
+    return int(v)
+
+
+def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> bool:
+    default_value_as_int: int = 0
+    dv: any = configuration_parameter.default_value
+    if isinstance(dv, int):
+        default_value_as_int = 1 if dv == 1 else 0
+    elif isinstance(dv, bool):
+        default_value_as_int = 1 if dv else 0
+    return get_option_value_as_bool(
+        configuration_parameter.key,
+        default_value_as_int)
 
 
 def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int = None) -> bool:
@@ -33,19 +80,10 @@ def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int = 
     return (getPluginOptionValue(plugin_param_name, sanitized_default_value) == 1)
 
 
-# only temporarily here
-# NPUPNP web server document root if set. This does not come directly from the config, but uses a
-# specific environment variable (upmpdcli does some processing on the configuration value).
-def getUpnpWebDocRoot(servicename):
-    try:
-        d = os.environ["UPMPD_UPNPDOCROOT"]
-        dp = os.path.join(d, servicename)
-        if not os.path.exists(dp):
-            os.makedirs(dp)
-        # returning /.../cachedir/www not /.../cachedir/www/pluginname
-        return d
-    except Exception:
-        return ""
+def getPluginOptionValue(option_key: str, dflt=None):
+    return upmplgutils.getOptionValue(
+        nm=f"{constants.PluginConstant.PLUGIN_NAME.value}{option_key}",
+        dflt=dflt)
 
 
 def getWebServerDocumentRoot() -> str:
@@ -58,10 +96,7 @@ max_audio_quality: str = getPluginOptionValue(
     constants.default_max_audio_quality)
 
 
-enable_read_stream_metadata: bool = __getPluginOptionAsBool(
-    "enablereadstreammetadata",
-    constants.default_enable_read_stream_metadata)
-
+enable_read_stream_metadata: bool = get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA)
 
 enable_assume_bitdepth: bool = __getPluginOptionAsBool(
     "enableassumebitdepth",
@@ -219,17 +254,17 @@ def get_page_items_for_tile_image() -> int:
 
 def get_allow_favorite_actions() -> bool:
     return __getPluginOptionAsBool(
-        constants.ConfigurationParameter.ALLOW_FAVORITE_ACTIONS.key,
-        constants.ConfigurationParameter.ALLOW_FAVORITE_ACTIONS.default_value)
+        constants.ConfigParam.ALLOW_FAVORITE_ACTIONS.key,
+        constants.ConfigParam.ALLOW_FAVORITE_ACTIONS.default_value)
 
 
 def get_allow_bookmark_actions() -> bool:
     return __getPluginOptionAsBool(
-        constants.ConfigurationParameter.ALLOW_BOOKMARK_ACTIONS.key,
-        constants.ConfigurationParameter.ALLOW_BOOKMARK_ACTIONS.default_value)
+        constants.ConfigParam.ALLOW_BOOKMARK_ACTIONS.key,
+        constants.ConfigParam.ALLOW_BOOKMARK_ACTIONS.default_value)
 
 
 def get_allow_statistics_actions() -> bool:
     return __getPluginOptionAsBool(
-        constants.ConfigurationParameter.ALLOW_STATISTICS_ACTIONS.key,
-        constants.ConfigurationParameter.ALLOW_STATISTICS_ACTIONS.default_value)
+        constants.ConfigParam.ALLOW_STATISTICS_ACTIONS.key,
+        constants.ConfigParam.ALLOW_STATISTICS_ACTIONS.default_value)

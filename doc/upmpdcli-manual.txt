@@ -903,7 +903,8 @@ The Tidal plugin only works with a valid Tidal subscription. It is not officiall
 Tidal, and may just stop to work one day...
 
 Keep in mind that if you choose HI_RES_LOSSLESS audio quality, your renderer must be able to play
-MPEG-DASH streams. Currently, only mpd and gmrender-resurrect support this type of streams.
+MPEG-DASH streams. Currently, only mpd, gmrender-resurrect and WiiM devices with firmware >= Lavf/58.76.100
+support this type of streams.
 Other players will be served LOSSLESS quality streams for compatibility.
 
 Accessing Tidal requires you to obtain a set of valid Tidal credentials.

@@ -1,5 +1,13 @@
 # Tidal Plugin Release notes
 
+## 0.8.3
+
+- Improve badge assignment
+- Reduce unnecessary logging
+- Use of enums instead of constants in variables
+- Whitelisted new WiiM firmware `Lavf/58.76.100` and up (so now WiiM devices should be hi-res capable)
+- Misc code corrections, cleanup and refactoring
+
 ## 0.8.2
 
 - Tidal Plugin: HiRes lossless whitelisted for mpd and gmrender-resurrect

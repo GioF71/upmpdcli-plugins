@@ -55,9 +55,11 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 log_unavailable_images_sizes: bool = (upmplgutils.getOptionValue(
-    f"{constants.plugin_name}log_unavailable_images_sizes",
+    f"{constants.PluginConstant.PLUGIN_NAME.value}log_unavailable_images_sizes",
     "0") == "1")
-log_unavailable_image: bool = upmplgutils.getOptionValue(f"{constants.plugin_name}log_unavailable_image", "0") == "1"
+log_unavailable_image: bool = (upmplgutils.getOptionValue(
+                                f"{constants.PluginConstant.PLUGIN_NAME.value}log_unavailable_image",
+                                "0") == "1")
 
 default_image_sz_by_type: dict[str, int] = dict()
 default_image_sz_by_type[TidalArtist.__name__] = [750, 480, 320, 160]
@@ -128,7 +130,7 @@ def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) ->
         # try cached!
         document_root_dir: str = config.getWebServerDocumentRoot()
         if document_root_dir:
-            sub_dir_list: list[str] = [constants.plugin_name, "images", TidalAlbum.__name__]
+            sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", TidalAlbum.__name__]
             image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
             cached_file_name: str = f"{str(album_id)}.jpg"
             cached_file: str = os.path.join(image_dir, cached_file_name)
@@ -166,7 +168,7 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         return __get_image_url(obj)
     if type(obj) not in [TidalAlbum, TidalArtist, TidalPlaylist, TidalMix]:
         return __get_image_url(obj)
-    sub_dir_list: list[str] = [constants.plugin_name, "images", type(obj).__name__]
+    sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", type(obj).__name__]
     image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
     cached_file_name: str = f"{str(obj.id)}.jpg"
     cached_file: str = os.path.join(image_dir, cached_file_name)
@@ -398,7 +400,7 @@ def album_playlist_action(
         listen_queue.remove_by_id(media_id=track_id)
     album: TidalAlbum = tidal_session.album(album_id=album_id)
     # add if needed
-    if constants.listening_queue_action_add == action:
+    if constants.ListeningQueueAction.ADD.value == action:
         # add the album tracks
         media_id_list: list[str] = list()
         t: TidalTrack
@@ -513,7 +515,10 @@ def get_quality_badge_raw(
                       if stream_info_available else None)
     badge: str = None
     if TidalQuality.hi_res_lossless == tidal_quality:
-        badge = f"HD {ext_badge}" if ext_badge else "MAX"
+        if ext_badge:
+            badge = ext_badge
+        else:
+            badge = f"HD {ext_badge}" if ext_badge else "MAX"
     elif TidalQuality.high_lossless == tidal_quality:
         if not stream_info_available:
             badge = "Lossless"
@@ -672,12 +677,11 @@ def get_docroot_base_url() -> str:
 
 def compose_docroot_url(right: str) -> str:
     doc_root_base_url: str = get_docroot_base_url()
-    msgproc.log(f"compose_docroot_url with doc_root_base_url: [{doc_root_base_url}] right: [{right}]")
     return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
 
 
 def get_oauth2_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.oauth2_credentials_file_name)
+    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), constants.oauth2_credentials_file_name)
 
 
 def oauth2_credential_file_exists() -> bool:
@@ -685,7 +689,7 @@ def oauth2_credential_file_exists() -> bool:
 
 
 def get_pkce_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.plugin_name), constants.pkce_credentials_file_name)
+    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), constants.pkce_credentials_file_name)
 
 
 def pkce_credential_file_exists() -> bool:

@@ -16,10 +16,13 @@
 from enum import Enum
 from typing import Callable
 from tidalapi import Quality as TidalQuality
+import lafv_matcher
 
-plugin_name: str = "tidal"
 
-tidal_plugin_release: str = "0.8.2"
+class PluginConstant(Enum):
+
+    PLUGIN_RELEASE = "0.8.3"
+    PLUGIN_NAME = "tidal"
 
 
 class _FunctionProxy:
@@ -56,6 +59,12 @@ class UserAgentMatcherData:
 class UserAgentHiResWhitelist(Enum):
     MPD = UserAgentMatcherData("Music Player Daemon", UserAgentMatcher.STARTS_WITH.value)
     GMRENDER_RESURRECT = UserAgentMatcherData("Lavf/ffprobe", UserAgentMatcher.EXACT.value)
+    WIIM_GE_58_76_100 = UserAgentMatcherData(
+        "Lavf/58.76.100",
+        lambda x, y: lafv_matcher.match(
+            to_match=x,
+            pattern=y,
+            match_mode=lafv_matcher.LavfMatchMode.GE))
 
     @property
     def user_agent_str(self) -> str:
@@ -70,22 +79,60 @@ class EnvironmentVariableName(Enum):
     UPMPD_UPNPHOSTPORT = "UPMPD_UPNPHOSTPORT"
 
 
-listening_queue_action_key: str = "action"
-listening_queue_button_title_key: str = "button_title"
+class _ConfigParamData:
 
-__add_action: str = "add"
-__del_action: str = "del"
+    def __init__(self, key: str, default_value: any):
+        self.__key: str = key
+        self.__default_value: any = default_value
 
-listening_queue_action_add: str = __add_action
-listening_queue_action_del: str = __del_action
+    @property
+    def key(self) -> str:
+        return self.__key
+
+    @property
+    def default_value(self) -> any:
+        return self.__default_value
+
+
+class ConfigParam(Enum):
+    ALLOW_FAVORITE_ACTIONS = _ConfigParamData("allowfavoriteactions", False)
+    ALLOW_BOOKMARK_ACTIONS = _ConfigParamData("allowbookmarkactions", False)
+    ALLOW_STATISTICS_ACTIONS = _ConfigParamData("allowstatisticsactions", False)
+    ENABLE_USER_AGENT_WHITELIST = _ConfigParamData("enableuseragentwhitelist", True)
+    ENABLE_READ_STREAM_METADATA = _ConfigParamData("enablereadstreammetadata", False)
+    ENABLE_DUMP_STREAM_DATA = _ConfigParamData("enabledumpstreamdata", False)
+
+    @property
+    def key(self) -> str:
+        return self.value.key
+
+    @property
+    def default_value(self) -> any:
+        return self.value.default_value
+
+
+class ListeningQueueKey(Enum):
+    ACTION_KEY = "action"
+    BUTTON_TITLE_KEY = "button_title"
+
+
+class Action(Enum):
+    ADD = "add"
+    DEL = "del"
+
+
+class ListeningQueueAction(Enum):
+    ADD = Action.ADD.value
+    DEL = Action.DEL.value
+
 
 listening_queue_action_add_dict: dict[str, str] = {
-    listening_queue_action_key: listening_queue_action_add,
-    listening_queue_button_title_key: "Add to Bookmarks"}
+    ListeningQueueKey.ACTION_KEY.value: ListeningQueueAction.ADD.value,
+    ListeningQueueKey.BUTTON_TITLE_KEY.value: "Add to Bookmarks"}
 
 listening_queue_action_del_dict: dict[str, str] = {
-    listening_queue_action_key: listening_queue_action_del,
-    listening_queue_button_title_key: "Rmv from Bookmarks"}
+    ListeningQueueKey.ACTION_KEY.value: ListeningQueueAction.DEL.value,
+    ListeningQueueKey.BUTTON_TITLE_KEY.value: "Rmv from Bookmarks"}
 
 fav_action_key: str = "action"
 fav_button_title_key: str = "button_title"
@@ -102,8 +149,8 @@ button_title_remove_artist_from_favorites: str = button_title_remove_from_favori
 button_title_add_song_to_favorites: str = button_title_add_to_favorites
 button_title_remove_song_from_favorites: str = button_title_remove_from_favorites
 
-fav_action_add: str = __add_action
-fav_action_del: str = __del_action
+fav_action_add: str = Action.ADD.value
+fav_action_del: str = Action.DEL.value
 
 fav_action_add_dict: dict[str, str] = {
     fav_action_key: fav_action_add,
@@ -123,43 +170,11 @@ tile_image_expiration_time_sec: int = 86400
 
 oauth2_credentials_file_name: str = "oauth2.credentials.json"
 pkce_credentials_file_name: str = "pkce.credentials.json"
-
-
-class ConfigurationParameterData:
-
-    def __init__(self, key: str, default_value: any):
-        self.__key: str = key
-        self.__default_value: any = default_value
-
-    @property
-    def key(self) -> str:
-        return self.__key
-
-    @property
-    def default_value(self) -> any:
-        return self.__default_value
-
-
-class ConfigurationParameter(Enum):
-    ALLOW_FAVORITE_ACTIONS = ConfigurationParameterData("allowfavoriteactions", False)
-    ALLOW_BOOKMARK_ACTIONS = ConfigurationParameterData("allowbookmarkactions", False)
-    ALLOW_STATISTICS_ACTIONS = ConfigurationParameterData("allowstatisticsactions", False)
-
-    @property
-    def key(self) -> str:
-        return self.value.key
-
-    @property
-    def default_value(self) -> any:
-        return self.value.default_value
-
-
 # remove if not really used
 default_max_album_tracks_per_page: int = 30
 
 default_max_playlist_or_mix_items_per_page: int = 25
 
-default_enable_read_stream_metadata: int = 0
 default_enable_assume_bitdepth: int = 1
 default_playlist_items_per_page: int = 25
 default_tracks_per_page: int = 25
