@@ -1488,11 +1488,13 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         msgproc.log(f"Cannot retrieve artist by id {artist_id}")
         return entries
     artist_mb_id: str = subsonic_util.get_artist_musicbrainz_id(artist)
+    artist_album_count: int = artist.getAlbumCount()
     # store artist metadata
     artist_metadata: persistence.ArtistMetadata = persistence.ArtistMetadata(
         artist_id=artist.getId(),
         artist_name=artist.getName(),
-        artist_musicbrainz_id=artist_mb_id)
+        artist_musicbrainz_id=artist_mb_id,
+        artist_album_count=artist_album_count)
     persistence.save_artist_metadata(artist_metadata)
     if artist_mb_id:
         # at least the musicbrainz artist id is logged

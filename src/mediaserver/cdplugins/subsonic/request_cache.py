@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ from subsonic_connector.album_list import AlbumList
 from subsonic_connector.artists import Artists
 from subsonic_connector.genres import Genres
 from subsonic_connector.starred import Starred
+from subsonic_connector.playlists import Playlists
 
 import config
 import connector_provider
@@ -44,6 +45,7 @@ cached_response_random_firstpage: CachedResponse = CachedResponse()
 cached_response_genres: CachedResponse = CachedResponse()
 cached_starred_albums: CachedResponse = CachedResponse()
 cached_starred: CachedResponse = CachedResponse()
+cached_playlists: CachedResponse = CachedResponse()
 
 
 def __is_older_than(date_time: datetime.datetime, delta_sec: int) -> bool:
@@ -61,6 +63,22 @@ def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool
                 if cached is not None
                 else None,
                 delta_sec))
+
+
+def get_playlists() -> Response[Artists]:
+    global cached_playlists
+    if __cached_response_is_expired(cached_playlists, config.get_cached_request_timeout_sec()):
+        msgproc.log("subsonic_util.get_playlists loading starred ...")
+        # actually request starred
+        res: Response[Playlists] = connector_provider.get().getPlaylists()
+        # store response along with timestamp
+        cached_playlists = CachedResponse()
+        cached_playlists.last_response_obj = res
+        cached_playlists.last_response_time = datetime.datetime.now()
+        return res
+    else:
+        # msgproc.log("subsonic_util.get_playlists using cached starred")
+        return cached_playlists.last_response_obj
 
 
 def get_starred() -> Response[Artists]:

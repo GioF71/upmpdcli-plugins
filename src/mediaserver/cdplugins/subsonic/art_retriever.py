@@ -31,6 +31,7 @@ import request_cache
 import subsonic_util
 import cache_actions
 import persistence
+import config
 
 import secrets
 
@@ -104,7 +105,7 @@ def recently_added_albums_art_retriever() -> RetrievedArt:
 
 
 def random_albums_art_retriever() -> RetrievedArt:
-    response: Response[AlbumList] = request_cache.get_random_album_list()
+    response: Response[AlbumList] = request_cache.get_random_album_list(size=config.get_items_per_page())
     return __get_cover_art_from_res_album_list(response=response)
 
 
@@ -313,7 +314,7 @@ def __art_for_favourite_song(random: bool = False) -> RetrievedArt:
 
 
 def playlists_art_retriever() -> RetrievedArt:
-    response: Response[Playlists] = connector_provider.get().getPlaylists()
+    response: Response[Playlists] = request_cache.get_playlists()
     if not response.isOk():
         msgproc.log("playlists_art_retriever - cannot get playlists")
         return None
