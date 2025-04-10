@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.8
+
+- Make initial view faster by allowing caching on random albums (defaults is 30 sec)
+- Add artist album count to artist metadata table
+- Advance subsonic-connector to 0.3.10b2, fixed issue with some VPN-style host services like Cloudflare Tunnel
+- General code cleanup and optimizations
+
 ## Release 0.7.7
 
 - Review persistence.py
@@ -11,9 +18,6 @@
 - Improve artist entry for album navigable view
 - Add some caching in genres view (still a bit slow)
 - Fixed "Similar artists" not loading
-- Make initial view faster by allowing caching on random albums (defaults is 30 sec)
-- Add artist album count to artist metadata table
-- Advance subsonic-connector to 0.3.10b2, fixed issue with some VPN-style host services like Cloudflare Tunnel
 - General code cleanup and optimizations
 
 ## Release 0.7.6
