@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.7.9
+
+- Avoid use of "/".join(...) using os.path.join(...)
+- Try to retrieve cached artist metadata when full artist information are not available from api
+- Retrieve cover_art to save in artist metadata cache when loading an artist
+- Improved performances of "Genres" view with caching
+- Cover art for next button in Artists for Genre
+- Add metadata: upmpd:albumpath (disabled by default, might be obtrusive)
+
 ## Release 0.7.8
 
 - Make initial view faster by allowing caching on random albums (defaults is 30 sec)

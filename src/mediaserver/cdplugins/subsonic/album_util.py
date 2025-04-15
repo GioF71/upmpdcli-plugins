@@ -24,6 +24,7 @@ from subsonic_connector.album import Album
 
 from codec_delimiter_style import CodecDelimiterStyle
 import constants
+import persistence_constants
 
 
 __split_characters: list[str] = [' ', '-', '_']
@@ -195,6 +196,20 @@ def sort_song_list(song_list: list[Song]) -> SortSongListResult:
         codec_set_by_path=codec_set_by_path,
         song_list=result,
         multi_codec_album=multi_codec)
+
+
+def get_album_path_list(album: Album) -> list[str]:
+    song: Song
+    path_set: set[str] = set()
+    for song in album.getSongs():
+        curr_dir: str = get_dir_from_path(song.getPath())
+        if curr_dir not in path_set:
+            path_set.add(curr_dir)
+    return list(path_set)
+
+
+def get_album_path_list_joined(album: Album) -> list[str]:
+    return persistence_constants.Separator.PATH.value.join(get_album_path_list(album=album))
 
 
 class AlbumTracks:

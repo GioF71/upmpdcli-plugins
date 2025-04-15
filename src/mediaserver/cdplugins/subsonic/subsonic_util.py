@@ -36,6 +36,7 @@ import album_util
 import upnp_util
 import config
 import persistence
+import persistence_constants
 
 import cmdtalkplugin
 
@@ -376,6 +377,13 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
         #     msgproc.log(f"dir [{new_dir}] already exists.")
         curr_dir = new_dir
     return curr_dir
+
+
+def get_artist_albums_as_main_artist(artist_id: str, album_list: list[Album]) -> list[Album]:
+    return get_artist_albums_as_appears_on(
+        artist_id=artist_id,
+        album_list=album_list,
+        opposite=True)
 
 
 def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album], opposite: bool = False) -> list[Album]:
@@ -864,7 +872,7 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
             path: list[str] = list()
             path.extend(config.get_webserver_path_images_cache())
             path.append(item_id_with_ext)
-            cached_image_url: str = compose_docroot_url("/".join(path))
+            cached_image_url: str = compose_docroot_url(os.path.join(*path))
             # msgproc.log(f"For item_id [{item_id}] cached -> [{cached_image_url}]")
             return cached_image_url
     else:
@@ -887,11 +895,11 @@ def get_album_duration_display(album: Album) -> str:
     if minutes > 0:
         if len(result) > 0:
             result += " "
-        result += f"{minutes :02d}m"
+        result += f"{minutes:02d}m"
     # add seconds in any case
     if len(result) > 0:
         result += " "
-    result += f"{seconds :02d}s"
+    result += f"{seconds:02d}s"
     return result
 
 
@@ -903,6 +911,33 @@ def get_album_disc_and_track_counters(album: Album) -> str:
     result: str = f"{disc_count} Disc{'s' if disc_count > 1 else ''}, "
     result += f"{album.getSongCount()} Track{'s' if album.getSongCount() > 1 else ''}"
     return result
+
+
+def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_ID,
+        artist_id,
+        target)
+    artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
+    # msgproc.log(f"Executing set_artist_metadata_by_artist_id for artist_id [{artist_id}] "
+    #             f"Metadata available [{'yes' if artist_metadata else 'no'}]")
+    if not artist_metadata:
+        # nothing to do here
+        return
+    upnp_util.set_upnp_meta(
+        constants.UpnpMeta.ARTIST,
+        artist_metadata.artist_name,
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_MUSICBRAINZ_ID,
+        artist_metadata.artist_musicbrainz_id,
+        target)
+    upnp_util.set_upmpd_meta(
+        constants.UpMpdMeta.ARTIST_ALBUM_COUNT,
+        (str(artist_metadata.artist_album_count)
+            if artist_metadata.artist_album_count
+            else None),
+        target)
 
 
 def set_artist_metadata(artist: Artist, target: dict):
@@ -957,3 +992,17 @@ def set_album_metadata(album: Album, target: dict):
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
     upnp_util.set_upmpd_meta(constants.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
     upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_MEDIA_TYPE, get_album_mediatype(album), target)
+    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
+        # album path.
+        path_list: str = album_util.get_album_path_list(album=album)
+        if len(path_list) == 0:
+            # album does not have the required information. Might be from an album list
+            # we try and see if we have the cached information
+            album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
+            if album_metadata and album_metadata.album_path and len(album_metadata.album_path) > 0:
+                path_list = album_metadata.album_path.split(persistence_constants.Separator.PATH.value)
+        path_str: str = f"[{'], ['.join(path_list)}]" if len(path_list) > 0 else None
+        # don't show more than ...
+        if path_str and len(path_str) > constants.MetadataMaxLength.ALBUM_PATH.value:
+            path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
+        upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_PATH, path_str, target)

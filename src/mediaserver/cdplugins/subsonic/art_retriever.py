@@ -163,6 +163,13 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
 
 
 def get_album_art_uri_for_artist_id(artist_id: str) -> str:
+    artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
+    if artist_metadata and artist_metadata.artist_cover_art:
+        # found in cache.
+        msgproc.log(f"get_album_art_uri_for_artist_id metadata cache hit for [{artist_id}] -> "
+                    f"[{'yes' if artist_metadata else 'no'}]")
+        return subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
+    # fallback to in-memory cache.
     art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
     if art_album_id:
         msgproc.log(f"get_album_art_uri_for_artist_id cache hit for [{artist_id}] -> [{art_album_id}]")

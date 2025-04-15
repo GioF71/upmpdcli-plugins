@@ -23,7 +23,20 @@ import upmplgutils
 import constants
 import config
 
+from enum import Enum
+
+
 from msgproc_provider import msgproc
+
+
+class MaxLength(Enum):
+    ALBUM_PATH = 65535
+
+
+class TableName(Enum):
+    ALBUM_METADATA = "album_metadata_v1"
+    ARTIST_METADATA = "artist_metadata_v1"
+    KV_CACHE = "kv_cache_v1"
 
 
 class AlbumMetadata:
@@ -34,12 +47,14 @@ class AlbumMetadata:
             quality_badge: str = None,
             album_musicbrainz_id: str = None,
             album_artist_id: str = None,
+            album_path: str = None,
             created_timestamp: datetime.datetime = None,
             updated_timestamp: datetime.datetime = None):
         self.__album_id: str = album_id
         self.__quality_badge: str = quality_badge
         self.__album_musicbrainz_id: str = album_musicbrainz_id
         self.__album_artist_id: str = album_artist_id
+        self.__album_path: str = album_path
         self.__created_timestamp: datetime.datetime = (created_timestamp
                                                        if created_timestamp
                                                        else datetime.datetime.now())
@@ -64,6 +79,10 @@ class AlbumMetadata:
         return self.__album_artist_id
 
     @property
+    def album_path(self) -> str:
+        return self.__album_path
+
+    @property
     def created_timestamp(self) -> datetime.datetime:
         return self.__created_timestamp
 
@@ -71,7 +90,12 @@ class AlbumMetadata:
     def updated_timestamp(self) -> datetime.datetime:
         return self.__updated_timestamp
 
-    def update(self, quality_badge: str = None, album_musicbrainz_id: str = None, album_artist_id: str = None):
+    def update(
+            self,
+            quality_badge: str = None,
+            album_musicbrainz_id: str = None,
+            album_artist_id: str = None,
+            album_path: str = None):
         any_update: bool = False
         if quality_badge and len(quality_badge) > 0:
             self.__quality_badge = quality_badge
@@ -82,14 +106,21 @@ class AlbumMetadata:
         if album_artist_id and len(album_artist_id) > 0:
             self.__album_artist_id = album_artist_id
             any_update = True
+        if album_path and len(album_path) > 0:
+            if len(album_path) > MaxLength.ALBUM_PATH.value:
+                # protect from exceptions
+                album_path = ""
+            self.__album_path = album_path
+            any_update = True
         if any_update:
             self.__updated_timestamp = datetime.datetime.now()
 
     def __repr__(self):
         return (f"Album Id [{self.album_id}] "
                 f"QBadge [{self.quality_badge}] "
-                f"MBId [{self.album_musicbrainz_id}] "
-                f"Artist Id [{self.album_artist_id}]")
+                f"Mb Id [{self.album_musicbrainz_id}] "
+                f"Artist Id [{self.album_artist_id}] "
+                f"Path [{self.album_path}]")
 
 
 class ArtistMetadata:
@@ -97,15 +128,17 @@ class ArtistMetadata:
     def __init__(
             self,
             artist_id: str,
-            artist_name: str,
-            artist_musicbrainz_id: str,
+            artist_name: str = None,
+            artist_musicbrainz_id: str = None,
             artist_album_count: int = None,
+            artist_cover_art: str = None,
             created_timestamp: datetime.datetime = None,
             updated_timestamp: datetime.datetime = None):
         self.__artist_id: str = artist_id
         self.__artist_name: str = artist_name
         self.__artist_musicbrainz_id: str = artist_musicbrainz_id
         self.__artist_album_count: int = artist_album_count
+        self.__artist_cover_art: str = artist_cover_art
         self.__created_timestamp: datetime.datetime = (created_timestamp
                                                        if created_timestamp
                                                        else datetime.datetime.now())
@@ -130,6 +163,10 @@ class ArtistMetadata:
         return self.__artist_album_count
 
     @property
+    def artist_cover_art(self) -> str:
+        return self.__artist_cover_art
+
+    @property
     def created_timestamp(self) -> datetime.datetime:
         return self.__created_timestamp
 
@@ -137,7 +174,12 @@ class ArtistMetadata:
     def updated_timestamp(self) -> datetime.datetime:
         return self.__updated_timestamp
 
-    def update(self, artist_name: str, artist_musicbrainz_id: str, artist_album_count: int = None):
+    def update(
+            self,
+            artist_name: str,
+            artist_musicbrainz_id: str,
+            artist_album_count: int = None,
+            artist_cover_art: str = None):
         any_update: bool = False
         if artist_name and len(artist_name) > 0:
             self.__artist_name = artist_name
@@ -148,28 +190,76 @@ class ArtistMetadata:
         if artist_album_count:
             self.__artist_album_count = artist_album_count
             any_update = True
+        if artist_cover_art:
+            self.__artist_cover_art = artist_cover_art
+            any_update = True
         if any_update:
             self.__updated_timestamp = datetime.datetime.now()
 
 
+class KeyValueItem:
+
+    def __init__(
+            self,
+            partition: str,
+            key: str,
+            value: str,
+            created_timestamp: datetime.datetime = None,
+            updated_timestamp: datetime.datetime = None):
+        self.__partition: str = partition
+        self.__key: str = key
+        self.__value: str = value
+        self.__created_timestamp: datetime.datetime = (created_timestamp
+                                                       if created_timestamp
+                                                       else datetime.datetime.now())
+        self.__updated_timestamp: datetime.datetime = (updated_timestamp
+                                                       if updated_timestamp
+                                                       else self.created_timestamp)
+
+    @property
+    def partition(self) -> str:
+        return self.__partition
+
+    @property
+    def key(self) -> str:
+        return self.__key
+
+    @property
+    def value(self) -> str:
+        return self.__value
+
+    @property
+    def created_timestamp(self) -> datetime.datetime:
+        return self.__created_timestamp
+
+    @property
+    def updated_timestamp(self) -> datetime.datetime:
+        return self.__updated_timestamp
+
+    def update(self, value: str):
+        self.__value = value
+        self.__updated_timestamp = datetime.datetime.now()
+
+
 __album_metadata_cache: dict[str, AlbumMetadata] = {}
 __artist_metadata_cache: dict[str, ArtistMetadata] = {}
+__key_value_cache: dict[str, dict[str, KeyValueItem]] = {}
 
-__table_name_album_metadata_v1: str = "album_metadata_v1"
-__table_name_artist_metadata_v1: str = "artist_metadata_v1"
-__table_name_kv_cache_v1: str = "kv_cache_v1"
+__field_name_created_timestamp: str = "created_timestamp"
+__field_name_updated_timestamp: str = "updated_timestamp"
 
-__field_name_album_id: str = "album_id"
 __field_name_artist_id: str = "artist_id"
 __field_name_artist_name: str = "artist_name"
 __field_name_artist_musicbrainz_id: str = "artist_musicbrainz_id"
 __field_name_artist_album_count: str = "artist_album_count"
+__field_name_artist_cover_art: str = "artist_cover_art"
 
+__field_name_album_id: str = "album_id"
 __field_name_album_quality_badge: str = "quality_badge"
 __field_name_album_musicbrainz_id: str = "album_musicbrainz_id"
 __field_name_album_artist_id: str = "album_artist_id"
-__field_name_created_timestamp: str = "created_timestamp"
-__field_name_updated_timestamp: str = "updated_timestamp"
+__field_name_album_path: str = "album_path"
+
 
 __field_name_kv_cache_partition: str = "partition"
 __field_name_kv_cache_key: str = "key"
@@ -177,7 +267,7 @@ __field_name_kv_cache_value: str = "value"
 
 
 __sql_create_table_album_metadata_v1: str = f"""
-        CREATE TABLE {__table_name_album_metadata_v1}(
+        CREATE TABLE {TableName.ALBUM_METADATA.value}(
         {__field_name_album_id} VARCHAR(255) PRIMARY KEY,
         {__field_name_album_quality_badge} VARCHAR(255),
         {__field_name_created_timestamp} TIMESTAMP,
@@ -186,7 +276,7 @@ __sql_create_table_album_metadata_v1: str = f"""
 
 
 __sql_create_table_kv_cache_v1: str = f"""
-        CREATE TABLE {__table_name_kv_cache_v1}(
+        CREATE TABLE {TableName.KV_CACHE.value}(
         {__field_name_kv_cache_partition} VARCHAR(255),
         {__field_name_kv_cache_key} VARCHAR(255),
         {__field_name_kv_cache_value}  VARCHAR(255),
@@ -197,7 +287,7 @@ __sql_create_table_kv_cache_v1: str = f"""
 
 
 __sql_create_table_artist_metadata_v1: str = f"""
-        CREATE TABLE {__table_name_artist_metadata_v1}(
+        CREATE TABLE {TableName.ARTIST_METADATA.value}(
         {__field_name_artist_id} VARCHAR(255) PRIMARY KEY,
         {__field_name_artist_name} VARCHAR(255),
         {__field_name_created_timestamp} TIMESTAMP,
@@ -205,27 +295,39 @@ __sql_create_table_artist_metadata_v1: str = f"""
 """
 
 
+__sql_alter_table_artist_metadata_v1_add_artist_cover_art: str = f"""
+        ALTER TABLE {TableName.ARTIST_METADATA.value}
+        ADD COLUMN {__field_name_artist_cover_art} VARCHAR(255)
+"""
+
+
 __sql_alter_table_artist_metadata_v1_add_artist_album_count: str = f"""
-        ALTER TABLE {__table_name_artist_metadata_v1}
+        ALTER TABLE {TableName.ARTIST_METADATA.value}
         ADD COLUMN {__field_name_artist_album_count} INTEGER
 """
 
 
 __sql_alter_table_artist_metadata_v1_add_artist_musicbrainz_id: str = f"""
-        ALTER TABLE {__table_name_artist_metadata_v1}
+        ALTER TABLE {TableName.ARTIST_METADATA.value}
         ADD COLUMN {__field_name_artist_musicbrainz_id} VARCHAR(255)
 """
 
 
 __sql_alter_table_album_metadata_v1_add_album_musicbrainz_id: str = f"""
-        ALTER TABLE {__table_name_album_metadata_v1}
+        ALTER TABLE {TableName.ALBUM_METADATA.value}
         ADD COLUMN {__field_name_album_musicbrainz_id} VARCHAR(255)
 """
 
 
 __sql_alter_table_album_metadata_v1_add_album_artist_id: str = f"""
-        ALTER TABLE {__table_name_album_metadata_v1}
+        ALTER TABLE {TableName.ALBUM_METADATA.value}
         ADD COLUMN {__field_name_album_artist_id} VARCHAR(255)
+"""
+
+
+__sql_alter_table_album_metadata_v1_add_album_path: str = f"""
+        ALTER TABLE {TableName.ALBUM_METADATA.value}
+        ADD COLUMN {__field_name_album_path} VARCHAR({MaxLength.ALBUM_PATH.value})
 """
 
 
@@ -257,6 +359,28 @@ def get_artist_metadata(artist_id: str) -> ArtistMetadata:
     return artist_metadata
 
 
+def get_kv_item(partition: str, key: str) -> KeyValueItem:
+    # msgproc.log(f"get_kv_item for [{partition}] [{key}] ...")
+    # try in cache first, otherwise load.
+    partition_dict: dict[str, KeyValueItem] = __key_value_cache[partition] if partition in __key_value_cache else None
+    # msgproc.log(f"get_kv_item partition_dict [{partition}]: [{'yes' if partition_dict else 'no'}]")
+    kv_item: KeyValueItem = partition_dict[key] if partition_dict and key in partition_dict else None
+    # msgproc.log(f"get_kv_item match [{partition}] [{key}]: [{'yes' if kv_item else 'no'}]")
+    # create partition if still not cached
+    if not partition_dict:
+        # msgproc.log(f"get_kv_item creating partition [{partition}] ...")
+        partition_dict = {}
+        # msgproc.log(f"get_kv_item storing dict for partition [{partition}] ...")
+        __key_value_cache[partition] = partition_dict
+    # msgproc.log(f"get_artist_metadata cache [{'hit' if artist_metadata else 'miss'}] for artist_id [{artist_id}]")
+    if not kv_item:
+        kv_item = _load_kv_item(partition=partition, key=key)
+        # add to cache if correctly loaded from db
+        if kv_item:
+            partition_dict[key] = kv_item
+    return kv_item
+
+
 def _load_album_metadata(album_id: str) -> AlbumMetadata:
     t = (album_id, )
     cursor = __connection.cursor()
@@ -267,9 +391,10 @@ def _load_album_metadata(album_id: str) -> AlbumMetadata:
                 {__field_name_album_id},
                 {__field_name_album_quality_badge},
                 {__field_name_album_musicbrainz_id},
-                {__field_name_album_artist_id}
+                {__field_name_album_artist_id},
+                {__field_name_album_path}
             FROM
-                {__table_name_album_metadata_v1}
+                {TableName.ALBUM_METADATA.value}
             WHERE {__field_name_album_id} = ?"""
     cursor.execute(q, t)
     rows = cursor.fetchall()
@@ -277,7 +402,7 @@ def _load_album_metadata(album_id: str) -> AlbumMetadata:
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple {__table_name_album_metadata_v1} records for [{album_id}]")
+        raise Exception(f"Multiple {TableName.ALBUM_METADATA.value} records for [{album_id}]")
     row = rows[0]
     result: AlbumMetadata = AlbumMetadata(
         created_timestamp=row[0],
@@ -285,7 +410,8 @@ def _load_album_metadata(album_id: str) -> AlbumMetadata:
         album_id=row[2],
         quality_badge=row[3],
         album_musicbrainz_id=row[4],
-        album_artist_id=row[5])
+        album_artist_id=row[5],
+        album_path=row[6])
     return result
 
 
@@ -299,9 +425,10 @@ def _load_artist_metadata(artist_id: str) -> ArtistMetadata:
                 {__field_name_artist_id},
                 {__field_name_artist_name},
                 {__field_name_artist_musicbrainz_id},
-                {__field_name_artist_album_count}
+                {__field_name_artist_album_count},
+                {__field_name_artist_cover_art}
             FROM
-                {__table_name_artist_metadata_v1}
+                {TableName.ARTIST_METADATA.value}
             WHERE {__field_name_artist_id} = ?"""
     cursor.execute(q, t)
     rows = cursor.fetchall()
@@ -309,7 +436,7 @@ def _load_artist_metadata(artist_id: str) -> ArtistMetadata:
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple {__table_name_artist_metadata_v1} records for [{__field_name_artist_id}]")
+        raise Exception(f"Multiple {TableName.ARTIST_METADATA.value} records for [{artist_id}]")
     row = rows[0]
     result: ArtistMetadata = ArtistMetadata(
         created_timestamp=row[0],
@@ -317,7 +444,39 @@ def _load_artist_metadata(artist_id: str) -> ArtistMetadata:
         album_id=row[2],
         artist_name=row[3],
         artist_musicbrainz_id=row[4],
-        artist_album_count=row[5])
+        artist_album_count=row[5],
+        artist_cover_art=row[6])
+    return result
+
+
+def _load_kv_item(partition: str, key: str) -> KeyValueItem:
+    t = (partition, key)
+    cursor = __connection.cursor()
+    q: str = f"""
+            SELECT
+                {__field_name_created_timestamp},
+                {__field_name_updated_timestamp},
+                {__field_name_kv_cache_value}
+            FROM
+                {TableName.KV_CACHE.value}
+            WHERE
+                {__field_name_kv_cache_partition} = ? AND
+                {__field_name_kv_cache_key} = ?
+            """
+    cursor.execute(q, t)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows:
+        return None
+    if len(rows) > 1:
+        raise Exception(f"Multiple {TableName.KV_CACHE.value} records for [{partition}] [{key}]")
+    row = rows[0]
+    result: KeyValueItem = KeyValueItem(
+        created_timestamp=row[0],
+        updated_timestamp=row[1],
+        partition=partition,
+        key=key,
+        value=row[2])
     return result
 
 
@@ -339,7 +498,7 @@ def _delete_album_metadata_from_db(album_id: str):
     t = (album_id, )
     cursor = __connection.cursor()
     q: str = f"""
-            DELETE FROM {__table_name_album_metadata_v1}
+            DELETE FROM {TableName.ALBUM_METADATA.value}
             WHERE {__field_name_album_id} = ?"""
     cursor.execute(q, t)
     __connection.commit()
@@ -349,8 +508,21 @@ def _delete_artist_metadata_from_db(artist_id: str):
     t = (artist_id, )
     cursor = __connection.cursor()
     q: str = f"""
-            DELETE FROM {__table_name_artist_metadata_v1}
+            DELETE FROM {TableName.ARTIST_METADATA.value}
             WHERE {__field_name_artist_id} = ?"""
+    cursor.execute(q, t)
+    __connection.commit()
+
+
+def _delete_kv_item_from_db(partition: str, key: str):
+    t = (partition, key)
+    cursor = __connection.cursor()
+    q: str = f"""
+            DELETE FROM {TableName.KV_CACHE.value}
+            WHERE
+                {__field_name_kv_cache_partition} = ? AND
+                {__field_name_kv_cache_key} = ?
+            """
     cursor.execute(q, t)
     __connection.commit()
 
@@ -359,7 +531,8 @@ def save_album_metadata(album_metadata: AlbumMetadata):
     # msgproc.log(f"save_album_metadata for album_id: [{album_metadata.album_id}] "
     #             f"artist_id: [{album_metadata.album_artist_id}] "
     #             f"quality_badge: [{album_metadata.quality_badge}] "
-    #             f"mb_id: [{'mb' if album_metadata.album_musicbrainz_id else ''}] ")
+    #             f"mb_id: [{'mb' if album_metadata.album_musicbrainz_id else ''}] "
+    #             f"album_path: [{album_metadata.album_path}]")
     existing_metadata: AlbumMetadata = get_album_metadata(album_id=album_metadata.album_id)
     if existing_metadata:
         # update
@@ -373,20 +546,28 @@ def save_album_metadata(album_metadata: AlbumMetadata):
         latest_artist_id: str = (album_metadata.album_artist_id
                                  if album_metadata.album_artist_id
                                  else existing_metadata.album_artist_id)
+        latest_album_path: str = (album_metadata.album_path
+                                  if (album_metadata.album_path and len(album_metadata.album_path) > 0)
+                                  else existing_metadata.album_path)
+        if latest_album_path and len(latest_album_path) > MaxLength.ALBUM_PATH.value:
+            msgproc.log(f"save_album_metadata album_path too long for album [{album_metadata.album_id}], data removed")
+            latest_album_path = ""
         now: datetime.datetime = datetime.datetime.now()
         update_values = (
             latest_quality_badge,
             latest_mb_id,
             latest_artist_id,
+            latest_album_path,
             now,
             album_metadata.album_id)
         update_sql: str = f"""
             UPDATE
-                {__table_name_album_metadata_v1}
+                {TableName.ALBUM_METADATA.value}
             SET
                 {__field_name_album_quality_badge} = ?,
                 {__field_name_album_musicbrainz_id} = ?,
                 {__field_name_album_artist_id} = ?,
+                {__field_name_album_path} = ?,
                 {__field_name_updated_timestamp} = ?
             WHERE {__field_name_album_id} = ?
         """
@@ -395,7 +576,8 @@ def save_album_metadata(album_metadata: AlbumMetadata):
         existing_metadata.update(
             quality_badge=latest_quality_badge,
             album_musicbrainz_id=latest_mb_id,
-            album_artist_id=latest_artist_id)
+            album_artist_id=latest_artist_id,
+            album_path=latest_album_path)
     else:
         # insert
         __insert_album_metadata(album_metadata=album_metadata)
@@ -422,15 +604,19 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
             (artist_metadata.artist_album_count
                 if artist_metadata.artist_album_count
                 else existing_metadata.artist_album_count),
+            (artist_metadata.artist_cover_art
+                if artist_metadata.artist_cover_art
+                else existing_metadata.artist_cover_art),
             now,
             artist_metadata.artist_id)
         update_sql: str = f"""
             UPDATE
-                {__table_name_artist_metadata_v1}
+                {TableName.ARTIST_METADATA.value}
             SET
                 {__field_name_artist_name} = ?,
                 {__field_name_artist_musicbrainz_id} = ?,
                 {__field_name_artist_album_count} = ?,
+                {__field_name_artist_cover_art} = ?,
                 {__field_name_updated_timestamp} = ?
             WHERE {__field_name_artist_id} = ?
         """
@@ -439,53 +625,110 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
         existing_metadata.update(
             artist_name=artist_metadata.artist_name,
             artist_musicbrainz_id=artist_metadata.artist_musicbrainz_id,
-            artist_album_count=artist_metadata.artist_album_count)
+            artist_album_count=artist_metadata.artist_album_count,
+            artist_cover_art=artist_metadata.artist_cover_art)
     else:
         # insert
         __insert_artist_metadata(artist_metadata=artist_metadata)
         __artist_metadata_cache[artist_metadata.artist_id] = artist_metadata
 
 
+def save_key_value_item(key_value_item: KeyValueItem):
+    # msgproc.log(f"save_key_value_item for partition: [{key_value_item.partition}] "
+    #             f"key: [{key_value_item.key}] "
+    #             f"value: [{key_value_item.value}]")
+    existing: KeyValueItem = get_kv_item(partition=key_value_item.partition, key=key_value_item.key)
+    if existing:
+        # update
+        now: datetime.datetime = datetime.datetime.now()
+        update_values = (
+            key_value_item.value,
+            now,
+            key_value_item.partition,
+            key_value_item.key)
+        update_sql: str = f"""
+            UPDATE
+                {TableName.KV_CACHE.value}
+            SET
+                {__field_name_kv_cache_value} = ?,
+                {__field_name_updated_timestamp} = ?
+            WHERE
+                {__field_name_kv_cache_partition} = ? AND
+                {__field_name_kv_cache_key} = ?
+        """
+        __execute_update(update_sql, update_values)
+        # update cache
+        existing.update(value=key_value_item.value)
+    else:
+        # insert
+        __insert_key_value_item(key_value=key_value_item)
+        # partition if empty
+        partition_dict: dict[str, any] = (__key_value_cache[key_value_item.partition]
+                                          if key_value_item.partition in __key_value_cache
+                                          else None)
+        if not partition_dict:
+            partition_dict = {}
+            __key_value_cache[key_value_item.partition] = partition_dict
+        partition_dict[key_value_item.key] = key_value_item
+
+
 def __insert_album_metadata(album_metadata: AlbumMetadata):
-    if config.debug_badge_mngmt:
-        msgproc.log(f"insert_album_metadata for album_id: {album_metadata.album_id} "
-                    f"quality_badge: {album_metadata.quality_badge}")
     now: datetime.datetime = datetime.datetime.now()
-    insert_values = (album_metadata.album_id, album_metadata.quality_badge, album_metadata.album_artist_id, now, now)
+    insert_values = (
+        album_metadata.album_id,
+        album_metadata.quality_badge,
+        album_metadata.album_artist_id,
+        album_metadata.album_path,
+        now,
+        now)
     insert_sql: str = f"""
-        INSERT INTO {__table_name_album_metadata_v1}(
+        INSERT INTO {TableName.ALBUM_METADATA.value}(
             {__field_name_album_id},
             {__field_name_album_quality_badge},
             {__field_name_album_artist_id},
+            {__field_name_album_path},
             {__field_name_created_timestamp},
             {__field_name_updated_timestamp}
-        ) VALUES (?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?)
     """
     __execute_update(insert_sql, insert_values)
 
 
 def __insert_artist_metadata(artist_metadata: ArtistMetadata):
-    if config.debug_badge_mngmt:
-        msgproc.log(f"insert_artist_metadata for artist_id: {artist_metadata.artist_id} "
-                    f"name: {artist_metadata.name} "
-                    f"musicbrainz_id: {artist_metadata.artist_musicbrainz_id} ")
     now: datetime.datetime = datetime.datetime.now()
     insert_values = (
         artist_metadata.artist_id,
         artist_metadata.artist_name,
         artist_metadata.artist_musicbrainz_id,
         artist_metadata.artist_album_count,
+        artist_metadata.artist_cover_art,
         now,
         now)
     insert_sql: str = f"""
-        INSERT INTO {__table_name_artist_metadata_v1}(
+        INSERT INTO {TableName.ARTIST_METADATA.value}(
             {__field_name_artist_id},
             {__field_name_artist_name},
             {__field_name_artist_musicbrainz_id},
             {__field_name_artist_album_count},
+            {__field_name_artist_cover_art},
             {__field_name_created_timestamp},
             {__field_name_updated_timestamp}
-        ) VALUES (?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    """
+    __execute_update(insert_sql, insert_values)
+
+
+def __insert_key_value_item(key_value: KeyValueItem):
+    now: datetime.datetime = datetime.datetime.now()
+    insert_values = (key_value.partition, key_value.key, key_value.value, now, now)
+    insert_sql: str = f"""
+        INSERT INTO {TableName.KV_CACHE.value}(
+            {__field_name_kv_cache_partition},
+            {__field_name_kv_cache_key},
+            {__field_name_kv_cache_value},
+            {__field_name_created_timestamp},
+            {__field_name_updated_timestamp}
+        ) VALUES (?, ?, ?, ?, ?)
     """
     __execute_update(insert_sql, insert_values)
 
@@ -522,40 +765,44 @@ def __update_artist_cache(artist_metadata: ArtistMetadata):
 
 def __preload_album_metadata():
     return preload_metadata(
-        table_name=__table_name_album_metadata_v1,
+        table_name=TableName.ALBUM_METADATA.value,
         field_list=[
             __field_name_created_timestamp,
             __field_name_updated_timestamp,
             __field_name_album_id,
             __field_name_album_quality_badge,
             __field_name_album_musicbrainz_id,
-            __field_name_album_artist_id],
+            __field_name_album_artist_id,
+            __field_name_album_path],
         row_converter=lambda x: AlbumMetadata(
             created_timestamp=x[0],
             updated_timestamp=x[1],
             album_id=x[2],
             quality_badge=x[3],
             album_musicbrainz_id=x[4],
-            album_artist_id=x[5]),
+            album_artist_id=x[5],
+            album_path=x[6]),
         cache_writer=lambda x: __update_album_cache(x))
 
 
 def __preload_artist_metadata():
     return preload_metadata(
-        table_name=__table_name_artist_metadata_v1,
+        table_name=TableName.ARTIST_METADATA.value,
         field_list=[
             __field_name_created_timestamp,
             __field_name_updated_timestamp,
             __field_name_artist_id,
             __field_name_artist_name,
             __field_name_artist_musicbrainz_id,
-            __field_name_artist_album_count
+            __field_name_artist_album_count,
+            __field_name_artist_cover_art
             ],
         row_converter=lambda x: ArtistMetadata(
             artist_id=x[2],
             artist_name=x[3],
             artist_musicbrainz_id=x[4],
             artist_album_count=x[5],
+            artist_cover_art=x[6],
             created_timestamp=x[0],
             updated_timestamp=x[1]),
         cache_writer=lambda x: __update_artist_cache(x))
@@ -639,46 +886,66 @@ def __store_db_version(version: str):
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
+def do_migration_9():
+    __do_create_table(
+        table_name=TableName.ALBUM_METADATA.value,
+        sql=__sql_alter_table_album_metadata_v1_add_album_path)
+
+
+def do_migration_8():
+    __do_create_table(
+        table_name=TableName.ARTIST_METADATA.value,
+        sql=__sql_alter_table_artist_metadata_v1_add_artist_cover_art)
+
+
 def do_migration_7():
     __do_create_table(
-        table_name=__table_name_artist_metadata_v1,
+        table_name=TableName.ARTIST_METADATA.value,
         sql=__sql_alter_table_artist_metadata_v1_add_artist_album_count)
 
 
 def do_migration_6():
     __do_create_table(
-        table_name=__table_name_album_metadata_v1,
+        table_name=TableName.ALBUM_METADATA.value,
         sql=__sql_alter_table_album_metadata_v1_add_album_artist_id)
 
 
 def do_migration_5():
     __do_create_table(
-        table_name=__table_name_album_metadata_v1,
+        table_name=TableName.ALBUM_METADATA.value,
         sql=__sql_alter_table_album_metadata_v1_add_album_musicbrainz_id)
 
 
 def do_migration_4():
     __do_create_table(
-        table_name=__table_name_artist_metadata_v1,
+        table_name=TableName.ARTIST_METADATA.value,
         sql=__sql_alter_table_artist_metadata_v1_add_artist_musicbrainz_id)
 
 
 def do_migration_3():
     __do_create_table(
-        table_name=__table_name_artist_metadata_v1,
+        table_name=TableName.ARTIST_METADATA.value,
         sql=__sql_create_table_artist_metadata_v1)
 
 
 def do_migration_2():
     __do_create_table(
-        table_name=__table_name_kv_cache_v1,
+        table_name=TableName.KV_CACHE.value,
         sql=__sql_create_table_kv_cache_v1)
 
 
 def do_migration_1():
     __do_create_table(
-        table_name=__table_name_album_metadata_v1,
+        table_name=TableName.ALBUM_METADATA.value,
         sql=__sql_create_table_album_metadata_v1)
+
+
+def migration_9():
+    migration_template("10", do_migration_9)
+
+
+def migration_8():
+    migration_template("9", do_migration_8)
 
 
 def migration_7():
@@ -753,33 +1020,41 @@ def __init():
             apply_on=None,
             migration_function=migration_0),
         Migration(
-            migration_name=f"Create new table {__table_name_album_metadata_v1}",
+            migration_name=f"Create new table {TableName.ALBUM_METADATA.value}",
             apply_on="1",
             migration_function=migration_1),
         Migration(
-            migration_name=f"Create new table {__table_name_kv_cache_v1}",
+            migration_name=f"Create new table {TableName.KV_CACHE.value}",
             apply_on="2",
             migration_function=migration_2),
         Migration(
-            migration_name=f"Create new table {__table_name_artist_metadata_v1}",
+            migration_name=f"Create new table {TableName.ARTIST_METADATA.value}",
             apply_on="3",
             migration_function=migration_3),
         Migration(
-            migration_name=f"Altering {__table_name_artist_metadata_v1}, adding artist musicbrainz id",
+            migration_name=f"Altering {TableName.ARTIST_METADATA.value}, adding artist musicbrainz id",
             apply_on="4",
             migration_function=migration_4),
         Migration(
-            migration_name=f"Altering {__table_name_album_metadata_v1}, adding album musicbrainz id",
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding album musicbrainz id",
             apply_on="5",
             migration_function=migration_5),
         Migration(
-            migration_name=f"Altering {__table_name_album_metadata_v1}, adding album artist id",
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding album artist id",
             apply_on="6",
             migration_function=migration_6),
         Migration(
-            migration_name=f"Altering {__table_name_album_metadata_v1}, adding artist album count",
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding artist album count",
             apply_on="7",
-            migration_function=migration_7)]
+            migration_function=migration_7),
+        Migration(
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding artist cover art",
+            apply_on="8",
+            migration_function=migration_8),
+        Migration(
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding album path",
+            apply_on="9",
+            migration_function=migration_9)]
     current_migration: Migration
     migration_counter: int = 0
     for current_migration in migrations:

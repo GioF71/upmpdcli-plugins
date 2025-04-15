@@ -19,7 +19,6 @@ import subsonic_util
 import request_cache
 
 import json
-import html
 import upmplgutils
 import os
 
@@ -73,6 +72,7 @@ from album_util import AlbumTracks
 from album_util import get_display_artist
 from album_util import get_album_year_str
 from album_util import has_year
+from album_util import get_album_path_list_joined
 
 import art_retriever
 from retrieved_art import RetrievedArt
@@ -290,14 +290,14 @@ def _load_album_tracks(
     album_quality_badge: str = entry_creator.get_track_list_badge(
         track_list=album_tracks.getSongList(),
         list_identifier=album_id)
-    if config.debug_badge_mngmt:
-        msgproc.log(f"Quality badge for [{album_id}] -> [{album_quality_badge}]")
-    if album_quality_badge or mb_id or artist_id:
+    album_path_joined: str = get_album_path_list_joined(album=album)
+    if artist_id or mb_id or album_quality_badge or album_path_joined:
         persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album_id,
             quality_badge=album_quality_badge,
             album_musicbrainz_id=mb_id,
-            album_artist_id=artist_id))
+            album_artist_id=artist_id,
+            album_path=album_path_joined))
     song_list: list[Song] = album_tracks.getSongList()
     multi_codec_album: MultiCodecAlbum = album_tracks.getMultiCodecAlbum()
     current_base_path: str = None
@@ -528,32 +528,13 @@ def _create_list_of_genres(objid, entries: list) -> list:
     if not genres_response.isOk():
         return entries
     genre_list = genres_response.getObj().getGenres()
-    # we try to retrieve some random albums and match them with genres in order to improve performance
-    # size is number of genres * 2
-    album_res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=len(genre_list) * 2)
-    random_albums: list[AlbumList] = album_res.getObj().getAlbums() if album_res and album_res.isOk() else []
-    album_by_genre: dict[str, Album] = {}
-    random_album: Album
-    for random_album in random_albums:
-        if not random_album.getCoverArt():
-            # an album without cover
-            msgproc.log(f"Album with id [{random_album.getId()}] [{random_album.getTitle()}] "
-                        f"by [{random_album.getArtist()}] does not have cover art")
-            continue
-        album_genre_list: list[str] = random_album.getGenres()
-        album_genre: str
-        for album_genre in album_genre_list:
-            if album_genre not in album_by_genre:
-                # associate this album with the genre
-                album_by_genre[album_genre] = random_album
     genre_list.sort(key=lambda x: x.getName())
     current_genre: Genre
     for current_genre in genre_list:
         if current_genre.getAlbumCount() > 0:
             entry: dict[str, any] = entry_creator.genre_to_entry(
                 objid,
-                current_genre,
-                album_by_genre=album_by_genre)
+                current_genre)
             entries.append(entry)
     return entries
 
@@ -1094,18 +1075,22 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     msgproc.log(f"handler_element_genre_artists for [{genre}] offset [{offset}] ...")
     # get all albums by genre and collect a set of artists
+    display_size: int = config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE)
     artist_id_list: list[subsonic_util.ArtistIdAndName] = subsonic_util.load_artists_by_genre(
         genre=genre,
         artist_offset=offset,
-        max_artists=config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE))
+        max_artists=display_size + 1)
+    list_len: int = len(artist_id_list) if artist_id_list else 0
+    to_display: list[subsonic_util.ArtistIdAndName] = artist_id_list[0:min(list_len, display_size)] if list_len > 0 else []
+    next_artist: subsonic_util.ArtistIdAndName = artist_id_list[display_size] if list_len == display_size + 1 else None
     # present the list of artists
     item_count: int = 0
     needs_next: bool = False
     current: subsonic_util.ArtistIdAndName
-    for current in artist_id_list:
+    for current in to_display:
         # load artist if it has an id
         if current.id:
-            msgproc.log(f"executing entry_creator.genre_artist_to_entry with artist_id [{current.id}] [{current.name}]")
+            # msgproc.log(f"executing entry_creator.genre_artist_to_entry with artist_id [{current.id}] [{current.name}]")
             entries.append(entry_creator.genre_artist_to_entry(
                 objid=objid,
                 genre=genre,
@@ -1128,6 +1113,9 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
             next_id,
             objid,
             title="Next")
+        # use next_artist for cover art
+        next_cover_art_uri: str = art_retriever.get_album_art_uri_for_artist_id(artist_id=next_artist.id)
+        upnp_util.set_album_art_from_uri(album_art_uri=next_cover_art_uri, target=next_entry)
         entries.append(next_entry)
     return entries
 
@@ -1489,12 +1477,32 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         return entries
     artist_mb_id: str = subsonic_util.get_artist_musicbrainz_id(artist)
     artist_album_count: int = artist.getAlbumCount()
+    artist_cover_art_from_artist_api: bool = True
+    artist_cover_art: str = subsonic_util.get_artist_cover_art(artist)
+    if not artist_cover_art:
+        artist_cover_art_from_artist_api = False
+        # try from albums, as main artist first
+        albums_as_main_artist: list[Album] = subsonic_util.get_artist_albums_as_main_artist(
+            artist_id=artist.getId(),
+            album_list=artist.getAlbumList())
+        subsonic_util.sort_albums_by_date(albums_as_main_artist)
+        artist_cover_art = get_valid_cover_art_from_album_list(albums_as_main_artist)
+    if not artist_cover_art:
+        # try again from albums, as but also appearances
+        albums_as_appears_on: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
+            artist_id=artist.getId(),
+            album_list=artist.getAlbumList())
+        subsonic_util.sort_albums_by_date(albums_as_appears_on)
+        artist_cover_art = get_valid_cover_art_from_album_list(albums_as_appears_on)
+    msgproc.log(f"handler_element_artist artist_cover_art [{artist_cover_art}] "
+                f"from api [{'yes' if artist_cover_art_from_artist_api else 'no'}]")
     # store artist metadata
     artist_metadata: persistence.ArtistMetadata = persistence.ArtistMetadata(
         artist_id=artist.getId(),
         artist_name=artist.getName(),
         artist_musicbrainz_id=artist_mb_id,
-        artist_album_count=artist_album_count)
+        artist_album_count=artist_album_count,
+        artist_cover_art=artist_cover_art)
     persistence.save_artist_metadata(artist_metadata)
     if artist_mb_id:
         # at least the musicbrainz artist id is logged
@@ -1591,6 +1599,16 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         artist_focus_entry)
     entries.append(artist_focus_entry)
     return entries
+
+
+def get_valid_cover_art_from_album_list(album_list: list[Album]) -> str:
+    curr_album: Album
+    for curr_album in album_list:
+        curr_album_art: str = curr_album.getCoverArt()
+        if curr_album_art and len(curr_album_art) > 0:
+            # found.
+            artist_cover_art = curr_album_art
+            return artist_cover_art
 
 
 def albums_by_release_type(
@@ -1890,7 +1908,7 @@ def handler_element_navigable_album(
                     f"name:[{curr_additional.name}]")
     if inline_additional_artists_for_album and len(additional) > 0:
         msgproc.log(f"handler_element_navigable_album adding {len(additional)} additional artists "
-                    f"[{list(map (lambda c: c.id, additional))}] "
+                    f"[{list(map(lambda c: c.id, additional))}] "
                     f"skip_artist_id_set [{skip_artist_id_set}] ...")
         additional_artist_entries: list[dict, str] = create_entries_for_album_additional_artists(
             objid=objid,
@@ -2475,21 +2493,22 @@ def browse(a):
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
-    path = html.unescape(_objidtopath(objid))
-    msgproc.log(f"browse: path: --{path}--")
+    # path = html.unescape(_objidtopath(objid))
+    # msgproc.log(f"browse: path: --{path}--")
     path_list: list[str] = objid.split("/")
     curr_path: str
     for curr_path in path_list:
         if not _g_myprefix == curr_path:
-            decoded: str = None
+            # decoded: str = None
             try:
-                decoded = codec.decode(curr_path)
+                # decoded: str = codec.decode(curr_path)
+                codec.decode(curr_path)
+                # msgproc.log(f"browse: path: [{curr_path}] decodes to {decoded}")
             except Exception as ex:
                 msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
-                decoded = "<decode failed>"
-            msgproc.log(f"browse: path: [{curr_path}] decodes to {decoded}")
+                # decoded = "<decode failed>"
     last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
-    msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
+    # msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
     entries = []
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags

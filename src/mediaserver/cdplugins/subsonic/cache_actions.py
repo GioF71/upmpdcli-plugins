@@ -23,6 +23,7 @@ import cmdtalkplugin
 import config
 import constants
 import persistence
+import album_util
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -61,12 +62,31 @@ def on_album(album: subsonic_connector.album.Album):
             cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
             key=album.getArtistId(),
             value=album.getId())
-
     # musicbrainz album id
     mb_album_id: str = subsonic_util.get_album_musicbrainz_id(album)
-    if mb_album_id:
+    album_path_joined: str = album_util.get_album_path_list_joined(album=album)
+    if mb_album_id or album_path_joined:
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
             msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
         persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album.getId(),
-            album_musicbrainz_id=mb_album_id))
+            album_musicbrainz_id=mb_album_id,
+            album_path=album_path_joined))
+    # update artist with cover art, if available
+    if album.getArtistId() and album.getCoverArt():
+        artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=album.getArtistId())
+        if not artist_metadata or not artist_metadata.artist_name or not artist_metadata.artist_cover_art:
+            # store this one as fallback
+            persistence.save_artist_metadata(artist_metadata=persistence.ArtistMetadata(
+                artist_id=album.getArtistId(),
+                artist_name=album.getArtist(),
+                artist_cover_art=album.getCoverArt()))
+    # album per genre cache
+    if album.getCoverArt():
+        genres_list: list[str] = album.getGenres()
+        genre: str
+        for genre in genres_list:
+            persistence.save_key_value_item(key_value_item=persistence.KeyValueItem(
+                partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
+                key=genre,
+                value=album.getCoverArt()))

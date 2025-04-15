@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.7.8"
+    PLUGIN_RELEASE = "0.7.9"
     PLUGIN_NAME = "subsonic"
 
 
@@ -136,6 +136,7 @@ class ConfigParam(Enum):
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
     ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
+    SHOW_META_ALBUM_PATH = _ConfigParamData("showmetaalbumpath", False)
 
     @property
     def key(self) -> str:
@@ -203,6 +204,11 @@ class UpMpdMeta(Enum):
     ARTIST_MUSICBRAINZ_ID = "artistmusicbrainzid"
     ARTIST_ALBUM_COUNT = "artistalbumcount"
     ARTIST_MEDIA_TYPE = "artistmediatype"
+    ALBUM_PATH = "albumpath"
+
+
+class MetadataMaxLength(Enum):
+    ALBUM_PATH = 128
 
 
 default_debug_badge_mngmt: int = 0
