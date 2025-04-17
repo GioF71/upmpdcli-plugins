@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.3"
+    PLUGIN_RELEASE = "0.8.4"
     PLUGIN_NAME = "tidal"
 
 
@@ -101,6 +101,8 @@ class ConfigParam(Enum):
     ENABLE_USER_AGENT_WHITELIST = _ConfigParamData("enableuseragentwhitelist", True)
     ENABLE_READ_STREAM_METADATA = _ConfigParamData("enablereadstreammetadata", False)
     ENABLE_DUMP_STREAM_DATA = _ConfigParamData("enabledumpstreamdata", False)
+    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enabledumpstreamdata", True)
+    CACHED_IMAGES_MAX_AGE_DAYS = _ConfigParamData("cachedimagesmaxagedays", 180)
 
     @property
     def key(self) -> str:

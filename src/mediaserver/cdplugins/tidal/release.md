@@ -1,5 +1,12 @@
 # Tidal Plugin Release notes
 
+## 0.8.4
+
+- Don't assume that images are jpg files, use mimetypes instead
+- Select newest file when there are more than one cached file for the same item (might happen if file type changes)
+- Avoid to accumulate cached images indefinitely: by default, on startup, files older than 60 days are removed
+- Avoid use of "/".join(...) using os.path.join(...)
+
 ## 0.8.3
 
 - Improve badge assignment

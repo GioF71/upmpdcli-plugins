@@ -21,6 +21,7 @@ import datetime
 import time
 import random
 import secrets
+import glob
 
 from typing import Callable
 from typing import Union
@@ -311,7 +312,7 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
         path: list[str] = list()
         path.extend([constants.PluginConstant.PLUGIN_NAME.value, file_dir])
         path.append(file_name)
-        streaming_url = tidal_util.compose_docroot_url("/".join(path))
+        streaming_url = tidal_util.compose_docroot_url(os.path.join(*path))
     elif stream.is_bts:
         if not urls_available:
             raise Exception(f"Stream is BTS but urls are not available for track_id [{track_id}]")
@@ -5772,6 +5773,27 @@ def search(a):
 _g_init = False
 
 
+def get_webserver_path_images() -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        "images"]
+
+
+def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
+    curr_sub_dir: str
+    curr_dir: str = base_dir
+    for curr_sub_dir in sub_dir_list:
+        new_dir: str = os.path.join(curr_dir, curr_sub_dir)
+        # msgproc.log(f"checking dir [{new_dir}] ...")
+        if not os.path.exists(new_dir):
+            msgproc.log(f"creating dir [{new_dir}] ...")
+            os.mkdir(new_dir)
+        # else:
+        #     msgproc.log(f"dir [{new_dir}] already exists.")
+        curr_dir = new_dir
+    return curr_dir
+
+
 def _inittidal():
     global _g_init
     if _g_init:
@@ -5792,6 +5814,28 @@ def _inittidal():
     cache_dir: str = upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value)
     msgproc.log(f"Cache dir for [{constants.PluginConstant.PLUGIN_NAME.value}] is [{cache_dir}]")
     msgproc.log(f"DB version for [{constants.PluginConstant.PLUGIN_NAME.value}] is [{persistence.get_db_version()}]")
+    path_images_static: list[str] = get_webserver_path_images()
+    images_static_dir: str = ensure_directory(
+        upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
+        path_images_static)
+    msgproc.log(f"Images dir is [{images_static_dir}]")
+    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
+        now: float = time.time()
+        # list directories
+        file_count: int = 0
+        deleted_count: int = 0
+        max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS) * (24 * 60 * 60)
+        for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
+            filename_path = os.path.normpath(filename)
+            file_count += 1
+            time_diff_sec: float = now - os.path.getmtime(filename_path)
+            # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
+            if time_diff_sec >= float(max_age_seconds):
+                # msgproc.log(f"Deleting file [{filename}] which is older than "
+                #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS)}] days")
+                os.remove(filename_path)
+                deleted_count += 1
+        msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")
     _g_init = True
     return True
 

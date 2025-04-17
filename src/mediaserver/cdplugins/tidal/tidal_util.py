@@ -20,6 +20,9 @@ import config
 import requests
 import os
 import secrets
+import mimetypes
+import glob
+import pathlib
 
 import upnp_util
 
@@ -132,14 +135,22 @@ def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) ->
         if document_root_dir:
             sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", TidalAlbum.__name__]
             image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
-            cached_file_name: str = f"{str(album_id)}.jpg"
-            cached_file: str = os.path.join(image_dir, cached_file_name)
-            if os.path.exists(cached_file):
+            cached_file_name_no_ext: str = f"{str(album_id)}"
+            cached_files: list[str] = glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*")
+            if config.get_dump_image_caching():
+                msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_files if cached_files else []}]")
+            if cached_files and len(cached_files) > 0:
+                # pick newest file
+                cached_file: str = __select_newest_file(cached_files)
+                cached_file_name_ext: str = os.path.splitext(cached_file)[1]
+                # touch the file.
+                # msgproc.log(f"About to touch file [{cached_file}] ...")
+                pathlib.Path(cached_file).touch()
                 # use cached file
                 path: list[str] = list()
                 path.extend(sub_dir_list)
-                path.append(cached_file_name)
-                cached_image_url: str = compose_docroot_url("/".join(path))
+                path.append(f"{str(album_id)}{cached_file_name_ext}")
+                cached_image_url: str = compose_docroot_url(os.path.join(*path))
                 if config.get_dump_image_caching():
                     msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_image_url}]")
                 return cached_image_url
@@ -170,19 +181,84 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         return __get_image_url(obj)
     sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", type(obj).__name__]
     image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
-    cached_file_name: str = f"{str(obj.id)}.jpg"
-    cached_file: str = os.path.join(image_dir, cached_file_name)
-    if refresh or not os.path.exists(cached_file):
+    cached_file_names: list[str] = __get_cached_file_names(image_dir, str(obj.id))
+    # msgproc.log(f"get_image_url for [{str(obj.id)}] -> [{cached_file_names}]")
+    # pick newest file
+    cached_file_name: str = (__select_newest_file(cached_file_names)
+                             if cached_file_names and len(cached_file_names) > 0
+                             else None)
+    # touch the file.
+    if cached_file_name:
+        # msgproc.log(f"About to touch file [{cached_file_name}] ...")
+        pathlib.Path(cached_file_name).touch()
+    # cached_file_name_ext will include the ".", so it will likely be ".jpg"
+    cached_file_name_ext: str = os.path.splitext(cached_file_name)[1] if cached_file_name else None
+    # msgproc.log(f"For itemid [{str(obj.id)}] found file [{cached_file_name}]")
+    if refresh or not cached_file_name:
         image_url: str = __get_image_url(obj=obj)
         # msgproc.log(f"get_image_url saving to [{image_dir}] [{dest_file}]")
-        img_data: bytes = requests.get(image_url).content
-        with open(cached_file, 'wb') as handler:
-            handler.write(img_data)
-    path: list[str] = list()
-    path.extend(sub_dir_list)
-    path.append(cached_file_name)
-    cached_image_url: str = compose_docroot_url("/".join(path))
-    return cached_image_url
+        response = requests.get(image_url)
+        content_type = response.headers.get('content-type')
+        file_types: list[str] = mimetypes.guess_all_extensions(content_type)
+        if file_types and len(file_types) > 0:
+            # file_types include the "."
+            cached_file: str = os.path.join(image_dir, f"{str(obj.id)}{file_types[0].lower()}")
+            msgproc.log(f"get_image_url got mimetype for [{image_url}] -> "
+                        f"[{file_types}] -> "
+                        f"saving to [{cached_file}]")
+            img_data: bytes = requests.get(image_url).content
+            with open(cached_file, 'wb') as handler:
+                handler.write(img_data)
+            path: list[str] = list()
+            path.extend(sub_dir_list)
+            path.append(f"{str(obj.id)}{file_types[0].lower()}")
+            cached_image_url: str = compose_docroot_url(os.path.join(*path))
+            return cached_image_url
+        else:
+            msgproc.log(f"Cannot understand file type for item id [{str(obj.id)}], cannot cache.")
+            return None
+    elif cached_file_name:
+        path: list[str] = list()
+        path.extend(sub_dir_list)
+        path.append(f"{str(obj.id)}{cached_file_name_ext}")
+        # remember, cached_file_name_ext will include the ".", so it will likely be ".jpg"
+        cached_image_url: str = compose_docroot_url(os.path.join(*path))
+        # msgproc.log(f"get_image_url returning cached [{cached_image_url}]")
+        return cached_image_url
+
+
+def __get_cached_file_names(cache_dir: str, item_id: str) -> list[str]:
+    cached_file_path: str = os.path.join(cache_dir, item_id)
+    item_id_ext: str = os.path.splitext(cached_file_path)[1]
+    if item_id_ext:
+        # cached_file_path has extension, we convert that to lower case
+        item_id_ext = item_id_ext.lower()
+        exists = os.path.exists(cached_file_path)
+        if exists:
+            return [cached_file_path]
+    else:
+        # no extension in item_id, look what's stored, if any
+        matching_files: list[str] = glob.glob(f"{cached_file_path}.*")
+        if matching_files and len(matching_files) > 0:
+            return matching_files
+    return []
+
+
+def __select_newest_file(file_list: list[str]) -> str:
+    if not file_list or len(file_list) == 0:
+        return None
+    if len(file_list) == 1:
+        return file_list[0]
+    by_modification_time: list[tuple[str, float]] = []
+    curr_file: str
+    for curr_file in file_list:
+        curr_path = os.path.normcase(curr_file)
+        mtime: float = os.path.getmtime(curr_path)
+        by_modification_time.append((curr_file, mtime))
+    # sort by mtime descending
+    by_modification_time.sort(key=lambda x: x[1], reverse=True)
+    # get first.
+    return by_modification_time[0][0]
 
 
 def __get_image_url(obj: any) -> str:
