@@ -771,8 +771,7 @@ link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidro
 code.
 
 NOTE: The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.3.10b2/[subsonic-connector version 0.3.10b2] and
-link:https://github.com/crustymonkey/py-sonic/releases/tag/1.0.2/[py-sonic version 1.0.2].
+link:https://pypi.org/project/subsonic-connector/0.3.10b3/[subsonic-connector version 0.3.10b3].
 
 List of currently available Features:
 
@@ -821,6 +820,8 @@ So you will also need to specify:
 and, optionally, 
 
 - subsoniclegacyauth
+- subsonicuseragent
+- subsonicskipuseragent
 
 For example if your server is https://my-navidrome.mydomain.com, you will need to set
 
@@ -840,6 +841,12 @@ album covers, for example.
 The parameter subsoniclegacyauth is optional and disabled by default.
 Legacy authentication should be set (enable it with 1) for subsonic servers which need these authentication mode.
 To my knowledge, only lms (Lightweight Media Server) currently needs legacy authentication to be enabled.
+
+The parameter subsonicuseragent might be needed for some vpn-based hosting solutions, like Cloudflare tunnel.
+I have to say that this configuration does not seem to be required lately, but it was a few weeks ago (early 2025).
+This parameter defaults to 'upmpdcli'
+
+The parameter subsonicskipuseragent can be set to 1 in order to force the user-agent to be empty.
 
 There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
 

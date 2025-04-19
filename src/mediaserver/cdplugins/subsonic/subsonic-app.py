@@ -286,16 +286,16 @@ def _load_album_tracks(
     if album is None or album_tracks is None:
         return None
     artist_id: str = album.getArtistId()
-    mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
+    album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
     album_quality_badge: str = entry_creator.get_track_list_badge(
         track_list=album_tracks.getSongList(),
         list_identifier=album_id)
     album_path_joined: str = get_album_path_list_joined(album=album)
-    if artist_id or mb_id or album_quality_badge or album_path_joined:
+    if artist_id or album_mbid or album_quality_badge or album_path_joined:
         persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album_id,
             quality_badge=album_quality_badge,
-            album_musicbrainz_id=mb_id,
+            album_musicbrainz_id=album_mbid,
             album_artist_id=artist_id,
             album_path=album_path_joined))
     song_list: list[Song] = album_tracks.getSongList()
@@ -351,7 +351,7 @@ def _load_album_tracks(
         curr_album_path: str
         cnt: int = 1
         for curr_album_path in album_path_set:
-            msgproc.log(f"_load_album_tracks album_paths for [{album_id}] mbid [{mb_id}]"
+            msgproc.log(f"_load_album_tracks album_paths for [{album_id}] album_mbid [{album_mbid}]"
                         f"-> [{curr_album_path}] [{cnt}/{len(album_path_set)}]")
             cnt += 1
     return entries
@@ -1824,7 +1824,7 @@ def handler_element_navigable_album(
     album_version: str = subsonic_util.get_album_version(album)
     record_label_names: list[str] = subsonic_util.get_album_record_label_names(album)
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> artist_id: [{album.getArtistId()}]")
-    msgproc.log(f"handler_element_navigable_album album [{album_id}] -> mb_id: [{album_mb_id}]")
+    msgproc.log(f"handler_element_navigable_album album [{album_id}] -> album_mbid: [{album_mb_id}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> media type [{media_type}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> release types [{release_types}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> genres [{genres}]")

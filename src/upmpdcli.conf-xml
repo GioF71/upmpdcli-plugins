@@ -666,6 +666,16 @@ upradiostitle = Upmpdcli Radio List
 # </descr></var>
 #subsoniclegacyauth = 0
 
+# <var name="subsonicuseragent" type="string"><brief>SubSonic user agent.</brief>
+# <descr>Lets you specify the user agent in http requests, defaults to upmpdcli.
+# </descr></var>
+#subsonicuseragent = 0
+
+# <var name="subsonicskipuseragent" type="bool"><brief>Force user agent to be empty.</brief>
+# <descr>You might want to enable this one in case the default user agent causes some trouble. YMMV.
+# </descr></var>
+#subsonicuseragent = 0
+
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
 #subsonicbaseurl = http://subsonic.localdomain.local

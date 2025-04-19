@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.7.9"
+    PLUGIN_RELEASE = "0.8.0"
     PLUGIN_NAME = "subsonic"
 
 
@@ -137,6 +137,12 @@ class ConfigParam(Enum):
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
     ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
     SHOW_META_ALBUM_PATH = _ConfigParamData("showmetaalbumpath", False)
+
+    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enabledumpstreamdata", True)
+    CACHED_IMAGES_MAX_AGE_DAYS = _ConfigParamData("cachedimagesmaxagedays", 180)
+
+    SKIP_USER_AGENT = _ConfigParamData("skipuseragent", 0)
+    USER_AGENT = _ConfigParamData("useragent", "upmpdcli")
 
     @property
     def key(self) -> str:

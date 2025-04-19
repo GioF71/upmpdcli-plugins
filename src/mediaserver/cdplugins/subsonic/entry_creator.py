@@ -313,13 +313,13 @@ def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
         msgproc.log(f"get_album_quality_badge for album_id: [{album.getId()}] "
                     f"force_load: [{force_load}] -> [{quality_badge}]")
         artist_id: str = album.getArtistId()
-        mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
+        album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
         # save
         persistence.save_album_metadata(
             album_metadata=persistence.AlbumMetadata(
                 album_id=album.getId(),
                 quality_badge=quality_badge,
-                album_musicbrainz_id=mb_id,
+                album_musicbrainz_id=album_mbid,
                 album_artist_id=artist_id))
         return quality_badge
     else:
@@ -467,6 +467,7 @@ def album_to_navigable_entry(
     if artist_id or album_mbid or album_path_joined:
         # msgproc.log(f"Metadata for album_id [{album.getId()}] -> "
         #             f"artist_id [{artist_id}] "
+        #             f"album_path_joined [{album_path_joined}] "
         #             f"album_mb_id [{'mb' if album_mbid else ''}], persisting ...")
         persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album.getId(),
@@ -543,25 +544,25 @@ def album_to_navigable_entry(
         is_search_result=False)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER):
         # available here?
-        mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
-        if not mb_id:
+        album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
+        if not album_mbid:
             # see if it's available in cache
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
-                msgproc.log(f"Trying to got album mb_id from cache for [{album.getId()}] ...")
+                msgproc.log(f"Trying to got album_mbid from cache for [{album.getId()}] ...")
             album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
-            mb_id = album_metadata.album_musicbrainz_id if album_metadata else None
+            album_mbid = album_metadata.album_musicbrainz_id if album_metadata else None
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
-                msgproc.log(f"Got album mb_id from cache for [{album.getId()}] -> [mb:{mb_id}]")
+                msgproc.log(f"Got album_mbid from cache for [{album.getId()}] -> [mb:{album_mbid}]")
         else:
             if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
-                msgproc.log(f"Album mb_id for [{album.getId()}] -> [{mb_id}]")
+                msgproc.log(f"Album album_mbid for [{album.getId()}] -> [{album_mbid}]")
 
-        if mb_id:
+        if album_mbid:
             # we can display it!
             if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ALBUM_MB_ID_AS_PLACEHOLDER):
                 entry_title = f"{entry_title} [mb]"
             else:
-                entry_title = f"{entry_title} [mb:{mb_id}]"
+                entry_title = f"{entry_title} [mb:{album_mbid}]"
     # anomalies
     show_album_genre_information(album)
     entry: dict[str, any] = upmplgutils.direntry(
@@ -916,17 +917,17 @@ def album_to_entry(
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
     # musicbrainz?
-    mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
-    msgproc.log(f"Found mb_id [{mb_id}] for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
+    album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
+    msgproc.log(f"Found album_mbid [{album_mbid}] for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
     show_mbid: bool = config.get_config_param_as_bool(
         constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES
         if is_search_result
         else constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_VIEW)
-    if mb_id and show_mbid:
+    if album_mbid and show_mbid:
         if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER):
             title = f"{title} [mb]"
         else:
-            title = f"{title} [{mb_id}]"
+            title = f"{title} [{album_mbid}]"
     artist = album.getArtist()
     cache_actions.on_album(album)
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
