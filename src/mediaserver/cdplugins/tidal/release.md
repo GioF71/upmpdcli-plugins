@@ -1,5 +1,13 @@
 # Tidal Plugin Release notes
 
+## 0.8.5
+
+- Log whether user agent whitelist is enabled or not
+- Remove global tidal session
+- Avoid to downgrade quality information to db just because we played to a non-whitelisted player in standard resolution
+- Report missing user-agent (no match is executed in this case, and we fallback to lower quality if agent whitelist is enabled)
+- Misc code corrections, cleanup and refactoring
+
 ## 0.8.4
 
 - Don't assume that images are jpg files, use mimetypes instead

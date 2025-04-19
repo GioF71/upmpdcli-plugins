@@ -238,7 +238,8 @@ def load_tile_image(
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return None
+    if not rows:
+        return None
     if len(rows) > 1:
         raise Exception(f"Multiple tile_image records for tile_type [{tile_type.tile_type_name}], tile_id [{tile_id}]")
     tile_image: TileImage = TileImage()
@@ -730,7 +731,8 @@ def _get_played_tracks(sorting: PlayedTracksSorting, max_tracks: int) -> list[Pl
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return list()
+    if not rows:
+        return list()
     played_list: list[PlayedTrack] = list()
     for row in rows:
         played: PlayedTrack = PlayedTrack()
@@ -795,7 +797,8 @@ def get_played_track_entry(track_id: str) -> PlayedTrack:
                 WHERE track_id = ?", t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return None
+    if not rows:
+        return None
     result: PlayedTrack = PlayedTrack()
     result.track_id = track_id
     result.play_count = rows[0][0]
@@ -846,7 +849,8 @@ def get_played_album_entries(album_id: str) -> list[PlayedTrack]:
                 ORDER BY volume_num, track_num", t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return list()
+    if not rows:
+        return list()
     result: list[PlayedTrack] = list()
     for row in rows:
         played_track: PlayedTrack = PlayedTrack()
@@ -952,7 +956,8 @@ def __is_album_id_in_table(
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return False
+    if not rows:
+        return False
     return True
 
 
@@ -962,7 +967,8 @@ def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
     rows = cursor.fetchall()
     cursor.close()
     result: list[PlayedAlbum] = list()
-    if not rows: return result
+    if not rows:
+        return result
     for row in rows:
         played: PlayedAlbum = PlayedAlbum()
         played.album_id = row[0]
@@ -1010,7 +1016,8 @@ def __is_in_listen_queue(
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return False
+    if not rows:
+        return False
     if len(rows) > 1:
         raise Exception(f"Multiple {table_name} records for id [{obj_id}]")
     # only one record, yes, it's in listen queue
@@ -1204,7 +1211,8 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows: return None
+    if not rows:
+        return None
     if len(rows) > 1:
         raise Exception(f"Multiple {__table_name_album_metadata_cache_v1} records for [{album_id}]")
     row = rows[0]
@@ -1260,7 +1268,8 @@ def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
         """,
         t)
     cursor.close()
-    if commit: __connection.commit()
+    if commit:
+        __connection.commit()
 
 
 def __delete_album_metadata(album_id: str, commit: bool = False):
@@ -1271,7 +1280,8 @@ def __delete_album_metadata(album_id: str, commit: bool = False):
             WHERE {__field_name_album_id} = ?""",
         t)
     cursor.close()
-    if commit: __connection.commit()
+    if commit:
+        __connection.commit()
 
 
 def store_album_metadata(album_metadata: AlbumMetadata):

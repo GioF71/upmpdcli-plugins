@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.4"
+    PLUGIN_RELEASE = "0.8.5"
     PLUGIN_NAME = "tidal"
 
 
@@ -95,6 +95,9 @@ class _ConfigParamData:
 
 
 class ConfigParam(Enum):
+
+    AUDIO_QUALITY = _ConfigParamData("audioquality", TidalQuality.high_lossless)
+
     ALLOW_FAVORITE_ACTIONS = _ConfigParamData("allowfavoriteactions", False)
     ALLOW_BOOKMARK_ACTIONS = _ConfigParamData("allowbookmarkactions", False)
     ALLOW_STATISTICS_ACTIONS = _ConfigParamData("allowstatisticsactions", False)
@@ -195,10 +198,6 @@ default_allow_guess_stream_info_from_other_album_track: int = 1
 default_max_file_age_seconds: int = 3600
 
 default_max_get_stream_info_mix_or_playlist: int = 5
-
-default_max_audio_quality: str = TidalQuality.high_lossless
-
-default_session_max_duration_sec: int = 300
 
 default_show_album_id: bool = True
 

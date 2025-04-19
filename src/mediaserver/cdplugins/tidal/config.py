@@ -91,11 +91,6 @@ def getWebServerDocumentRoot() -> str:
     return upmplgutils.getOptionValue("webserverdocumentroot")
 
 
-max_audio_quality: str = getPluginOptionValue(
-    "audioquality",
-    constants.default_max_audio_quality)
-
-
 enable_read_stream_metadata: bool = get_config_param_as_bool(constants.ConfigParam.ENABLE_READ_STREAM_METADATA)
 
 enable_assume_bitdepth: bool = __getPluginOptionAsBool(
@@ -151,11 +146,6 @@ albums_per_page: int = getPluginOptionValue(
 artists_per_page: int = getPluginOptionValue(
     "artistsperpage",
     constants.default_artists_per_page)
-
-
-session_max_duration_sec: int = getPluginOptionValue(
-    "sessionmaxduration",
-    constants.default_session_max_duration_sec)
 
 
 show_album_id: bool = getPluginOptionValue(
@@ -225,6 +215,7 @@ __fallback_for_missing_quality: dict[str, str] = {
 
 
 def get_fallback_quality_when_missing() -> str:
+    max_audio_quality: str = get_config_param_as_str(constants.ConfigParam.AUDIO_QUALITY)
     if not max_audio_quality or max_audio_quality not in __fallback_for_missing_quality:
         return None
     return __fallback_for_missing_quality[max_audio_quality]
