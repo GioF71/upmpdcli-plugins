@@ -266,6 +266,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicpassword = subsonicpassword
 # SubSonic legacy authentication mode.
 #subsoniclegacyauth = 0
+# SubSonic user agent
+#subsonicuseragent = upmpdcli
+# SubSonic skip user agent
+#subsonicskipuseragent = 0
 # SubSonic server base url.
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.

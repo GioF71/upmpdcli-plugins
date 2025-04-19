@@ -105,10 +105,18 @@ def get_random_art_by_genre(
     return None
 
 
-def try_get_album(album_id: str, propagate_fail: bool = False) -> Album:
+def try_get_album(
+        album_id: str,
+        propagate_fail: bool = False,
+        execute_cache_action: bool = False) -> Album:
     try:
         res: Response[Album] = connector_provider.get().getAlbum(album_id)
-        return res.getObj() if res and res.isOk() else None
+        if res and res.getObj() and res.isOk():
+            album: Album = res.getObj()
+            # execute on_album from cache_actions (stores metadata)
+            if execute_cache_action:
+                cache_actions.on_album(album)
+            return album
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
         if propagate_fail:
@@ -144,8 +152,10 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     result: list[Song] = []
     album: Album = try_get_album(album_id)
     if album and album.getArtist():
+        msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
         cache_actions.on_album(album)
     else:
+        msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] artist [{album.getArtist()}]...")
         return None, []
     albumArtURI: str = build_cover_art_url(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
@@ -1004,5 +1014,6 @@ def set_album_metadata(album: Album, target: dict):
         path_str: str = f"[{'], ['.join(path_list)}]" if len(path_list) > 0 else None
         # don't show more than ...
         if path_str and len(path_str) > constants.MetadataMaxLength.ALBUM_PATH.value:
+            msgproc.log(f"set_album_metadata album_id: [{album.getId()}] Path: [{path_str}]")
             path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
         upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_PATH, path_str, target)

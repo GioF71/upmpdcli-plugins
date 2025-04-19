@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -319,7 +319,10 @@ def get_album_year_str(album: Album) -> str:
     # both set
     if ord_set and str(year) == ord:
         return ord
-    return f"{ord} ({str(year)})"
+    to_display_list: list[str] = [ord, str(year)]
+    to_display_list.sort()
+    # return f"{ord} ({str(year)})"
+    return "/".join(to_display_list)
 
 
 # Tests

@@ -21,7 +21,6 @@ from typing import Callable
 
 import upmplgutils
 import constants
-import config
 
 from enum import Enum
 
@@ -531,7 +530,7 @@ def save_album_metadata(album_metadata: AlbumMetadata):
     # msgproc.log(f"save_album_metadata for album_id: [{album_metadata.album_id}] "
     #             f"artist_id: [{album_metadata.album_artist_id}] "
     #             f"quality_badge: [{album_metadata.quality_badge}] "
-    #             f"mb_id: [{'mb' if album_metadata.album_musicbrainz_id else ''}] "
+    #             f"album_mbid: [{'mb' if album_metadata.album_musicbrainz_id else ''}] "
     #             f"album_path: [{album_metadata.album_path}]")
     existing_metadata: AlbumMetadata = get_album_metadata(album_id=album_metadata.album_id)
     if existing_metadata:

@@ -174,7 +174,17 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
             raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
         return legacy_auth_enabled_str in ["true", "1"]
 
+    def getUserAgent(Self) -> bool:
+        # only use empty user agent if explicitly instructed to do so
+        if get_config_param_as_bool(constants.ConfigParam.SKIP_USER_AGENT):
+            return None
+        user_agent_str: str = get_config_param_as_str(constants.ConfigParam.USER_AGENT)
+        if user_agent_str is None or len(user_agent_str) == 0:
+            user_agent_str = constants.ConfigParam.USER_AGENT.default_value
+        return user_agent_str
+
     def getApiVersion(self) -> str: return "1.16.1"
+
     # comment line before and then
     # uncomment line below when py-sonic with useragent support is released
     # def getApiVersion(self) -> str: return SubsonicConnectorConstants.API_VERSION.value
