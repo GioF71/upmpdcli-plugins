@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.0
+
+- Avoid to accumulate cached images indefinitely: by default, on startup, files older than 60 days are removed
+- Show original release date and year more concisely, eg.: "1999/2000" instead of "1999 (2000)"
+- Advance subsonic-connector to 0.3.10b3, allows user-agent customization
+
 ## Release 0.7.9
 
 - Avoid use of "/".join(...) using os.path.join(...)

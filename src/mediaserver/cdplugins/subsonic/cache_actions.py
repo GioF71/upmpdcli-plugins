@@ -62,15 +62,17 @@ def on_album(album: subsonic_connector.album.Album):
             cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
             key=album.getArtistId(),
             value=album.getId())
+    artist_id: str = album.getArtistId()
     # musicbrainz album id
-    mb_album_id: str = subsonic_util.get_album_musicbrainz_id(album)
+    album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
     album_path_joined: str = album_util.get_album_path_list_joined(album=album)
-    if mb_album_id or album_path_joined:
+    if album_mbid or album_path_joined:
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
-            msgproc.log(f"Storing mb_id for [{album.getId()}] -> [{mb_album_id}]")
+            msgproc.log(f"Storing album_mbid for [{album.getId()}] -> [{album_mbid}]")
         persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
             album_id=album.getId(),
-            album_musicbrainz_id=mb_album_id,
+            album_musicbrainz_id=album_mbid,
+            album_artist_id=artist_id,
             album_path=album_path_joined))
     # update artist with cover art, if available
     if album.getArtistId() and album.getCoverArt():
