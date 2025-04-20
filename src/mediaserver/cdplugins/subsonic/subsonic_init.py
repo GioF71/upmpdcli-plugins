@@ -51,45 +51,12 @@ def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
     # check cache dir
     cache_dir: str = upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
     if not cache_dir:
-        msgproc.log("Missing cache directory, cannot allow pruning.")
+        msgproc.log("Cache directory is not set, cannot allow pruning.")
         return None
-    # must start with some of the allowed path, so /var/cache/upmpdcli, /cache, ~/.cache/upmpdcli
-    matching_path: bool = False
     candidate: pathlib.Path = pathlib.Path(cache_dir)
     # does the path actually exist?
     if not candidate.exists() or not candidate.is_dir():
-        msgproc.log(f"Invalid cache path [{candidate}]")
-        return None
-    # check if it's where it's expected to be.
-    home_path_expanded: pathlib.Path = os.path.expanduser("~/.cache/upmpdcli")
-    p: pathlib.Path
-    valid_path: list[pathlib.Path] = [
-        pathlib.Path("/var/cache/upmpdcli"),
-        pathlib.Path("/cache")]
-    if home_path_expanded:
-        # add to valid_path list
-        home_path: pathlib.Path = pathlib.Path(home_path_expanded) if home_path_expanded else None
-        home_path_exists: bool = home_path is not None and home_path.exists() and home_path.is_dir()
-        msgproc.log(f"Adding path in current user's home [{home_path}] to valid_path: "
-                    f"[{'yes' if home_path_exists else 'no'}] ...")
-        if home_path_exists:
-            valid_path.append(home_path)
-    for p in valid_path:
-        if not p.exists() or not p.is_dir():
-            msgproc.log(f"Path [{p}] does not exist, skipping.")
-            continue
-        else:
-            msgproc.log(f"Path [{p}] is valid.")
-        if p.exists() and p.is_dir() and p in candidate.parents:
-            # one match, ok, let's break
-            msgproc.log(f"Path [{candidate}] is inside [{p}].")
-            matching_path = True
-            break
-        else:
-            msgproc.log(f"Path [{p}] does not match [{candidate}].")
-    if not matching_path:
-        msgproc.log(f"Path [{cache_dir}] is not inside any of the valid cache paths, "
-                    "cannot allow pruning.")
+        msgproc.log(f"Invalid cache path [{candidate}], cannot allow pruning.")
         return None
     # is the provided argument a valid non-empty list?
     if not www_image_path or not isinstance(www_image_path, list) or len(www_image_path) == 0:
