@@ -40,13 +40,6 @@ import glob
 import pathlib
 
 
-def get_webserver_path_cache_images() -> list[str]:
-    return [
-        constants.PluginConstant.PLUGIN_NAME.value,
-        "images",
-        "cache"]
-
-
 def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
     # check cache dir
     cache_dir: str = upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
@@ -124,7 +117,7 @@ def subsonic_init():
         msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
                     f"Initialization failed [{e}]")
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
-        prune_path: str = get_image_cache_path_for_pruning(get_webserver_path_cache_images())
+        prune_path: str = get_image_cache_path_for_pruning(config.get_webserver_path_images_cache())
         if prune_path:
             msgproc.log(f"Pruning image cache at path [{prune_path}] ...")
             prune_cache(images_static_dir=prune_path)
