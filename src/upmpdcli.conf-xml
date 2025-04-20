@@ -674,7 +674,7 @@ upradiostitle = Upmpdcli Radio List
 # <var name="subsonicskipuseragent" type="bool"><brief>Force user agent to be empty.</brief>
 # <descr>You might want to enable this one in case the default user agent causes some trouble. YMMV.
 # </descr></var>
-#subsonicuseragent = 0
+#subsonicskipuseragent = 0
 
 # <var name="subsonicbaseurl" type="string"><brief>SubSonic server base url.</brief>
 # <descr>URL of the server, without the port. Specify http or https</descr></var>
