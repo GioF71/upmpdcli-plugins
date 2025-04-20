@@ -61,15 +61,19 @@ def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
         msgproc.log(f"Invalid cache path [{candidate}]")
         return None
     # check if it's where it's expected to be.
-    home_path: pathlib.Path = os.path.expanduser("~/.cache/upmpdcli")
+    home_path_expanded: pathlib.Path = os.path.expanduser("~/.cache/upmpdcli")
     p: pathlib.Path
     valid_path: list[pathlib.Path] = [
         pathlib.Path("/var/cache/upmpdcli"),
         pathlib.Path("/cache")]
-    if home_path:
+    if home_path_expanded:
         # add to valid_path list
-        msgproc.log(f"Adding path in current user's home [{home_path}] to valid_path ...")
-        valid_path.append(home_path)
+        home_path: pathlib.Path = pathlib.Path(home_path_expanded) if home_path_expanded else None
+        home_path_exists: bool = home_path is not None and home_path.exists() and home_path.is_dir()
+        msgproc.log(f"Adding path in current user's home [{home_path}] to valid_path: "
+                    f"[{'yes' if home_path_exists else 'no'}] ...")
+        if home_path_exists:
+            valid_path.append(home_path)
     for p in valid_path:
         if not p.exists() or not p.is_dir():
             msgproc.log(f"Path [{p}] does not exist, skipping.")
