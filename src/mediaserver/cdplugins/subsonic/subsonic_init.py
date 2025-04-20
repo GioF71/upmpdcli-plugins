@@ -37,6 +37,7 @@ import shutil
 import time
 import os
 import glob
+import pathlib
 
 
 def get_webserver_path_cache_images() -> list[str]:
@@ -46,11 +47,56 @@ def get_webserver_path_cache_images() -> list[str]:
         "cache"]
 
 
-def prune_cache():
-    path_for_cache_images: list[str] = get_webserver_path_cache_images()
-    images_static_dir: str = subsonic_util.ensure_directory(
+def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
+    # check cache dir
+    cache_dir: str = upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
+    if not cache_dir:
+        msgproc.log("Missing cache directory, cannot allow pruning.")
+        return None
+    # must start with some of the allowed path, so /var/cache/upmpdcli, /cache, ~/.cache/upmpdcli
+    matching_path: bool = False
+    candidate: pathlib.Path = pathlib.Path(cache_dir)
+    # does the path actually exist?
+    if not candidate.exists() or not candidate.is_dir():
+        msgproc.log(f"Invalid cache path [{candidate}]")
+        return None
+    # check if it's where it's expected to be.
+    home_path: pathlib.Path = os.path.expanduser("~/.cache/upmpdcli")
+    p: pathlib.Path
+    valid_path: list[pathlib.Path] = [
+        pathlib.Path("/var/cache/upmpdcli"),
+        pathlib.Path("/cache")]
+    if home_path:
+        # add to valid_path list
+        msgproc.log(f"Adding path in current user's home [{home_path}] to valid_path ...")
+        valid_path.append(home_path)
+    for p in valid_path:
+        if not p.exists() or not p.is_dir():
+            msgproc.log(f"Path [{p}] does not exist, skipping.")
+            continue
+        else:
+            msgproc.log(f"Path [{p}] is valid.")
+        if p.exists() and p.is_dir() and p in candidate.parents:
+            # one match, ok, let's break
+            msgproc.log(f"Path [{candidate}] is inside [{p}].")
+            matching_path = True
+            break
+        else:
+            msgproc.log(f"Path [{p}] does not match [{candidate}].")
+    if not matching_path:
+        msgproc.log(f"Path [{cache_dir}] is not inside any of the valid cache paths, "
+                    "cannot allow pruning.")
+        return None
+    # is the provided argument a valid non-empty list?
+    if not www_image_path or not isinstance(www_image_path, list) or len(www_image_path) == 0:
+        msgproc.log("www_image_path is not a valid list, cannot allow pruning.")
+        return None
+    return subsonic_util.ensure_directory(
         upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
-        path_for_cache_images)
+        www_image_path)
+
+
+def prune_cache(images_static_dir: str):
     now: float = time.time()
     # list directories
     file_count: int = 0
@@ -107,9 +153,11 @@ def subsonic_init():
         msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
                     f"Initialization failed [{e}]")
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
-        msgproc.log("Pruning image cache ...")
-        prune_cache()
-        msgproc.log("Pruned image cache.")
+        prune_path: str = get_image_cache_path_for_pruning(get_webserver_path_cache_images())
+        if prune_path:
+            msgproc.log(f"Pruning image cache at path [{prune_path}] ...")
+            prune_cache(images_static_dir=prune_path)
+            msgproc.log(f"Pruned image cache at path [{prune_path}].")
     else:
         msgproc.log("Image pruning disabled.")
     msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
