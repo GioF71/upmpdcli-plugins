@@ -138,7 +138,7 @@ class ConfigParam(Enum):
     ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
     SHOW_META_ALBUM_PATH = _ConfigParamData("showmetaalbumpath", False)
 
-    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enabledumpstreamdata", True)
+    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enabledumpstreamdata", False)
     CACHED_IMAGES_MAX_AGE_DAYS = _ConfigParamData("cachedimagesmaxagedays", 180)
 
     SKIP_USER_AGENT = _ConfigParamData("skipuseragent", 0)
