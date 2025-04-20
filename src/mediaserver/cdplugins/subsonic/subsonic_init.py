@@ -47,27 +47,26 @@ def get_webserver_path_cache_images() -> list[str]:
 
 
 def prune_cache():
-    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
-        path_for_cache_images: list[str] = get_webserver_path_cache_images()
-        images_static_dir: str = subsonic_util.ensure_directory(
-            upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
-            path_for_cache_images)
-        now: float = time.time()
-        # list directories
-        file_count: int = 0
-        deleted_count: int = 0
-        max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS) * (24 * 60 * 60)
-        for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
-            filename_path = os.path.normpath(filename)
-            file_count += 1
-            time_diff_sec: float = now - os.path.getmtime(filename_path)
-            # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
-            if time_diff_sec >= float(max_age_seconds):
-                # msgproc.log(f"Deleting file [{filename}] which is older than "
-                #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS)}] days")
-                os.remove(filename_path)
-                deleted_count += 1
-        msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")
+    path_for_cache_images: list[str] = get_webserver_path_cache_images()
+    images_static_dir: str = subsonic_util.ensure_directory(
+        upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
+        path_for_cache_images)
+    now: float = time.time()
+    # list directories
+    file_count: int = 0
+    deleted_count: int = 0
+    max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS) * (24 * 60 * 60)
+    for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
+        filename_path = os.path.normpath(filename)
+        file_count += 1
+        time_diff_sec: float = now - os.path.getmtime(filename_path)
+        # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
+        if time_diff_sec >= float(max_age_seconds):
+            # msgproc.log(f"Deleting file [{filename}] which is older than "
+            #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS)}] days")
+            os.remove(filename_path)
+            deleted_count += 1
+    msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")
 
 
 def subsonic_init():
@@ -107,9 +106,12 @@ def subsonic_init():
     except Exception as e:
         msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
                     f"Initialization failed [{e}]")
-    msgproc.log("Pruning image cache ...")
-    prune_cache()
-    msgproc.log("Pruned image cache.")
+    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
+        msgproc.log("Pruning image cache ...")
+        prune_cache()
+        msgproc.log("Pruned image cache.")
+    else:
+        msgproc.log("Image pruning disabled.")
     msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] "
                 f"Initialization success: [{init_success}]")
 
