@@ -65,7 +65,7 @@ def prune_cache(images_static_dir: str):
     # list directories
     file_count: int = 0
     deleted_count: int = 0
-    max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS) * (24 * 60 * 60)
+    max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGE_MAX_AGE_DAYS) * (24 * 60 * 60)
     for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
         filename_path = os.path.normpath(filename)
         file_count += 1
@@ -73,7 +73,7 @@ def prune_cache(images_static_dir: str):
         # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
         if time_diff_sec >= float(max_age_seconds):
             # msgproc.log(f"Deleting file [{filename}] which is older than "
-            #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS)}] days")
+            #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGE_MAX_AGE_DAYS)}] days")
             os.remove(filename_path)
             deleted_count += 1
     msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")

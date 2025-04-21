@@ -767,6 +767,16 @@ upradiostitle = Upmpdcli Radio List
 # webdocumentroot and some disk space, recommended</descr></var>
 #subsonicenableimagecaching = 0
 
+# <var name="subsonicenablecachedimageagelimit" type="bool">
+# <brief>Enables pruning for image cache, requires webdocumentroot</brief>
+# <descr>Allows the plugin to remove old cache images from the server, recommended</descr></var>
+#subsonicenablecachedimageagelimit = 0
+
+# <var name="subsoniccachedimagemaxagedays" type="int">
+# <brief>Age limit for image files in image cache in days</brief>
+# <descr>Sets the maximum image file age in days, relevant when pruning is enabled</descr></var>
+#subsoniccachedimagemaxagedays = 60
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>
