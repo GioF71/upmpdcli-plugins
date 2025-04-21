@@ -36,7 +36,7 @@
 # Media Renderer parameters
 
 # "Friendly Name" for the Media Renderer.
-#friendlyname = UpMpd
+#friendlyname = UpMpd-%h
 # Specific friendly name for the UPnP/AV Media Renderer.
 #avfriendlyname =
 # Enable UPnP AV services (0/1).
@@ -204,11 +204,12 @@
 # Bogus user name variable.
 #uprcluser = bugsbunny
 # Plugin Title.
+#uprcltitle = Uprcl
 uprcltitle = Local Music
 # Media directories
 #uprclmediadirs =
 # Don't make the local radio list as a playlist.
-#uprnoradioconf = 0
+#uprclnoradioconf = 0
 # Uprcl HTTP server host and port for serving media files.
 #uprclhostport =
 # Uprcl HTTP server port for serving media files.
@@ -260,12 +261,16 @@ upradiostitle = Upmpdcli Radio List
 
 # SubSonic plugin parameters
 
-# SubSonic User name variable.
+# SubSonic User name.
 #subsonicuser = subsonic
-# SubSonic Password variable.
+# SubSonic Password.
 #subsonicpassword = subsonicpassword
 # SubSonic legacy authentication mode.
 #subsoniclegacyauth = 0
+# SubSonic user agent.
+#subsonicuseragent = 0
+# Force user agent to be empty.
+#subsonicskipuseragent = 0
 # SubSonic server base url.
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
@@ -302,6 +307,10 @@ upradiostitle = Upmpdcli Radio List
 #subsonicallowgenreinalbumcontainer = 0
 # Enables image caching, requires webdocumentroot
 #subsonicenableimagecaching = 0
+# Enables pruning for image cache, requires webdocumentroot
+#subsonicenablecachedimageagelimit = 0
+# Age limit for image files in image cache in days
+#subsoniccachedimagemaxagedays = 60
 
 # Upmpdcli BBC Sounds plugin parameters
 
@@ -310,7 +319,8 @@ upradiostitle = Upmpdcli Radio List
 # Past days in BBC Sounds catalog listing.
 #bbcprogrammedays = 30
 # Plugin Title.
-#bbctitle = Upmpdcli Radio List
+#bbctitle = Bbc
+bbctitle = BBC Sounds
 
 # Songcast Receiver parameters
 

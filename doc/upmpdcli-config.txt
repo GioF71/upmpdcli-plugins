@@ -428,8 +428,7 @@ tidalenableimagecaching:: Enables image caching, requires webdocumentroot Allows
 webdocumentroot and some disk space, recommended
 
 [[tidalsearchlimit]]
-tidalsearchlimit:: Tidal search limit Set the maximum numbers of item returned by
-search, defaults to 15
+tidalsearchlimit:: Tidal search limit Set the maximum numbers of items returned by search, defaults to 15
 
 [[tidaloverridecountrycode]]
 tidaloverridecountrycode:: Override the country code. This will allow you to specify the desired two-letter country code.
@@ -560,13 +559,22 @@ directory.
 === SubSonic plugin parameters 
 
 [[subsonicuser]]
-subsonicuser:: SubSonic User name variable. Decides if the service should be started. Set it to the appropriate user name.
+subsonicuser:: SubSonic User name. Decides if the service should be started. Set it to the appropriate user name.
 
 [[subsonicpassword]]
-subsonicpassword:: SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
+subsonicpassword:: SubSonic Password. Required for SubSonic authentication. Set it to the appropriate password.
 
 [[subsoniclegacyauth]]
 subsoniclegacyauth:: SubSonic legacy authentication mode. Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.
+
+
+[[subsonicuseragent]]
+subsonicuseragent:: SubSonic user agent. Lets you specify the user agent in http requests, defaults to upmpdcli.
+
+
+[[subsonicskipuseragent]]
+subsonicskipuseragent:: Force user agent to be empty. You might want to enable this one in case the default user agent causes some trouble. YMMV.
+
 
 [[subsonicbaseurl]]
 subsonicbaseurl:: SubSonic server base url. URL of the server, without the port. Specify http or https
@@ -581,7 +589,8 @@ subsonicitemsperpage:: SubSonic items per page Number of items per page for SubS
 subsoniccachetimeoutartists:: SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
 
 [[subsonicappendyeartoalbumcontainer]]
-subsonicappendyeartoalbumcontainer:: Append year to album container If enabled, the year will be appended to the album as a container. Enabled by default.
+subsonicappendyeartoalbumcontainer:: Append year to album container If enabled, the year will be appended to the album as a container.
+Enabled by default.
 
 [[subsonicappendyeartoalbumview]]
 subsonicappendyeartoalbumview:: Append year to album view If enabled, the year will be appended to the album view. Disabled by default.
@@ -623,6 +632,16 @@ subsonicallowappendgenreinalbumview:: Subsonic show genres in album view Show Ge
 
 [[subsonicallowgenreinalbumcontainer]]
 subsonicallowgenreinalbumcontainer:: Subsonic show genres in album container entry Show Genres in album container, used in album lists, disabled by defaults
+
+[[subsonicenableimagecaching]]
+subsonicenableimagecaching:: Enables image caching, requires webdocumentroot Allows the plugin to cache images from the server, requires
+webdocumentroot and some disk space, recommended
+
+[[subsonicenablecachedimageagelimit]]
+subsonicenablecachedimageagelimit:: Enables pruning for image cache, requires webdocumentroot Allows the plugin to remove old cache images from the server, recommended
+
+[[subsoniccachedimagemaxagedays]]
+subsoniccachedimagemaxagedays:: Age limit for image files in image cache in days Sets the maximum image file age in days, relevant when pruning is enabled
 
 === Upmpdcli BBC Sounds plugin parameters 
 
