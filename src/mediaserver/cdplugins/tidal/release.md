@@ -1,5 +1,12 @@
 # Tidal Plugin Release notes
 
+## 0.8.6
+
+- Cached images are not pruned by default
+- Safety checks before executing image pruning
+- Misc code corrections, cleanup and refactoring
+- Hi-Res matching process improved
+
 ## 0.8.5
 
 - Log whether user agent whitelist is enabled or not

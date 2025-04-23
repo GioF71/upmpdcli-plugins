@@ -31,6 +31,7 @@ from pathlib import Path
 import cmdtalkplugin
 import upmplgutils
 import html
+import pathlib
 
 import codec
 import identifier_util
@@ -360,7 +361,8 @@ def trackuri(a):
             current: constants.UserAgentHiResWhitelist
             for current in constants.UserAgentHiResWhitelist:
                 if user_agent and current.value.matcher(user_agent, current.user_agent_str):
-                    msgproc.log(f"User Agent [{user_agent}] is in whitelist because of match with [{current.name}]")
+                    msgproc.log(f"User Agent [{user_agent}] is in whitelist because of match with [{current.name}] "
+                                f"[{', '.join(current.device_list)}]")
                     whitelisted = True
                     break
         else:
@@ -5854,7 +5856,7 @@ _g_init = False
 def get_webserver_path_images() -> list[str]:
     return [
         constants.PluginConstant.PLUGIN_NAME.value,
-        "images"]
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value]
 
 
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
@@ -5870,6 +5872,45 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
         #     msgproc.log(f"dir [{new_dir}] already exists.")
         curr_dir = new_dir
     return curr_dir
+
+
+def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
+    # check cache dir
+    cache_dir: str = upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
+    if not cache_dir:
+        msgproc.log("Cache directory is not set, cannot allow pruning.")
+        return None
+    candidate: pathlib.Path = pathlib.Path(cache_dir)
+    # does the path actually exist?
+    if not candidate.exists() or not candidate.is_dir():
+        msgproc.log(f"Invalid cache path [{candidate}], cannot allow pruning.")
+        return None
+    # is the provided argument a valid non-empty list?
+    if not www_image_path or not isinstance(www_image_path, list) or len(www_image_path) == 0:
+        msgproc.log("www_image_path is not a valid list, cannot allow pruning.")
+        return None
+    return ensure_directory(
+        upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
+        www_image_path)
+
+
+def prune_cache(images_static_dir: str):
+    now: float = time.time()
+    # list directories
+    file_count: int = 0
+    deleted_count: int = 0
+    max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGE_MAX_AGE_DAYS) * (24 * 60 * 60)
+    for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
+        filename_path = os.path.normpath(filename)
+        file_count += 1
+        time_diff_sec: float = now - os.path.getmtime(filename_path)
+        # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
+        if time_diff_sec >= float(max_age_seconds):
+            # msgproc.log(f"Deleting file [{filename}] which is older than "
+            #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGE_MAX_AGE_DAYS)}] days")
+            os.remove(filename_path)
+            deleted_count += 1
+    msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")
 
 
 def _inittidal():
@@ -5898,22 +5939,13 @@ def _inittidal():
         path_images_static)
     msgproc.log(f"Images dir is [{images_static_dir}]")
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_CACHED_IMAGE_AGE_LIMIT):
-        now: float = time.time()
-        # list directories
-        file_count: int = 0
-        deleted_count: int = 0
-        max_age_seconds: int = config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS) * (24 * 60 * 60)
-        for filename in glob.glob(f"{images_static_dir}/**/*", recursive=True):
-            filename_path = os.path.normpath(filename)
-            file_count += 1
-            time_diff_sec: float = now - os.path.getmtime(filename_path)
-            # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
-            if time_diff_sec >= float(max_age_seconds):
-                # msgproc.log(f"Deleting file [{filename}] which is older than "
-                #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGES_MAX_AGE_DAYS)}] days")
-                os.remove(filename_path)
-                deleted_count += 1
-        msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")
+        prune_path: str = get_image_cache_path_for_pruning(get_webserver_path_images())
+        if prune_path:
+            msgproc.log(f"Pruning image cache at path [{prune_path}] ...")
+            prune_cache(images_static_dir=prune_path)
+            msgproc.log(f"Pruned image cache at path [{prune_path}].")
+    else:
+        msgproc.log("Image pruning disabled.")
     _g_init = True
     return True
 

@@ -21,8 +21,9 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.5"
+    PLUGIN_RELEASE = "0.8.6"
     PLUGIN_NAME = "tidal"
+    CACHED_IMAGES_DIRECTORY = "images"
 
 
 class _FunctionProxy:
@@ -43,8 +44,9 @@ class UserAgentMatcher(Enum):
 
 class UserAgentMatcherData:
 
-    def __init__(self, user_agent_str: str, matcher: Callable[[str, str], bool]):
+    def __init__(self, user_agent_str: str, device_list: list[str], matcher: Callable[[str, str], bool]):
         self.__user_agent_str: str = user_agent_str
+        self.__device_list: list[str] = device_list
         self.__matcher: Callable[[str, str], bool] = matcher
 
     @property
@@ -52,15 +54,26 @@ class UserAgentMatcherData:
         return self.__user_agent_str
 
     @property
+    def device_list(self) -> list[str]:
+        return self.__device_list
+
+    @property
     def matcher(self) -> Callable[[str, str], bool]:
         return self.__matcher
 
 
 class UserAgentHiResWhitelist(Enum):
-    MPD = UserAgentMatcherData("Music Player Daemon", UserAgentMatcher.STARTS_WITH.value)
-    GMRENDER_RESURRECT = UserAgentMatcherData("Lavf/ffprobe", UserAgentMatcher.EXACT.value)
-    WIIM_GE_58_76_100 = UserAgentMatcherData(
+    MUSIC_PLAYER_DAEMON = UserAgentMatcherData(
+        "Music Player Daemon",
+        ["Music Player Daemon"],
+        UserAgentMatcher.STARTS_WITH.value)
+    LAVF_FFPROBE = UserAgentMatcherData(
+        "Lavf/ffprobe",
+        ["gmrender-resurrect", "BubbleUPnp Server"],
+        UserAgentMatcher.EXACT.value)
+    WIIM_FIRMWARE_GE_58_76_100 = UserAgentMatcherData(
         "Lavf/58.76.100",
+        ["WiiM Device"],
         lambda x, y: lafv_matcher.match(
             to_match=x,
             pattern=y,
@@ -69,6 +82,10 @@ class UserAgentHiResWhitelist(Enum):
     @property
     def user_agent_str(self) -> str:
         return self.value.user_agent_str
+
+    @property
+    def device_list(self) -> list[str]:
+        return self.value.device_list
 
     @property
     def matcher(self) -> Callable[[str, str], bool]:
@@ -104,8 +121,8 @@ class ConfigParam(Enum):
     ENABLE_USER_AGENT_WHITELIST = _ConfigParamData("enableuseragentwhitelist", True)
     ENABLE_READ_STREAM_METADATA = _ConfigParamData("enablereadstreammetadata", False)
     ENABLE_DUMP_STREAM_DATA = _ConfigParamData("enabledumpstreamdata", False)
-    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enabledumpstreamdata", True)
-    CACHED_IMAGES_MAX_AGE_DAYS = _ConfigParamData("cachedimagesmaxagedays", 180)
+    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enablecachedimageagelimit", False)
+    CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData("cachedimagemaxagedays", 60)
 
     @property
     def key(self) -> str:

@@ -133,7 +133,10 @@ def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) ->
         # try cached!
         document_root_dir: str = config.getWebServerDocumentRoot()
         if document_root_dir:
-            sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", TidalAlbum.__name__]
+            sub_dir_list: list[str] = [
+                constants.PluginConstant.PLUGIN_NAME.value,
+                constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
+                TidalAlbum.__name__]
             image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
             cached_file_name_no_ext: str = f"{str(album_id)}"
             cached_files: list[str] = glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*")
@@ -179,7 +182,10 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         return __get_image_url(obj)
     if type(obj) not in [TidalAlbum, TidalArtist, TidalPlaylist, TidalMix]:
         return __get_image_url(obj)
-    sub_dir_list: list[str] = [constants.PluginConstant.PLUGIN_NAME.value, "images", type(obj).__name__]
+    sub_dir_list: list[str] = [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
+        type(obj).__name__]
     image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
     cached_file_names: list[str] = __get_cached_file_names(image_dir, str(obj.id))
     # msgproc.log(f"get_image_url for [{str(obj.id)}] -> [{cached_file_names}]")
