@@ -33,6 +33,9 @@ class UpMpdOpenHome;
 
 class OHPlaylist : public OHService {
 public:
+    /// @param dev the main upmpdcli renderer object with links to the upnp/av side and helper
+    ///  methods.
+    /// @param udev the OpenHome upnp device which owns me as a service.
     OHPlaylist(UpMpd *dev, UpMpdOpenHome *udev, unsigned int cachesavesleep);
 
     // These are used by other services (ohreceiver etc.)

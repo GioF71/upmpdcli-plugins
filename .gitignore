@@ -22,3 +22,5 @@ src/config.h
 src/stamp-h1
 uprclbottle.tar.gz
 web.tar.gz
+compile_commands.json
+.cache

@@ -90,7 +90,9 @@ private:
 };
 
 
-// The UPnP MPD frontend device with its services
+// The UpMpd application object holds the configuration/options for the upmpdcli renderer function
+// and the references to the actual UPnP device objects (openhome, UPnP/AV). It ensures that the
+// OpenHome and UPnP/AV sides can obtain references to each other, when necessary.
 class UpMpd {
 public:
     enum OptFlags {

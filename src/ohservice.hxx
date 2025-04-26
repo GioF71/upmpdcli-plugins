@@ -31,24 +31,30 @@ class MpdStatus;
 class UpMpdOpenHome;
 class UpMpd;
 
-// A parent class for all openhome service, to share a bit of state
-// variable and event management code.
+// A parent class for all upmpdcli OpenHome services, useful to share code for state variable and
+// event management.
 class OHService : public UPnPProvider::UpnpService {
 public:
+    /// Common construction and initialisation for OpenHome UPnP services
+    /// @param servtp UPnP service type.
+    /// @param servtp UPnP service id.
+    /// @param xmlfn  Service definition XML file.
+    /// @param dev the main upmpdcli renderer object with links to the upnp/av side and helper
+    ///  methods.
+    /// @param udev the OpenHome upnp device which owns me as a service.
     OHService(const std::string& servtp, const std::string &servid,
               const std::string& xmlfn, UpMpd *dev, UpMpdOpenHome *udev);
     virtual ~OHService() = default;
 
-    // This is called from the mpd event loop when something
-    // changes. It in turn calls getEventData() and sends the result
-    // to libupnpp::notifyEvent()
+    // This is the callback for the mpd events. It is set up by the actual class constructor to
+    // select appropriate events for the service. In turn, it calls getEventData() and sends the
+    // result to libupnpp::notifyEvent()
     virtual void onEvent(const MpdStatus*);
 
-    // Retrieve the service changed state data. This now normally
-    // called from onEvent(), bit it is kept as a separate entry,
-    // because, we could still also decide not to start the mpd idle
-    // loop and rely instead on polling from libupnpp.
-    virtual bool getEventData(bool all, std::vector<std::string>& names, 
+    // Retrieve the service changed state data. This now normally called from onEvent(), but it is
+    // kept as a separate entry, because, we could still also decide not to start the mpd idle loop
+    // and rely instead on polling from libupnpp.
+    virtual bool getEventData(bool all, std::vector<std::string>& names,
                               std::vector<std::string>& values);
 
     // Translate mpd play/stop... state into openhome transportstate.
@@ -56,18 +62,15 @@ public:
     
 protected:
 
-    // This is implemented by each service to return the current state
-    // of its variables.
+    // This is implemented by each service to return the current state of its variables.
     virtual bool makestate(std::unordered_map<std::string, std::string> &) = 0;
 
-    // Storage for the state from the last makestate() call. Used by
-    // the services when reporting current state from actions, and for
-    // diffing with next makestate() values.
+    // Storage for the state from the last makestate() call. Used by the services when reporting
+    // current state from actions, and for diffing with next makestate() values.
     std::unordered_map<std::string, std::string> m_state;
 
-    // Local state protection mutex. Held when calling makestate() from
-    // getEventData(), should also be held by the service code as
-    // appropriate.
+    // Local state protection mutex. Held when calling makestate() from getEventData(), should also
+    // be held by the service code as appropriate.
     std::mutex m_statemutex;
 
     UpMpd *m_dev;
