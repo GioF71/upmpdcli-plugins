@@ -116,12 +116,6 @@ public:
     bool saveState(MpdState& st, int seekms = 0);
     bool restoreState(const MpdState& st);
 
-    // Event loop. Allows running without polling from libupnpp (no
-    // call to the device eventloop()). We collect events from MPD
-    // instead and call the event generating chain when appropriate.
-    bool eventLoop();
-    bool startEventLoop();
-    void stopEventLoop();
     bool takeEvents(MPDCli *from);
     void shouldExit();
     // Event selection mask.
@@ -197,6 +191,12 @@ private:
 
     bool openconn();
     void closeconn();
+    // Event loop. Allows running without polling from libupnpp (no call to the device
+    // eventloop()). We collect events from MPD instead and call the event generating chain when
+    // appropriate.
+    bool eventLoop();
+    bool startEventLoop();
+    void stopEventLoop();
     bool updStatus();
     bool getQueueSongs(std::vector<mpd_song*>& songs);
     void freeSongs(std::vector<mpd_song*>& songs);
