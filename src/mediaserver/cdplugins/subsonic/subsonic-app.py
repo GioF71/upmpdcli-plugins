@@ -20,6 +20,7 @@ import request_cache
 
 import json
 import upmplgutils
+import upmpdmeta
 import os
 
 from subsonic_connector.response import Response
@@ -910,6 +911,10 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
     id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
     upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(song_cover_art), entry)
+    entry['upnp:album'] = song.getAlbum()
+    upnp_util.set_artist(artist=song.getArtist(), target=entry)
+    upnp_util.set_track_number(track_number=song.getTrack(), target=entry)
+    subsonic_util.set_song_metadata(song=song, target=entry)
     return entry
 
 
@@ -1236,8 +1241,7 @@ def handler_tag_all_artists_unsorted(objid, item_identifier: ItemIdentifier, ent
         msgproc.log(f"Adding artist [{current.getId()}] [{current.getName()}] ...")
         entries.append(entry_creator.artist_to_entry(
             objid=objid,
-            artist=current,
-            entry_name=current.getName()))
+            artist=current))
     if next_artist:
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.getName(),
@@ -1879,7 +1883,7 @@ def handler_element_navigable_album(
         else:
             title = f"{title} [mb:{album_mb_id}]"
     upnp_util.set_album_title(title, album_entry)
-    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, album_entry)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, album_entry)
     subsonic_util.set_album_metadata(album=album, target=album_entry)
     entries.append(album_entry)
     # add artist if needed

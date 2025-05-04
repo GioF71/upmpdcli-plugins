@@ -52,6 +52,7 @@ from option_key import OptionKey
 from option_util import get_option
 
 import upmplgutils
+import upmpdmeta
 
 from msgproc_provider import msgproc
 
@@ -570,7 +571,7 @@ def album_to_navigable_entry(
         pid=objid,
         title=entry_title,
         artist=artist)
-    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(album=album, target=entry)
     upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album.getCoverArt()), entry)
     upnp_util.set_album_id(album.getId(), entry)
@@ -648,9 +649,11 @@ def artist_to_entry(
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
     cover_art: str = subsonic_util.get_artist_cover_art(artist)
-    # msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
-    #             f"coverArt [{cover_art}]")
-    select_entry_name: str = entry_name if entry_name else artist.getName()
+    artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
+    msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
+                f"roles [{artist_roles}] "
+                f"coverArt [{cover_art}]")
+    select_entry_name: str = entry_name if entry_name else f"{artist.getName()} [{', '.join(artist_roles)}]"
     artist_entry: dict[str, any] = artist_to_entry_raw(
         objid=objid,
         artist_id=artist.getId(),
@@ -790,6 +793,7 @@ def song_to_entry(
                     f"channelCount [{cc}] "
                     f"mimetype [{song.getContentType()}] "
                     f"duration [{song.getDuration()}]")
+    subsonic_util.set_song_metadata(song=song, target=entry)
     return entry
 
 
@@ -940,7 +944,7 @@ def album_to_entry(
     upnp_util.set_artist(artist=album.getArtist(), target=entry)
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
-    upnp_util.set_upmpd_meta(constants.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(album=album, target=entry)
     return entry
 

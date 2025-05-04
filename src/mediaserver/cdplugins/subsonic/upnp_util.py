@@ -14,11 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import upmplgmodels
+import upmpdmeta
 import album_util
 import constants
 
 from subsonic_connector.album import Album
-from msgproc_provider import msgproc
 
 
 def set_track_number(track_number: str, target: dict):
@@ -91,7 +91,11 @@ def set_bit_rate(bit_rate: int, target: dict):
 
 
 def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
-    if metadata_value is not None and len(metadata_value) > 0:
+    if not metadata_value:
+        return
+    if isinstance(metadata_value, int):
+        metadata_value = str(metadata_value)
+    if len(metadata_value) > 0:
         # msgproc.log(f"Setting [{raw_metadata_name}]=[{metadata_value}]")
         target[raw_metadata_name] = metadata_value
 
@@ -103,7 +107,7 @@ def set_upnp_meta(metadata_name: constants.UpnpMeta, metadata_value: str, target
         target=target)
 
 
-def set_upmpd_meta(metadata_name: constants.UpMpdMeta, metadata_value: str, target: dict):
+def set_upmpd_meta(metadata_name: upmpdmeta.UpMpdMeta, metadata_value: str, target: dict):
     set_raw_metadata(
         raw_metadata_name=f"upmpd:{metadata_name.value}",
         metadata_value=metadata_value,

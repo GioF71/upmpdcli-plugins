@@ -40,7 +40,7 @@ import glob
 import pathlib
 
 
-def get_image_cache_path_for_pruning(www_image_path: list[str]) -> bool:
+def get_image_cache_path_for_pruning(www_image_path: list[str]) -> str:
     # check cache dir
     cache_dir: str = upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value)
     if not cache_dir:
