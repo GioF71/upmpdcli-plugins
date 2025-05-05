@@ -1,3 +1,10 @@
+upmpdcli (1.9.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Fix startup crash when built with gcc 15 (initialisation order issue).
+  * Many updates in Media Server plugins, mostly Tidal and Subsonic.
+  
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 05 May 2025 19:44:00 +0200
+
 upmpdcli (1.9.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Misc cleanups in media server plugins

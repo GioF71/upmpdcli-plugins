@@ -10,9 +10,15 @@ cfgui/
 cfgui/confgui.cpp
 cfgui/confgui.h
 cfgui/confmain.cpp
+cfgui/loclog/
+cfgui/loclog/log.cpp
+cfgui/loclog/log.h
 cfgui/mainwindow.h
 cfgui/picoxml.h
-cfgui/upmpdcli-config.pro.in
+cfgui/upmpdcli-config.pro
+cfgui/xmltoconfgui.cpp
+cfgui/xmltoconfgui.h
+compile_commands.json
 man/
 man/makefile
 man/upmpdcli.1
@@ -136,6 +142,7 @@ src/mediaserver/cdplugins/pycommon/cmdtalk.py
 src/mediaserver/cdplugins/pycommon/cmdtalkplugin.py
 src/mediaserver/cdplugins/pycommon/conftree.py
 src/mediaserver/cdplugins/pycommon/routing.py
+src/mediaserver/cdplugins/pycommon/upmpdmeta.py
 src/mediaserver/cdplugins/pycommon/upmplgmodels.py
 src/mediaserver/cdplugins/pycommon/upmplgutils.py
 src/mediaserver/cdplugins/pycommon/upradioconf.py
@@ -189,6 +196,7 @@ src/mediaserver/cdplugins/subsonic/msgproc_provider.py
 src/mediaserver/cdplugins/subsonic/option_key.py
 src/mediaserver/cdplugins/subsonic/option_util.py
 src/mediaserver/cdplugins/subsonic/persistence.py
+src/mediaserver/cdplugins/subsonic/persistence_constants.py
 src/mediaserver/cdplugins/subsonic/radio_entry_type.py
 src/mediaserver/cdplugins/subsonic/release.md
 src/mediaserver/cdplugins/subsonic/request_cache.py
@@ -214,6 +222,8 @@ src/mediaserver/cdplugins/tidal/get_credentials.py
 src/mediaserver/cdplugins/tidal/identifier_util.py
 src/mediaserver/cdplugins/tidal/item_identifier.py
 src/mediaserver/cdplugins/tidal/item_identifier_key.py
+src/mediaserver/cdplugins/tidal/lafv_matcher.py
+src/mediaserver/cdplugins/tidal/msgproc_provider.py
 src/mediaserver/cdplugins/tidal/option_key.py
 src/mediaserver/cdplugins/tidal/persistence.py
 src/mediaserver/cdplugins/tidal/played_album.py

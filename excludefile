@@ -3,6 +3,7 @@
 **/__pycache__
 **/TODO.md
 *~
+.cache
 .ccls
 .ccls-cache
 .clang-format
