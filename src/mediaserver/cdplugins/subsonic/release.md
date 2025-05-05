@@ -1,5 +1,13 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.1
+
+- Add some metadata for Songs
+- Enumerated 'UpMpdMeta' moved to pycommon
+- Display roles for artists in entries
+- Add upmpd:artistrole metadata for Artists
+- General code cleanup, fixes and optimizations
+
 ## Release 0.8.0
 
 - Avoid to accumulate cached images indefinitely: if `subsonicenablecachedimageagelimit` is enabled, on startup, images older than `subsoniccachedimagemaxagedays` (defaults to 60) days are removed

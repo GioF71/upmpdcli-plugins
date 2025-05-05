@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.0"
+    PLUGIN_RELEASE = "0.8.1"
     PLUGIN_NAME = "subsonic"
 
 
@@ -41,6 +41,7 @@ class ItemKey(Enum):
     VERSION = "version"
     ALBUM_RECORD_LABELS = "recordLabels"
     IS_COMPILATION = "isCompilation"
+    ROLES = "roles"
 
 
 class AlbumEntryType(Enum):
@@ -190,30 +191,8 @@ class UpnpMeta(Enum):
     ARTIST = "artist"
 
 
-class UpMpdMeta(Enum):
-    ALBUM_QUALITY = "albumquality"
-    ALBUM_VERSION = "albumversion"
-    ALBUM_EXPLICIT_STATUS = "albumexplicitstatus"
-    ALBUM_ID = "albumid"
-    ALBUM_MUSICBRAINZ_ID = "albummusicbrainzid"
-    ALBUM_RECORD_LABELS = "albumrecordlabels"
-    ALBUM_DURATION = "albumduration"
-    ALBUM_DISC_AND_TRACK_COUNTERS = "albumdisctrackcounters"
-    ALBUM_ARTIST = "albumartist"
-    ALBUM_TITLE = "albumtitle"
-    ALBUM_YEAR = "albumyear"
-    ALBUM_MEDIA_TYPE = "albummediatype"
-    ALBUM_ORIGINAL_RELEASE_DATE = "albumoriginalreleasedate"
-    IS_COMPILATION = "albumiscompilation"
-    RELEASE_TYPES = "albumreleasetypes"
-    ARTIST_ID = "artistid"
-    ARTIST_MUSICBRAINZ_ID = "artistmusicbrainzid"
-    ARTIST_ALBUM_COUNT = "artistalbumcount"
-    ARTIST_MEDIA_TYPE = "artistmediatype"
-    ALBUM_PATH = "albumpath"
-
-
 class MetadataMaxLength(Enum):
+
     ALBUM_PATH = 128
 
 
