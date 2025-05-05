@@ -123,7 +123,9 @@ ohProductDesc_t ohProductDesc = {
     // Product
     {
         "Upmpdcli",                                 // name
-        g_upmpdcli_package_version,                   // info
+        // Can't use g_upmpdcli_package_version here because it's in an other file and may not be
+        // initialized yet (legit chrashes with gcc15).
+        UPMPDCLI_VERSION,                           // info
         "",                                         // url
         ""                                          // imageUri
     }
