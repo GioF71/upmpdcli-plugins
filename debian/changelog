@@ -1,9 +1,11 @@
-upmpdcli (1.9.4-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+upmpdcli (1.9.5-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
+  * Fix qobuz plugin, it had stopped working, probably following a Qobuz API change.
   * Fix startup crash when built with gcc 15 (initialisation order issue).
   * Many updates in Media Server plugins, mostly Tidal and Subsonic.
+  * There was a brief 1.9.4, almost immediately updated for the qobuz fix.
   
- -- Jean-Francois Dockes <jf@dockes.org>  Mon, 05 May 2025 19:44:00 +0200
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 06 May 2025 07:44:00 +0200
 
 upmpdcli (1.9.3-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
