@@ -17,14 +17,12 @@
 
 #include "upmpd.hxx"
 
-#include "libupnpp/device/device.hxx"
 #include "libupnpp/log.hxx"
 #include "libupnpp/upnpplib.hxx"
 #include "libupnpp/control/cdircontent.hxx"
 
 #include "main.hxx"
 #include "smallut.h"
-#include "conftree.h"
 #include "avtransport.hxx"
 #include "conman.hxx"
 #include "mpdcli.hxx"
@@ -39,7 +37,6 @@
 #include "ohcredentials.hxx"
 #include "renderctl.hxx"
 #include "upmpdutils.hxx"
-#include "execmd.h"
 #include "protocolinfo.hxx"
 #include "readfile.h"
 
@@ -65,8 +62,7 @@ static std::string g_full_upmpdcli_lib_mpd_version;
 
 UpMpdMediaRenderer::UpMpdMediaRenderer(
     UpMpd *upmpd, const std::string& deviceid, const std::string& friendlyname)
-    : UpMpdDevice(upmpd, deviceid, friendlyname,
-                  "urn:schemas-upnp-org:device:MediaRenderer:1")
+    : UpMpdDevice(upmpd, deviceid, friendlyname, "urn:schemas-upnp-org:device:MediaRenderer:1")
 {
     bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
     m_avt = new AVTransport(upmpd, this, noavt);
@@ -96,18 +92,17 @@ bool UpMpdDevice::readLibFile(const string& name, string& contents)
     contents = regsub1("@UUID@", contents, getDeviceId());
     contents = regsub1("@FRIENDLYNAME@", contents, m_friendlyname);
     contents = regsub1("@UPMPDCLIVERSION@", contents, g_full_upmpdcli_lib_mpd_version);
-    string reason, path;
+
     const UpMpd::Options& opts = m_upmpd->getopts();
     
+    string reason, path;
     if (!opts.iconpath.empty()) {
         string icondata;
         if (!file_to_string(opts.iconpath, icondata, &reason)) {
             if (opts.iconpath.compare("/usr/share/upmpdcli/icon.png")) {
-                LOGERR("Failed reading " << opts.iconpath << " : " <<
-                       reason << endl);
+                LOGERR("Failed reading " << opts.iconpath << " : " << reason << '\n');
             } else {
-                LOGDEB("Failed reading "<< opts.iconpath << " : " <<
-                       reason << endl);
+                LOGDEB("Failed reading "<< opts.iconpath << " : " << reason << '\n');
             }
         }
         if (!icondata.empty()) {
@@ -119,8 +114,7 @@ bool UpMpdDevice::readLibFile(const string& name, string& contents)
     if (!opts.presentationhtml.empty()) {
         string presdata;
         if (!file_to_string(opts.presentationhtml, presdata, &reason)) {
-            LOGERR("Failed reading " << opts.presentationhtml << " : " <<
-                   reason << endl);
+            LOGERR("Failed reading " << opts.presentationhtml << " : " << reason << '\n');
         }
         if (!presdata.empty()) {
             addVFile("presentation.html", presdata, "text/html", path);
@@ -154,8 +148,7 @@ void UpMpd::startnoloops()
 UpMpdOpenHome::UpMpdOpenHome(
     UpMpd *upmpd, const std::string& deviceid, const std::string& friendlyname,
     ohProductDesc_t& ohProductDesc)
-    : UpMpdDevice(upmpd, deviceid, friendlyname,
-                  "urn:av-openhome-org:device:Source:1")
+    : UpMpdDevice(upmpd, deviceid, friendlyname, "urn:av-openhome-org:device:Source:1")
 {
     bool noavt = (0 != (m_upmpd->getopts().options & UpMpd::upmpdNoAV));
 
@@ -163,8 +156,7 @@ UpMpdOpenHome::UpMpdOpenHome(
     m_services.push_back(new OHVolume(m_upmpd, this));
     
     if (!g_lumincompat) {
-        m_services.push_back(new OHCredentials(m_upmpd, this,
-                                               m_upmpd->getopts().cachedir));
+        m_services.push_back(new OHCredentials(m_upmpd, this, m_upmpd->getopts().cachedir));
     }
 
     m_ohpl = new OHPlaylist(m_upmpd, this, m_upmpd->getopts().ohmetasleep);
@@ -216,13 +208,11 @@ UpMpdOpenHome::UpMpdOpenHome(
     m_services.push_back(m_ohpr);
 }
 
+
 UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
              ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts)
-    : m_mpdcli(mpdcli),
-      m_allopts(opts),
-      m_mcachefn(opts.cachefn)
+    : m_mpdcli(mpdcli), m_allopts(opts), m_mcachefn(opts.cachefn)
 {
-
     string mpdversion = "0.0.0";
     if (nullptr != mpdcli) {
         MpdStatus st = mpdcli->getStatus();
@@ -238,16 +228,14 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
             avfname = fnameSetup(avfname);
         }
         // UUID: add bogus string to avfname in case user set it same as fname
-        std::string deviceid =  std::string("uuid:") +
-            LibUPnP::makeDevUUID(avfname + "xy3vhst39", hwaddr);
+        auto deviceid =  std::string("uuid:") + LibUPnP::makeDevUUID(avfname + "xy3vhst39", hwaddr);
         m_av = new UpMpdMediaRenderer(this, deviceid, avfname);
 #if LIBUPNPP_AT_LEAST(0,21,0)
         m_av->setProductVersion("Upmpdcli", g_upmpdcli_package_version.c_str());
 #endif
     }
     if (opts.options & upmpdDoOH) {
-        std::string deviceid =  std::string("uuid:") +
-            LibUPnP::makeDevUUID(friendlyname, hwaddr);
+        std::string deviceid =  std::string("uuid:") + LibUPnP::makeDevUUID(friendlyname, hwaddr);
         m_oh = new UpMpdOpenHome(this, deviceid, friendlyname, ohProductDesc);
 #if LIBUPNPP_AT_LEAST(0,21,0)
         m_oh->setProductVersion("Upmpdcli", g_upmpdcli_package_version.c_str());
@@ -286,12 +274,10 @@ bool UpMpd::flushvolume()
 bool UpMpd::setmute(bool onoff)
 {
     // See mpdcli.cxx for the special processing when the 2nd arg is true
-    return onoff ? m_mpdcli->setVolume(0, true) :
-        m_mpdcli->setVolume(1, true);
+    return onoff ? m_mpdcli->setVolume(0, true) : m_mpdcli->setVolume(1, true);
 }
 
-bool UpMpd::checkContentFormat(const string& uri, const string& didl,
-                               UpSong *ups, bool p_nocheck)
+bool UpMpd::checkContentFormat(const string& uri, const string& didl, UpSong *ups, bool p_nocheck)
 {
     bool nocheck = (m_allopts.options & upmpdNoContentFormatCheck) || p_nocheck;
     UPnPClient::UPnPDirContent dirc;
@@ -313,8 +299,7 @@ bool UpMpd::checkContentFormat(const string& uri, const string& didl,
         return dirObjToUpSong(dobj, ups);
     }
     
-    const std::unordered_set<std::string>& supportedformats =
-        Protocolinfo::the()->getsupportedformats();
+    const auto& supportedformats = Protocolinfo::the()->getsupportedformats();
     auto decoded_uri = pc_decode(uri);
     for (const auto& resource : dobj.m_resources) {
         if (pc_decode(resource.m_uri) == decoded_uri) {
@@ -325,10 +310,10 @@ bool UpMpd::checkContentFormat(const string& uri, const string& didl,
             }
             string cf = e.contentFormat;
             if (supportedformats.find(cf) == supportedformats.end()) { // 
-                LOGERR("checkContentFormat: unsupported:: " << cf << endl);
+                LOGERR("checkContentFormat: unsupported:: " << cf << '\n');
                 return false;
             } else {
-                LOGDEB("checkContentFormat: supported: " << cf << endl);
+                LOGDEB("checkContentFormat: supported: " << cf << '\n');
                 if (ups) {
                     return dirObjToUpSong(dobj, ups);
                 } else {

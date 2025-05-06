@@ -19,7 +19,6 @@
 #define _UPMPD_H_X_INCLUDED_
 
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "libupnpp/device/device.hxx"

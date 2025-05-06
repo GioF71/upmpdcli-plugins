@@ -15,10 +15,8 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-//
-// This file has a number of mostly uninteresting and badly
-// implemented small utility functions. This is a bit ugly, but I am
-// not linking to Qt or glib just to get path-concatenating
+// This file has a number of mostly uninteresting and badly implemented small utility
+// functions. This is a bit ugly, but I am not linking to Qt or glib just to get path-concatenating
 // functions...
 
 #include "config.h"
@@ -28,13 +26,11 @@
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <math.h>
 #include <pwd.h>
 #include <grp.h>
 #include <regex.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -44,7 +40,6 @@
 #define O_STREAMING 0
 #endif
 #include <map>
-#include <fstream>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -55,10 +50,7 @@
 #include "libupnpp/upnpavutils.hxx"
 #include "libupnpp/control/cdircontent.hxx"
 
-#include "mpdcli.hxx"
 #include "smallut.h"
-#include "pathut.h"
-#include "conftree.h"
 #include "main.hxx"
 
 using namespace std;
@@ -104,7 +96,7 @@ int dbvaluetopercent(int dbvalue)
 const string& mapget(const unordered_map<string, string>& im, const string& k)
 {
     static string ns; // null string
-    unordered_map<string, string>::const_iterator it = im.find(k);
+    auto it = im.find(k);
     if (it == im.end()) {
         return ns;
     } else {
@@ -113,14 +105,12 @@ const string& mapget(const unordered_map<string, string>& im, const string& k)
 }
 
 unordered_map<string, string>
-diffmaps(const unordered_map<string, string>& old,
-         const unordered_map<string, string>& newer)
+diffmaps(const unordered_map<string, string>& old, const unordered_map<string, string>& newer)
 {
     unordered_map<string, string>  out;
 
-    for (unordered_map<string, string>::const_iterator it = newer.begin();
-         it != newer.end(); it++) {
-        unordered_map<string, string>::const_iterator ito = old.find(it->first);
+    for (auto it = newer.begin(); it != newer.end(); it++) {
+        auto ito = old.find(it->first);
         if (ito == old.end() || ito->second.compare(it->second)) {
             out[it->first] = it->second;
         }
