@@ -12,7 +12,7 @@ class Spoofer:
         )
         # note: {timezones} should be replaced with every capitalized timezone joined by a |
         self.info_extras_regex = r'name:"\w+/(?P<timezone>{timezones})",info:"(?P<info>[\w=]+)",extras:"(?P<extras>[\w=]+)"'
-        self.appId_regex = r'production:{api:{appId:"(?P<app_id>\d{9})",appSecret:"(?P<secret>\w{32})"},braze:a\(a\({},s\),{},{apiKey:"([-0-9a-fA-F]{36})"}\),extra:o}'
+        self.appId_regex = r'production:{api:{appId:"(?P<app_id>\d{9})",appSecret:"(?P<secret>\w{32})"},braze:.\(.\({},.\),{},{apiKey:"([-0-9a-fA-F]{36})"}\),extra:.}'
         login_page_request = requests.get("https://play.qobuz.com/login")
         login_page = login_page_request.text
         bundle_url_match = re.search(
