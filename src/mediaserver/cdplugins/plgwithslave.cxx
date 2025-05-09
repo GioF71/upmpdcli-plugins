@@ -159,17 +159,6 @@ StreamProxy::UrlTransReturn translateurl(
     }
 
     string path(url);
-
-    // The streaming services plugins set a trackId parameter in the
-    // URIs. This gets parsed out by mhttpd. We rebuild a full url
-    // which we pass to them for translation (they will extract the
-    // trackid and use it, the rest of the path is bogus).
-    // The uprcl module has a real path and no trackid. Handle both cases
-    const auto it = querymap.find("trackId");
-    if (it != querymap.end() && !it->second.empty()) {
-        path += string("/version/1/trackId/") + it->second;
-    }
-
     // Translate to Tidal/Qobuz etc real temporary URL
     url = realplg->get_media_url(path, useragent);
     if (url.empty()) {
