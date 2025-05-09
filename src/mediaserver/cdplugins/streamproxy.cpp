@@ -208,19 +208,14 @@ StreamProxy::Internal::Internal(int _listenport, UrlTransFunc _urltrans)
 
 
 static MHD_Result answer_to_connection(
-    void *cls, struct MHD_Connection *conn, 
-    const char *url, const char *method, const char *version, 
-    const char *upload_data, size_t *upload_data_size,
-    void **con_cls)
+    void *cls, struct MHD_Connection *conn, const char *url, const char *method,
+    const char *version, const char *upload_data, size_t *upload_data_size, void **con_cls)
 {
-    StreamProxy::Internal *internal = static_cast<StreamProxy::Internal*>(cls);
-    
-    if (internal) {
-        return internal->answerConn(
-            conn, url, method, version, upload_data, upload_data_size, con_cls);
-    } else {
+    auto internal = static_cast<StreamProxy::Internal*>(cls);
+    if (nullptr == internal) {
         return MHD_NO;
     }
+    return internal->answerConn(conn, url, method, version, upload_data, upload_data_size, con_cls);
 }
 
 #undef PRINT_KEYS
@@ -233,18 +228,25 @@ static vector<CharFlags> valueKind {
     {MHD_FOOTER_KIND, "HTTP footer"},
         };
 
-static MHD_Result print_out_key (void *cls, enum MHD_ValueKind kind, 
-                                 const char *key, const char *value)
+// We're not supposed to receive a null value because we're called for MHD_HEADER_KIND, but play it
+// safe.
+static MHD_Result print_out_key (
+    void *cls, enum MHD_ValueKind kind, const char *key, const char *_value)
 {
+    const char *value = _value ? _value : "";
     LOGDEB(valToString(valueKind, kind) << ": " << key << " -> " << value << "\n");
     return MHD_YES;
 }
 #endif /* PRINT_KEYS */
 
-static MHD_Result mapvalues_cb(void *cls, enum MHD_ValueKind kind, 
-                               const char *key, const char *value)
+// Note: the value argument can be null with kind == MHD_ARGUMENT_KIND for a query like
+// http://foo/bar?key (no equal sign). It would be an empty string for http://foo/bar?key= We treat
+// both cases in the same way at the moment.
+static MHD_Result mapvalues_cb(
+    void *cls, enum MHD_ValueKind kind, const char *key, const char *_value)
 {
-    unordered_map<string,string> *mp = (unordered_map<string,string> *)cls;
+    const char *value = _value ? _value : "";
+    auto mp = static_cast<unordered_map<string,string> *>(cls);
     if (mp) {
         (*mp)[key] = value;
     }
@@ -282,10 +284,8 @@ static bool processRange(struct MHD_Connection *mhdconn, uint64_t& offset)
 }
 
 MHD_Result StreamProxy::Internal::answerConn(
-    struct MHD_Connection *mhdconn, const char *_url,
-    const char *method, const char *version, 
-    const char *upload_data, size_t *upload_data_size,
-    void **con_cls)
+    struct MHD_Connection *mhdconn, const char *_url, const char *method, const char *version,
+    const char *upload_data, size_t *upload_data_size, void **con_cls)
 {
     LOGDEB0("StreamProxy::answerConn: method " << method << " vers " << version <<
             " con_cls " << *con_cls << " url " << _url << "\n");
@@ -307,7 +307,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         }
 
         // Compute destination url
-        unordered_map<string,string>querydata;
+        unordered_map<string,string> querydata;
         MHD_get_connection_values(mhdconn, MHD_GET_ARGUMENT_KIND, &mapvalues_cb, &querydata);
         std::string useragent;
         const char *ua = MHD_lookup_connection_value(mhdconn,MHD_HEADER_KIND, "user-agent");
@@ -328,7 +328,7 @@ MHD_Result StreamProxy::Internal::answerConn(
                 LOGERR("StreamProxy::answerConn: can't create redirect\n");
                 return MHD_NO;
             }
-            MHD_add_response_header (response, "Location", url.c_str());
+            MHD_add_response_header(response, "Location", url.c_str());
             MHD_Result ret = MHD_queue_response(mhdconn, 302, response);
             MHD_destroy_response(response);
             return ret;
@@ -386,10 +386,8 @@ MHD_Result StreamProxy::Internal::answerConn(
     // Build a data response.
     // the block size seems to be flatly ignored by libmicrohttpd
     // Any random value would probably work the same
-    struct MHD_Response *response = 
-        MHD_create_response_from_callback(size, 4096,
-                                          content_reader_cb, reader,
-                                          content_reader_free_callback);
+    struct MHD_Response *response = MHD_create_response_from_callback(
+        size, 4096, content_reader_cb, reader, content_reader_free_callback);
     if (nullptr == response) {
         LOGERR("mhdAnswerConn: answer: could not create response" << "\n");
         return MHD_NO;
