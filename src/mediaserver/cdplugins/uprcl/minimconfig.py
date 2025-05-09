@@ -20,6 +20,12 @@ from uprclutils import uplog
 class MinimConfig(object):
     def __init__(self, fn=""):
         if fn:
+            try:
+                with open(fn, "rb") as f:
+                    pass
+            except Exception as ex:
+                uplog(f"MinimConfig: could not open/read: {ex}")
+                fn = "/dev/null"
             self.conf = conftree.ConfSimple(fn)
         else:
             self.conf = conftree.ConfSimple("/dev/null")
