@@ -506,32 +506,30 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     return UPNP_E_SUCCESS;
 }
 
-static string firstpathelt(const string& path)
-{
-    // The parameter is normally a path, but make this work with an URL too
-    string::size_type pos = path.find("://");
-    if (pos != string::npos) {
-        pos += 3;
-        pos = path.find("/", pos);
-    } else {
-        pos = 0;
-    }
-    pos = path.find_first_not_of("/", pos);
-    if (pos == string::npos) {
-        return string();
-    }
-    string::size_type epos = path.find_first_of("/", pos);
-    if (epos != string::npos) {
-        return path.substr(pos, epos -pos);
-    } else {
-        return path.substr(pos);
-    }
-}
-
 CDPlugin *ContentDirectory::getpluginforpath(const string& path)
 {
-    string app = firstpathelt(path);
+    string::size_type pos, epos;
+    std::string app;
+    // The parameter must be an absolute path. If this is coming through HTTP the HTTP code must
+    // arrange for this.
+    if (path.empty() || path[0] != '/') {
+        goto error;
+    }
+    pos = path.find_first_not_of("/");
+    if (pos == string::npos) {
+        goto error;
+    }
+    epos = path.find_first_of("/", pos);
+    if (epos != string::npos) {
+        app = path.substr(pos, epos - pos);
+    } else {
+        app = path.substr(pos);
+    }
     return m->pluginForApp(app);
+
+error:
+    LOGERR("ContentDirectory::getpluginforpath: bad path [" << path << "]\n");
+    return nullptr;
 }
 
 std::string ContentDirectory::getupnpaddr()

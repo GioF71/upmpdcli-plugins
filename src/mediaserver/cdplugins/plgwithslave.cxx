@@ -143,18 +143,19 @@ public:
 static StreamProxy *o_proxy;
 
 StreamProxy::UrlTransReturn translateurl(
-    CDPluginServices *cdsrv,
-    const std::string& useragent,
-    std::string& url,
-    const std::unordered_map<std::string, std::string>& querymap,
-    std::unique_ptr<NetFetch>& fetcher
-    )
+    CDPluginServices *cdsrv, const std::string& useragent, std::string& url,
+    const std::unordered_map<std::string, std::string>& querymap, std::unique_ptr<NetFetch>& fetcher)
 {
     LOGDEB("PlgWithSlave::translateurl: url " << url << "\n");
 
-    PlgWithSlave *realplg = dynamic_cast<PlgWithSlave*>(cdsrv->getpluginforpath(url));
+    CDPlugin *plg = cdsrv->getpluginforpath(url);
+    if (nullptr == plg) {
+        LOGERR("PlgWithSlave::translateurl: no plugin for path ["<< url << "\n");
+        return StreamProxy::Error;
+    }
+    PlgWithSlave *realplg = dynamic_cast<PlgWithSlave*>(plg);
     if (nullptr == realplg) {
-        LOGERR("PlgWithSlave::translateurl: no plugin for path ["<<url<< "\n");
+        LOGERR("PlgWithSlave::translateurl: bad plugin for path ["<< url << "\n");
         return StreamProxy::Error;
     }
 
