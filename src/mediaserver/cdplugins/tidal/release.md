@@ -1,5 +1,16 @@
 # Tidal Plugin Release notes
 
+## 0.8.7
+
+- Initial work for additional metadata
+- Add audio quality to metadata
+- change "[Explicit]" to "[E]" (more concise)
+- trackuri: now less verbose
+- trackuri: removed unnecessary items for returned dict
+- trackuri: track_id is validated, avoid errors from spurious calls
+- trackuri: enable caching
+- trackuri: make track id regex user-configurable
+
 ## 0.8.6
 
 - Cached images are not pruned by default

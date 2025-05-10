@@ -32,6 +32,7 @@ import cmdtalkplugin
 import upmplgutils
 import html
 import pathlib
+import re
 
 import codec
 import identifier_util
@@ -261,22 +262,23 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
     manifest = stream.get_stream_manifest()
     codecs: any = manifest.get_codecs()
     urls_available: bool = manifest.get_urls() is not None
-    msgproc.log(f"build_streaming_url "
-                f"track_id:[{track_id}] title:[{track.name}] "
-                f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] "
-                f"session_quality:[{tidal_session.audio_quality}] "
-                f"is_pkce:[{tidal_session.is_pkce}] "
-                f"bit_depth:[{bit_depth}] "
-                f"sample_rate:[{sample_rate}] "
-                f"audio_mode:[{audio_mode}] "
-                f"is_mpd:[{stream.is_mpd}] "
-                f"is_bts:[{stream.is_bts}] "
-                f"urls_available:[{urls_available}]")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"build_streaming_url "
+                    f"serve_mode [{config.serve_mode}] "
+                    f"track_id:[{track_id}] title:[{track.name}] "
+                    f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] "
+                    f"session_quality:[{tidal_session.audio_quality}] "
+                    f"is_pkce:[{tidal_session.is_pkce}] "
+                    f"bit_depth:[{bit_depth}] "
+                    f"sample_rate:[{sample_rate}] "
+                    f"audio_mode:[{audio_mode}] "
+                    f"is_mpd:[{stream.is_mpd}] "
+                    f"is_bts:[{stream.is_bts}] "
+                    f"urls_available:[{urls_available}]")
     if stream.is_mpd:
         data: any = None
         file_ext: str
         file_dir: str
-        msgproc.log(f"serve_mode=[{config.serve_mode}]")
         if "hls" == config.serve_mode:
             file_ext = "m3u8"
             file_dir = "m3u8-files"
@@ -322,7 +324,10 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
     result.audio_mode = audio_mode
     result.bit_depth = bit_depth
     msgproc.log(f"build_streaming_url for track_id: [{track_id}] [{track.name}] "
-                f"from [{track.album.name}] [{track.album.id}] by [{track.artist.name}] -> "
+                f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] -> "
+                f"serve_mode [{config.serve_mode}] "
+                f"session_quality [{tidal_session.audio_quality}] "
+                f"is_pkce:[{tidal_session.is_pkce}] "
                 f"streamtype [{'mpd' if stream.is_mpd else 'bts'}] title [{track.name}] "
                 f"[{streaming_url}] Q:[{quality}] M:[{audio_mode}] "
                 f"MT:[{mimetype}] Codecs:[{codecs}] "
@@ -340,62 +345,120 @@ def calc_bitrate(tidal_quality: TidalQuality, bit_depth: int, sample_rate: int) 
         return 1411
 
 
+class TrackUriEntry:
+
+    def __init__(self, media_url: str):
+        self.__media_url: str = media_url
+        self.__creation_time: float = time.time()
+
+    @property
+    def media_url(self) -> str:
+        return self.__media_url
+
+    @property
+    def creation_time(self) -> time:
+        return self.__creation_time
+
+
+track_uri_cache: dict[tuple[str, str], TrackUriEntry] = {}
+
+
+def track_uri_entry_too_old(entry: TrackUriEntry, max_duration_sec: int) -> bool:
+    now: float = time.time()
+    diff: float = now - entry.creation_time
+    if diff > max_duration_sec:
+        return True
+    return False
+
+
+def track_uri_purge_old():
+    max_duration_sec: int = config.get_config_param_as_int(constants.ConfigParam.TRACK_URI_ENTRY_EXPIRATION_SEC)
+    to_purge_list: list[str] = list()
+    k: str
+    v: TrackUriEntry
+    for k, v in track_uri_cache.items():
+        # too old? add to purge list
+        if track_uri_entry_too_old(v, max_duration_sec):
+            to_purge_list.append(k)
+    to_purge: any
+    for to_purge in to_purge_list:
+        del track_uri_cache[to_purge]
+
+
+def get_cached_track_uri_entry(track_id: str, tidal_quality: str) -> TrackUriEntry:
+    track_uri_purge_old()
+    return track_uri_cache[(track_id, tidal_quality)] if (track_id, tidal_quality) in track_uri_cache else None
+
+
 @dispatcher.record('trackuri')
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     track_id: str = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
+    # trackuri validation
+    if not track_id or not re.match(config.get_config_param_as_str(constants.ConfigParam.TRACK_ID_REGEX), track_id):
+        msgproc.log(f"trackuri: invalid track_id [{track_id}]")
+        return {}
     user_agent_whitelist_enabled: bool = config.get_config_param_as_bool(constants.ConfigParam.ENABLE_USER_AGENT_WHITELIST)
-    msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}] track_id: [{track_id}] "
+    msgproc.log(f"trackuri: path_prefix: [{upmpd_pathprefix}] a: [{a}] track_id: [{track_id}] "
                 f"user_agent_whitelist_enabled: [{'yes' if user_agent_whitelist_enabled else 'no'}]")
     whitelisted: bool = True if not user_agent_whitelist_enabled else False
     max_audio_quality: str = config.get_config_param_as_str(constants.ConfigParam.AUDIO_QUALITY)
     select_audio_quality: str = max_audio_quality
     if (config.get_config_param_as_bool(constants.ConfigParam.ENABLE_USER_AGENT_WHITELIST) and
             max_audio_quality == TidalQuality.hi_res_lossless):
-        # select quality is dropped to high lossless if there is no match
+        # quality is dropped to TidalQuality.high_lossless if there is no match
         select_audio_quality = TidalQuality.high_lossless
         user_agent: str = a['user-agent'] if 'user-agent' in a else ""
-        msgproc.log(f"Configured max quality is [{max_audio_quality}], "
-                    f"applying whitelist on useragent [{user_agent}] ...")
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"Configured max quality is [{max_audio_quality}], "
+                        f"applying whitelist on useragent [{user_agent}] ...")
         if user_agent is not None and len(user_agent) > 0:
             current: constants.UserAgentHiResWhitelist
             for current in constants.UserAgentHiResWhitelist:
                 if user_agent and current.value.matcher(user_agent, current.user_agent_str):
-                    msgproc.log(f"User Agent [{user_agent}] is in whitelist because of match with [{current.name}] "
-                                f"[{', '.join(current.device_list)}]")
+                    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                        msgproc.log(f"User Agent [{user_agent}] is in whitelist because of match with [{current.name}] "
+                                    f"[{', '.join(current.device_list)}]")
                     whitelisted = True
+                    # we can use max_audio_quality!
+                    select_audio_quality = max_audio_quality
                     break
         else:
-            msgproc.log("Empty user agent, no match.")
+            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                msgproc.log("Empty user agent, no match.")
         msgproc.log(f"User Agent [{user_agent}] is whitelisted: [{whitelisted}] "
-                    f"select_audio_quality: [{select_audio_quality if not whitelisted else max_audio_quality}]")
+                    f"select_audio_quality: [{select_audio_quality}]")
     # we get a regular session if there is a match, otherwise we build a session with lower quality
+    cached_entry: TrackUriEntry = get_cached_track_uri_entry(track_id, select_audio_quality)
+    if cached_entry:
+        msgproc.log(f"Returning cached media_url for track_id [{track_id}] "
+                    f"quality [{select_audio_quality}]")
+        return {"media_url": cached_entry.media_url}
     tidal_session: TidalSession = get_session() if whitelisted else build_session(audio_quality=select_audio_quality)
     tidal_track: TidalTrack
     ex: Exception
     tidal_track, ex = tidal_util.try_get_track(tidal_session=tidal_session, track_id=track_id)
     if not tidal_track:
         # cannot load track?
-        msgproc.log("Cannot load track with id [{track_id}] due to [{type(ex)}] [{ex}]")
+        msgproc.log(f"Cannot load track with id [{track_id}] due to [{type(ex)}] [{ex}]")
         # return empty dictionary
-        return dict()
+        return {}
     streaming_info: StreamingInfo = build_streaming_url(
         tidal_session=tidal_session,
         track=tidal_track)
+    if not streaming_info:
+        # nothing to do, report error and return nothing
+        msgproc.log(f"Cannot execute trackuri for track_id [{track_id}]")
+        return {}
+    res: dict[str, any] = {}
+    # we have the streaming info, we are good to go
+    res['media_url'] = streaming_info.url
     best_streaming_info: StreamingInfo = streaming_info
     if not whitelisted:
         # get streaming info from a standard session
         best_streaming_info = build_streaming_url(
             tidal_session=get_session(),
             track=tidal_track)
-    res: dict[str, any] = {}
-    if not streaming_info:
-        # nothing to do, report error and return nothing
-        msgproc.log(f"Cannot execute trackuri for track_id [{track_id}]")
-        return res
-    # we have the streaming info, we are good to go
-    res['media_url'] = streaming_info.url
-    upnp_util.set_mime_type(streaming_info.mimetype, res)
     if best_streaming_info.url:
         track: TidalTrack = tidal_session.track(track_id)
         if track:
@@ -420,12 +483,12 @@ def trackuri(a):
                 played_track_request.album_artist_name = album.artist.name
                 played_track_request.image_url = tidal_util.get_image_url(album)
                 persistence.track_playback(played_track_request)
-            upnp_util.set_bit_rate(
-                str(calc_bitrate(
-                    streaming_info.audio_quality,
-                    streaming_info.bit_depth,
-                    streaming_info.sample_rate)),
-                res)
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"trackuri is returning [{res}]")
+    # update track uri cache
+    track_uri_cache[(
+        track_id,
+        select_audio_quality)] = TrackUriEntry(media_url=streaming_info.url)
     return res
 
 
@@ -453,44 +516,6 @@ def tidal_track_to_played_track_request(
         played_track_request.album_artist_name = album.artist.name
         played_track_request.image_url = tidal_util.get_image_url(album)
     return played_track_request
-
-
-def get_cached_audio_quality(album_id: str) -> tidal_util.CachedTidalQuality:
-    played_track_list: list[PlayedTrack] = persistence.get_played_album_entries(album_id)
-    if not played_track_list or len(played_track_list) == 0:
-        return None
-    # get first
-    played_track: PlayedTrack = played_track_list[0]
-    # audio_mode: str = played_track.audio_mode
-    audio_quality: TidalQuality = played_track.audio_quality
-    # audio quality not available? fix when possible
-    if not audio_quality:
-        # identify hi_res_lossless
-        if ((played_track.bit_depth and played_track.bit_depth > 16) and
-           (played_track.sample_rate and played_track.sample_rate > 48000)):
-            return tidal_util.CachedTidalQuality(
-                bit_depth=played_track.bit_depth,
-                sample_rate=played_track.sample_rate,
-                audio_quality=TidalQuality.hi_res_lossless)
-        # identify hi_res
-        if played_track.bit_depth and played_track.bit_depth > 16:
-            # just hires
-            return tidal_util.CachedTidalQuality(
-                bit_depth=played_track.bit_depth,
-                sample_rate=played_track.sample_rate,
-                audio_quality=TidalQuality.hi_res_lossless)
-    # catch invalid combinations
-    bit_depth: int = played_track.bit_depth
-    sample_rate: int = played_track.sample_rate
-    if bit_depth == 16 and sample_rate in [44100, 48000]:
-        if audio_quality in [TidalQuality.hi_res_lossless]:
-            # invalid!
-            # reset audio_quality to None to avoid false hires identification
-            audio_quality = None
-    return tidal_util.CachedTidalQuality(
-        bit_depth=bit_depth,
-        sample_rate=sample_rate,
-        audio_quality=audio_quality)
 
 
 def _returnentries(entries, no_cache: bool = False):
@@ -683,7 +708,7 @@ def track_apply_explicit(
         options: dict[str, any] = {}) -> str:
     title: str = current_title if current_title else track_adapter.get_name()
     if track_adapter.explicit():
-        title: str = f"{title} [Explicit]"
+        title: str = f"{title} [E]"
     return title
 
 
@@ -1407,14 +1432,14 @@ def album_adapter_to_entry(
         options=options,
         option_key=OptionKey.ADD_EXPLICIT)
     if add_explicit and album_adapter.explicit and "explicit" not in album_title.lower():
-        album_title = f"{album_title} [Explicit]"
+        album_title = f"{album_title} [E]"
     add_album_year: bool = get_option(
         options=options,
         option_key=OptionKey.ADD_ALBUM_YEAR)
     if add_album_year and album_adapter.year:
         album_title = f"{album_title} [{album_adapter.year}]"
     # add badge?
-    cached_tidal_quality: tidal_util.CachedTidalQuality = get_cached_audio_quality(
+    cached_tidal_quality: tidal_util.CachedTidalQuality = tidal_util.get_cached_audio_quality(
         album_id=album_adapter.id)
     badge: str = tidal_util.get_quality_badge_raw(
         audio_modes=album_adapter.audio_modes,
@@ -1432,6 +1457,7 @@ def album_adapter_to_entry(
             album_id=album_adapter.id,
             tidal_session=tidal_session),
         target=entry)
+    tidal_util.add_album_adapter_metadata(album_adapter=album_adapter, target=entry)
     return entry
 
 
@@ -2837,7 +2863,8 @@ def handler_element_album_container(
     in_favorites: bool = album_id in get_favorite_album_id_list(tidal_session=tidal_session)
     in_listen_queue: bool = persistence.is_in_album_listen_queue(album_id)
     album_entry_title: str = "Album" if config.titleless_single_album_view else album.name
-    cached_tidal_quality: tidal_util.CachedTidalQuality = get_cached_audio_quality(album_id=album.id)
+    cached_tidal_quality: tidal_util.CachedTidalQuality = tidal_util.get_cached_audio_quality(
+        album_id=album.id)
     badge: str = tidal_util.get_quality_badge(album=album, cached_tidal_quality=cached_tidal_quality)
     msgproc.log(f"handler_element_album_container album_id [{album_id}] "
                 f"badge [{badge}] in_favorites [{in_favorites}] "
@@ -2851,6 +2878,7 @@ def handler_element_album_container(
     entry = upmplgutils.direntry(entry_id, objid, album_entry_title)
     upnp_util.set_class_album(target=entry)
     upnp_util.set_artist(artist=album.artist.name if album.artist else None, target=entry)
+    tidal_util.add_album_adapter_metadata(album_adapter=tidal_album_to_adapter(album), target=entry)
     # setting album title does not seem to be relevant for upplay
     # upnp_util.set_album_title(album_title=album.name, target=entry)
     # setting description does not seem to be relevant for upplay
