@@ -164,6 +164,8 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
 
     def getPort(self) -> int: return get_option_value("port")
 
+    def getServerPath(self) -> int: return get_option_value("serverpath")
+
     def getUserName(self) -> str: return get_option_value("user")
 
     def getPassword(self) -> str: return get_option_value("password")

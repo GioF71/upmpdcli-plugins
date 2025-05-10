@@ -18,6 +18,7 @@ from config import UpmpdcliSubsonicConfig
 from msgproc_provider import msgproc
 
 msgproc.log(f"base_url/port: [{UpmpdcliSubsonicConfig().getBaseUrl()}]:[{UpmpdcliSubsonicConfig().getPort()}]")
+msgproc.log(f"server_path: [{UpmpdcliSubsonicConfig().getServerPath()}]")
 msgproc.log(f"User Agent: [{UpmpdcliSubsonicConfig().getUserAgent()}]")
 
 connector: Connector = Connector(UpmpdcliSubsonicConfig())

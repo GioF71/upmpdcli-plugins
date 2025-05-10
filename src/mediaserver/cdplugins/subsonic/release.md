@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.2
+
+- Support for server path (see [this issue](https://github.com/GioF71/upmpdcli-docker/issues/522))
+- Advance subsonic-connector to 0.3.10b5, allows server path
+
 ## Release 0.8.1
 
 - Add some metadata for Songs

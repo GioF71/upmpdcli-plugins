@@ -112,7 +112,7 @@ Depends: upmpdcli, python3, ${misc:Depends}
 Description: upmpdcli Subsonic plugin
  upmpdcli-subsonic allows upmpdcli to proxy access to a Subsonic or
  Navidrome server. It needs the installation of the subsonic-connector
- (version 0.3.10b3) Python module (not packaged
+ (version 0.3.10b5) Python module (not packaged
  by Debian, use PyPI).
 
 Package: upmpdcli-tidal
