@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 import upmplgmodels
 import datetime
+import upmpdmeta
+# from msgproc_provider import msgproc
 
 
 def set_track_number(track_number: str, target: dict):
@@ -107,3 +109,22 @@ def set_object_type(container_type: str, target: dict):
 
 def set_class_artist(target: dict):
     target['upnp:class'] = upmplgmodels.Artist.upnpclass
+
+
+def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
+    if metadata_value is not None and len(metadata_value) > 0:
+        # msgproc.log(f"Setting [{raw_metadata_name}]=[{metadata_value}]")
+        target[raw_metadata_name] = metadata_value
+
+
+def set_upmpd_meta(metadata_name: upmpdmeta.UpMpdMeta, metadata_value: any, target: dict):
+    v: str = ""
+    if metadata_value:
+        if isinstance(metadata_value, str):
+            v = metadata_value
+        elif isinstance(metadata_value, int):
+            v = str(metadata_value)
+    set_raw_metadata(
+        raw_metadata_name=f"upmpd:{metadata_name.value}",
+        metadata_value=v,
+        target=target)

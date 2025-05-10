@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.6"
+    PLUGIN_RELEASE = "0.8.7"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
 
@@ -123,6 +123,11 @@ class ConfigParam(Enum):
     ENABLE_DUMP_STREAM_DATA = _ConfigParamData("enabledumpstreamdata", False)
     ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enablecachedimageagelimit", False)
     CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData("cachedimagemaxagedays", 60)
+
+    TRACK_URI_ENTRY_EXPIRATION_SEC = _ConfigParamData("trackurientryexpirationsec", 240)
+
+    TRACK_ID_REGEX = _ConfigParamData("trackidregex", "^[0-9]+$")
+    VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
 
     @property
     def key(self) -> str:

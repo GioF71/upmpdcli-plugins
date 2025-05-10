@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from tidalapi.album import Album as TidalAlbum
+from tidalapi.artist import Artist as TidalArtist
 
 from datetime import datetime
 from persistence import AlbumMetadata
@@ -53,6 +54,7 @@ class AlbumAdapter:
     name: str = None
     artist_id: str = None
     artist_name: str = None
+    artist_list: list[TidalArtist] = None
     explicit: bool = False
     release_date: datetime = None
     available_release_date: datetime = None
@@ -60,6 +62,9 @@ class AlbumAdapter:
     audio_modes: list[str] = None
     audio_quality: str = None
     media_metadata_tags: list[str] = None
+    version: str = None
+    universal_product_number: int = None
+    copyright: str = None
 
     @property
     def year(self) -> int:
@@ -73,6 +78,10 @@ def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
     album_adapter.name = tidal_album.name
     album_adapter.artist_id = tidal_album.artist.id if tidal_album.artist else None
     album_adapter.artist_name = tidal_album.artist.name if tidal_album.artist else None
+    album_adapter.artist_list = []
+    curr_artist: TidalArtist
+    for curr_artist in tidal_album.artists if tidal_album.artists else []:
+        album_adapter.artist_list.append(curr_artist)
     album_adapter.explicit = tidal_album.explicit
     album_adapter.release_date = tidal_album.release_date
     album_adapter.available_release_date = tidal_album.available_release_date
@@ -80,6 +89,9 @@ def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
     album_adapter.audio_modes = copy.deepcopy(tidal_album.audio_modes)
     album_adapter.audio_quality = tidal_album.audio_quality
     album_adapter.media_metadata_tags = copy.deepcopy(tidal_album.media_metadata_tags)
+    album_adapter.version = tidal_album.version
+    album_adapter.universal_product_number = tidal_album.universal_product_number
+    album_adapter.copyright = tidal_album.copyright
     return album_adapter
 
 

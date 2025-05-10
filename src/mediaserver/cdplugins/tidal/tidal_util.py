@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ import mimetypes
 import glob
 import pathlib
 
+import upmpdmeta
 import upnp_util
 
 from tidalapi import Quality as TidalQuality
@@ -49,8 +50,11 @@ from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
 
 import identifier_util
+import persistence
+from played_track import PlayedTrack
 
 from album_sort_criteria import AlbumSortCriteria
+from album_adapter import AlbumAdapter
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -368,11 +372,11 @@ class CachedTidalQuality:
 
 
 __readable_sr: dict[int, str] = {
-    44100: "44.1",
+    44100: "44",
     48000: "48",
-    88200: "88.2",
+    88200: "88",
     96000: "96",
-    176400: "176.4",
+    176400: "176",
     192000: "192"
 }
 
@@ -860,3 +864,85 @@ class PageLinkIdentifier:
     @property
     def category_title(self) -> str:
         return self.__category_title
+
+
+def get_cached_audio_quality(album_id: str) -> CachedTidalQuality:
+    played_track_list: list[PlayedTrack] = persistence.get_played_album_entries(album_id)
+    if not played_track_list or len(played_track_list) == 0:
+        return None
+    # get first
+    played_track: PlayedTrack = played_track_list[0]
+    # audio_mode: str = played_track.audio_mode
+    audio_quality: TidalQuality = played_track.audio_quality
+    # audio quality not available? fix when possible
+    if not audio_quality:
+        # identify hi_res_lossless
+        if ((played_track.bit_depth and played_track.bit_depth > 16) and
+           (played_track.sample_rate and played_track.sample_rate > 48000)):
+            return CachedTidalQuality(
+                bit_depth=played_track.bit_depth,
+                sample_rate=played_track.sample_rate,
+                audio_quality=TidalQuality.hi_res_lossless)
+        # identify hi_res
+        if played_track.bit_depth and played_track.bit_depth > 16:
+            # just hires
+            return CachedTidalQuality(
+                bit_depth=played_track.bit_depth,
+                sample_rate=played_track.sample_rate,
+                audio_quality=TidalQuality.hi_res_lossless)
+    # catch invalid combinations
+    bit_depth: int = played_track.bit_depth
+    sample_rate: int = played_track.sample_rate
+    if bit_depth == 16 and sample_rate in [44100, 48000]:
+        if audio_quality in [TidalQuality.hi_res_lossless]:
+            # invalid!
+            # reset audio_quality to None to avoid false hires identification
+            audio_quality = None
+    return CachedTidalQuality(
+        bit_depth=bit_depth,
+        sample_rate=sample_rate,
+        audio_quality=audio_quality)
+
+
+def add_album_adapter_metadata(album_adapter: AlbumAdapter, target: dict[str, any]):
+    # upv
+    universal_product_number: int = album_adapter.universal_product_number
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.UNIVERSAL_PRODUCT_NUMBER, str(universal_product_number), target)
+    # artist id
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ARTIST_ID, album_adapter.artist_id, target)
+    # album id
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album_adapter.id, target)
+    # album title
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album_adapter.name, target)
+    # version
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, album_adapter.version, target)
+    # explicit
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_EXPLICIT_STATUS, 'yes' if album_adapter.explicit else 'no', target)
+    # copyright
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.COPYRIGHT, album_adapter.copyright, target)
+    # audio quality
+    cached_tidal_quality: CachedTidalQuality = get_cached_audio_quality(
+        album_id=album_adapter.id)
+    badge: str = get_quality_badge_raw(
+        audio_modes=album_adapter.audio_modes,
+        media_metadata_tags=album_adapter.media_metadata_tags,
+        audio_quality=album_adapter.audio_quality,
+        cached_tidal_quality=cached_tidal_quality)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, badge, target)
+    # artist names
+    artist_names: list[str] = []
+    artist_list: list[TidalArtist] = album_adapter.artist_list if album_adapter.artist_list else []
+    curr_artist: TidalArtist
+    for curr_artist in artist_list:
+        artist_names.append(curr_artist.name)
+    # only show if this is meaningful
+    if len(artist_list) > 1:
+        artist_name_list: str = ", ".join(artist_names)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_ARTIST,
+            artist_name_list,
+            target)
+        msgproc.log(f"Artists for [{album_adapter.id}] set to [{artist_name_list}] ...")
+    # else:
+    #     msgproc.log(f"Setting single artist for [{album_adapter.id}] ...")
+    #     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album_adapter.artist_name, target)

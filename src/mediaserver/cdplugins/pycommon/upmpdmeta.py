@@ -33,6 +33,7 @@ class UpMpdMeta(Enum):
     ALBUM_DURATION = "albumduration"
     ALBUM_DISC_AND_TRACK_COUNTERS = "albumdisctrackcounters"
     ALBUM_ARTIST = "albumartist"
+    # ALBUM_ARTISTS = "albumartists"
     ALBUM_TITLE = "albumtitle"
     ALBUM_YEAR = "albumyear"
     ALBUM_MEDIA_TYPE = "albummediatype"
@@ -48,3 +49,5 @@ class UpMpdMeta(Enum):
     TRACK_DURATION = "trackduration"
     TRACK_NUMBER = "tracknumber"
     DISC_NUMBER = "discnumber"
+    COPYRIGHT = "copyright"
+    UNIVERSAL_PRODUCT_NUMBER = "universalproductnumber"

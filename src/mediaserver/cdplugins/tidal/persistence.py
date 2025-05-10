@@ -23,6 +23,7 @@ from enum import Enum
 import cmdtalkplugin
 import upmplgutils
 import constants
+import config
 
 from played_track import PlayedTrack
 from played_album import PlayedAlbum
@@ -611,8 +612,9 @@ def insert_playback(
 def update_playback(
         played_track_request: PlayedTrackRequest,
         last_played: datetime.datetime):
-    msgproc.log(f"update_playback [{played_track_request.track_id}] "
-                f"with last_played [{'NOT NULL' if last_played else 'NULL'}]")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"update_playback [{played_track_request.track_id}] "
+                    f"with last_played [{'NOT NULL' if last_played else 'NULL'}]")
     if last_played:
         t = (
             played_track_request.album_id,
@@ -1000,7 +1002,8 @@ def track_playback(played_track_request: PlayedTrackRequest):
         update_playback(
             played_track_request=played_track_request,
             last_played=now)
-    msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
 
 
 def __is_in_listen_queue(
