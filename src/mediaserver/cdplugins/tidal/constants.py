@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.7"
+    PLUGIN_RELEASE = "0.8.8"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
 
@@ -153,39 +153,35 @@ class ListeningQueueAction(Enum):
     DEL = Action.DEL.value
 
 
+class ActionButtonTitle(Enum):
+
+    BOOKMARK_ADD = "Bookmarks (+)"
+    BOOKMARK_RMV = "Bookmarks (-)"
+    FAVORITE_ADD = "Favorites (+)"
+    FAVORITE_RMV = "Favorites (-)"
+
+
 listening_queue_action_add_dict: dict[str, str] = {
     ListeningQueueKey.ACTION_KEY.value: ListeningQueueAction.ADD.value,
-    ListeningQueueKey.BUTTON_TITLE_KEY.value: "Add to Bookmarks"}
+    ListeningQueueKey.BUTTON_TITLE_KEY.value: ActionButtonTitle.BOOKMARK_ADD.value}
 
 listening_queue_action_del_dict: dict[str, str] = {
     ListeningQueueKey.ACTION_KEY.value: ListeningQueueAction.DEL.value,
-    ListeningQueueKey.BUTTON_TITLE_KEY.value: "Rmv from Bookmarks"}
+    ListeningQueueKey.BUTTON_TITLE_KEY.value: ActionButtonTitle.BOOKMARK_RMV.value}
 
 fav_action_key: str = "action"
 fav_button_title_key: str = "button_title"
-
-button_title_add_to_favorites: str = "Add to Favorites"
-button_title_remove_from_favorites: str = "Rmv from Favorites"
-
-button_title_add_album_to_favorites: str = button_title_add_to_favorites
-button_title_remove_album_from_favorites: str = button_title_remove_from_favorites
-
-button_title_add_artist_to_favorites: str = button_title_add_to_favorites
-button_title_remove_artist_from_favorites: str = button_title_remove_from_favorites
-
-button_title_add_song_to_favorites: str = button_title_add_to_favorites
-button_title_remove_song_from_favorites: str = button_title_remove_from_favorites
 
 fav_action_add: str = Action.ADD.value
 fav_action_del: str = Action.DEL.value
 
 fav_action_add_dict: dict[str, str] = {
     fav_action_key: fav_action_add,
-    fav_button_title_key: "Add to Favorites"}
+    fav_button_title_key: ActionButtonTitle.FAVORITE_ADD.value}
 
 fav_action_del_dict: dict[str, str] = {
     fav_action_key: fav_action_del,
-    fav_button_title_key: "Rmv from Favorites"}
+    fav_button_title_key: ActionButtonTitle.FAVORITE_RMV.value}
 
 fav_action_dict: dict[str, any] = {
     fav_action_add: fav_action_add_dict,

@@ -64,6 +64,36 @@ __field_name_tile_image: str = "tile_image"
 __field_name_created_timestamp: str = "created_timestamp"
 
 
+class ColumnData:
+
+    def __init__(self, column_name: str, column_type: str):
+        self.__column_name: str = column_name
+        self.__column_type: str = column_type
+
+    @property
+    def column_name(self) -> str:
+        return self.__column_name
+
+    @property
+    def column_type(self) -> str:
+        return self.__column_type
+
+
+class Column(Enum):
+
+    ALBUM_DURATION = ColumnData(column_name="duration", column_type="INTEGER")
+    NUM_VOLUMES = ColumnData(column_name="num_volumes", column_type="INTEGER")
+    NUM_TRACKS = ColumnData(column_name="num_tracks", column_type="INTEGER")
+
+    @property
+    def column_name(self) -> str:
+        return self.value.column_name
+
+    @property
+    def column_type(self) -> str:
+        return self.value.column_type
+
+
 __most_played_albums_query: str = """
     SELECT
         album_id,
@@ -101,6 +131,9 @@ class AlbumMetadata:
     audio_quality: str = None
     # comma separated values
     media_metadata_tags: str = None
+    album_duration: int = None
+    num_volumes: int = None
+    num_tracks: int = None
     created_timestamp: datetime = None
 
 
@@ -360,7 +393,7 @@ def __alter_table_drop_column(table_name: str, column_name: str):
         cursor_obj.execute(alter)
         success = True
     except Exception as ex:
-        msgproc.log(f"WARN: Cannot alter table {table_name} and drop column {column_name} due to [{ex}]")
+        msgproc.log(f"WARN: Cannot alter table {table_name} and drop column {column_name} due to [{type(ex)}] [{ex}]")
         msgproc.log("WARN: Check you sqlite3 version, it should be >= 3.35.0")
     cursor_obj.close()
     if success:
@@ -535,6 +568,21 @@ def do_migration_15():
     cursor_obj.close()
 
 
+def do_migration_16():
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.ALBUM_DURATION.column_name,
+        column_type=Column.ALBUM_DURATION.column_type)
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.NUM_VOLUMES.column_name,
+        column_type=Column.NUM_VOLUMES.column_type)
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.NUM_TRACKS.column_name,
+        column_type=Column.NUM_TRACKS.column_type)
+
+
 def migration_11():
     migration_template("12", do_migration_11)
 
@@ -553,6 +601,10 @@ def migration_14():
 
 def migration_15():
     migration_template("16", do_migration_15)
+
+
+def migration_16():
+    migration_template("17", do_migration_16)
 
 
 def insert_playback(
@@ -1207,6 +1259,9 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
+                {Column.ALBUM_DURATION.column_name},
+                {Column.NUM_VOLUMES.column_name},
+                {Column.NUM_TRACKS.column_name},
                 {__field_name_created_timestamp}
             FROM
                 {__table_name_album_metadata_cache_v1}
@@ -1231,7 +1286,10 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
     result.audio_modes = row[8]
     result.audio_quality = row[9]
     result.media_metadata_tags = row[10]
-    result.created_timestamp = row[11]
+    result.album_duration = row[11]
+    result.num_volumes = row[12]
+    result.num_tracks = row[13]
+    result.created_timestamp = row[14]
     return result
 
 
@@ -1248,6 +1306,9 @@ def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
         album.audio_modes,
         album.audio_quality,
         album.media_metadata_tags,
+        album.album_duration,
+        album.num_volumes,
+        album.num_tracks,
         album.created_timestamp)
     cursor = __connection.cursor()
     cursor.execute(
@@ -1264,9 +1325,12 @@ def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
+                {Column.ALBUM_DURATION.column_name},
+                {Column.NUM_VOLUMES.column_name},
+                {Column.NUM_TRACKS.column_name},
                 {__field_name_created_timestamp}
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
         """,
         t)
@@ -1390,7 +1454,11 @@ migrations: list[Migration] = [
     Migration(
         migration_name="add_album_metadata_v1",
         apply_on="15",
-        migration_function=migration_15)]
+        migration_function=migration_15),
+    Migration(
+        migration_name="add_duration_num_vol_num_tracks_to_album_metadata_v1",
+        apply_on="16",
+        migration_function=migration_16)]
 
 current_migration: Migration
 for current_migration in migrations:

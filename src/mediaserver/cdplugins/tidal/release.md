@@ -1,5 +1,13 @@
 # Tidal Plugin Release notes
 
+## 0.8.8
+
+- Append artist at the end of album title instead of at the beginning
+- Handle missing artists more gracefully
+- Add duration, disc and track numbers to album metadata
+- Store duration, num_volumes and num_tracks in album metadata cache
+- Add available release date to album metadata
+
 ## 0.8.7
 
 - Initial work for additional metadata

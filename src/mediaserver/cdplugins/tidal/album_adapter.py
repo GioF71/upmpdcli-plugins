@@ -45,6 +45,9 @@ def __albumToAlbumMetadata(album: TidalAlbum) -> AlbumMetadata:
     result.audio_quality = album.audio_quality
     album_media_metadata_tags: list[str] = album.media_metadata_tags
     result.media_metadata_tags = ",".join(album_media_metadata_tags) if album_media_metadata_tags else None
+    result.album_duration = album.duration
+    result.num_volumes = album.num_volumes
+    result.num_tracks = album.num_tracks
     return result
 
 
@@ -65,6 +68,9 @@ class AlbumAdapter:
     version: str = None
     universal_product_number: int = None
     copyright: str = None
+    duration: int = None
+    num_tracks: int = None
+    num_volumes: int = None
 
     @property
     def year(self) -> int:
@@ -92,6 +98,9 @@ def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
     album_adapter.version = tidal_album.version
     album_adapter.universal_product_number = tidal_album.universal_product_number
     album_adapter.copyright = tidal_album.copyright
+    album_adapter.duration = tidal_album.duration
+    album_adapter.num_volumes = tidal_album.num_volumes
+    album_adapter.num_tracks = tidal_album.num_tracks
     return album_adapter
 
 
@@ -112,6 +121,9 @@ def __album_metadata_to_adapter(album_metadata: AlbumMetadata) -> AlbumAdapter:
     album_adapter.media_metadata_tags = (album_metadata.media_metadata_tags.split(",")
                                          if album_metadata.media_metadata_tags
                                          else None)
+    album_adapter.duration = album_metadata.album_duration
+    album_adapter.num_volumes = album_metadata.num_volumes
+    album_adapter.num_tracks = album_metadata.num_tracks
     return album_adapter
 
 

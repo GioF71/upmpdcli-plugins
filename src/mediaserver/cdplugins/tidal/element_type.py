@@ -80,6 +80,7 @@ class ElementType(Enum):
     BOOKMARK_TRACK_ACTION = 61, "snglstnqctn"
     MISSING_ALBUM = 62, "msnglbm"
     MISSING_TRACK = 63, "msngtrk"
+    MISSING_ARTIST = 65, "msngrtst"
     ALL_TRACKS_IN_PLAYLIST_OR_MIX = 64, "lltrksmxplst"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"

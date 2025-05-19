@@ -894,35 +894,12 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
         return cover_art_url
 
 
-def get_duration_display_from_sec(duration_sec: int) -> str:
-    # hours, minutes, seconds
-    remaining_sec: int = duration_sec
-    seconds: int = duration_sec % 60
-    remaining_sec -= seconds
-    minutes: int = int(int(remaining_sec / 60) % 60)
-    remaining_sec -= (minutes * 60)
-    hours: int = int(remaining_sec / 3600)
-    result: str = ""
-    # format it!
-    if hours > 0:
-        result += f"{hours}h"
-    if minutes > 0:
-        if len(result) > 0:
-            result += " "
-        result += f"{minutes:02d}m"
-    # add seconds in any case
-    if len(result) > 0:
-        result += " "
-    result += f"{seconds:02d}s"
-    return result
-
-
 def get_song_duration_display(song: Song) -> str:
-    return get_duration_display_from_sec(duration_sec=song.getDuration())
+    return upmpdmeta.get_duration_display_from_sec(duration_sec=song.getDuration())
 
 
 def get_album_duration_display(album: Album) -> str:
-    return get_duration_display_from_sec(duration_sec=album.getDuration())
+    return upmpdmeta.get_duration_display_from_sec(duration_sec=album.getDuration())
 
 
 def get_album_disc_and_track_counters(album: Album) -> str:

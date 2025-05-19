@@ -265,16 +265,16 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"build_streaming_url "
                     f"serve_mode [{config.serve_mode}] "
-                    f"track_id:[{track_id}] title:[{track.name}] "
+                    f"track_id [{track_id}] title:[{track.name}] "
                     f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] "
                     f"session_quality:[{tidal_session.audio_quality}] "
-                    f"is_pkce:[{tidal_session.is_pkce}] "
-                    f"bit_depth:[{bit_depth}] "
-                    f"sample_rate:[{sample_rate}] "
-                    f"audio_mode:[{audio_mode}] "
-                    f"is_mpd:[{stream.is_mpd}] "
-                    f"is_bts:[{stream.is_bts}] "
-                    f"urls_available:[{urls_available}]")
+                    f"is_pkce [{tidal_session.is_pkce}] "
+                    f"bit_depth [{bit_depth}] "
+                    f"sample_rate [{sample_rate}] "
+                    f"audio_mode [{audio_mode}] "
+                    f"is_mpd [{stream.is_mpd}] "
+                    f"is_bts [{stream.is_bts}] "
+                    f"urls_available [{urls_available}]")
     if stream.is_mpd:
         data: any = None
         file_ext: str
@@ -327,7 +327,7 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
                 f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] -> "
                 f"serve_mode [{config.serve_mode}] "
                 f"session_quality [{tidal_session.audio_quality}] "
-                f"is_pkce:[{tidal_session.is_pkce}] "
+                f"is_pkce [{tidal_session.is_pkce}] "
                 f"streamtype [{'mpd' if stream.is_mpd else 'bts'}] title [{track.name}] "
                 f"[{streaming_url}] Q:[{quality}] M:[{audio_mode}] "
                 f"MT:[{mimetype}] Codecs:[{codecs}] "
@@ -1407,22 +1407,6 @@ def album_adapter_to_entry(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
     album_title: str = album_adapter.name
-    add_artist: bool = get_option(
-        options=options,
-        option_key=OptionKey.ADD_ARTIST_TO_ALBUM_ENTRY)
-    current_artist_id: str = album_adapter.artist_id
-    allow_omittable: bool = get_option(
-        options=options,
-        option_key=OptionKey.OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT)
-    if allow_omittable:
-        omittable: str = get_option(
-            options=options,
-            option_key=OptionKey.ALBUM_OMITTABLE_ARTIST_ID)
-        if omittable == current_artist_id:
-            # avoid to prepend artist in this case
-            add_artist = False
-    if add_artist:
-        album_title = f"{album_adapter.artist_name} - {album_title}"
     entry_number: int = get_option(
         options=options,
         option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME)
@@ -1448,6 +1432,21 @@ def album_adapter_to_entry(
         cached_tidal_quality=cached_tidal_quality)
     if badge:
         album_title = f"{album_title} [{badge}]"
+    add_artist: bool = get_option(
+        options=options,
+        option_key=OptionKey.ADD_ARTIST_TO_ALBUM_ENTRY)
+    allow_omittable: bool = get_option(
+        options=options,
+        option_key=OptionKey.OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT)
+    if allow_omittable:
+        omittable: str = get_option(
+            options=options,
+            option_key=OptionKey.ALBUM_OMITTABLE_ARTIST_ID)
+        if omittable == album_adapter.artist_id:
+            # avoid to prepend artist in this case
+            add_artist = False
+    if add_artist:
+        album_title = f"{album_title} - {album_adapter.artist_name}"
     entry = upmplgutils.direntry(id, objid, title=album_title, artist=album_adapter.artist_name)
     upnp_util.set_date(datetime=album_adapter.release_date, target=entry)
     if not as_container:
@@ -2767,6 +2766,44 @@ def get_first_not_stereo(audio_modes) -> str:
     return audio_modes if TidalAudioMode.stereo != audio_modes else None
 
 
+def create_missing_artist_entry(
+        objid: any,
+        tidal_session: TidalSession,
+        artist_id: str,
+        entries: list) -> list:
+    identifier: ItemIdentifier = ItemIdentifier(
+        name=ElementType.MISSING_ARTIST.getName(),
+        value=artist_id)
+    entry_id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
+    entry = upmplgutils.direntry(entry_id, objid, f"Missing artist [{artist_id}]")
+    # is the album in the favorites?
+    in_favorites: bool = artist_id in get_favorite_artist_id_list(tidal_session=tidal_session)
+    # is the album in the bookmarks?
+    in_bookmarks: bool = persistence.is_in_artist_listen_queue(artist_id)
+    # in statistics ?
+    # in_played_tracks: bool = persistence.is_album_in_played_tracks(artist_id)
+    # in_metadata_cache: bool = persistence.is_album_in_metadata_cache(artist_id)
+    msgproc.log(f"Artist [{artist_id}]: Favorite [{in_favorites}] "
+                f"Bookmarked [{in_bookmarks}]")
+    # add favorite action if needed
+    if config.get_allow_favorite_actions() and in_favorites:
+        entries.append(__create_artist_fav_action_button(
+            objid=objid,
+            artist_id=artist_id,
+            album=None,
+            in_favorites=True))
+    # button for bookmark action if needed
+    if config.get_allow_bookmark_actions() and in_bookmarks:
+        entries.append(__create_album_listen_queue_action_button(
+            objid=objid,
+            album_id=artist_id,
+            album=None,
+            in_listen_queue=True))
+    return entry
+
+
 def create_missing_album_entry(
         objid: any,
         tidal_session: TidalSession,
@@ -2942,6 +2979,29 @@ def _add_album_rmv_from_stats(
         entries.append(rm_entry)
 
 
+def __create_artist_fav_action_button(
+        objid,
+        artist_id: str,
+        artist: TidalArtist,
+        in_favorites: bool) -> dict[str, any]:
+    fav_action_elem: ElementType
+    fav_action_text: str
+    fav_action_elem, fav_action_text = (
+        (ElementType.FAV_ALBUM_DEL, constants.ActionButtonTitle.FAVORITE_RMV.value) if in_favorites else
+        (ElementType.FAV_ALBUM_ADD, constants.ActionButtonTitle.FAVORITE_ADD.value))
+    fav_action: ItemIdentifier = ItemIdentifier(
+        fav_action_elem.getName(),
+        artist_id)
+    fav_action_id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(fav_action))
+    fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_action_text)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=tidal_util.get_image_url(artist) if artist else None,
+        target=fav_entry)
+    return fav_entry
+
+
 def __create_album_fav_action_button(
         objid,
         album_id: str,
@@ -2950,10 +3010,8 @@ def __create_album_fav_action_button(
     fav_action_elem: ElementType
     fav_action_text: str
     fav_action_elem, fav_action_text = (
-        (ElementType.FAV_ALBUM_DEL, constants.button_title_remove_album_from_favorites) if in_favorites else
-        (ElementType.FAV_ALBUM_ADD, constants.button_title_add_album_to_favorites))
-    # msgproc.log(f"Album with id [{album_id}] name [{album_name}] "
-    #             f"is in favorites: [{'yes' if in_favorites else 'no'}]")
+        (ElementType.FAV_ALBUM_DEL, constants.ActionButtonTitle.FAVORITE_RMV.value) if in_favorites else
+        (ElementType.FAV_ALBUM_ADD, constants.ActionButtonTitle.FAVORITE_ADD.value))
     fav_action: ItemIdentifier = ItemIdentifier(
         fav_action_elem.getName(),
         album_id)
@@ -2977,7 +3035,9 @@ def __add_album_artists_entries(
         artists=album.artists,
         tracks=album.tracks())
     for current in artist_list:
-        artist: TidalArtist = tidal_session.artist(current.id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, current.id)
+        if not artist:
+            continue
         entries.append(artist_to_entry(objid=objid, artist=artist))
 
 
@@ -3312,7 +3372,9 @@ def handler_element_artists_in_mix_or_playlist(
     for artist_id in artist_list:
         last_displayed_artist_id = artist_id
         try:
-            artist: TidalArtist = tidal_session.artist(artist_id)
+            artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+            if not artist:
+                continue
             entries.append(artist_to_entry(
                 objid=objid,
                 artist=artist))
@@ -3489,7 +3551,9 @@ def handler_element_mix_playlist_toptrack_navigable_item(
         artist=track.artist,
         artists=track.artists)
     for current in artist_list:
-        artist: TidalArtist = tidal_session.artist(current.id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, current.id)
+        if not artist:
+            continue
         entries.append(artist_to_entry(
             objid=objid,
             artist=artist))
@@ -3587,7 +3651,7 @@ def handler_element_playlist_navigable(
             except Exception as ex:
                 msgproc.log(f"handler_element_playlist_navigable Cannot create track entry for track_id [{track.id}] "
                             f"num [{track_number}] [{track.name}] [{track.album.id}] "
-                            f"[{track.album.name}] Exception [{ex}]")
+                            f"[{track.album.name}] Exception [{type(ex)}] [{ex}]")
         else:
             msgproc.log(f"Track with id [{track_id}] for track number [{track_number}] could not be loaded")
         track_number += 1
@@ -3655,7 +3719,7 @@ def playlist_to_entries(
             except Exception as ex:
                 msgproc.log(f"playlist_to_entries Cannot create track entry for track_id [{track.id}] "
                             f"num [{track_number}] [{track.name}] [{track.album.id}] "
-                            f"[{track.album.name}] Exception [{ex}]")
+                            f"[{track.album.name}] Exception [{type(ex)}] [{ex}]")
         else:
             msgproc.log(f"Cannot load track with id [{track_id}] for track_number [{track_number}]")
         # let user know some tracks are missing
@@ -3738,9 +3802,11 @@ def handler_element_artist_album_catch_all(
     max_items: int = config.albums_per_page
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
     if not artist:
         msgproc.log(f"Artist with id {artist_id} not found")
+        # bail
+        return entries
     current: TidalAlbum
     album_list: list[TidalAlbum] = album_extractor(artist, max_items + 1, offset)
     # is there a next album?
@@ -3810,7 +3876,7 @@ def get_similar_artists(artist: TidalArtist) -> list[TidalArtist]:
     try:
         return artist.get_similar()
     except Exception as ex:
-        msgproc.log(f"Cannot get similar artists for artist id [{artist.id}] name [{artist.name}] Exception [{ex}]")
+        msgproc.log(f"Cannot get similar artists for artist id [{artist.id}] name [{artist.name}] Exception [{type(ex)}] [{ex}]")
     return list()
 
 
@@ -3823,7 +3889,7 @@ def get_top_tracks(
             limit=limit,
             offset=offset)
     except Exception as ex:
-        msgproc.log(f"Cannot get top tracks for artist id [{artist.id}] name [{artist.name}] Exception [{ex}]")
+        msgproc.log(f"Cannot get top tracks for artist id [{artist.id}] name [{artist.name}] Exception [{type(ex)}] [{ex}]")
     return list()
 
 
@@ -3831,7 +3897,7 @@ def get_radio(artist: TidalArtist) -> list[TidalTrack]:
     try:
         return artist.get_radio()
     except Exception as ex:
-        msgproc.log(f"Cannot get radio for artist id [{artist.id}] name [{artist.name}] Exception [{ex}]")
+        msgproc.log(f"Cannot get radio for artist id [{artist.id}] name [{artist.name}] Exception [{type(ex)}] [{ex}]")
     return list()
 
 
@@ -3839,7 +3905,9 @@ def handler_element_similar_artists(objid, item_identifier: ItemIdentifier, entr
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     items: list[TidalArtist] = get_similar_artists(artist)
     # apply offset
     items = items[offset:] if len(items) > offset else ()
@@ -3989,7 +4057,9 @@ def handler_element_artist_top_tracks_navigable(objid, item_identifier: ItemIden
     max_items: int = config.artists_per_page
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     items: list[TidalTrack] = get_top_tracks(
         artist=artist,
         limit=max_items + 1,
@@ -4021,7 +4091,9 @@ def handler_element_artist_top_tracks_list(objid, item_identifier: ItemIdentifie
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     items: list[TidalTrack] = get_top_tracks(
         artist=artist,
         offset=offset,
@@ -4061,7 +4133,9 @@ def handler_element_artist_radio_list(objid, item_identifier: ItemIdentifier, en
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     items: list[TidalTrack] = get_radio(artist)
     # apply offset
     items = items[offset:] if len(items) > offset else list()
@@ -4098,7 +4172,9 @@ def handler_element_artist_radio_navigable(objid, item_identifier: ItemIdentifie
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     items: list[TidalTrack] = get_radio(artist)
     # apply offset
     items = items[offset:] if len(items) > offset else ()
@@ -4260,7 +4336,9 @@ def get_artist_albums_by_album_extractor_image_url(
         artist_id: str,
         extractor: Callable[[TidalArtist], list[TidalAlbum]]) -> str:
     try:
-        artist: TidalArtist = tidal_session.artist(artist_id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+        if not artist:
+            return None
         album_list: list[TidalAlbum] = extractor(artist)
         return choose_album_image_url(album_list)
     except Exception:
@@ -4269,7 +4347,9 @@ def get_artist_albums_by_album_extractor_image_url(
 
 def get_artist_top_tracks_image_url(tidal_session: TidalSession, artist_id: str) -> str:
     try:
-        artist: TidalArtist = tidal_session.artist(artist_id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+        if not artist:
+            return None
         tracks: list[TidalTrack] = artist.get_top_tracks() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
         return tidal_util.get_album_art_url_by_album_id(album_id=select.album.id, tidal_session=tidal_session)
@@ -4279,7 +4359,9 @@ def get_artist_top_tracks_image_url(tidal_session: TidalSession, artist_id: str)
 
 def get_artist_radio_image_url(tidal_session: TidalSession, artist_id: str) -> str:
     try:
-        artist: TidalArtist = tidal_session.artist(artist_id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+        if not artist:
+            return None
         tracks: list[TidalTrack] = artist.get_radio() if artist else None
         select: TidalTrack = secrets.choice(tracks) if tracks and len(tracks) > 0 else None
         return (tidal_util.get_album_art_url_by_album_id(
@@ -4298,7 +4380,9 @@ def choose_album_image_url(album_list: list[TidalAlbum]) -> str:
 
 def get_similar_artists_image_url(tidal_session: TidalSession, artist_id: str) -> str:
     try:
-        artist: TidalArtist = tidal_session.artist(artist_id)
+        artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+        if not artist:
+            return None
         similar_artist_list: list[TidalArtist] = artist.get_similar() if artist else None
         select: TidalArtist = (secrets.choice(similar_artist_list)
                                if similar_artist_list and len(similar_artist_list) > 0
@@ -4312,8 +4396,9 @@ def handler_element_artist_related(objid, item_identifier: ItemIdentifier, entri
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     missing_artist_art: bool = item_identifier.get(ItemIdentifierKey.MISSING_ARTIST_ART)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
-    # artist_name: str = artist.name
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return entries
     if not artist:
         msgproc.log(f"Artist with id {artist_id} not found")
         return entries
@@ -4349,13 +4434,16 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     missing_artist_art: bool = item_identifier.get(ItemIdentifierKey.MISSING_ARTIST_ART)
     tidal_session: TidalSession = get_session()
-    artist: TidalArtist = tidal_session.artist(artist_id)
+    artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    if not artist:
+        return create_missing_artist_entry(
+            objid=objid,
+            tidal_session=tidal_session,
+            artist_id=artist_id,
+            artist=None,
+            entries=entries)
     # force reload artist image
     tidal_util.get_image_url(artist, refresh=True)
-    # artist_name: str = artist.name
-    if not artist:
-        msgproc.log(f"Artist with id {artist_id} not found")
-        return entries
     msgproc.log(f"Loading page for artist_id: [{artist_id}] artist.id: [{artist.id}] artist.name: [{artist.name}]")
     album_tuple_array = [
         (ElementType.ARTIST_ALBUM_ALBUMS, "Albums", get_artist_albums_image_url),
@@ -4398,8 +4486,8 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         fav_action_elem: ElementType
         fav_action_text: str
         fav_action_elem, fav_action_text = (
-            (ElementType.FAV_ARTIST_DEL, constants.button_title_remove_artist_from_favorites) if in_favorites
-            else (ElementType.FAV_ARTIST_ADD, constants.button_title_add_artist_to_favorites))
+            (ElementType.FAV_ARTIST_DEL, constants.ActionButtonTitle.FAVORITE_RMV.value) if in_favorites
+            else (ElementType.FAV_ARTIST_ADD, constants.ActionButtonTitle.FAVORITE_ADD.value))
         # msgproc.log(f"Artist with id [{artist_id}] name [{artist_name}] is in favorites: "
         #             f"[{'yes' if in_favorites else 'no'}]")
         fav_action: ItemIdentifier = ItemIdentifier(

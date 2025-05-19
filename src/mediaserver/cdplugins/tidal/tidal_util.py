@@ -55,6 +55,7 @@ from played_track import PlayedTrack
 
 from album_sort_criteria import AlbumSortCriteria
 from album_adapter import AlbumAdapter
+from datetime import datetime
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -904,6 +905,19 @@ def get_cached_audio_quality(album_id: str) -> CachedTidalQuality:
         audio_quality=audio_quality)
 
 
+def get_album_disc_and_track_counters(album: AlbumAdapter) -> str:
+    disc_count: int = album.num_volumes
+    result: str = (f"{disc_count} Disc{'s' if disc_count > 1 else ''}, "
+                   if disc_count and disc_count != -1 else "")
+    result += (f"{album.num_tracks} Track{'s' if album.num_tracks > 1 else ''}"
+               if album.num_tracks and album.num_tracks != -1 else "")
+    return result
+
+
+def date_to_display(dt: datetime) -> str:
+    return f"{dt.year:04d}/{dt.month:02d}/{dt.day:02d}"
+
+
 def add_album_adapter_metadata(album_adapter: AlbumAdapter, target: dict[str, any]):
     # upv
     universal_product_number: int = album_adapter.universal_product_number
@@ -946,3 +960,16 @@ def add_album_adapter_metadata(album_adapter: AlbumAdapter, target: dict[str, an
     # else:
     #     msgproc.log(f"Setting single artist for [{album_adapter.id}] ...")
     #     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album_adapter.artist_name, target)
+    # duration
+    duration_sec: int = album_adapter.duration
+    if album_adapter.duration and album_adapter.duration != -1:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_DURATION,
+            upmpdmeta.get_duration_display_from_sec(duration_sec),
+            target)
+    # disc and tracks
+    disc_track_counters: str = get_album_disc_and_track_counters(album_adapter)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_DISC_AND_TRACK_COUNTERS, disc_track_counters, target)
+    # available release date
+    available_release_date_str: str = date_to_display(album_adapter.available_release_date)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_AVAILABLE_RELEASE_DATE, available_release_date_str, target)
