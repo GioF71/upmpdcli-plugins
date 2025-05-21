@@ -719,6 +719,10 @@ upradiostitle = Upmpdcli Radio List
 # <descr>If enabled, the year will be appended to the album as a search result. Disabled by default.</descr></var>
 #subsonicappendyeartoalbumsearchres = 0
 
+# <var name="subsonicappendrolestoartist" type="bool"><brief>Append roles to artists</brief>
+# <descr>If enabled, the artist roles will be appended to artist entries. Enabled by default.</descr></var>
+#subsonicappendrolestoartist = 1
+
 # <var name="subsonictranscodecodec" type="string"><brief>Enable transcoding</brief>
 # <descr>If a value is set, it will be used as the codec for the transcoding process</descr></var>
 #subsonictranscodecodec = ogg

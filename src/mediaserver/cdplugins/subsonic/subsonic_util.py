@@ -132,21 +132,29 @@ def try_get_artist(artist_id: str) -> Artist:
         msgproc.log(f"Cannot find Artist by artist_id [{artist_id}] due to [{type(e)}] [{e}]")
 
 
-def get_album_cover_art_by_album(album: Album) -> str:
+def get_cover_art_by_song(song: Song) -> str:
+    return song.getCoverArt() if song else None
+
+
+def get_cover_art_by_album(album: Album) -> str:
     return album.getCoverArt() if album else None
 
 
-def get_album_cover_art_by_album_id(album_id: str) -> str:
+def get_cover_art_by_album_id(album_id: str) -> str:
     album: Album = try_get_album(album_id)
-    return get_album_cover_art_by_album(album)
+    return get_cover_art_by_album(album)
 
 
-def get_album_cover_art_url_by_album(album: Album) -> str:
-    return build_cover_art_url(get_album_cover_art_by_album(album))
+def get_cover_art_url_by_album(album: Album) -> str:
+    return build_cover_art_url(get_cover_art_by_album(album))
 
 
-def get_album_cover_art_url_by_album_id(album_id: str) -> str:
-    return build_cover_art_url(get_album_cover_art_by_album_id(album_id))
+def get_cover_art_url_by_song(song: Song) -> str:
+    return build_cover_art_url(get_cover_art_by_song(song))
+
+
+def get_cover_art_url_by_album_id(album_id: str) -> str:
+    return build_cover_art_url(get_cover_art_by_album_id(album_id))
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
@@ -156,7 +164,7 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
         msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
         cache_actions.on_album(album)
     else:
-        msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] artist [{album.getArtist()}]...")
+        msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
         return None, []
     albumArtURI: str = build_cover_art_url(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
@@ -299,9 +307,6 @@ def get_album_list_by_artist_genre(
 
 class ArtistsOccurrence:
 
-    __id: str = None
-    __name: str = None
-
     def __init__(self, id: str, name: str):
         self.__id = id
         self.__name = name
@@ -315,11 +320,64 @@ class ArtistsOccurrence:
         return self.__name
 
 
+class Contributor:
+
+    def __init__(self, role: str, artist_reference: ArtistsOccurrence):
+        self.__role: str = role
+        self.__artist_reference: ArtistsOccurrence = artist_reference
+
+    @property
+    def role(self) -> str:
+        return self.__role
+
+    @property
+    def artist_reference(self) -> ArtistsOccurrence:
+        return self.__artist_reference
+
+
 def get_album_artists_from_album(album: Album) -> list[dict[str, str]]:
     return album.getItem().getListByName(constants.ItemKey.ARTISTS.value)
 
 
-def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOccurrence]:
+def get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurrence]:
+    contributor_list: list[dict[str, str]] = obj.getItem().getListByName(constants.ItemKey.CONTRIBUTORS.value)
+    result: list[Contributor] = []
+    current: dict[str, str]
+    for current in contributor_list if contributor_list else []:
+        if constants.DictKey.ROLE.value in current and constants.DictKey.ARTIST.value in current:
+            role: str = current[constants.DictKey.ROLE.value]
+            artist_dict: dict[str, str] = current[constants.DictKey.ARTIST.value]
+            if not isinstance(artist_dict, dict):
+                raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
+                                f"{constants.DictKey.ARTIST.value} dict")
+            if constants.DictKey.ID.value not in artist_dict or constants.DictKey.NAME.value not in artist_dict:
+                raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
+                                f"{constants.DictKey.ID.value} or {constants.DictKey.NAME.value} key")
+            contributor: Contributor = Contributor(
+                role=role,
+                artist_reference=ArtistsOccurrence(
+                    id=artist_dict[constants.DictKey.ID.value],
+                    name=artist_dict[constants.DictKey.NAME.value]))
+            result.append(contributor)
+        else:
+            raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the expected keys")
+    return result
+
+
+def get_artists_in_song_or_album(obj: Song | Album, item_key: constants.ItemKey) -> list[ArtistsOccurrence]:
+    artist_list: list[dict[str, str]] = obj.getItem().getListByName(item_key.value)
+    result: list[ArtistsOccurrence] = []
+    current: dict[str, str]
+    for current in artist_list if artist_list else []:
+        if constants.DictKey.NAME.value in current and constants.DictKey.ID.value in current:
+            occ: ArtistsOccurrence = ArtistsOccurrence(current[constants.DictKey.ID.value], current[constants.DictKey.NAME.value])
+            result.append(occ)
+        else:
+            raise Exception(f"Item {item_key.value} does not contain the expected keys")
+    return result
+
+
+def get_all_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOccurrence]:
     occ_list: list[ArtistsOccurrence] = list()
     artist_id_set: set[str] = set()
     # add id,name from album itself
@@ -333,26 +391,58 @@ def get_artists_in_album(album: Album, in_songs: bool = True) -> list[ArtistsOcc
         lst = list()
     current: dict[str, str]
     for current in lst:
-        if "name" in current and "id" in current and not current["id"] in artist_id_set:
-            occ_list.append(ArtistsOccurrence(id=current["id"], name=current["name"]))
-            artist_id_set.add(current["id"])
+        if ((constants.DictKey.NAME.value in current and constants.DictKey.ID.value in current)
+                and not current[constants.DictKey.ID.value] in artist_id_set):
+            occ_list.append(ArtistsOccurrence(id=current[constants.DictKey.ID.value], name=current[constants.DictKey.NAME.value]))
+            artist_id_set.add(current[constants.DictKey.ID.value])
     song_list: list[Song] = album.getSongs() if in_songs else list()
     if song_list:
         song: Song
         for song in song_list:
-            song_artist_list: list[dict[str, str]] = list()
-            album_artist_list: list[str, str] = song.getItem().getListByName(constants.ItemKey.ALBUM_ARTISTS.value)
-            artist_list: list[dict[str, str]] = song.getItem().getListByName(constants.ItemKey.ARTISTS.value)
+            song_artist_list: list[ArtistsOccurrence] = []
+            album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(song, constants.ItemKey.ALBUM_ARTISTS)
+            artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(song, constants.ItemKey.ARTISTS)
             if album_artist_list:
                 song_artist_list.extend(album_artist_list)
             if artist_list:
                 song_artist_list.extend(artist_list)
-            song_dict: dict[str, str]
+            song_dict: ArtistsOccurrence
             for song_dict in song_artist_list:
-                if "name" in song_dict and "id" in song_dict and not song_dict["id"] in artist_id_set:
-                    occ_list.append(ArtistsOccurrence(id=song_dict["id"], name=song_dict["name"]))
-                    artist_id_set.add(song_dict["id"])
+                if song_dict.id not in artist_id_set:
+                    occ_list.append(song_dict)
+                    artist_id_set.add(song_dict.id)
     return occ_list
+
+
+def is_artist_id_in_artist_occurrence_list(artist_id: str, lst: list[ArtistsOccurrence]) -> bool:
+    curr: ArtistsOccurrence
+    for curr in lst:
+        if curr.id == artist_id:
+            return True
+    return False
+
+
+def is_artist_id_in_contributor_list(artist_id: str, lst: list[Contributor], with_role: str = None) -> bool:
+    curr: Contributor
+    for curr in lst:
+        if with_role and not curr.role == with_role:
+            # does not match role
+            continue
+        if curr.artist_reference.id == artist_id:
+            return True
+    return False
+
+
+def is_authored_or_contributed_by_artist_id(obj: Song | Album, artist_id: str, with_role: str = None) -> bool:
+    album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(obj, constants.ItemKey.ALBUM_ARTISTS)
+    if is_artist_id_in_artist_occurrence_list(artist_id, album_artist_list):
+        return True
+    artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(obj, constants.ItemKey.ARTISTS)
+    if is_artist_id_in_artist_occurrence_list(artist_id, artist_list):
+        return True
+    # look in contributors
+    contributor_list: list[Contributor] = get_contributors_in_song_or_album(obj)
+    return is_artist_id_in_contributor_list(artist_id, contributor_list, with_role=with_role)
 
 
 def filter_out_artist_id(artist_list: list[ArtistsOccurrence], artist_id: str) -> list[ArtistsOccurrence]:
@@ -687,6 +777,16 @@ def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
     return lst
 
 
+def get_disc_titles_from_album_as_dict(album: Album) -> dict[int, str]:
+    res: dict[int, str] = {}
+    lst: list[DiscTitle] = get_disc_titles_from_album(album)
+    dt: DiscTitle
+    for dt in lst:
+        if dt.disc_num not in res:
+            res[dt.disc_num] = dt.title
+    return res
+
+
 def append_cached_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_id: str) -> str:
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
         # see if we have it cached.
@@ -768,8 +868,8 @@ def get_album_record_label_names(album: Album) -> list[str]:
     rl: list[dict[str, str]] = album.getItem().getListByName(constants.ItemKey.ALBUM_RECORD_LABELS.value) if album else None
     current: dict[str, str]
     for current in rl:
-        if "name" in current:
-            result.append(current["name"])
+        if constants.DictKey.NAME.value in current:
+            result.append(current[constants.DictKey.NAME.value])
     return result
 
 
@@ -894,6 +994,16 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
         return cover_art_url
 
 
+def get_album_disc_numbers(album: Album) -> list[int]:
+    disc_list: list[int] = []
+    song: Song
+    for song in album.getSongs():
+        dn: int = song.getDiscNumber()
+        if dn and dn not in disc_list:
+            disc_list.append(dn)
+    return disc_list
+
+
 def get_song_duration_display(song: Song) -> str:
     return upmpdmeta.get_duration_display_from_sec(duration_sec=song.getDuration())
 
@@ -910,6 +1020,21 @@ def get_album_disc_and_track_counters(album: Album) -> str:
     result: str = f"{disc_count} Disc{'s' if disc_count > 1 else ''}, "
     result += f"{album.getSongCount()} Track{'s' if album.getSongCount() > 1 else ''}"
     return result
+
+
+def get_songs_by_album_disc_numbers(album: Album) -> dict[int, list[Song]]:
+    res: dict[int, list[Song]] = {}
+    song: Song
+    for song in album.getSongs():
+        dn: int = song.getDiscNumber()
+        lst: list[Song] = res[dn] if dn in res else None
+        if not lst:
+            # build and add to dict
+            lst = []
+            res[dn] = lst
+        # append.
+        lst.append(song)
+    return res
 
 
 def set_artist_metadata_by_artist_id(artist_id: str, target: dict):

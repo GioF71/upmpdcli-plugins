@@ -30,6 +30,9 @@ class TagType(Enum):
     ALL_ARTISTS = 212, "llrtsts", "All Artists (Sorted) (slow!)", None
     ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial) (slow!)", None
     ALL_ARTISTS_UNSORTED = 222, "ll_nst", "All Artists", None
+    ALL_ALBUM_ARTISTS_UNSORTED = 223, "lllbmrtst_nst", "Album Artists", None
+    ALL_COMPOSERS_UNSORTED = 224, "cmpsrs_nst", "Composers", None
+    ALL_CONDUCTORS_UNSORTED = 225, "cndctrs_nst", "Conductors", None
     FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,
     RANDOM_SONGS = 310, "rs", "Random Songs", None,

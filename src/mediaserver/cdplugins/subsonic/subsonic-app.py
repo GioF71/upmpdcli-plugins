@@ -112,6 +112,9 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.ALL_ARTISTS.getTagName(): False,
     TagType.ALL_ARTISTS_INDEXED.getTagName(): False,
     TagType.ALL_ARTISTS_UNSORTED.getTagName(): False,
+    TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): False,
+    TagType.ALL_COMPOSERS_UNSORTED.getTagName(): False,
+    TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): False,
     TagType.FAVOURITE_ARTISTS.getTagName(): False,
     TagType.RANDOM_SONGS.getTagName(): False,
     TagType.RANDOM_SONGS_LIST.getTagName(): False,
@@ -275,17 +278,59 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     return entry
 
 
-def _load_album_tracks(
+def present_album_version(
         objid,
+        item_identifier: ItemIdentifier,
         album_id: str,
         album_version_path: str,
         entries: list) -> list:
-    # msgproc.log(f"_load_album_tracks with album_version_path [{album_version_path}]")
+    # msgproc.log(f"present_album_version with album_version_path [{album_version_path}]")
     album: Album
     album_tracks: AlbumTracks
     album, album_tracks = get_album_tracks(album_id)
     if album is None or album_tracks is None:
         return None
+    discnumber_list: list[int] = subsonic_util.get_album_disc_numbers(album)
+    disc_count: int = len(discnumber_list) if discnumber_list else 1
+    is_multi_disc: bool = disc_count > 1
+    disc_title_dict: dict[int, str] = subsonic_util.get_disc_titles_from_album_as_dict(album)
+    has_disc_titles: bool = is_multi_disc and len(disc_title_dict) > 0
+    max_tracks: int = config.get_config_param_as_int(constants.ConfigParam.MAX_TRACKS_FOR_NO_DISC_SPLIT)
+    too_many_songs: bool = album.getSongCount() > max_tracks
+    show_as_multidisc = (is_multi_disc) and (has_disc_titles or too_many_songs)
+    # msgproc.log(f"present_album_version album [{album_id}] multidisc [{multi_disc}] "
+    #             f"disc_count [{disc_count}]")
+    ignore_multidisc: bool = item_identifier.get(ItemIdentifierKey.ALBUM_IGNORE_DISCNUMBERS, "0") == "1"
+    if show_as_multidisc and not ignore_multidisc:
+        # we should present discs here, passing for now.
+        # we will need avp_enc possibly
+        avp_enc: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, None)
+        songs_by_disc_number: dict[int, list[Song]] = subsonic_util.get_songs_by_album_disc_numbers(album)
+        dn: int
+        for dn in discnumber_list:
+            disc_title: str = disc_title_dict[dn] if dn in disc_title_dict else ""
+            # msgproc.log(f"present_album_version album [{album_id}] disc # [{dn}] -> "
+            #             f"[{disc_title}]")
+            entry_name: str = f"Disc {dn}/{len(discnumber_list)}{': ' + disc_title if disc_title else ''}"
+            # msgproc.log(f"present_album_version album [{album_id}] disc # [{dn}] -> "
+            #             f"entry_name [{entry_name}]")
+            # create disc entry.
+            disc_identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_DISC.getName(), album_id)
+            if avp_enc:
+                disc_identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_enc)
+            disc_identifier.set(ItemIdentifierKey.ALBUM_DISC_NUMBERS, str(dn))
+            disc_id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(disc_identifier))
+            entry: dict[str, any] = upmplgutils.direntry(
+                disc_id,
+                objid,
+                title=entry_name)
+            cover_art_songs: list[Song] = songs_by_disc_number[dn] if dn in songs_by_disc_number else []
+            cover_art_song: Song = cover_art_songs[0] if len(cover_art_songs) > 0 else None
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=subsonic_util.get_cover_art_url_by_song(cover_art_song),
+                target=entry)
+            entries.append(entry)
+        return entries
     artist_id: str = album.getArtistId()
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
     album_quality_badge: str = entry_creator.get_track_list_badge(
@@ -336,7 +381,7 @@ def _load_album_tracks(
             song_cover_art: str = current_song.getCoverArt()
             if song_cover_art and song_cover_art not in force_cover_art_save_trackid_set:
                 force_cover_art_save = True
-            # msgproc.log(f"_load_album_tracks adding creating entry for [{current_song.getId()}] "
+            # msgproc.log(f"present_album_version adding creating entry for [{current_song.getId()}] "
             #             f"force_cover_art_save [{force_cover_art_save}]")
             entry = entry_creator.song_to_entry(
                 objid=objid,
@@ -344,7 +389,7 @@ def _load_album_tracks(
                 force_cover_art_save=force_cover_art_save,
                 options=options)
             if force_cover_art_save:
-                # msgproc.log(f"_load_album_tracks adding [{song_cover_art}] to force_cover_art_save_trackid_set")
+                # msgproc.log(f"present_album_version adding [{song_cover_art}] to force_cover_art_save_trackid_set")
                 force_cover_art_save_trackid_set.add(song_cover_art)
             entries.append(entry)
     # show paths if requested
@@ -352,7 +397,7 @@ def _load_album_tracks(
         curr_album_path: str
         cnt: int = 1
         for curr_album_path in album_path_set:
-            msgproc.log(f"_load_album_tracks album_paths for [{album_id}] album_mbid [{album_mbid}]"
+            msgproc.log(f"present_album_version album_paths for [{album_id}] album_mbid [{album_mbid}]"
                         f"-> [{curr_album_path}] [{cnt}/{len(album_path_set)}]")
             cnt += 1
     return entries
@@ -679,7 +724,7 @@ def _create_list_of_artist_initials(
     return entries
 
 
-def _present_album(
+def present_album(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
@@ -688,7 +733,7 @@ def _present_album(
     if item_identifier.has(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64):
         avp_encoded: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64)
         album_version_path = codec.decode(avp_encoded)
-    return _load_album_tracks(objid, album_id, album_version_path, entries)
+    return present_album_version(objid, item_identifier, album_id, album_version_path, entries)
 
 
 def _create_tag_next_entry(
@@ -1225,28 +1270,60 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
     return entries
 
 
-def handler_tag_all_artists_unsorted(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+def handle_tag_all_artists_unsorted_by_role(
+        objid,
+        item_identifier: ItemIdentifier,
+        tag_type: TagType,
+        entries: list,
+        role_filter: Callable[[Artist], True] = None) -> list:
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    initial_offset: int = offset
     req_count: int = config.get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE)
-    search_result: SearchResult = connector_provider.get().search(
-        query="",
-        artistCount=req_count + 1,
-        artistOffset=offset)
-    artist_list: list[Artists] = search_result.getArtists()
-    to_show: list[Artist] = (artist_list[0:min(len(artist_list), req_count)]
-                             if artist_list and len(artist_list) > 0 else [])
-    next_artist: Artist = artist_list[req_count] if artist_list and len(artist_list) > req_count else None
+    selection: list[Artist] = []
+    exit_loop: bool = False
+    # search_size: int = (req_count + 1) * 2
+    search_size: int = 100
+    while not exit_loop:
+        msgproc.log(f"Searching [{search_size}] artists from offset [{offset}] ...")
+        search_result: SearchResult = connector_provider.get().search(
+            query="",
+            artistCount=search_size,
+            artistOffset=offset)
+        artist_list: list[Artists] = search_result.getArtists()
+        msgproc.log(f"Search for [{search_size}] artists returned [{len(artist_list)}] artists.")
+        current_artist: Artist
+        for current_artist in artist_list:
+            increment_offset: bool = True
+            if not role_filter or role_filter(current_artist):
+                selection.append(current_artist)
+                if len(selection) == (req_count + 1):
+                    # enough filtered artists have been collected collected
+                    exit_loop = True
+                    # this artist is for the "next" entry, so we don't increment the offset
+                    # because next page must start from this artist
+                    increment_offset = False
+                    break
+            if increment_offset:
+                offset += 1
+        if not exit_loop and (len(artist_list) < (search_size)):
+            # no data
+            msgproc.log(f"Retrieved less than [{search_size}] artists, finished.")
+            exit_loop = True
+    next_artist: Artist = selection[len(selection) - 1] if (len(selection) == (req_count + 1)) else None
+    to_display: list[Artist] = selection if not next_artist else selection[0:len(selection) - 1]
+    msgproc.log(f"Showing [{len(to_display)}] "
+                f"artists from initial offset [{initial_offset}] "
+                f"next available [{next_artist is not None}]")
     current: Artist
-    for current in to_show:
-        msgproc.log(f"Adding artist [{current.getId()}] [{current.getName()}] ...")
+    for current in to_display:
         entries.append(entry_creator.artist_to_entry(
             objid=objid,
             artist=current))
     if next_artist:
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.getName(),
-            TagType.ALL_ARTISTS_UNSORTED.getTagName())
-        next_identifier.set(ItemIdentifierKey.OFFSET, offset + req_count)
+            tag_type.getTagName())
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset)
         next_id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(next_identifier))
         next_entry: dict[str, any] = upmplgutils.direntry(
             next_id,
@@ -1259,6 +1336,41 @@ def handler_tag_all_artists_unsorted(objid, item_identifier: ItemIdentifier, ent
             target=next_entry)
         entries.append(next_entry)
     return entries
+
+
+def handler_tag_all_album_artists_unsorted(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return handle_tag_all_artists_unsorted_by_role(
+        objid=objid,
+        item_identifier=item_identifier,
+        tag_type=TagType.ALL_ALBUM_ARTISTS_UNSORTED,
+        role_filter=lambda a: constants.RoleName.ALBUM_ARTIST.value in subsonic_util.get_artist_roles(a),
+        entries=entries)
+
+
+def handler_tag_all_composers_unsorted(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return handle_tag_all_artists_unsorted_by_role(
+        objid=objid,
+        item_identifier=item_identifier,
+        tag_type=TagType.ALL_COMPOSERS_UNSORTED,
+        role_filter=lambda a: constants.RoleName.COMPOSER.value in subsonic_util.get_artist_roles(a),
+        entries=entries)
+
+
+def handler_tag_all_conductors_unsorted(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return handle_tag_all_artists_unsorted_by_role(
+        objid=objid,
+        item_identifier=item_identifier,
+        tag_type=TagType.ALL_CONDUCTORS_UNSORTED,
+        role_filter=lambda a: constants.RoleName.CONDUCTOR.value in subsonic_util.get_artist_roles(a),
+        entries=entries)
+
+
+def handler_tag_all_artists_unsorted(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return handle_tag_all_artists_unsorted_by_role(
+        objid=objid,
+        item_identifier=item_identifier,
+        tag_type=TagType.ALL_ARTISTS_UNSORTED,
+        entries=entries)
 
 
 def handler_tag_all_artists(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1452,6 +1564,15 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
     return entries
 
 
+def get_authored_or_contributed_songs(album: Album, artist_id: str) -> list[Song]:
+    result: list[Song] = []
+    song: Song
+    for song in album.getSongs():
+        if song.getArtistId() == artist_id or subsonic_util.is_authored_or_contributed_by_artist_id(song, artist_id):
+            result.append(song)
+    return result
+
+
 def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     ref_album_id: str = item_identifier.get(ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST, None)
@@ -1466,13 +1587,17 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             objid=objid,
             id=identifier_util.create_id_from_identifier(songsel_identifier))
         ref_album: Album = subsonic_util.try_get_album(album_id=ref_album_id)
-        if ref_album:
+        contributed_songs: list[Song] = get_authored_or_contributed_songs(ref_album, artist_id) if ref_album else []
+        partial: bool = ((len(contributed_songs) > 0 and len(contributed_songs) < ref_album.getSongCount())
+                         if ref_album else False)
+        msgproc.log(f"Show song selection if partial: [{partial}]")
+        if ref_album and partial:
             songsel_entry: dict[str, any] = upmplgutils.direntry(
                 songsel_id,
                 objid,
                 f"Song selection in [{ref_album.getTitle()}]")
             upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.get_album_cover_art_url_by_album(album=ref_album),
+                album_art_uri=subsonic_util.get_cover_art_url_by_album(album=ref_album),
                 target=songsel_entry)
             entries.append(songsel_entry)
     artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
@@ -1744,7 +1869,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     if len(album_list) > 1:
         album_list_entry_album_id = album_list[1].getId()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.get_album_cover_art_url_by_album_id(album_list_entry_album_id),
+        album_art_uri=subsonic_util.get_cover_art_url_by_album_id(album_list_entry_album_id),
         target=album_list_entry)
     entries.append(album_list_entry)
     return entries
@@ -1895,7 +2020,7 @@ def handler_element_navigable_album(
         skip_artist_id_set.add(skip_artist_id)
     # additional...
     inline_additional_artists_for_album: bool = True
-    additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_artists_in_album(album=album)
+    additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_all_artists_in_album(album=album)
     additional_artist_len: int = len(additional)
     additional_artists_max: int = config.get_config_param_as_int(constants.ConfigParam.ADDITIONAL_ARTISTS_MAX)
     if additional_artist_len > additional_artists_max:
@@ -1975,7 +2100,7 @@ def handler_additional_album_artists(
     if album.getArtistId():
         skip_artist_id_set.add(album.getArtistId())
     additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.filter_out_artist_id(
-        artist_list=subsonic_util.get_artists_in_album(album=album),
+        artist_list=subsonic_util.get_all_artists_in_album(album=album),
         artist_id=album.getArtistId())
     current: subsonic_util.ArtistsOccurrence
     # apply offset
@@ -2109,8 +2234,8 @@ def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict
             subsonic_util.build_cover_art_url(second_art_album.getCoverArt() if second_art_album else None),
             radio_song_list_entry)
     else:
-        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_album_id(iid), radio_entry)
-        upnp_util.set_album_art_from_uri(subsonic_util.get_album_cover_art_url_by_album_id(iid), radio_song_list_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.get_cover_art_url_by_album_id(iid), radio_entry)
+        upnp_util.set_album_art_from_uri(subsonic_util.get_cover_art_url_by_album_id(iid), radio_song_list_entry)
     return [radio_entry, radio_song_list_entry]
 
 
@@ -2206,16 +2331,12 @@ def handler_album_song_selection_by_artist(objid, item_identifier: ItemIdentifie
     album: Album = subsonic_util.try_get_album(album_id=ref_album_id)
     if not album:
         return entries
-    song_selection: list[Song] = []
+    # song_selection: list[Song] = []
+    song_selection: list[Song] = get_authored_or_contributed_songs(album, artist_id)
     curr: Song
-    for curr in album.getSongs():
-        artists_list: list[dict[str, str]] = curr.getItem().getListByName(constants.ItemKey.ARTISTS.value)
-        # first is id, second is name
-        a: dict[str, str]
-        for a in artists_list:
-            if "id" in a and a["id"] == artist_id:
-                msgproc.log(f"Found matching track D[{curr.getDiscNumber()}] T[{curr.getTrack()}]")
-                song_selection.append(curr)
+    # for curr in album.getSongs():
+    #     # if subsonic_util.is_authored_or_contributed_by_artist_id(curr, artist_id):
+    #     song_selection.append(curr)
     # display the song selection
     for curr in song_selection:
         song_entry: dict[str, any] = entry_creator.song_to_entry(
@@ -2223,6 +2344,42 @@ def handler_album_song_selection_by_artist(objid, item_identifier: ItemIdentifie
             song=curr)
         if song_entry:
             entries.append(song_entry)
+    return entries
+
+
+def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    avp_enc: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, None)
+    disc_num_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_DISC_NUMBERS, None)
+    msgproc.log(f"handler_element_album_disc for album_id [{album_id}] "
+                f"avp_enc [{avp_enc}] disc_num [{disc_num_str}]")
+    if not disc_num_str:
+        msgproc.log(f"handler_element_album_disc for album_id [{album_id}] missing disc number")
+        return entries
+    # split disc numbers
+    disc_number_str_list: list[str] = disc_num_str.split(constants.Separator.DISC_NUMBER_SEPARATOR.value)
+    disc_number_list: list[int] = list(map(int, disc_number_str_list))
+    # get the album tracks
+    album_version_path: str = codec.decode(avp_enc) if avp_enc else None
+    album: Album = subsonic_util.try_get_album(album_id)
+    if not album:
+        msgproc.log(f"handler_element_album_disc cannot get album by album_id [{album_id}]")
+        return entries
+    song_list: list[Song] = album.getSongs()
+    to_display: list[Song] = song_list if not album_version_path else []
+    if album_version_path:
+        # filter
+        current: Song
+        for current in song_list:
+            if current.getPath().startswith(album_version_path):
+                to_display.append(current)
+    song: Song
+    for song in to_display:
+        if song.getDiscNumber() in disc_number_list:
+            # add to entries ...
+            song_entry: dict[str, any] = entry_creator.song_to_entry(objid=objid, song=song)
+            if song_entry:
+                entries.append(song_entry)
     return entries
 
 
@@ -2254,7 +2411,7 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
     if album:
         msgproc.log(f"One version only for album [{album.getId()}] "
                     f"mb [{subsonic_util.get_album_musicbrainz_id(album)}], presenting ...")
-    return _present_album(objid, item_identifier, entries)
+    return present_album(objid, item_identifier, entries)
 
 
 def handler_element_radio_station(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -2322,18 +2479,29 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
     return entries
 
 
+def get_first_cover_art_from_song_list(song_list: list[Song]) -> str:
+    song: Song
+    for song in song_list if song_list else []:
+        if song.getCoverArt():
+            return song.getCoverArt()
+    return None
+
+
 def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     tag_list: list[TagType] = [
         TagType.ALL_ARTISTS,
         TagType.ALL_ARTISTS_INDEXED,
-        TagType.ALL_ARTISTS_UNSORTED]
+        TagType.ALL_ARTISTS_UNSORTED,
+        TagType.ALL_ALBUM_ARTISTS_UNSORTED,
+        TagType.ALL_COMPOSERS_UNSORTED,
+        TagType.ALL_CONDUCTORS_UNSORTED]
     current_tag: TagType
     for current_tag in tag_list:
         entry: dict[str, any] = create_entry_for_tag(objid, current_tag)
         # pick random song for image
         res: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=1)
-        random_song: Song = res.getObj().getSongs()[0] if res and len(res.getObj().getSongs()) > 0 else None
-        cover_art: str = random_song.getCoverArt() if random_song else None
+        song_list: list[Song] = res.getObj().getSongs() if res and res.isOk() else []
+        cover_art: str = get_first_cover_art_from_song_list(song_list)
         upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), target=entry)
         entries.append(entry)
     fav_artists: list[Artist] = list()
@@ -2395,6 +2563,9 @@ __tag_action_dict: dict = {
     TagType.ALL_ARTISTS.getTagName(): handler_tag_all_artists,
     TagType.ALL_ARTISTS_INDEXED.getTagName(): handler_tag_all_artists_indexed,
     TagType.ALL_ARTISTS_UNSORTED.getTagName(): handler_tag_all_artists_unsorted,
+    TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): handler_tag_all_album_artists_unsorted,
+    TagType.ALL_COMPOSERS_UNSORTED.getTagName(): handler_tag_all_composers_unsorted,
+    TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): handler_tag_all_conductors_unsorted,
     TagType.FAVOURITE_ARTISTS.getTagName(): handler_tag_favourite_artists,
     TagType.PLAYLISTS.getTagName(): handler_tag_playlists,
     TagType.INTERNET_RADIOS.getTagName(): handler_tag_internet_radios,
@@ -2411,6 +2582,7 @@ __elem_action_dict: dict = {
     ElementType.ARTIST_FOCUS.getName(): handler_element_artist_focus,
     ElementType.GENRE_ARTIST.getName(): handler_element_genre_artist,
     ElementType.ALBUM.getName(): handler_element_album,
+    ElementType.ALBUM_DISC.getName(): handler_element_album_disc,
     ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.getName(): handler_album_song_selection_by_artist,
     ElementType.NAVIGABLE_ALBUM.getName(): handler_element_navigable_album,
     ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(): handler_additional_album_artists,

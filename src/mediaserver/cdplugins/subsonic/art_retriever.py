@@ -32,6 +32,7 @@ import subsonic_util
 import cache_actions
 import persistence
 import config
+import constants
 
 import secrets
 
@@ -133,8 +134,9 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
         return subsonic_util.build_cover_art_url(item_id=artist_cover_art, force_save=force_save)
     # maybe look at the albums if available
     album_list: list[Album] = artist.getAlbumList()
-    msgproc.log(f"get_album_art_uri_for_artist [{artist.getId()}] [{artist.getName()}] "
-                f"album_list len is [{len(album_list)}]")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_album_art_uri_for_artist [{artist.getId()}] [{artist.getName()}] "
+                    f"album_list len is [{len(album_list)}]")
     if not album_list:
         album_list = []
     non_appearances: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
@@ -166,13 +168,15 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
     artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
     if artist_metadata and artist_metadata.artist_cover_art:
         # found in cache.
-        msgproc.log(f"get_album_art_uri_for_artist_id metadata cache hit for [{artist_id}] -> "
-                    f"[{'yes' if artist_metadata else 'no'}]")
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"get_album_art_uri_for_artist_id metadata cache hit for [{artist_id}] -> "
+                        f"[{'yes' if artist_metadata else 'no'}]")
         return subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
     # fallback to in-memory cache.
     art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
     if art_album_id:
-        msgproc.log(f"get_album_art_uri_for_artist_id cache hit for [{artist_id}] -> [{art_album_id}]")
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"get_album_art_uri_for_artist_id cache hit for [{artist_id}] -> [{art_album_id}]")
         art_album: Album = subsonic_util.try_get_album(art_album_id)
         if not art_album:
             # delete offending album from cache
@@ -184,13 +188,15 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
                                             if art_album
                                             else None)
             return art_album_cover_art_uri
-    msgproc.log(f"get_album_art_uri_for_artist_id loading artist by id [{artist_id}] ...")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_album_art_uri_for_artist_id loading artist by id [{artist_id}] ...")
     # load artist
     artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=artist) if artist else None
     if artist_cover_art:
         # use this!
-        msgproc.log(f"get_album_art_uri_for_artist_id using artist coverArt for artist_id [{artist_id}]")
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"get_album_art_uri_for_artist_id using artist coverArt for artist_id [{artist_id}]")
         return subsonic_util.build_cover_art_url(artist_cover_art)
     album_list: list[Album] = artist.getAlbumList() if artist else []
     select_album_list: list[Album] = album_list
@@ -199,10 +205,11 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
         artist_id=artist_id,
         album_list=album_list,
         opposite=True)
-    msgproc.log(f"get_album_art_uri_for_artist_id select_album_list for [{artist_id}] "
-                f"[{artist.getName() if artist else None}] "
-                f"full length [{len(album_list) if album_list else 0}] "
-                f"as main artist only [{len(as_main_artist_album_list)}]")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_album_art_uri_for_artist_id select_album_list for [{artist_id}] "
+                    f"[{artist.getName() if artist else None}] "
+                    f"full length [{len(album_list) if album_list else 0}] "
+                    f"as main artist only [{len(as_main_artist_album_list)}]")
     if len(as_main_artist_album_list) > 0:
         select_album_list = as_main_artist_album_list
     subsonic_util.sort_albums_by_date(select_album_list)
@@ -251,8 +258,9 @@ def get_first_album_with_cover_art_from_album_list(album_list: list[Album]) -> s
     album: Album
     for album in album_list if album_list else []:
         if album.getCoverArt():
-            msgproc.log(f"get_first_album_with_cover_art_from_album_list using album [{album.getId()}] "
-                        f"coverArt [{album.getCoverArt()}]")
+            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                msgproc.log(f"get_first_album_with_cover_art_from_album_list using album [{album.getId()}] "
+                            f"coverArt [{album.getCoverArt()}]")
             return album
     # none found
     return None

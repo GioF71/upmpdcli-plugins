@@ -31,6 +31,8 @@ class ItemIdentifierKey(Enum):
     SKIP_ARTIST_ID = 23, "skprtstd"
     ALBUM_RELEASE_TYPE = 24, "lbmrlst"
     ALBUM_ID_REF_FOR_ARTIST = 25, "lbmidrf4rtst"
+    ALBUM_DISC_NUMBERS = 26, "lbmdscn"
+    ALBUM_IGNORE_DISCNUMBERS = 27, "lbmgndscn"
 
     def __init__(
             self,
