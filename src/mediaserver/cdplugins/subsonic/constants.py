@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.2"
+    PLUGIN_RELEASE = "0.8.3"
     PLUGIN_NAME = "subsonic"
 
 
@@ -32,6 +32,7 @@ class ItemKey(Enum):
     RELEASE_TYPES = "releaseTypes"
     ALBUM_ARTISTS = "albumArtists"
     ARTISTS = "artists"
+    CONTRIBUTORS = "contributors"
     ORIGINAL_RELEASE_DATE = "originalReleaseDate"
     EXPLICIT_STATUS = "explicitStatus"
     DISC_TITLES = "discTitles"
@@ -42,6 +43,14 @@ class ItemKey(Enum):
     ALBUM_RECORD_LABELS = "recordLabels"
     IS_COMPILATION = "isCompilation"
     ROLES = "roles"
+
+
+class DictKey(Enum):
+
+    ID = "id"
+    NAME = "name"
+    ROLE = "role"
+    ARTIST = "artist"
 
 
 class AlbumEntryType(Enum):
@@ -133,6 +142,7 @@ class ConfigParam(Enum):
     MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData("maxadditionalalbumartistsperpage", 10)
     DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", 0)
     APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
+    APPEND_ROLES_TO_ARTIST = _ConfigParamData("appendrolestoartist", True)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
@@ -145,6 +155,10 @@ class ConfigParam(Enum):
     SKIP_USER_AGENT = _ConfigParamData("skipuseragent", 0)
     USER_AGENT = _ConfigParamData("useragent", "upmpdcli")
 
+    MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData("maxtracksfornodiscsplit", 60)
+
+    VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
+
     @property
     def key(self) -> str:
         return self.value.key
@@ -152,6 +166,46 @@ class ConfigParam(Enum):
     @property
     def default_value(self) -> any:
         return self.value.default_value
+
+
+class RoleTranslatorData:
+
+    def __init__(self, role_key: str, role_display_name: str):
+        self.__role_key: str = role_key
+        self.__role_display_name: str = role_display_name
+
+    @property
+    def role_key(self) -> str:
+        return self.__role_key
+
+    @property
+    def role_display_name(self) -> str:
+        return self.__role_display_name
+
+
+class RoleName(Enum):
+    ALBUM_ARTIST = "albumartist"
+    ARTIST = "artist"
+    PERFORMER = "performer"
+    CONDUCTOR = "conductor"
+    COMPOSER = "composer"
+
+
+class RoleTranslator(Enum):
+
+    ARTIST = RoleTranslatorData(RoleName.ARTIST.value, "Artist")
+    ALBUM_ARTIST = RoleTranslatorData(RoleName.ALBUM_ARTIST.value, "Album Artist")
+    PERFORMER = RoleTranslatorData(RoleName.PERFORMER.value, "Performer")
+    CONDUCTOR = RoleTranslatorData(RoleName.CONDUCTOR.value, "Conductor")
+    COMPOSER = RoleTranslatorData(RoleName.COMPOSER.value, "Composer")
+
+    @property
+    def role_key(self) -> str:
+        return self.value.role_key
+
+    @property
+    def role_display_name(self) -> str:
+        return self.value.role_display_name
 
 
 class _ExplicitStatusData:
@@ -194,6 +248,11 @@ class UpnpMeta(Enum):
 class MetadataMaxLength(Enum):
 
     ALBUM_PATH = 128
+
+
+class Separator(Enum):
+
+    DISC_NUMBER_SEPARATOR = ","
 
 
 default_debug_badge_mngmt: int = 0

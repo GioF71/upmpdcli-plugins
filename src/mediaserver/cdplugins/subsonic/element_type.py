@@ -46,6 +46,7 @@ class ElementType(Enum):
     ADDITIONAL_ALBUM_ARTISTS = 26, "ddtlnlbmrtsts"
     ARTIST_APPEARANCES = 27, "rtstpprncs"
     ALBUM_SONG_SELECTION_BY_ARTIST = 28, "lbmslct4rtst"
+    ALBUM_DISC = 29, "lmbdsc"
 
     def __init__(
             self,

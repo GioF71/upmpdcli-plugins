@@ -21,6 +21,7 @@ from typing import Callable
 
 import upmplgutils
 import constants
+import config
 
 from enum import Enum
 
@@ -584,9 +585,10 @@ def save_album_metadata(album_metadata: AlbumMetadata):
 
 
 def save_artist_metadata(artist_metadata: ArtistMetadata):
-    msgproc.log(f"save_artist_metadata for artist_id: {artist_metadata.artist_id} "
-                f"name: {artist_metadata.artist_name} "
-                f"musicbrainz_id: {artist_metadata.artist_musicbrainz_id}")
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"save_artist_metadata for artist_id: {artist_metadata.artist_id} "
+                    f"name: {artist_metadata.artist_name} "
+                    f"musicbrainz_id: {artist_metadata.artist_musicbrainz_id}")
     existing_metadata: ArtistMetadata = get_artist_metadata(artist_id=artist_metadata.artist_id)
     if existing_metadata:
         # update

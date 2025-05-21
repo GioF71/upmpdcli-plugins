@@ -642,6 +642,24 @@ def genre_to_entry(
     return entry
 
 
+def artist_role_key_to_display(role_key: str) -> str:
+    role_translator: constants.RoleTranslator
+    for role_translator in constants.RoleTranslator:
+        if role_translator.role_key == role_key:
+            return role_translator.role_display_name
+    # no match.
+    return role_key.capitalize()
+
+
+def maybe_append_roles(entry_name: str, artist: Artist) -> str:
+    if config.get_config_param_as_bool(constants.ConfigParam.APPEND_ROLES_TO_ARTIST):
+        artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
+        disp: list[str] = list(map(artist_role_key_to_display, artist_roles))
+        return f"{entry_name} [{', '.join(disp)}]"
+    else:
+        return entry_name
+
+
 def artist_to_entry(
         objid,
         artist: Artist,
@@ -650,10 +668,11 @@ def artist_to_entry(
         options: dict[str, any] = {}) -> dict[str, any]:
     cover_art: str = subsonic_util.get_artist_cover_art(artist)
     artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
-    msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
-                f"roles [{artist_roles}] "
-                f"coverArt [{cover_art}]")
-    select_entry_name: str = entry_name if entry_name else f"{artist.getName()} [{', '.join(artist_roles)}]"
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
+                    f"roles [{artist_roles}] "
+                    f"coverArt [{cover_art}]")
+    select_entry_name: str = entry_name if entry_name else maybe_append_roles(artist.getName(), artist)
     artist_entry: dict[str, any] = artist_to_entry_raw(
         objid=objid,
         artist_id=artist.getId(),
@@ -1018,4 +1037,5 @@ def album_version_to_entry(
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     current_album_cover_art: str = subsonic_util.build_cover_art_url(item_id=current_album.getCoverArt())
     upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
+    upnp_util.set_class_album(entry)
     return entry

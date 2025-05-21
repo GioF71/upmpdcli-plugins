@@ -1,5 +1,17 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.3
+
+- Make append roles to artist configurable (`subsonicappendrolestoartist`)
+- Show song selection from album only if needed
+- Improved song selection functionality
+- Split multi-disc albums (especially useful with collections with lots of tracks which can be slow to display)
+- Split of multi-disc albums does not happen if total number of tracks is up to 60 (by default, `subsonicmaxtracksfornodiscsplit`) and there are no disc titles
+- Set class to album when showing an album version (album split over different paths, possibly duplicate)
+- Add Album Artists view
+- Add Composers view
+- Add Conductors view
+
 ## Release 0.8.2
 
 - Support for server path (see [this issue](https://github.com/GioF71/upmpdcli-docker/issues/522))
