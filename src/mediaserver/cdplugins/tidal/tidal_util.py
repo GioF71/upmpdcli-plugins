@@ -128,12 +128,13 @@ def get_name_or_title(obj: any) -> str:
     return None
 
 
-def set_album_art_from_album_id(album_id: str, tidal_session: TidalSession, entry: dict):
-    album_art_url: str = get_album_art_url_by_album_id(album_id=album_id, tidal_session=tidal_session)
-    upnp_util.set_album_art_from_uri(album_art_url, entry)
-
-
-def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) -> str:
+def get_album_art_url_by_album_id(
+        album_id: str,
+        tidal_session: TidalSession,
+        album: TidalAlbum = None) -> str:
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    # if True:
+        msgproc.log(f"get_album_art_url_by_album_id for album_id [{album_id}] album [{'set' if album else 'not set'}]")
     if config.get_enable_image_caching():
         # try cached!
         document_root_dir: str = config.getWebServerDocumentRoot()
@@ -168,8 +169,23 @@ def get_album_art_url_by_album_id(album_id: str, tidal_session: TidalSession) ->
     # if we are are, we fallback to normal
     if config.get_dump_image_caching():
         msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> loading from upstream service is required")
-    album: TidalAlbum = try_get_album(album_id=album_id, tidal_session=tidal_session)
+    # album: TidalAlbum = album if album else try_get_album(album_id=album_id, tidal_session=tidal_session)
+    if not album:
+        album = try_get_album(album_id=album_id, tidal_session=tidal_session)
     return get_image_url(obj=album, refresh=True) if album else None
+
+
+def get_web_document_root_file_url(dir_list: list[str], file_name: str) -> str:
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_web_document_root_file_url for [{dir_list}] [{file_name}]")
+    path: list[str] = list()
+    path.extend(dir_list)
+    path.append(file_name)
+    file_url: str = compose_docroot_url(os.path.join(*path))
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_web_document_root_file_url for [{dir_list}] [{file_name}] "
+                    f"-> [{file_url}]")
+    return file_url
 
 
 def get_image_url(obj: any, refresh: bool = False) -> str:
@@ -214,28 +230,31 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         if file_types and len(file_types) > 0:
             # file_types include the "."
             cached_file: str = os.path.join(image_dir, f"{str(obj.id)}{file_types[0].lower()}")
-            msgproc.log(f"get_image_url got mimetype for [{image_url}] -> "
-                        f"[{file_types}] -> "
-                        f"saving to [{cached_file}]")
+            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                msgproc.log(f"get_image_url got mimetype for [{image_url}] -> "
+                            f"[{file_types}] -> "
+                            f"saving to [{cached_file}]")
             img_data: bytes = requests.get(image_url).content
             with open(cached_file, 'wb') as handler:
                 handler.write(img_data)
-            path: list[str] = list()
-            path.extend(sub_dir_list)
-            path.append(f"{str(obj.id)}{file_types[0].lower()}")
-            cached_image_url: str = compose_docroot_url(os.path.join(*path))
+            cached_image_url: str = get_web_document_root_file_url(
+                dir_list=sub_dir_list,
+                file_name=f"{str(obj.id)}{file_types[0].lower()}")
             return cached_image_url
         else:
             msgproc.log(f"Cannot understand file type for item id [{str(obj.id)}], cannot cache.")
             return None
     elif cached_file_name:
-        path: list[str] = list()
-        path.extend(sub_dir_list)
-        path.append(f"{str(obj.id)}{cached_file_name_ext}")
+        ## path: list[str] = list()
+        ## path.extend(sub_dir_list)
+        ## path.append(f"{str(obj.id)}{cached_file_name_ext}")
         # remember, cached_file_name_ext will include the ".", so it will likely be ".jpg"
-        cached_image_url: str = compose_docroot_url(os.path.join(*path))
+        # cached_image_url: str = compose_docroot_url(os.path.join(*path))
         # msgproc.log(f"get_image_url returning cached [{cached_image_url}]")
-        return cached_image_url
+        # return cached_image_url
+        return get_web_document_root_file_url(
+                dir_list=sub_dir_list,
+                file_name=f"{str(obj.id)}{cached_file_name_ext}")
 
 
 def __get_cached_file_names(cache_dir: str, item_id: str) -> list[str]:
@@ -666,22 +685,25 @@ def load_unique_ids_from_mix_or_playlist(
         previous_page_last_found_id: str = None,
         item_filter: Callable[[any], any] = lambda x: track_only(x),
         initial_offset: int = 0,
-        max_slice_size: int = 100) -> tuple[list[str], int, bool, str]:
-    # msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_playlist_id [{tidal_obj_id}] "
-    #             f"tidal_obj_type [{tidal_obj_type}] "
-    #             f"initial_offset [{initial_offset}] max_slice_size [{max_slice_size}]")
+        max_slice_size: int = 100) -> tuple[list[str], list[any], int, bool, str]:
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_playlist_id [{tidal_obj_id}] "
+                    f"tidal_obj_type [{tidal_obj_type}] "
+                    f"initial_offset [{initial_offset}] max_slice_size [{max_slice_size}]")
     last_offset: int = initial_offset
     id_list: list[str] = list()
+    obj_list: list[any] = list()
     load_count: int = 0
     skip_count: int = 0
     finished: bool = False
     last_found: str = None
     while len(id_list) < max_id_list_length:
         max_loadable: int = max_slice_size
-        msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_pl [{tidal_obj_id}] "
-                    f"tidal_obj_type [{tidal_obj_type}] "
-                    f"loading [{max_loadable}] from offset [{last_offset}] "
-                    f"load_count [{load_count}] skip_count [{skip_count}] ...")
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"load_unique_ids_from_mix_or_playlist mix_or_pl [{tidal_obj_id}] "
+                        f"tidal_obj_type [{tidal_obj_type}] "
+                        f"loading [{max_loadable}] from offset [{last_offset}] "
+                        f"load_count [{load_count}] skip_count [{skip_count}] ...")
         item_list: list[any] = get_mix_or_playlist_items(
             tidal_session=tidal_session,
             tidal_obj_id=tidal_obj_id,
@@ -704,6 +726,7 @@ def load_unique_ids_from_mix_or_playlist(
                     (not previous_page_last_found_id or id_value != previous_page_last_found_id) and
                         (id_value not in id_list)):
                     id_list.append(id_value)
+                    obj_list.append(item)
                     last_found = id_value
                 if len(id_list) == max_id_list_length:
                     # we are finished
@@ -716,7 +739,36 @@ def load_unique_ids_from_mix_or_playlist(
             # we are finished in this case
             finished = True
             break
-    return id_list, last_offset, finished, last_found
+    return id_list, obj_list, last_offset, finished, last_found
+
+
+def get_webserver_cached_images_path() -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value]
+
+
+def get_webserver_static_images_path() -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        constants.PluginConstant.STATIC_IMAGES_DIRECTORY.value]
+
+
+def get_plugin_code_subpath() -> list[str]:
+    return ["cdplugins", constants.PluginConstant.PLUGIN_NAME.value]
+
+
+def get_plugin_code_static_images_subpath() -> list[str]:
+    return get_plugin_code_subpath() + [constants.PluginConstant.PLUGIN_IMAGES_DIRECTORY.value]
+
+
+def get_plugin_static_images_abs_path() -> str:
+    plugin_data_dir: str = upmplgutils.getOptionValue("pkgdatadir")
+    plugin_path: list[str] = get_plugin_code_static_images_subpath()
+    p: str
+    for p in plugin_path:
+        plugin_data_dir = os.path.join(plugin_data_dir, p)
+    return plugin_data_dir
 
 
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
@@ -732,22 +784,6 @@ def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
         #     msgproc.log(f"dir [{new_dir}] already exists.")
         curr_dir = new_dir
     return curr_dir
-
-
-# only temporarily here
-# NPUPNP web server document root if set. This does not come directly from the config, but uses a
-# specific environment variable (upmpdcli does some processing on the configuration value).
-def getUpnpWebDocRoot(servicename):
-    try:
-        d = os.environ["UPMPD_UPNPDOCROOT"]
-        dp = os.path.join(d, servicename)
-        if not os.path.exists(dp):
-            os.makedirs(dp)
-        # returning /.../cachedir/www not /.../cachedir/www/pluginname
-        return d
-    except Exception as ex:
-        msgproc.log(f"NO UPNPWEBDOCROOT: {ex}")
-        return ""
 
 
 def get_docroot_base_url() -> str:
@@ -791,6 +827,12 @@ def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
     return False
 
 
+def get_all_mix_or_playlist_tracks(mix_or_playlist: Union[TidalPlaylist, TidalMix]) -> list[TidalTrack]:
+    return (get_all_playlist_tracks(playlist=mix_or_playlist)
+            if isinstance(mix_or_playlist, TidalPlaylist)
+            else get_all_mix_tracks(mix=mix_or_playlist))
+
+
 def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> list[TidalTrack]:
     result: list[TidalTrack] = []
     offset: int = 0
@@ -811,6 +853,14 @@ def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> 
     return result
 
 
+def get_albums_from_tracks(track_list: list[TidalTrack]) -> list[TidalAlbum]:
+    return list(map(lambda t: t.album, track_list))
+
+
+def get_artists_from_tracks(track_list: list[TidalTrack]) -> list[TidalArtist]:
+    return list(map(lambda t: t.artist, track_list))
+
+
 def get_all_mix_tracks(mix: TidalMix) -> list[TidalTrack]:
     result: list[TidalTrack] = []
     items: list[TidalTrack] = mix.items()
@@ -825,7 +875,8 @@ def create_mix_or_playlist_all_tracks_entry(
         objid: any,
         element_type: ElementType,
         thing_id: str,
-        thing: Union[TidalPlaylist, TidalMix]) -> dict[str, any]:
+        thing: Union[TidalPlaylist, TidalMix],
+        all_tracks: list[TidalTrack]) -> dict[str, any]:
     all_tracks_identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALL_TRACKS_IN_PLAYLIST_OR_MIX.getName(),
         thing_id)
@@ -834,16 +885,12 @@ def create_mix_or_playlist_all_tracks_entry(
         objid=objid,
         id=identifier_util.create_id_from_identifier(all_tracks_identifier))
     all_tracks_entry = upmplgutils.direntry(all_tracks_id, objid, "All Tracks")
-    # TODO maybe select a random cover art
-    some_tracks: list[TidalTrack] = (get_all_playlist_tracks(playlist=thing, max_tracks=50)
-                                     if isinstance(thing, TidalPlaylist)
-                                     else get_all_mix_tracks(mix=thing))
-    select_track_for_all_tracks: TidalTrack = (secrets.choice(some_tracks)
-                                               if some_tracks and len(some_tracks) > 0
-                                               else None)
+    select_item: Union[TidalTrack | TidalVideo] = secrets.choice(all_tracks) if all_tracks else None
+    msgproc.log(f"create_mix_or_playlist_all_tracks_entry select [{select_item is not None}] "
+                f"type [{type(select_item) if select_item else None}]")
     upnp_util.set_album_art_from_uri(
-        get_image_url(select_track_for_all_tracks.album if select_track_for_all_tracks else None),
-        all_tracks_entry)
+        album_art_uri=get_image_url(select_item),
+        target=all_tracks_entry)
     return all_tracks_entry
 
 
@@ -956,10 +1003,8 @@ def add_album_adapter_metadata(album_adapter: AlbumAdapter, target: dict[str, an
             upmpdmeta.UpMpdMeta.ALBUM_ARTIST,
             artist_name_list,
             target)
-        msgproc.log(f"Artists for [{album_adapter.id}] set to [{artist_name_list}] ...")
-    # else:
-    #     msgproc.log(f"Setting single artist for [{album_adapter.id}] ...")
-    #     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album_adapter.artist_name, target)
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"Artists for [{album_adapter.id}] set to [{artist_name_list}] ...")
     # duration
     duration_sec: int = album_adapter.duration
     if album_adapter.duration and album_adapter.duration != -1:

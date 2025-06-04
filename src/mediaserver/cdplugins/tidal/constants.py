@@ -21,9 +21,16 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.8"
+    PLUGIN_RELEASE = "0.8.9"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
+    STATIC_IMAGES_DIRECTORY = "static-images"
+    PLUGIN_IMAGES_DIRECTORY = "static-images"
+
+
+class PluginImageDirectory(Enum):
+    PAGES = "pages"
+    BUTTONS = "buttons"
 
 
 class _FunctionProxy:
@@ -129,6 +136,8 @@ class ConfigParam(Enum):
     TRACK_ID_REGEX = _ConfigParamData("trackidregex", "^[0-9]+$")
     VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
 
+    ALLOW_STATIC_IMAGES_FOR_PAGES = _ConfigParamData("allowstaticimagesforpages", False)
+
     @property
     def key(self) -> str:
         return self.value.key
@@ -204,9 +213,9 @@ default_tracks_per_page: int = 25
 default_mix_items_per_page: int = 25
 default_albums_per_page: int = 25
 default_artists_per_page: int = 25
-default_page_items_per_page: int = 35
+default_page_items_per_page: int = 20
 
-default_page_items_for_tile_image: int = 3
+default_page_items_for_tile_image: int = 1
 
 # this one should be disabled by default for the release
 default_dump_track_to_entry_result: int = 0
