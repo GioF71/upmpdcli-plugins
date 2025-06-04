@@ -6,7 +6,7 @@
 - General code cleanup, fixes and optimizations
 - Review Artists view using search3 instead of getArtists (see [this issue](https://github.com/epoupon/lms/issues/677))
 - Add view for albums without MusicBrainz id (requires to set `subsonicenablemaintenancefeatures` to `1`)
-- Avoid to search albums for each genre if there is not cache hit, unless `subsonicgenreviewsearchalbumsforcoverart` is set to `1`
+- Avoid to search albums for each genre if there is no cache hit, unless `subsonicgenreviewsearchalbumsforcoverart` is set to `1`
 - Execute on_album also when browsing list of albums
 - Showing Artists page is faster now
 - Allow to avoid to use cover art from artists (set `subsonicallowartistcoverart` to `0` for this), which can be expensive on Navidrome if Spotify is connected
