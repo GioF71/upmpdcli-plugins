@@ -500,6 +500,10 @@
 # <descr>The expression used to validate the track_id in trackuri.
 # Do not set it unless you know what you are doing.</descr></var>
 #tidaltrackidregex = 
+# <var name="tidalverboselogging" type="bool">
+# <brief>Enables verbose logging, defaults to 0 (no)</brief>
+# <descr>Enables more verbose logging, might be useful for testing</descr></var>
+#tidalverboselogging = 0
 
 # <grouptitle>UPRCL Local Media Server parameters</grouptitle>
 

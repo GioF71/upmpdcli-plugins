@@ -42,6 +42,7 @@ class TidalTrackAdapter(TrackAdapter):
         self._album_load_failed: bool = False
         self._stream = None
         self._stream_load_failed: bool = False
+        self._track_image_url: str = tidal_util.get_image_url(obj=track)
 
     def __get_album(self):
         if not self._album_load_failed and not self._album:
@@ -99,13 +100,7 @@ class TidalTrackAdapter(TrackAdapter):
         return self._track.album.artist.name
 
     def get_image_url(self) -> str:
-        album: TidalAlbum = None
-        try:
-            album = self.__get_album()
-        except Exception as ex:
-            msgproc.log(f"Cannot load album with album_id [{self._track.album.id}] "
-                        f"due to [{type(ex)}] [{ex}]")
-        return tidal_util.get_image_url(album) if album else None
+        return self._track_image_url
 
     def explicit(self) -> bool:
         return self._track.explicit

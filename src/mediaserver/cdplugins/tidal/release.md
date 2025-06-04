@@ -1,5 +1,27 @@
 # Tidal Plugin Release notes
 
+## 0.8.9
+
+- Some performance improvements
+- Some logging are written only if verbose logging is activated
+- Avoid to load individual artists when not necessary
+- Don't lose reference to already available track object when possible
+- Store image url in TidalTrackAdapter
+- For Artists from Mix or Playlist we avoid to re-load artists
+- Showing Artits and Albums from a Mix is now significantly faster
+- All tracks from a Mix loads significantly faster
+- Serve static images from plugin's static-images path
+- Static images, just for pages right now (not enabled by default, use `tidalallowstaticimagesforpages`)
+- Mix or playlists now load significantly faster
+- Page views are now paginated
+
+### A note on static images
+
+Folders names tidal/static-images/pages and tidal/static-images/buttons will be created on the webdocumemtroot directory.  
+For a standard installation, the folder will be `/var/cache/upmpdcli/www/tidal/static-images/pages` and so on, while for a docker installation, it will be `/cache/wwwpublic/tidal/static-images/pages`, but you will need to check where `/cache` is mounted.  
+The user can of course create these directories upfront.  
+You can then put images in the pages directory only for now, named after the Tidal pages. Those pages are split by the hyphen, space, and by the sequences ` / `, ` & ` sequences. So, for example, for a page named `Rock / Indie`, you can put images named `rock.jpg`, `rock.png`, `indie.webp` in the folder in order to use that image for that entry, making browsing faster. The first file that matches will be used.  
+
 ## 0.8.8
 
 - Append artist at the end of album title instead of at the beginning
