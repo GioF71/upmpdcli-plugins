@@ -49,6 +49,7 @@ import glob
 
 import copy
 import os
+import time
 
 from functools import cmp_to_key
 from typing import Callable
@@ -125,9 +126,15 @@ def try_get_album(
 
 
 def try_get_artist(artist_id: str) -> Artist:
+    start: float = time.time()
     try:
         res: Response[Artist] = connector_provider.get().getArtist(artist_id)
-        return res.getObj() if res and res.isOk() else None
+        artist: Artist = res.getObj() if res and res.isOk() else None
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"try_get_artist loaded artid_id [{artist_id}] "
+                        f"success [{artist is not None}] in "
+                        f"[{(time.time() - start):.3f}] sec")
+        return artist
     except Exception as e:
         msgproc.log(f"Cannot find Artist by artist_id [{artist_id}] due to [{type(e)}] [{e}]")
 
@@ -164,7 +171,7 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
         msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
         cache_actions.on_album(album)
     else:
-        msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
+        msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] ...")
         return None, []
     albumArtURI: str = build_cover_art_url(album.getCoverArt())
     song_list: list[Song] = album.getSongs()
@@ -466,16 +473,21 @@ def get_album_date_for_sorting(album: Album) -> str:
 
 
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    # if verbose:
+    #     msgproc.log(f"ensure_directory [{base_dir}] [{sub_dir_list}] ...")
     curr_sub_dir: str
     curr_dir: str = base_dir
     for curr_sub_dir in sub_dir_list:
         new_dir: str = os.path.join(curr_dir, curr_sub_dir)
         # msgproc.log(f"checking dir [{new_dir}] ...")
         if not os.path.exists(new_dir):
-            msgproc.log(f"creating dir [{new_dir}] ...")
+            if verbose:
+                msgproc.log(f"creating dir [{new_dir}] ...")
             os.mkdir(new_dir)
         # else:
-        #     msgproc.log(f"dir [{new_dir}] already exists.")
+        #     if verbose:
+        #         msgproc.log(f"dir [{new_dir}] already exists.")
         curr_dir = new_dir
     return curr_dir
 
@@ -848,7 +860,10 @@ def get_artist_musicbrainz_id(artist: Artist) -> str | None:
 
 
 def get_artist_cover_art(artist: Artist) -> str | None:
-    return artist.getItem().getByName(constants.ItemKey.COVER_ART.value) if artist else None
+    if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_COVER_ART):
+        return artist.getItem().getByName(constants.ItemKey.COVER_ART.value) if artist else None
+    else:
+        None
 
 
 def get_album_version(album: Album) -> str | None:

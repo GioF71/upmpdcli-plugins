@@ -108,6 +108,7 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
     TagType.RANDOM.getTagName(): False,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): False,
     TagType.FAVOURITE_ALBUMS.getTagName(): False,
     TagType.ALL_ARTISTS.getTagName(): False,
     TagType.ALL_ARTISTS_INDEXED.getTagName(): False,
@@ -569,19 +570,21 @@ def __load_artists_by_initial(
     return entries
 
 
-def _create_list_of_genres(objid, entries: list) -> list:
+def create_entries_for_genres(objid, entries: list) -> list:
     genres_response: Response[Genres] = request_cache.get_genres()
     if not genres_response.isOk():
+        msgproc.log("create_entries_for_genres invalid response, exiting ...")
         return entries
     genre_list = genres_response.getObj().getGenres()
+    msgproc.log(f"create_entries_for_genres got [{len(genre_list)}] genres ...")
     genre_list.sort(key=lambda x: x.getName())
     current_genre: Genre
     for current_genre in genre_list:
-        if current_genre.getAlbumCount() > 0:
-            entry: dict[str, any] = entry_creator.genre_to_entry(
-                objid,
-                current_genre)
-            entries.append(entry)
+        msgproc.log(f"create_entries_for_genres creating entry for [{current_genre.getName()}] ...")
+        entry: dict[str, any] = entry_creator.genre_to_entry(
+            objid,
+            current_genre)
+        entries.append(entry)
     return entries
 
 
@@ -591,48 +594,34 @@ def __load_artists(
         tag: TagType,
         options: dict[str, any] = {}) -> list:
     offset: int = option_util.get_option(options=options, option_key=OptionKey.OFFSET)
-    msgproc.log(f"__load_artists started at offset [{offset}] tag [{tag}]")
-    counter: int = 0
-    artists_response: Response[Artists] = request_cache.get_artists()
-    if not artists_response.isOk():
-        return entries
-    artists_initial: list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
-    current_artists_initial: ArtistsInitial
-    broke_out: bool = False
-    last_artist: Artist = None
-    for current_artists_initial in artists_initial:
-        if broke_out:
-            break
-        current_artist: ArtistListItem
-        for current_artist in current_artists_initial.getArtistListItems():
-            if counter < offset:
-                counter += 1
-                continue
-            if counter >= offset + config.get_items_per_page():
-                # msgproc.log(f"Setting last_artist to [{current_artist.getId()}] "
-                #             f"[{current_artist.getName()}]")
-                last_artist = current_artist
-                broke_out = True
-                break
-            counter += 1
-            if not last_artist:
-                entries.append(entry_creator.artist_to_entry(
-                    objid=objid,
-                    artist=current_artist,
-                    options=options))
-    if broke_out:
+    all_artist: list[Artist] = request_cache.get_all_artists()
+    msgproc.log(f"Sorting [{len(all_artist)}] artists ...")
+    all_artist.sort(key=lambda a: a.getName())
+    msgproc.log(f"Slicing at offset [{offset}] ...")
+    all_artist = all_artist[offset:]
+    last_artist: Artist = (all_artist[config.get_items_per_page()]
+                           if len(all_artist) > config.get_items_per_page()
+                           else None)
+    to_display: list[Artist] = all_artist[0:min(len(all_artist), config.get_items_per_page())]
+    msgproc.log(f"Displaying [{config.get_items_per_page()}] artists, "
+                f"next available [{last_artist is not None}]...")
+    current_artist: ArtistListItem
+    for current_artist in to_display:
+        entries.append(entry_creator.artist_to_entry(
+            objid=objid,
+            artist=current_artist,
+            options=options))
+    # show next?
+    if last_artist:
         next_entry: dict[str, any] = _create_tag_next_entry(
             objid=objid,
             tag=tag,
             offset=offset + config.get_items_per_page())
-        # use last_artist for cover art
-        if last_artist:
-            last_artist_album_art_uri: str = art_retriever.get_album_art_uri_for_artist_id(last_artist.getId())
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=last_artist_album_art_uri,
-                target=next_entry)
+        last_artist_album_art_uri: str = art_retriever.get_album_art_uri_for_artist_id(last_artist.getId())
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=last_artist_album_art_uri,
+            target=next_entry)
         entries.append(next_entry)
-    msgproc.log(f"__load_artists complete with [{len(entries)}] entries")
     return entries
 
 
@@ -777,6 +766,60 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
     except Exception as ex:
         msgproc.log(f"Cannot handle tag [{tag_type.getTagName()}] [{type(ex)}] [{ex}]")
         return list()
+
+
+def handler_tag_albums_without_musicbrainz(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    initial_offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    offset: int = initial_offset
+    finished: bool = False
+    album_selection: list[Album] = []
+    finished: bool = False
+    search_size: int = config.get_config_param_as_int(constants.ConfigParam.SEARCH_SIZE_ALBUM_WITHOUT_MUSICBRAINZ)
+    while not finished:
+        msgproc.log(f"Executing search with offset [{offset}] selection size [{len(album_selection)}]")
+        search_result: SearchResult = connector_provider.get().search(
+            "",
+            artistCount=0,
+            songCount=0,
+            albumCount=search_size,
+            albumOffset=offset)
+        album_list: list[Album] = search_result.getAlbums()
+        curr: Album
+        for curr in album_list:
+            if not subsonic_util.get_album_musicbrainz_id(curr):
+                album_selection.append(curr)
+                msgproc.log(f"Using offset [{offset}] selection size [{len(album_selection)}]")
+                if len(album_selection) == (config.get_items_per_page() + 1):
+                    # enough albums
+                    finished = True
+                    break
+                else:
+                    offset += 1
+
+            else:
+                offset += 1
+        if len(album_list) < search_size:
+            # finished
+            finished = True
+    to_display: list[Album] = album_selection[0:min(len(album_selection), config.get_items_per_page())]
+    next_album: Album = (album_selection[config.get_items_per_page()]
+                         if len(album_selection) == (config.get_items_per_page() + 1)
+                         else None)
+    curr_to_display: Album
+    for curr_to_display in to_display:
+        entries.append(entry_creator.album_to_navigable_entry(
+            objid=objid,
+            album=curr_to_display))
+    if next_album:
+        # add next album entry
+        next_entry: dict[str, any] = _create_tag_next_entry(
+            objid=objid,
+            tag=get_tag_type_by_name(item_identifier.get(ItemIdentifierKey.THING_VALUE)),
+            offset=offset)
+        next_cover_art: str = subsonic_util.build_cover_art_url(next_album.getCoverArt())
+        upnp_util.set_album_art_from_uri(next_cover_art, next_entry)
+        entries.append(next_entry)
+    return entries
 
 
 def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1068,7 +1111,7 @@ def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> 
 
 
 def handler_tag_genres(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    return _create_list_of_genres(objid, entries)
+    return create_entries_for_genres(objid, entries)
 
 
 def _genre_add_artists_node(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1276,6 +1319,7 @@ def handle_tag_all_artists_unsorted_by_role(
         tag_type: TagType,
         entries: list,
         role_filter: Callable[[Artist], True] = None) -> list:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     initial_offset: int = offset
     req_count: int = config.get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE)
@@ -1313,13 +1357,18 @@ def handle_tag_all_artists_unsorted_by_role(
     to_display: list[Artist] = selection if not next_artist else selection[0:len(selection) - 1]
     msgproc.log(f"Showing [{len(to_display)}] "
                 f"artists from initial offset [{initial_offset}] "
+                f"to offset [{offset}] "
                 f"next available [{next_artist is not None}]")
     current: Artist
     for current in to_display:
+        if verbose:
+            msgproc.log(f"handle_tag_all_artists_unsorted_by_role showing [{current.getName()}] ...")
         entries.append(entry_creator.artist_to_entry(
             objid=objid,
             artist=current))
     if next_artist:
+        if verbose:
+            msgproc.log(f"handle_tag_all_artists_unsorted_by_role creating entry for next page using artist_id [{next_artist.getId()}] ...")
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.getName(),
             tag_type.getTagName())
@@ -1335,6 +1384,10 @@ def handle_tag_all_artists_unsorted_by_role(
             album_art_uri=next_album_art_uri,
             target=next_entry)
         entries.append(next_entry)
+        if verbose:
+            msgproc.log(f"handle_tag_all_artists_unsorted_by_role added entry for next page using artist_id [{next_artist.getId()}]")
+    if verbose:
+        msgproc.log("handle_tag_all_artists_unsorted_by_role finished creating entries.")
     return entries
 
 
@@ -2463,6 +2516,9 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
                 add_fav = True
     if add_fav:
         tag_list.append(TagType.FAVOURITE_ALBUMS)
+    # add maintenance features
+    if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_MAINTENANCE_FEATURES):
+        tag_list.append(TagType.ALBUMS_WITHOUT_MUSICBRAINZ)
     current: TagType
     for current in tag_list:
         if config.is_tag_supported(current):
@@ -2495,14 +2551,30 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
         TagType.ALL_ALBUM_ARTISTS_UNSORTED,
         TagType.ALL_COMPOSERS_UNSORTED,
         TagType.ALL_CONDUCTORS_UNSORTED]
+    # tag_length: int = len(tag_list)
+    random_size: int = 100
+    msgproc.log(f"handler_tag_group_artists getting [{random_size}] random songs ...")
+    res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=random_size)
+    album_list: list[Album] = res.getObj().getAlbums() if res and res.isOk() else []
+    msgproc.log(f"handler_tag_group_artists got [{len(album_list)}] random songs")
+    # filter out songs without cover art
+    album_list = list(filter(lambda x: x.getCoverArt() is not None, album_list))
+    # unique cover arts
+    unique_cover_art_set: set[Song] = set()
+    album: Album
+    for album in album_list if album_list else None:
+        if album.getCoverArt() not in unique_cover_art_set:
+            unique_cover_art_set.add(album.getCoverArt())
     current_tag: TagType
     for current_tag in tag_list:
+        msgproc.log(f"handler_tag_group_artists current_tag [{current_tag.getTagName()}] ...")
         entry: dict[str, any] = create_entry_for_tag(objid, current_tag)
-        # pick random song for image
-        res: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=1)
-        song_list: list[Song] = res.getObj().getSongs() if res and res.isOk() else []
-        cover_art: str = get_first_cover_art_from_song_list(song_list)
-        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), target=entry)
+        in_set: bool = len(unique_cover_art_set) > 0
+        select_cover_art: str = unique_cover_art_set.pop() if in_set else None
+        if not select_cover_art:
+            select_album: Album = secrets.choice(album_list)
+            select_cover_art = select_album.getCoverArt() if select_album else None
+        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(select_cover_art), target=entry)
         entries.append(entry)
     fav_artists: list[Artist] = list()
     select_fav: Artist = None
@@ -2558,6 +2630,7 @@ __tag_action_dict: dict = {
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): handler_tag_most_played,
     TagType.FAVOURITE_ALBUMS.getTagName(): handler_tag_favourite_albums,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): handler_tag_albums_without_musicbrainz,
     TagType.RANDOM.getTagName(): handler_tag_random,
     TagType.GENRES.getTagName(): handler_tag_genres,
     TagType.ALL_ARTISTS.getTagName(): handler_tag_all_artists,
@@ -2636,11 +2709,14 @@ def tag_to_entry(objid, tag: TagType) -> dict[str, any]:
 
 
 def show_tag_entries(objid, entries: list) -> list:
-    # msgproc.log("show_tag_entries starting ...")
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    if verbose:
+        msgproc.log("show_tag_entries starting ...")
     for tag in TagType:
         if config.is_tag_supported(tag):
             if tag_enabled_in_initial_page(tag):
-                # msgproc.log(f"show_tag_entries adding tag [{tag}] ...")
+                if verbose:
+                    msgproc.log(f"show_tag_entries adding tag [{tag}] ...")
                 start_time: float = time.time()
                 # is there a precondition?
                 precondition: Callable[[], bool] = (
@@ -2649,21 +2725,26 @@ def show_tag_entries(objid, entries: list) -> list:
                     else None)
                 do_show: bool = not precondition or precondition()
                 if do_show:
-                    # msgproc.log(f"show_tag_entries actually showing tag [{tag}] ...")
+                    if verbose:
+                        msgproc.log(f"show_tag_entries actually showing tag [{tag}] ...")
                     entries.append(tag_to_entry(objid, tag))
-                    # msgproc.log(f"show_tag_entries finished showing tag [{tag}]")
+                    if verbose:
+                        msgproc.log(f"show_tag_entries finished showing tag [{tag}]")
                 elapsed: float = time.time() - start_time
                 msgproc.log(f"show_tag_entries adding tag [{tag}] "
                             f"shown [{'yes' if do_show else 'no'}] "
                             f"took [{elapsed:.3f}].")
-        # else:
-        #     msgproc.log(f"show_tag_entries skipping unsupported [{tag}]")
-    msgproc.log("show_tag_entries finished.")
+        else:
+            if verbose:
+                msgproc.log(f"show_tag_entries skipping unsupported [{tag}]")
+    if verbose:
+        msgproc.log("show_tag_entries finished.")
     return entries
 
 
 @dispatcher.record('browse')
 def browse(a):
+    start: float = time.time()
     msgproc.log(f"browse: args: --{a}--")
     _initsubsonic()
     if 'objid' not in a:
@@ -2689,6 +2770,7 @@ def browse(a):
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags
         entries = show_tag_entries(objid, entries)
+        msgproc.log(f"browse executed (show_tag_entries) in [{(time.time() - start):.3f}]")
         return _returnentries(entries, no_cache=True)
     else:
         # decode
@@ -2704,18 +2786,23 @@ def browse(a):
             if tag_handler:
                 msgproc.log(f"browse: found tag handler for: --{get_tag_type_by_name(thing_value)}--")
                 entries = tag_handler(objid, item_identifier, entries)
+                msgproc.log(f"browse executed (tag [{thing_value}]) in [{(time.time() - start):.3f}]")
                 return _returnentries(entries)
             else:
                 msgproc.log(f"browse: tag handler for: --{thing_value}-- not found")
+                return _returnentries(entries)
         else:  # it's an element
             msgproc.log(f"browse: should serve element: --{thing_name}-- [{thing_value}]")
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
             if elem_handler:
                 msgproc.log(f"browse: found elem handler for: --{get_element_type_by_name(thing_name)}--")
                 entries = elem_handler(objid, item_identifier, entries)
+                msgproc.log(f"browse executed (element [{thing_name}]) in [{(time.time() - start):.3f}]")
+                return _returnentries(entries)
+
             else:
                 msgproc.log(f"browse: element handler for: --{thing_name}-- not found")
-        return _returnentries(entries)
+                return _returnentries(entries)
 
 
 def _objidtopath(objid):

@@ -40,7 +40,6 @@ class ElementType(Enum):
     RADIO_SONG_LIST = 21, "rd_sl",
     GENRE_ARTIST_ALBUMS = 22, "gnr_rtst_lbms"
     # artist which appear as artistId for albums
-    ALBUM_ARTIST = 23, "lbmrtst"
     ALBUM_FOCUS = 24, "lbmfcs"
     ARTIST_FOCUS = 25, "rstsfcs"
     ADDITIONAL_ALBUM_ARTISTS = 26, "ddtlnlbmrtsts"

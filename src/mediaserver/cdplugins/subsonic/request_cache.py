@@ -21,13 +21,17 @@ from subsonic_connector.artists import Artists
 from subsonic_connector.genres import Genres
 from subsonic_connector.starred import Starred
 from subsonic_connector.playlists import Playlists
+from subsonic_connector.artist import Artist
+from subsonic_connector.search_result import SearchResult
 
 import config
+import constants
 import connector_provider
 
 import cmdtalkplugin
 
 import datetime
+import time
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -40,6 +44,11 @@ class CachedResponse:
     last_response_time: datetime.datetime = None
 
 
+class CachedArtistList:
+    last_Artist_List: list[Artist] = None
+    last_response_time: datetime.datetime = None
+
+
 cached_response_artists: CachedResponse = CachedResponse()
 cached_response_random_firstpage: CachedResponse = CachedResponse()
 cached_response_genres: CachedResponse = CachedResponse()
@@ -47,12 +56,24 @@ cached_starred_albums: CachedResponse = CachedResponse()
 cached_starred: CachedResponse = CachedResponse()
 cached_playlists: CachedResponse = CachedResponse()
 
+cached_all_artist_list: CachedArtistList = CachedArtistList()
+
 
 def __is_older_than(date_time: datetime.datetime, delta_sec: int) -> bool:
     if date_time is None:
         return True
     cutoff: datetime.datetime = datetime.datetime.now() - datetime.timedelta(seconds=delta_sec)
     return date_time < cutoff
+
+
+def __cached_list_is_expired(cached: CachedArtistList, delta_sec: int) -> bool:
+    return (cached is None or
+            cached.last_Artist_List is None or
+            __is_older_than(
+                cached.last_response_time
+                if cached is not None
+                else None,
+                delta_sec))
 
 
 def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool:
@@ -82,19 +103,63 @@ def get_playlists() -> Response[Artists]:
 
 
 def get_starred() -> Response[Artists]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     global cached_starred
     if __cached_response_is_expired(cached_starred, config.get_cached_request_timeout_sec()):
         msgproc.log("subsonic_util.get_starred loading starred ...")
         # actually request starred
+        start: float = time.time()
         res: Response[Starred] = connector_provider.get().getStarred()
         # store response along with timestamp
         cached_starred = CachedResponse()
         cached_starred.last_response_obj = res
         cached_starred.last_response_time = datetime.datetime.now()
+        if verbose:
+            msgproc.log(f"request_cache.get_starred took [{(time.time() - start):.3f}] sec")
         return res
     else:
+        if verbose:
+            msgproc.log("request_cache.get_starred using cached data!")
         # msgproc.log("subsonic_util.get_starred using cached starred")
         return cached_starred.last_response_obj
+
+
+def get_all_artists() -> list[Artist]:
+    global cached_all_artist_list
+    if __cached_list_is_expired(
+            cached=cached_all_artist_list,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_ARTIST_LIST_CACHE_TIMEOUT_SEC)):
+        msgproc.log("subsonic_util.get_all_artists loading all artists ...")
+        all_artists: list[Artist] = _load_all_artists()
+        cached_all_artist_list = CachedArtistList()
+        cached_all_artist_list.last_Artist_List = all_artists
+        cached_all_artist_list.last_response_time = datetime.datetime.now()
+        return all_artists
+    else:
+        return cached_all_artist_list.last_Artist_List
+
+
+def _load_all_artists() -> list[Artist]:
+    all_artist: list[Artist] = []
+    finished: bool = False
+    search_size: int = 1000
+    search_offset: int = 0
+    while not finished:
+        msgproc.log(f"Executing search with offset [{search_offset}]")
+        search_result: SearchResult = connector_provider.get().search(
+            "",
+            artistCount=search_size,
+            songCount=0,
+            albumCount=0,
+            artistOffset=search_offset)
+        artists: list[Artist] = search_result.getArtists()
+        all_artist.extend(artists)
+        ac: int = len(artists)
+        search_offset += ac
+        if ac < search_size:
+            finished = True
+    msgproc.log(f"Sorting [{len(all_artist)}] artists ...")
+    return all_artist
 
 
 def get_artists() -> Response[Artists]:

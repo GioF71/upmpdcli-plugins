@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.3"
+    PLUGIN_RELEASE = "0.8.4"
     PLUGIN_NAME = "subsonic"
 
 
@@ -158,6 +158,13 @@ class ConfigParam(Enum):
     MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData("maxtracksfornodiscsplit", 60)
 
     VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
+
+    CACHED_ARTIST_LIST_CACHE_TIMEOUT_SEC = _ConfigParamData("cachedartistlistcachetimeoutsec", 300)
+    SEARCH_SIZE_ALBUM_WITHOUT_MUSICBRAINZ = _ConfigParamData("searchsizealbumwithoutmusicbrainz", 1000)
+    ENABLE_MAINTENANCE_FEATURES = _ConfigParamData("enablemaintenancefeatures", False)
+
+    GENRE_VIEW_SEARCH_ALBUMS_FOR_COVER_ART = _ConfigParamData("genreviewsearchalbumsforcoverart", False)
+    ALLOW_ARTIST_COVER_ART = _ConfigParamData("allowartistcoverart", True)
 
     @property
     def key(self) -> str:

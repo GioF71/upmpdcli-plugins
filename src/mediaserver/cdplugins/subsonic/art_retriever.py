@@ -47,14 +47,15 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
-def __get_cover_art_from_res_album_list(response: Response[AlbumList], random: bool = False) -> RetrievedArt:
+def _get_cover_art_from_res_album_list(response: Response[AlbumList], random: bool = False) -> RetrievedArt:
     if not response.isOk() or len(response.getObj().getAlbums()) == 0:
         return None
     album_list: list[Album] = response.getObj().getAlbums()
-    return __get_cover_art_from_album_list(album_list=album_list, random=random)
+    return _get_cover_art_from_album_list(album_list=album_list, random=random)
 
 
-def __get_cover_art_from_album_list(album_list: list[Album], random: bool = False) -> RetrievedArt:
+def _get_cover_art_from_album_list(album_list: list[Album], random: bool = False) -> RetrievedArt:
+    album_list = _filter_album_without_cover_art(album_list=album_list)
     if not album_list or len(album_list) == 0:
         return None
     album: Album = (secrets.choice(album_list)
@@ -62,6 +63,12 @@ def __get_cover_art_from_album_list(album_list: list[Album], random: bool = Fals
                     else album_list[0])
     album_url: str = subsonic_util.build_cover_art_url(item_id=album.getCoverArt()) if album else None
     return RetrievedArt(art_url=album_url) if album_url else None
+
+
+def _filter_album_without_cover_art(album_list: list[Album]) -> list[Album]:
+    return (list(filter(lambda x: x.getCoverArt() is not None and len(x.getCoverArt()) > 0, album_list))
+            if album_list
+            else [])
 
 
 def group_albums_art_retriever() -> RetrievedArt:
@@ -84,7 +91,7 @@ def group_artists_art_retriever() -> RetrievedArt:
 
 def group_songs_art_retriever() -> RetrievedArt:
     # try in favorites (pick random)
-    art = __art_for_favourite_song(random=True)
+    art = _art_for_favourite_song(random=True)
     # else random
     if not art:
         art = random_albums_art_retriever()
@@ -97,32 +104,32 @@ def newest_albums_art_retriever() -> RetrievedArt:
         size=1,
         fromYear=datetime.datetime.now().year,
         toYear=0)
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def recently_added_albums_art_retriever() -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getNewestAlbumList(size=1)
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def random_albums_art_retriever() -> RetrievedArt:
     response: Response[AlbumList] = request_cache.get_random_album_list(size=config.get_items_per_page())
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def recently_played_albums_art_retriever() -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.RECENT, size=1)
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def highest_rated_albums_art_retriever() -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.HIGHEST, size=1)
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def most_played_albums_art_retriever() -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.FREQUENT, size=1)
-    return __get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response)
 
 
 def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> str:
@@ -165,17 +172,18 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
 
 
 def get_album_art_uri_for_artist_id(artist_id: str) -> str:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
     if artist_metadata and artist_metadata.artist_cover_art:
         # found in cache.
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if verbose:
             msgproc.log(f"get_album_art_uri_for_artist_id metadata cache hit for [{artist_id}] -> "
                         f"[{'yes' if artist_metadata else 'no'}]")
         return subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
     # fallback to in-memory cache.
     art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
     if art_album_id:
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if verbose:
             msgproc.log(f"get_album_art_uri_for_artist_id cache hit for [{artist_id}] -> [{art_album_id}]")
         art_album: Album = subsonic_util.try_get_album(art_album_id)
         if not art_album:
@@ -188,14 +196,14 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
                                             if art_album
                                             else None)
             return art_album_cover_art_uri
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if verbose:
         msgproc.log(f"get_album_art_uri_for_artist_id loading artist by id [{artist_id}] ...")
     # load artist
     artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=artist) if artist else None
     if artist_cover_art:
         # use this!
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if verbose:
             msgproc.log(f"get_album_art_uri_for_artist_id using artist coverArt for artist_id [{artist_id}]")
         return subsonic_util.build_cover_art_url(artist_cover_art)
     album_list: list[Album] = artist.getAlbumList() if artist else []
@@ -205,7 +213,7 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
         artist_id=artist_id,
         album_list=album_list,
         opposite=True)
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if verbose:
         msgproc.log(f"get_album_art_uri_for_artist_id select_album_list for [{artist_id}] "
                     f"[{artist.getName() if artist else None}] "
                     f"full length [{len(album_list) if album_list else 0}] "
@@ -272,32 +280,32 @@ def get_first_cover_art_from_album_list(album_list: list[Album]) -> str:
 
 
 def favourite_albums_art_retriever() -> RetrievedArt:
-    fav: RetrievedArt = __favourite_albums_art_retriever()
+    fav: RetrievedArt = _favourite_albums_art_retriever()
     return fav if fav else random_albums_art_retriever()
 
 
-def __favourite_albums_art_retriever() -> RetrievedArt:
+def _favourite_albums_art_retriever() -> RetrievedArt:
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
         return None
     album_list: list[Album] = response.getObj().getAlbums()
-    return __get_cover_art_from_album_list(album_list=album_list, random=True)
+    return _get_cover_art_from_album_list(album_list=album_list, random=True)
 
 
 def favourite_artist_art_retriever() -> RetrievedArt:
-    fav: RetrievedArt = __favourite_artist_art_retriever()
+    fav: RetrievedArt = _favourite_artist_art_retriever()
     msgproc.log(f"favourite_artist_art_retriever fav found: [{'yes' if fav else 'no'}]")
     return fav if fav is not None else random_albums_art_retriever()
 
 
-def __favourite_artist_art_retriever() -> RetrievedArt:
+def _favourite_artist_art_retriever() -> RetrievedArt:
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
-        msgproc.log("__favourite_artist_art_retriever no starred artists")
+        msgproc.log("_favourite_artist_art_retriever no starred artists")
         return None
     artist_list: list[Artist] = response.getObj().getArtists()
     select_artist: Artist = secrets.choice(artist_list) if artist_list and len(artist_list) > 0 else None
-    msgproc.log("__favourite_artist_art_retriever selected artist "
+    msgproc.log("_favourite_artist_art_retriever selected artist "
                 f"[{select_artist.getId() if select_artist else None}]")
     if not select_artist:
         return None
@@ -306,15 +314,15 @@ def __favourite_artist_art_retriever() -> RetrievedArt:
 
 
 def favourite_song_retriever() -> RetrievedArt:
-    fav: RetrievedArt = __favourite_song_retriever()
+    fav: RetrievedArt = _favourite_song_retriever()
     return fav if fav else random_albums_art_retriever()
 
 
-def __favourite_song_retriever() -> RetrievedArt:
-    return __art_for_favourite_song(random=True)
+def _favourite_song_retriever() -> RetrievedArt:
+    return _art_for_favourite_song(random=True)
 
 
-def __art_for_favourite_song(random: bool = False) -> RetrievedArt:
+def _art_for_favourite_song(random: bool = False) -> RetrievedArt:
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
         return None
@@ -367,6 +375,7 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.FAVOURITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): most_played_albums_art_retriever,
     TagType.RANDOM.getTagName(): random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,
     TagType.GENRES.getTagName(): random_albums_art_retriever,

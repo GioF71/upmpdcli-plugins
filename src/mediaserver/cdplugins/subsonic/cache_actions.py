@@ -84,10 +84,10 @@ def on_album(album: subsonic_connector.album.Album):
                 artist_name=album.getArtist(),
                 artist_cover_art=album.getCoverArt()))
     # album per genre cache
-    if album.getCoverArt():
-        genres_list: list[str] = album.getGenres()
+    album_genre_list = album.getGenres()
+    if album_genre_list:
         genre: str
-        for genre in genres_list:
+        for genre in album_genre_list:
             persistence.save_key_value_item(key_value_item=persistence.KeyValueItem(
                 partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
                 key=genre,
