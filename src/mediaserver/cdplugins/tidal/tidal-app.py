@@ -6208,10 +6208,17 @@ def copy_static_images(path_static_images: list[str], static_images_dir: str):
     msgproc.log(f"copy_static_images to [{path_static_images}]")
     plugin_static_images_dir: str = tidal_util.get_plugin_static_images_abs_path()
     msgproc.log(f"copy_static_images from [{plugin_static_images_dir}]")
+    if not os.path.exists(plugin_static_images_dir) or not os.path.isdir(plugin_static_images_dir):
+        msgproc.log(f"copy_static_images path [{plugin_static_images_dir}] does not exist or is not a directory.")
+        return
+
     plugin_image_dir: constants.PluginImageDirectory
     for plugin_image_dir in constants.PluginImageDirectory:
         # image_name_list: list[str] = []
         curr_dir: str = os.path.join(plugin_static_images_dir, plugin_image_dir.value)
+        if not os.path.exists(curr_dir) or not os.path.isdir(curr_dir):
+            msgproc.log(f"copy_static_images path [{curr_dir}] does not exist or is not a directory.")
+            return
         ensure_path_list: list[str] = path_static_images + [plugin_image_dir.value]
         msgproc.log(f"copy_static_images [{plugin_image_dir.value}] -> [{ensure_path_list}]")
         target_path: str = tidal_util.ensure_directory(

@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.8.9.1
+
+- Hotfix: avoid to copy images if path are not available in the plugin code
+
 ## 0.8.9
 
 - Some performance improvements
