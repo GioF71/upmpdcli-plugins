@@ -795,6 +795,17 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Sets the maximum image file age in days, relevant when pruning is enabled</descr></var>
 #subsoniccachedimagemaxagedays = 60
 
+# <var name="subsonicallowartistcoverart" type="bool">
+# <brief>Enables use of cover art from artists, enabled by default</brief>
+# <descr>Set it to `0` in order to avoid to use coverArt from artists, which can
+# be expensive/slow against Navidrome if Spotify is enabled</descr></var>
+#subsonicallowartistcoverart = 0
+
+# <var name="subsonicenablemaintenancefeatures" type="bool">
+# <brief>Enables maintenance features, e.g. list albums without MusicBrainz Id</brief>
+# <descr>Set it to 1 in order to enable library maintenance features, disabled by default</descr></var>
+#subsonicenablemaintenancefeatures = 0
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

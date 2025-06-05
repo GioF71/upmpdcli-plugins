@@ -577,6 +577,7 @@ def album_to_navigable_entry(
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
+    cache_actions.on_album(album)
     return entry
 
 
@@ -606,7 +607,8 @@ def genre_to_entry(
         genre_art = kv_item_for_genre.value
         genre_art_url = subsonic_util.build_cover_art_url(item_id=genre_art)
     # msgproc.log(f"For genre [{genre_name}] cache hit [{'yes' if cached_by_genre else 'no'}]")
-    if not genre_art:
+    if (not genre_art and
+            config.get_config_param_as_bool(constants.ConfigParam.GENRE_VIEW_SEARCH_ALBUMS_FOR_COVER_ART)):
         # load up to 5 albums
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_GENRE,
@@ -666,9 +668,10 @@ def artist_to_entry(
         entry_name: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     cover_art: str = subsonic_util.get_artist_cover_art(artist)
     artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if verbose:
         msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
                     f"roles [{artist_roles}] "
                     f"coverArt [{cover_art}]")
@@ -691,6 +694,7 @@ def artist_to_entry_raw(
         artist_cover_art: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.getName(),
         artist_id)
@@ -706,8 +710,12 @@ def artist_to_entry_raw(
     album_art_uri: str = (subsonic_util.build_cover_art_url(artist_cover_art)
                           if artist_cover_art is not None
                           else None)
+    if verbose:
+        msgproc.log(f"artist_to_entry_raw for artist_id [{artist_id}] -> artist_cover_art [{artist_cover_art}]")
     if not album_art_uri and (not skip_art and artist_id):
         # first we try in the cache ...
+        if verbose:
+            msgproc.log(f"artist_to_entry_raw retrieving cover art for artist_id [{artist_id}] in metadata cache ...")
         artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
         if artist_metadata and artist_metadata.artist_cover_art:
             album_art_uri = subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
@@ -715,6 +723,8 @@ def artist_to_entry_raw(
             #             f"[{artist_metadata.artist_cover_art}]")
         else:
             # find art from albums
+            if verbose:
+                msgproc.log(f"artist_to_entry_raw retrieving cover art for artist_id [{artist_id}] from albums, this is slow ...")
             album_art_uri = art_retriever.get_album_art_uri_for_artist_id(artist_id)
     if album_art_uri:
         upnp_util.set_album_art_from_uri(
