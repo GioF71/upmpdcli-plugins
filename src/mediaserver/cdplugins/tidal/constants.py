@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.9"
+    PLUGIN_RELEASE = "0.8.9.1"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
     STATIC_IMAGES_DIRECTORY = "static-images"
