@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.5
+
+- Better selection of album when retrieving coverArt for entries that lead to album lists for a given artist
+- Fix functionality and improve performance when showing artists for a given genre
+- Add support for "moods"
+
 ## Release 0.8.4
 
 - Filter out albums with no cover art when selecting image for an entry

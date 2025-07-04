@@ -63,9 +63,10 @@ msgproc = cmdtalkplugin.Processor(dispatcher)
 
 class ArtistIdAndName:
 
-    def __init__(self, id: str, name: str):
+    def __init__(self, id: str, name: str, cover_art: str = None):
         self.__id: str = id
         self.__name: str = name
+        self.__cover_art: str = cover_art
 
     @property
     def id(self) -> str:
@@ -74,6 +75,10 @@ class ArtistIdAndName:
     @property
     def name(self) -> str:
         return self.__name
+    
+    @property
+    def cover_art(self) -> str:
+        return self.__cover_art
 
 
 class DiscTitle:
@@ -264,8 +269,14 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
         album: Album
         for album in album_list:
             artist_id: str = album.getArtistId()
+            if not artist_id:
+                msgproc.log(f"load_artists_by_genre skipping artist [{album.getArtist()}] (no artist_id)")
+                continue
             if artist_id not in artist_id_set:
-                artist_set.add(ArtistIdAndName(id=artist_id, name=album.getArtist()))
+                artist_set.add(ArtistIdAndName(
+                    id=artist_id,
+                    name=album.getArtist(),
+                    cover_art=album.getCoverArt()))
                 artist_id_set.add(artist_id)
                 if not cached:
                     cache_manager_provider.get().cache_element_value(
@@ -892,6 +903,10 @@ def get_artist_roles(artist: Artist) -> list[str]:
     return artist.getItem().getListByName(constants.ItemKey.ROLES.value) if artist else []
 
 
+def get_album_moods(album: Album) -> list[str]:
+    return album.getItem().getListByName(constants.ItemKey.MOODS.value) if album else []
+
+
 def get_docroot_base_url() -> str:
     host_port: str = (os.environ["UPMPD_UPNPHOSTPORT"]
                       if "UPMPD_UPNPHOSTPORT" in os.environ
@@ -1151,6 +1166,7 @@ def set_album_metadata(album: Album, target: dict):
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, get_album_mediatype(album), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, ", ".join(get_album_moods(album)), target)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
         # album path.
         path_list: str = album_util.get_album_path_list(album=album)

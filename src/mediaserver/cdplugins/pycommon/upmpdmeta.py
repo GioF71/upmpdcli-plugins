@@ -30,6 +30,7 @@ class UpMpdMeta(Enum):
     ALBUM_TITLE = "albumtitle"
     ALBUM_YEAR = "albumyear"
     ALBUM_MEDIA_TYPE = "albummediatype"
+    MOOD = "mood"
     ALBUM_ORIGINAL_RELEASE_DATE = "albumoriginalreleasedate"
     ALBUM_AVAILABLE_RELEASE_DATE = "albumavailablereleasedate"
     IS_COMPILATION = "albumiscompilation"
