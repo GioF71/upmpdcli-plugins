@@ -381,8 +381,8 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     // Process and send out result
-    out_NumberReturned = ulltodecstr(entries.size());
-    out_TotalMatches = ulltodecstr(totalmatches);
+    out_NumberReturned = std::to_string(entries.size());
+    out_TotalMatches = std::to_string(totalmatches);
     out_UpdateID = m->updateID;
     out_Result = headDIDL();
     for (unsigned int i = 0; i < entries.size(); i++) {
@@ -487,8 +487,8 @@ int ContentDirectory::actSearch(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     // Process and send out result
-    out_NumberReturned = ulltodecstr(entries.size());
-    out_TotalMatches = ulltodecstr(totalmatches);
+    out_NumberReturned = std::to_string(entries.size());
+    out_TotalMatches = std::to_string(totalmatches);
     out_UpdateID = m->updateID;
     out_Result = headDIDL();
     for (unsigned int i = 0; i < entries.size(); i++) {

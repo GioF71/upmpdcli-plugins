@@ -1,8 +1,8 @@
 upmpdcli (1.9.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-- Tidal and Subsonic plugins updates
-- media server: fix crash occuring when the proxy/redirect is called with a bogus URL (did not
-  happen under normal circumstances).
+  * Tidal and Subsonic plugins updates
+  * Media server: fix crash occuring when the proxy/redirect is called
+    with a bogus URL (did not happen under normal circumstances).
 
  -- Jean-Francois Dockes <jf@dockes.org>  Mon, 26 May 2025 09:10:00 +0200
 

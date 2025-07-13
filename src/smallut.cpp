@@ -451,28 +451,33 @@ template <class T> std::string stringsToCSV(const T& tokens, char sep)
     return s;
 }
 
-template <class T> std::string commonprefix(const T& values)
+template <class T> std::string commonprefix(const T& values, bool aspaths)
 {
     if (values.empty())
         return {};
     if (values.size() == 1)
         return *values.begin();
-    unsigned int i = 0;
-    for (;;++i) {
-        auto it = values.begin();
-        if (it->size() <= i) {
-            goto out;
-        }
-        auto val = (*it)[i];
-        it++;
-        for (;it < values.end(); it++) {
-            if (it->size() <= i || (*it)[i] != val) {
-                goto out;
+    auto prefix = *values.begin();
+    // Look at all input  strings
+    for (const auto& value : values) {
+        // As long as the string does not begin with the prefix, reduce the prefix size and retry
+        // Stop if the prefix length goes to 0
+        // If processing paths, choose a prefix ending with a / even if not the shortest
+        while (value.compare(0, prefix.size(), prefix)) {
+            // If the prefix has an ending / and the value is identical with no / keep the longer
+            if (aspaths && prefix.back() == '/' && !prefix.compare(0, prefix.size()-1, value)) {
+                break;
             }
+            prefix.pop_back();
+            if (prefix.empty())
+                return {};
+        }
+        if (aspaths &&
+            value.size() > prefix.size() && prefix.back() != '/' && value[prefix.size()] == '/') {
+            prefix += '/';
         }
     }
-out:
-    return values.begin()->substr(0, i);
+    return prefix;
 }
 
 #ifdef SMALLUT_EXTERNAL_INSTANTIATIONS
@@ -499,7 +504,8 @@ template std::string stringsToString<std::unordered_set<std::string>>(
     const std::unordered_set<std::string>&);
 template std::string stringsToCSV<std::list<std::string>>(const std::list<std::string>&, char);
 template std::string stringsToCSV<std::vector<std::string>>(const std::vector<std::string>&, char);
-template std::string commonprefix<std::vector<std::string>>(const std::vector<std::string>&values);
+template std::string commonprefix<std::vector<std::string>>(const std::vector<std::string>&values,
+                                                            bool aspaths);
 #endif
 
 void stringToTokens(const std::string& str, std::vector<std::string>& tokens,
@@ -825,65 +831,6 @@ bool pcSubst(const std::string& in, std::string& out,
     return pcSubst(in, out, std::bind(&PcSubstMapMapper::domap, &mapper, _1));
 }
 
-void ulltodecstr(uint64_t val, std::string& buf)
-{
-    buf.clear();
-    if (val == 0) {
-        buf = "0";
-        return;
-    }
-
-    char rbuf[30];
-    int idx=29;
-    rbuf[idx--] = 0;
-    do {
-        rbuf[idx--] = '0' + val % 10;
-        val /= 10;
-    } while (val);
-
-    buf.assign(&rbuf[idx+1]);
-}
-
-void lltodecstr(int64_t val, std::string& buf)
-{
-    buf.clear();
-    if (val == 0) {
-        buf = "0";
-        return;
-    }
-
-    bool neg = val < 0;
-    if (neg) {
-        val = -val;
-    }
-
-    char rbuf[30];
-    int idx=29;
-    rbuf[idx--] = 0;
-    do {
-        rbuf[idx--] = '0' + val % 10;
-        val /= 10;
-    } while (val);
-    if (neg) {
-        rbuf[idx--] = '-';
-    }
-    buf.assign(&rbuf[idx+1]);
-}
-
-std::string lltodecstr(int64_t val)
-{
-    std::string buf;
-    lltodecstr(val, buf);
-    return buf;
-}
-
-std::string ulltodecstr(uint64_t val)
-{
-    std::string buf;
-    ulltodecstr(val, buf);
-    return buf;
-}
-
 // Convert byte count into unit (KB/MB...) appropriate for display
 std::string displayableBytes(int64_t size)
 {
@@ -904,7 +851,7 @@ std::string displayableBytes(int64_t size)
         roundable = double(size) / 1E9;
     }
     size = int64_t(std::round(roundable));
-    return lltodecstr(size).append(unit);
+    return std::to_string(size).append(unit);
 }
 
 std::string breakIntoLines(const std::string& in, unsigned int ll, unsigned int maxlines)

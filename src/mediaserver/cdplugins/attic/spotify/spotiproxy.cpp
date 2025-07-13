@@ -1040,7 +1040,7 @@ bool SpotiFetch::headerValue(const std::string& nm, std::string& val)
         LOGDEB1("SpotiFetch::headerValue: content-type: " << val << "\n");
         return true;
     } else if (!stringlowercmp("content-length", nm)) {
-        ulltodecstr(m->_contentlen, val);
+        val = std::to_string(m->_contentlen);
         LOGDEB("SpotiFetch::headerValue: content-length: " << val << "\n");
         return true;
     }

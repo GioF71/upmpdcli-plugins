@@ -203,7 +203,7 @@ bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
     // pathprefix is used to determine which plugin an URL belongs to.
     // The URLs are like: http://$UPMPD_HTTPHOSTPORT/$UPMPD_PATHPREFIX/...
     
-    string hostport = string("UPMPD_HTTPHOSTPORT=") + host + ":" + ulltodecstr(port);
+    string hostport = string("UPMPD_HTTPHOSTPORT=") + host + ":" + std::to_string(port);
     string pp = string("UPMPD_PATHPREFIX=") + pathpref;
 
     std::vector<std::string> env{pythonpath, configname, hostport, pp};
@@ -212,7 +212,7 @@ bool PlgWithSlave::startPluginCmd(CmdTalk& cmd, const string& appname,
     // lib(np)upnp HTTP server to serve local files (if enabled by setting webserverdocumentroot in
     // the config accordingly, see main.hxx).
     if (!g_npupnpwebdocroot.empty()) {
-        env.push_back(string("UPMPD_UPNPHOSTPORT=") + upnphost + ":" + lltodecstr(upnpport));
+        env.push_back(string("UPMPD_UPNPHOSTPORT=") + upnphost + ":" + std::to_string(upnpport));
         env.push_back(string("UPMPD_UPNPDOCROOT=") + g_npupnpwebdocroot);
     }
 
@@ -587,8 +587,8 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
         }
     }
 
-    std::string soffs = lltodecstr(stidx);
-    std::string scnt = lltodecstr(cnt);
+    std::string soffs = std::to_string(stidx);
+    std::string scnt = std::to_string(cnt);
     unordered_map<string, string> res;
     if (!m->cmd.callproc("browse", {{"objid", objid}, {"flag", sbflg},
                                     {"offset", soffs}, {"count", scnt}}, res)) {
@@ -718,8 +718,8 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
     }
 
     // Run query
-    std::string soffs = lltodecstr(stidx);
-    std::string scnt = lltodecstr(cnt);
+    std::string soffs = std::to_string(stidx);
+    std::string scnt = std::to_string(cnt);
     unordered_map<string, string> res;
     if (!m->cmd.callproc("search", {
                 {"objid", ctid},

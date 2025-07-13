@@ -136,7 +136,7 @@ static void didlPrintResource(ostringstream& ss, const UpSong::Res& res) {
         ss << " duration=\"" << upnpduration(res.duration_secs * 1000) << "\"";
     }
     if (res.size) {
-        ss << " size=\"" << lltodecstr(res.size) << "\"";
+        ss << " size=\"" << std::to_string(res.size) << "\"";
     }
     if (res.bitrate) {
         ss << " bitrate=\"" << SoapHelp::i2s(res.bitrate) << "\"";

@@ -216,8 +216,8 @@ UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
     string mpdversion = "0.0.0";
     if (nullptr != mpdcli) {
         MpdStatus st = mpdcli->getStatus();
-        mpdversion = lltodecstr(st.versmajor) + "." + lltodecstr(st.versminor) +
-            "." + lltodecstr(st.verspatch);
+        mpdversion = std::to_string(st.versmajor) + "." + std::to_string(st.versminor) +
+            "." + std::to_string(st.verspatch);
     }
     g_full_upmpdcli_lib_mpd_version = string("upmpdcli version ") + g_upmpdcli_package_version +
         " " + LibUPnP::versionString() + " " + "mpd " + mpdversion;
