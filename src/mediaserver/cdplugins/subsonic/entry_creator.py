@@ -438,7 +438,8 @@ def genre_artist_to_entry(
         objid,
         genre: str,
         artist_id: str,
-        artist_name: str) -> dict[str, any]:
+        artist_name: str,
+        album_cover_art: str = None) -> dict[str, any]:
     msgproc.log(f"genre_artist_to_entry genre:[{genre}] artist_id:[{artist_id}] artist_name:[{artist_name}]")
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_ARTIST.getName(),
@@ -450,10 +451,11 @@ def genre_artist_to_entry(
         objid,
         artist_name)
     if artist_id:
-        entry = artist_to_entry_raw(
+        entry: dict[str, any] = artist_to_entry_raw(
             objid=objid,
             artist_id=artist_id,
-            entry_name=artist_name)
+            artist_entry_name=artist_name,
+            album_cover_art=album_cover_art)
     return entry
 
 
@@ -675,11 +677,11 @@ def artist_to_entry(
         msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
                     f"roles [{artist_roles}] "
                     f"coverArt [{cover_art}]")
-    select_entry_name: str = entry_name if entry_name else maybe_append_roles(artist.getName(), artist)
+    select_artist_entry_name: str = entry_name if entry_name else maybe_append_roles(artist.getName(), artist)
     artist_entry: dict[str, any] = artist_to_entry_raw(
         objid=objid,
         artist_id=artist.getId(),
-        entry_name=select_entry_name,
+        artist_entry_name=select_artist_entry_name,
         artist_cover_art=cover_art,
         additional_identifier_properties=additional_identifier_properties,
         options=options)
@@ -690,8 +692,9 @@ def artist_to_entry(
 def artist_to_entry_raw(
         objid,
         artist_id: str,
-        entry_name: str,
+        artist_entry_name: str,
         artist_cover_art: str = None,
+        album_cover_art: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
@@ -705,13 +708,14 @@ def artist_to_entry_raw(
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    entry = upmplgutils.direntry(id=id, pid=objid, title=entry_name)
+    entry = upmplgutils.direntry(id=id, pid=objid, title=artist_entry_name)
     skip_art: bool = get_option(options=options, option_key=OptionKey.SKIP_ART)
     album_art_uri: str = (subsonic_util.build_cover_art_url(artist_cover_art)
                           if artist_cover_art is not None
                           else None)
     if verbose:
-        msgproc.log(f"artist_to_entry_raw for artist_id [{artist_id}] -> artist_cover_art [{artist_cover_art}]")
+        msgproc.log(f"artist_to_entry_raw for artist_id [{artist_id}] [{artist_entry_name}] -> "
+                    f"artist_cover_art [{artist_cover_art}]")
     if not album_art_uri and (not skip_art and artist_id):
         # first we try in the cache ...
         if verbose:
@@ -719,13 +723,21 @@ def artist_to_entry_raw(
         artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
         if artist_metadata and artist_metadata.artist_cover_art:
             album_art_uri = subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
-            # msgproc.log(f"artist_to_entry_raw found cached cover_art for artist_id [{artist_id}] -> "
-            #             f"[{artist_metadata.artist_cover_art}]")
-        else:
-            # find art from albums
             if verbose:
-                msgproc.log(f"artist_to_entry_raw retrieving cover art for artist_id [{artist_id}] from albums, this is slow ...")
-            album_art_uri = art_retriever.get_album_art_uri_for_artist_id(artist_id)
+                msgproc.log(f"artist_to_entry_raw found cached cover_art for artist_id [{artist_id}] -> "
+                            f"[{artist_metadata.artist_cover_art}]")
+        else:
+            # was an album cover art provided?
+            if album_cover_art:
+                if verbose:
+                    msgproc.log(f"artist_to_entry_raw for artist_id [{artist_id}] "
+                                f"we are using album cover art [{album_cover_art}] ...")
+                    album_art_uri = subsonic_util.build_cover_art_url(item_id=album_cover_art)
+            else:
+                # find art from albums
+                if verbose:
+                    msgproc.log(f"artist_to_entry_raw retrieving cover art for artist_id [{artist_id}] from albums, this is slow ...")
+                album_art_uri = art_retriever.get_album_art_uri_for_artist_id(artist_id)
     if album_art_uri:
         upnp_util.set_album_art_from_uri(
             album_art_uri=album_art_uri,

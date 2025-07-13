@@ -1173,9 +1173,14 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
         genre=genre,
         artist_offset=offset,
         max_artists=display_size + 1)
+    msgproc.log(f"handler_element_genre_artists got {len(artist_id_list)} from offset [{offset}] "
+                f"display_size [{display_size}] ...")
     list_len: int = len(artist_id_list) if artist_id_list else 0
     to_display: list[subsonic_util.ArtistIdAndName] = artist_id_list[0:min(list_len, display_size)] if list_len > 0 else []
     next_artist: subsonic_util.ArtistIdAndName = artist_id_list[display_size] if list_len == display_size + 1 else None
+    msgproc.log(f"handler_element_genre_artists for [{genre}] initial offset [{offset}] "
+                f"to_display [{len(to_display)}] "
+                f"next [{'yes' if next_artist is not None else 'no'}] ...")
     # present the list of artists
     item_count: int = 0
     needs_next: bool = False
@@ -1184,16 +1189,29 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
         # load artist if it has an id
         if current.id:
             # msgproc.log(f"executing entry_creator.genre_artist_to_entry with artist_id [{current.id}] [{current.name}]")
-            entries.append(entry_creator.genre_artist_to_entry(
+            artist_entry: dict[str, any] = entry_creator.genre_artist_to_entry(
                 objid=objid,
                 genre=genre,
                 artist_id=current.id,
-                artist_name=current.name))
+                artist_name=current.name,
+                album_cover_art=current.cover_art)
+            entries.append(artist_entry)
+            # was cover art set?
+            entry_art_uri: str = upnp_util.get_album_art_uri(entry=artist_entry)
+            if not entry_art_uri:
+                # fallback to album art
+                msgproc.log(f"handler_element_genre_artists cover for [{current.name}] was not set, "
+                            f"falling back to album cover art [{current.cover_art}]")
+                upnp_util.set_album_art_from_uri(
+                    album_art_uri=subsonic_util.build_cover_art_url(current.cover_art),
+                    target=artist_entry)
             item_count += 1
-            if item_count >= config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE):
-                # we need the next button
-                needs_next = True
-                break
+        else:
+            msgproc.log(f"Skipping [{current.name}] as there is not id")
+    if len(artist_id_list) == config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE) + 1:
+        # we need the next button
+        msgproc.log(f"handler_element_genre_artists genre [{genre}] initial offset [{offset}]: next is needed")
+        needs_next = True
     if needs_next:
         next_offset: int = offset + config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE)
         msgproc.log(f"handler_element_genre_artists for [{genre}] next offset is [{next_offset}] ...")
@@ -1657,24 +1675,26 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     if not artist:
         msgproc.log(f"Cannot retrieve artist by id {artist_id}")
         return entries
+    album_list: list[Album] = artist.getAlbumList()
     artist_mb_id: str = subsonic_util.get_artist_musicbrainz_id(artist)
     artist_album_count: int = artist.getAlbumCount()
     artist_cover_art_from_artist_api: bool = True
+    # split album list in albums_as_main_artist and albums_as_appears_on
+    albums_as_main_artist: list[Album] = subsonic_util.get_artist_albums_as_main_artist(
+        artist_id=artist.getId(),
+        album_list=album_list)
+    subsonic_util.sort_albums_by_date(albums_as_main_artist)
+    albums_as_appears_on: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
+        artist_id=artist.getId(),
+        album_list=album_list)
+    subsonic_util.sort_albums_by_date(albums_as_appears_on)
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist)
     if not artist_cover_art:
         artist_cover_art_from_artist_api = False
         # try from albums, as main artist first
-        albums_as_main_artist: list[Album] = subsonic_util.get_artist_albums_as_main_artist(
-            artist_id=artist.getId(),
-            album_list=artist.getAlbumList())
-        subsonic_util.sort_albums_by_date(albums_as_main_artist)
         artist_cover_art = get_valid_cover_art_from_album_list(albums_as_main_artist)
     if not artist_cover_art:
         # try again from albums, as but also appearances
-        albums_as_appears_on: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
-            artist_id=artist.getId(),
-            album_list=artist.getAlbumList())
-        subsonic_util.sort_albums_by_date(albums_as_appears_on)
         artist_cover_art = get_valid_cover_art_from_album_list(albums_as_appears_on)
     msgproc.log(f"handler_element_artist artist_cover_art [{artist_cover_art}] "
                 f"from api [{'yes' if artist_cover_art_from_artist_api else 'no'}]")
@@ -1708,13 +1728,9 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             if bsn_entry:
                 entries.append(bsn_entry)
     # use one album for this entry image
-    album_list: list[Album] = artist.getAlbumList()
     # understand release types.
-    appearance_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
-        artist_id=artist_id,
-        album_list=album_list)
-    has_appearances: bool = len(appearance_album_list) > 0
-    msgproc.log(f"Artist [{artist_id}] has \"Appears on\" albums: [{len(appearance_album_list)}]")
+    has_appearances: bool = len(albums_as_appears_on) > 0
+    msgproc.log(f"Artist [{artist_id}] has \"Appears on\" albums: [{len(albums_as_appears_on)}]")
     artist_release_types: dict[str, int] = subsonic_util.get_release_types(album_list)
     msgproc.log(f"Artist [{artist_id}] release types counters are: [{artist_release_types}]")
     one_release_type: bool = len(artist_release_types.keys()) == 1
@@ -1722,10 +1738,19 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     if one_release_type:
         msgproc.log(f"Artist [{artist_id}] one release type only: [{single_release_type}]")
     if not one_release_type:
-        msgproc.log("We can add by-releasetype album entries!")
+        msgproc.log(f"Artist [{artist_id}] has [({len(artist_release_types.keys())})] "
+                    f"release types: [{single_release_type}] "
+                    "so we can add by-releasetype album entries!")
     else:
-        msgproc.log("No need for by-releasetype album entries.")
-    cover_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
+        msgproc.log(f"Artist [{artist_id}] has one release type only: [{single_release_type}] "
+                    "so there is no need for by-releasetype album entries.")
+    cover_art_album: Album
+    if len(albums_as_main_artist) > 0:
+        # to rule out album where artist just appears on
+        cover_art_album = secrets.choice(albums_as_main_artist)
+    else:
+        # choose randomly in all albums
+        cover_art_album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
     albums_entry: dict[str, any] = create_artist_albums_entry(
         objid=objid,
         artist_id=artist_id,
@@ -1762,22 +1787,26 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     # do we have appearances?
     if has_appearances:
         # we have appearances
-        msgproc.log(f"We add the \"Appears on\" entry as we have [{len(appearance_album_list)}] appearances")
+        msgproc.log(f"We add the \"Appears on\" entry as we have [{len(albums_as_appears_on)}] appearances")
         appearances_entry: dict[str, any] = create_artist_albums_entry_for_appearances(
             objid=objid,
             artist_id=artist_id,
-            album_entry_name=f"Appearances [{len(appearance_album_list)}]",
-            cover_art_album=secrets.choice(appearance_album_list))
+            album_entry_name=f"Appearances [{len(albums_as_appears_on)}]",
+            cover_art_album=secrets.choice(albums_as_appears_on))
         entries.append(appearances_entry)
     # add fallback albums entry, can be "all releases" or just one entry because there are no release types
     entries.append(albums_entry)
-    # add artist focus ...
+    # add artist focus entry ...
     artist_focus_entry = entry_creator.artist_id_to_artist_focus(objid, artist_id)
-    # possibly select another album for artist focus
-    select_album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
-    select_album_cover_art: str = select_album.getCoverArt() if select_album else None
+    # possibly select another album for artist focus, preferring albums as main artist
+    focus_select_album = (secrets.choice(albums_as_main_artist)
+                          if len(albums_as_main_artist) > 0
+                          else secrets.choice(album_list)
+                          if album_list and len(album_list) > 0
+                          else None)
+    focus_select_album_cover_art: str = focus_select_album.getCoverArt() if focus_select_album else None
     upnp_util.set_album_art_from_uri(
-        subsonic_util.build_cover_art_url(select_album_cover_art),
+        subsonic_util.build_cover_art_url(focus_select_album_cover_art),
         artist_focus_entry)
     entries.append(artist_focus_entry)
     return entries
@@ -2371,7 +2400,8 @@ def handler_element_similar_artists(objid, item_identifier: ItemIdentifier, entr
         entries.append(entry_creator.artist_to_entry_raw(
             objid=objid,
             artist_id=sim_artist.getId(),
-            entry_name=sim_artist.getName()))
+            artist_cover_art=subsonic_util.get_artist_cover_art(artist=sim_artist),
+            artist_entry_name=sim_artist.getName()))
     return entries
 
 
