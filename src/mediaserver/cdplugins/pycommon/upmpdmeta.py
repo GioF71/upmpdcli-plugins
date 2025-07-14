@@ -46,6 +46,8 @@ class UpMpdMeta(Enum):
     DISC_NUMBER = "discnumber"
     COPYRIGHT = "copyright"
     UNIVERSAL_PRODUCT_NUMBER = "universalproductnumber"
+    TRACK_QUALITY = "trackquality"
+    ALBUM_QUALITY_OF_TRACKS = "albumqualityoftracks"
 
 
 def get_duration_display_from_sec(duration_sec: int) -> str:

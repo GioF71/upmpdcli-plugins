@@ -37,6 +37,7 @@ import upnp_util
 import config
 import persistence
 import persistence_constants
+import cache_type
 
 import cmdtalkplugin
 import upmpdmeta
@@ -53,12 +54,264 @@ import time
 
 from functools import cmp_to_key
 from typing import Callable
-
+from enum import Enum
+from track_info import TrackInfo
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
 # Pipe message handler
 msgproc = cmdtalkplugin.Processor(dispatcher)
+
+# additional lossy extensions listed here
+additional_lossy_prefix_set: set[str] = {"m4a", "mp3"}
+
+
+class DictKey(Enum):
+    DICT_KEY_BITDEPTH = "BIT_DEPTH"
+    DICT_KEY_SAMPLERATE = "SAMPLE_RATE"
+    DICT_KEY_SUFFIX = "SUFFIX"
+    DICT_KEY_BITRATE = "BITRATE"
+
+
+def get_track_list_badge(track_list: list[Song], list_identifier: str = None) -> str:
+    prop_dict: dict[str, list[int]] = _get_track_list_streaming_properties(track_list)
+    track_info_list: list[TrackInfo] = get_track_info_list(track_list)
+    if not track_info_list or len(track_info_list) == 0:
+        # raise Exception("No tracks were processed")
+        msgproc.log(f"get_track_list_badge for [{list_identifier}] no tracks were processed")
+        return None
+    if (DictKey.DICT_KEY_BITDEPTH.value not in prop_dict or
+            DictKey.DICT_KEY_SAMPLERATE.value not in prop_dict):
+        msgproc.log(f"No streaming information available in [{list_identifier}]")
+        return None
+    # information are available, go on ...
+    # are they all lossy?
+    all_lossy: bool = __all_lossy(track_info_list)
+    # msgproc.log(f"get_track_list_badge all_lossy is [{all_lossy}]")
+    # do they all have the same bitrate?
+    unique_bitrate: int = _get_unique_bitrate(prop_dict)
+    # do they all have the same suffix?
+    unique_suffix: str = _get_unique_suffix(prop_dict)
+    # do they all have the same sampling rate?
+    unique_sampling_rate: int = __get_unique_sampling_rate(prop_dict)
+    readable_unique_sampling_rate: str = __get_readable_sampling_rate(unique_sampling_rate)
+    if all_lossy:
+        # we always return from this branch
+        if unique_bitrate and unique_suffix and unique_sampling_rate:
+            return f"{unique_suffix}@{unique_bitrate}/{readable_unique_sampling_rate}"
+        else:
+            avg_bitrate: int = _get_avg_bitrate_int(track_info_list)
+            if (unique_suffix and unique_sampling_rate and
+                    (avg_bitrate and avg_bitrate > 0)):
+                # use avg bitrate rate
+                return f"{unique_suffix}@{avg_bitrate}/{readable_unique_sampling_rate}"
+            elif unique_suffix and unique_sampling_rate:
+                # no avg bitrate
+                return f"{unique_suffix}/{readable_unique_sampling_rate}"
+            elif unique_suffix:
+                return unique_suffix
+            else:
+                # fallback
+                # msgproc.log("get_track_list_badge falling back to lossy")
+                return "lossy"
+    bit_depth_list: list[int] = prop_dict[DictKey.DICT_KEY_BITDEPTH.value]
+    bit_depth_list.sort(reverse=True)
+    sampling_rate_list: list[int] = prop_dict[DictKey.DICT_KEY_SAMPLERATE.value]
+    sampling_rate_list.sort(reverse=True)
+    if len(bit_depth_list) == 0 or len(sampling_rate_list) == 0:
+        msgproc.log("Empty streaming info in [{list_identifier}]")
+        return None
+    best_bit_depth: int = bit_depth_list[0]
+    best_sampling_rate: int = sampling_rate_list[0]
+    # msgproc.log(f"get_track_list_badge best_bit_depth [{best_bit_depth}] n:[{len(bit_depth_list)}] "
+    #             f"best_sampling_rate [{best_sampling_rate}] n:[{len(sampling_rate_list)}]")
+    if len(bit_depth_list) > 1 or len(sampling_rate_list) > 1:
+        if best_bit_depth >= 24 and best_sampling_rate >= 44100:
+            return "~HD"
+        if best_bit_depth == 16 and best_sampling_rate == 44100:
+            return "~CD"
+        if best_bit_depth == 16 and best_sampling_rate >= 48000:
+            return f"~16/{__get_readable_sampling_rate(best_sampling_rate)}"
+        if best_bit_depth == 0:
+            # msgproc.log(f"get_track_list_badge best_bit_depth is [{best_bit_depth}]")
+            return f"~Lossy/{__get_readable_sampling_rate(best_sampling_rate)}"
+        # other cases?
+        return f"~{best_bit_depth}/{__get_readable_sampling_rate(best_sampling_rate)}"
+    else:
+        # list sizes or bit_depth and sampling rate are 1
+        sr: str = __get_readable_sampling_rate(best_sampling_rate)
+        if best_bit_depth == 0:
+            # lossy
+            suffix_list: list[str] = (prop_dict[DictKey.DICT_KEY_SUFFIX.value]
+                                      if DictKey.DICT_KEY_SUFFIX.value in prop_dict
+                                      else list())
+            display_codec: str = (suffix_list[0]
+                                  if len(suffix_list) == 1
+                                  else "lossy")
+            # msgproc.log(f"get_track_list_badge display_codec is [{display_codec}]")
+            if unique_bitrate:
+                display_codec = f"{display_codec}@{unique_bitrate}"
+            return f"{display_codec}/{sr}"
+        if unique_suffix and unique_suffix.lower() in config.whitelist_codecs:
+            if best_bit_depth == 1:
+                return f"DSD {sr}"
+            else:
+                return f"{best_bit_depth}/{sr}"
+        elif unique_suffix:
+            # mention suffix
+            if best_bit_depth == 1:
+                return f"{unique_suffix}@DSD/{sr}"
+            else:
+                return f"{unique_suffix}@{best_bit_depth}/{sr}"
+        else:
+            # use ~ as we don't have an unique suffix
+            if best_bit_depth == 1:
+                return f"~DSD {sr}"
+            else:
+                return f"~{best_bit_depth}/{sr}"
+
+
+def _get_avg_bitrate(track_info_list: list[TrackInfo]) -> float:
+    sum: float = 0.0
+    current: TrackInfo
+    for current in track_info_list:
+        sum += float(current.bitrate) if current.bitrate else 0.0
+    return sum / float(len(track_info_list))
+
+
+def _get_avg_bitrate_int(track_info_list: list[TrackInfo]):
+    return int(_get_avg_bitrate(track_info_list))
+
+
+def get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
+    result: list[TrackInfo] = list()
+    song: Song
+    for song in track_list:
+        bit_depth: int = get_song_bit_depth(song)
+        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
+        suffix: str = song.getSuffix()
+        bitrate: int = song.getBitRate()
+        current: TrackInfo = TrackInfo()
+        current.bit_depth = bit_depth
+        current.sampling_rate = sampling_rate
+        current.suffix = suffix
+        current.bitrate = bitrate
+        result.append(current)
+    return result
+
+
+def __get_unique_sampling_rate(prop_dict: dict[str, list[int]]) -> int:
+    sampling_rate_list: list[int] = (prop_dict[DictKey.DICT_KEY_SAMPLERATE.value]
+                                     if DictKey.DICT_KEY_SAMPLERATE.value in prop_dict
+                                     else list())
+    if len(sampling_rate_list) == 1:
+        return sampling_rate_list[0]
+    return None
+
+
+def _get_unique_bitrate(prop_dict: dict[str, list[int]]) -> int:
+    bitrate_list: list[int] = (prop_dict[DictKey.DICT_KEY_BITRATE.value]
+                               if DictKey.DICT_KEY_BITRATE.value in prop_dict
+                               else list())
+    if len(bitrate_list) == 1:
+        return bitrate_list[0]
+    return None
+
+
+def _get_unique_suffix(prop_dict: dict[str, list[int]]) -> str:
+    suffix_list: list[str] = (prop_dict[DictKey.DICT_KEY_SUFFIX.value]
+                              if DictKey.DICT_KEY_SUFFIX.value in prop_dict
+                              else list())
+    if len(suffix_list) == 1:
+        return suffix_list[0]
+    return None
+
+
+def _get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, list[int]]:
+    result: dict[str, list[int]] = dict()
+    song: Song
+    for song in track_list:
+        # bit depth
+        bit_depth: int = get_song_bit_depth(song)
+        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_BITDEPTH.value, bit_depth)
+        # sampling rate
+        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
+        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SAMPLERATE.value, sampling_rate)
+        # suffix
+        suffix: str = song.getSuffix()
+        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SUFFIX.value, suffix)
+        # bitrate
+        bitrate: int = song.getBitRate()
+        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_BITRATE.value, bitrate)
+    return result
+
+
+def is_lossy(suffix: str, bit_depth: int) -> bool:
+    if not bit_depth or bit_depth == 0:
+        return True
+    # also select suffix are lossy
+    if suffix:
+        return suffix in additional_lossy_prefix_set
+    return False
+
+
+def __all_lossy(track_info_list: list[TrackInfo]) -> bool:
+    current: TrackInfo
+    for current in track_info_list if track_info_list else list():
+        if not current.is_lossy():
+            return False
+    return True
+
+
+def __maybe_append_to_dict_list(
+        prop_dict: dict[str, list[any]],
+        dict_key: str,
+        new_value: any):
+    if new_value is None:
+        return
+    item_list: list[any] = None
+    if dict_key not in prop_dict:
+        item_list = list()
+        # list was not there, safe to add
+        item_list.append(new_value)
+        prop_dict[dict_key] = item_list
+    else:
+        item_list = prop_dict[dict_key]
+        if new_value not in item_list:
+            item_list.append(new_value)
+
+
+__readable_sr: dict[int, str] = {
+    8000: "8k",
+    11025: "11k",
+    12000: "12k",
+    22050: "22k",
+    24000: "24k",
+    32000: "32k",
+    44100: "44k",
+    48000: "48k",
+    88200: "88k",
+    96000: "96k",
+    176400: "176k",
+    192000: "192k",
+    352800: "352k",
+    384000: "384k",
+    705600: "705k",
+    768000: "768k",
+    1411200: "1411k",
+    1536000: "1536k",
+    2822400: "2.8M",
+    5644800: "5.6M",
+    11289600: "11.2M",
+    22579200: "22.4M"
+}
+
+
+def __get_readable_sampling_rate(sampling_rate: int) -> str:
+    sr: str = (__readable_sr[sampling_rate]
+               if sampling_rate in __readable_sr
+               else str(sampling_rate))
+    return sr
 
 
 class ArtistIdAndName:
@@ -75,7 +328,7 @@ class ArtistIdAndName:
     @property
     def name(self) -> str:
         return self.__name
-    
+
     @property
     def cover_art(self) -> str:
         return self.__cover_art
@@ -1034,6 +1287,10 @@ def get_album_disc_numbers(album: Album) -> list[int]:
     return disc_list
 
 
+def get_song_bit_depth(song: Song) -> int:
+    return song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+
+
 def get_song_duration_display(song: Song) -> str:
     return upmpdmeta.get_duration_display_from_sec(duration_sec=song.getDuration())
 
@@ -1065,6 +1322,24 @@ def get_songs_by_album_disc_numbers(album: Album) -> dict[int, list[Song]]:
         # append.
         lst.append(song)
     return res
+
+
+def _get_name_list(song: Song, item_key: constants.ItemKey.SONG_ALBUM_ARTISTS) -> list[str]:
+    result: list[str] = []
+    rl: list[dict[str, str]] = song.getItem().getListByName(item_key.value) if song else None
+    current: dict[str, str]
+    for current in rl:
+        if constants.DictKey.NAME.value in current:
+            result.append(current[constants.DictKey.NAME.value])
+    return result
+
+
+def get_song_album_artists(song: Song) -> list[str]:
+    return _get_name_list(song=song, item_key=constants.ItemKey.SONG_ALBUM_ARTISTS)
+
+
+def get_song_artists(song: Song) -> list[str]:
+    return _get_name_list(song=song, item_key=constants.ItemKey.SONG_ARTISTS)
 
 
 def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
@@ -1118,14 +1393,18 @@ def set_artist_metadata(artist: Artist, target: dict):
     artist_roles: list[str] = get_artist_roles(artist=artist)
     upnp_util.set_upmpd_meta(
         upmpdmeta.UpMpdMeta.ARTIST_ROLE,
-        ", ".join(artist_roles),
+        join_with_comma(artist_roles),
         target)
 
 
+def join_with_comma(str_list: list[str]) -> str:
+    return ", ".join(str_list if str_list else [])
+
+
 def set_song_metadata(song: Song, target: dict):
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, song.getArtist(), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, join_with_comma(get_song_album_artists(song)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, song.getAlbum(), target)
-    joined_genres: str = ", ".join(song.getGenres())
+    joined_genres: str = join_with_comma(song.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_DURATION, get_song_duration_display(song), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.DISC_NUMBER, song.getDiscNumber(), target)
@@ -1135,6 +1414,9 @@ def set_song_metadata(song: Song, target: dict):
     album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
     if album_metadata:
         upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
+    # single track quality badge
+    track_quality_bade: str = get_track_list_badge([song])
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_QUALITY, track_quality_bade, target)
 
 
 def set_album_metadata(album: Album, target: dict):
@@ -1146,10 +1428,10 @@ def set_album_metadata(album: Album, target: dict):
     original_reldate: str = str(original_release_date_int) if original_release_date_int else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE, original_reldate, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
-    joined_genres: str = ", ".join(album.getGenres())
+    joined_genres: str = join_with_comma(album.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album.getId(), target)
-    record_label_names: str = ", ".join(get_album_record_label_names(album))
+    record_label_names: str = join_with_comma(get_album_record_label_names(album))
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_RECORD_LABELS, record_label_names, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, get_album_musicbrainz_id(album), target)
     explicit_status: str = get_explicit_status_display_value(
@@ -1166,7 +1448,7 @@ def set_album_metadata(album: Album, target: dict):
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, get_album_mediatype(album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, ", ".join(get_album_moods(album)), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, join_with_comma(get_album_moods(album)), target)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
         # album path.
         path_list: str = album_util.get_album_path_list(album=album)
@@ -1182,3 +1464,76 @@ def set_album_metadata(album: Album, target: dict):
             msgproc.log(f"set_album_metadata album_id: [{album.getId()}] Path: [{path_str}]")
             path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
         upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_PATH, path_str, target)
+    track_detailed_qualities: str = get_tracks_detailed_quality(album)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY_OF_TRACKS, track_detailed_qualities, target)
+
+
+def get_tracks_detailed_quality(album: Album) -> str:
+    song_list: list[Song] = album.getSongs()
+    if not song_list or len(song_list) == 0:
+        # is the value cached?
+        kv_item: persistence.KeyValueItem = persistence.get_kv_item(
+            partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
+            key=album.getId())
+        return kv_item.value if kv_item else None
+    # go on!
+    q_dict: dict[str, int] = {}
+    display_result: str = None
+    lossy_count: int = 0
+    lossless_count: int = 0
+    lossy_key_count: int = 0
+    lossless_key_count: int = 0
+    song: Song
+    for song in song_list:
+        # get song quality badge
+        song_is_lossy: bool = is_lossy(song.getSuffix(), get_song_bit_depth(song))
+        if song_is_lossy:
+            lossy_count += 1
+        else:
+            lossless_count += 1
+        song_quality_badge: str = get_track_list_badge([song])
+        if song_quality_badge:
+            # get current count, 0 if still not in dict
+            count: int = q_dict[song_quality_badge] if song_quality_badge in q_dict else 0
+            if count == 0:
+                # keep track of new key for lossy or lossless
+                if song_is_lossy:
+                    lossy_key_count += 1
+                else:
+                    lossless_key_count += 1
+            # store count
+            q_dict[song_quality_badge] = count + 1
+    if lossy_count > 0 and lossless_count > 0:
+        # mixed, return a constant string
+        display_result = mixed_lossless_lossy(
+            lossless_count=lossless_count,
+            lossy_count=lossy_count)
+    # not too many lossy/lossless types allowed
+    if lossy_key_count > 3 or lossless_key_count > 3:
+        display_result = mixed_lossless_lossy(
+            lossless_count=lossless_count,
+            lossy_count=lossy_count)
+    if not display_result:
+        to_display: list[str] = []
+        k: str
+        v: int
+        for k, v in q_dict.items():
+            to_display.append(f"{k} ({v} {'songs' if v > 1 else 'song'})")
+        display_result: str = join_with_comma(to_display)
+    # cache the value
+    persistence.save_key_value_item(
+        key_value_item=persistence.KeyValueItem(
+            partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
+            key=album.getId(),
+            value=display_result))
+    return display_result
+
+
+def mixed_lossless_lossy(lossless_count: int, lossy_count: int) -> str:
+    if lossy_count == 0 and lossless_count == 0:
+        return None
+    if lossless_count == 0:
+        return f"lossy ({lossy_count})"
+    if lossy_count == 0:
+        return f"lossless ({lossless_count})"
+    return f"lossless ({lossless_count}), lossy ({lossy_count})"

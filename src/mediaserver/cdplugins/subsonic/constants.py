@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.5"
+    PLUGIN_RELEASE = "0.8.6"
     PLUGIN_NAME = "subsonic"
 
 
@@ -44,6 +44,8 @@ class ItemKey(Enum):
     IS_COMPILATION = "isCompilation"
     ROLES = "roles"
     MOODS = "moods"
+    SONG_ALBUM_ARTISTS = "albumartists"
+    SONG_ARTISTS = "artists"
 
 
 class DictKey(Enum):
@@ -161,11 +163,15 @@ class ConfigParam(Enum):
     VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
 
     CACHED_ARTIST_LIST_CACHE_TIMEOUT_SEC = _ConfigParamData("cachedartistlistcachetimeoutsec", 300)
-    SEARCH_SIZE_ALBUM_WITHOUT_MUSICBRAINZ = _ConfigParamData("searchsizealbumwithoutmusicbrainz", 1000)
+    SEARCH_SIZE_ALBUM_LIBRARY_MAINTENANCE = _ConfigParamData("searchsizealbumlibrarymaintenance", 1000)
     ENABLE_MAINTENANCE_FEATURES = _ConfigParamData("enablemaintenancefeatures", False)
+    MAINTENANCE_MAX_ALBUM_LOAD_SIZE = _ConfigParamData("maintenancemaxalbumloadsize", 3000)
 
     GENRE_VIEW_SEARCH_ALBUMS_FOR_COVER_ART = _ConfigParamData("genreviewsearchalbumsforcoverart", False)
     ALLOW_ARTIST_COVER_ART = _ConfigParamData("allowartistcoverart", True)
+
+    ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowfavoritesforfrontpagetags", False)
+    ALLOW_SHUFFLE_RANDOM_ALBUM_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowshufflerandomalbumsforfrontpagetags", True)
 
     @property
     def key(self) -> str:

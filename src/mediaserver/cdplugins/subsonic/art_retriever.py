@@ -26,6 +26,8 @@ from subsonic_connector.song import Song
 from tag_type import TagType
 from retrieved_art import RetrievedArt
 
+from tag_to_entry_context import TagToEntryContext
+
 import connector_provider
 import request_cache
 import subsonic_util
@@ -71,63 +73,107 @@ def _filter_album_without_cover_art(album_list: list[Album]) -> list[Album]:
             else [])
 
 
-def group_albums_art_retriever() -> RetrievedArt:
-    # try in favorites (pick random)
-    art: str = favourite_albums_art_retriever()
-    # else random album
-    if not art:
-        art = random_albums_art_retriever()
-    return art
+def consume_random_album_for_cover_art(tag_to_entry_context: TagToEntryContext = None) -> Album:
+    if tag_to_entry_context is None:
+        msgproc.log("consume_random_album_for_cover_art cannot return an album because a context is not available")
+        return None
+    random_album_list: list[Album] = tag_to_entry_context.random_album_list
+    msgproc.log(f"Albums available in tagToEntryContext [{len(random_album_list)}] ...")
+    select_album: Album = None
+    while not select_album and len(random_album_list) > 0:
+        select: Album = random_album_list.pop(0)
+        # does the album have a cover art?
+        if select.getCoverArt() is not None:
+            msgproc.log(f"consume_random_album_for_cover_art consumed album [{select.getId()}] [{select.getTitle()}] "
+                        f"by [{select.getArtist()}]")
+            return select
+        else:
+            msgproc.log(f"Skipping album [{select.getId()}] [{select.getTitle()}] "
+                        f"from [{select.getArtist()}] (no cover art)")
+    msgproc.log("consume_random_album_for_cover_art cannot not return an album")
+    return None
 
 
-def group_artists_art_retriever() -> RetrievedArt:
-    # try in favorites (pick random)
-    art: RetrievedArt = favourite_artist_art_retriever()
-    # else random album
-    if not art:
-        art = random_albums_art_retriever()
-    return art
-
-
-def group_songs_art_retriever() -> RetrievedArt:
-    # try in favorites (pick random)
-    art = _art_for_favourite_song(random=True)
+def group_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
+    msgproc.log(f"group_albums_art_retriever tag_to_entry_context is set: [{tag_to_entry_context is not None}]")
+    # try in favorites (pick random), if allowed
+    art: RetrievedArt = (favourite_albums_art_retriever()
+                         if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS)
+                         else None)
+    # else random album from context, if available
+    random_album: Album = consume_random_album_for_cover_art(tag_to_entry_context=tag_to_entry_context)
+    # set RetrievedArt if album is found
+    art = (RetrievedArt(art_url=subsonic_util.build_cover_art_url(item_id=random_album.getCoverArt()))
+           if random_album
+           else None)
     # else random
     if not art:
         art = random_albums_art_retriever()
     return art
 
 
-def newest_albums_art_retriever() -> RetrievedArt:
-    response: Response[AlbumList] = connector_provider.get().getAlbumList(
-        ltype=ListType.BY_YEAR,
-        size=1,
-        fromYear=datetime.datetime.now().year,
-        toYear=0)
-    return _get_cover_art_from_res_album_list(response=response)
+def group_artists_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
+    # try in favorites (pick random)
+    art: RetrievedArt = (favourite_artist_art_retriever()
+                         if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS)
+                         else None)
+    # else random album from context, if available
+    random_album: Album = consume_random_album_for_cover_art(tag_to_entry_context=tag_to_entry_context)
+    # set RetrievedArt if album is found
+    art = (RetrievedArt(art_url=subsonic_util.build_cover_art_url(item_id=random_album.getCoverArt()))
+           if random_album
+           else None)
+    if not art:
+        art = random_albums_art_retriever()
+    return art
 
 
-def recently_added_albums_art_retriever() -> RetrievedArt:
+def group_songs_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
+    # try in favorites (pick random)
+    art: RetrievedArt = (_art_for_favourite_song(random=True)
+                         if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS)
+                         else None)
+    # else random album from context, if available
+    random_album: Album = consume_random_album_for_cover_art(tag_to_entry_context=tag_to_entry_context)
+    # set RetrievedArt if album is found
+    art = (RetrievedArt(art_url=subsonic_util.build_cover_art_url(item_id=random_album.getCoverArt()))
+           if random_album
+           else None)
+    # else random
+    if not art:
+        art = random_albums_art_retriever()
+    return art
+
+
+def newest_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
+    response: Response[AlbumList] = request_cache.get_first_newest_album_list()
+    return _get_cover_art_from_res_album_list(response=response, random=False)
+
+
+def recently_added_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getNewestAlbumList(size=1)
     return _get_cover_art_from_res_album_list(response=response)
 
 
-def random_albums_art_retriever() -> RetrievedArt:
+def random_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
+    random_album_from_context: Album = consume_random_album_for_cover_art(tag_to_entry_context=tag_to_entry_context)
+    if random_album_from_context:
+        return RetrievedArt(art_url=subsonic_util.build_cover_art_url(item_id=random_album_from_context.getCoverArt()))
     response: Response[AlbumList] = request_cache.get_random_album_list(size=config.get_items_per_page())
-    return _get_cover_art_from_res_album_list(response=response)
+    return _get_cover_art_from_res_album_list(response=response, random=True)
 
 
-def recently_played_albums_art_retriever() -> RetrievedArt:
+def recently_played_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.RECENT, size=1)
     return _get_cover_art_from_res_album_list(response=response)
 
 
-def highest_rated_albums_art_retriever() -> RetrievedArt:
+def highest_rated_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.HIGHEST, size=1)
     return _get_cover_art_from_res_album_list(response=response)
 
 
-def most_played_albums_art_retriever() -> RetrievedArt:
+def most_played_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.FREQUENT, size=1)
     return _get_cover_art_from_res_album_list(response=response)
 
@@ -233,7 +279,7 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
 
 def get_artist_art_url_using_albums_by_artist_id(artist_id: str) -> str:
     artist: Artist = subsonic_util.try_get_artist(artist_id)
-    msgproc.log(f"artist_entry_for_album loaded artist for id [{artist_id}] -> "
+    msgproc.log(f"get_artist_art_url_using_albums_by_artist_id found artist for id [{artist_id}] -> "
                 f"[{'yes' if artist else 'no'}]")
     return get_artist_art_url_using_albums_by_artist(artist=artist) if artist else None
 
@@ -247,7 +293,7 @@ def get_artist_art_url_using_albums_by_artist(artist: Artist) -> str:
         artist_id=artist_id,
         album_list=album_list,
         opposite=True)
-    msgproc.log(f"get_artist_art_url_using_albums_by_artist_id select_album_list for [{artist_id}] "
+    msgproc.log(f"get_artist_art_url_using_albums_by_artist select_album_list for [{artist_id}] "
                 f"[{artist.getName() if artist else None}] "
                 f"full length [{len(album_list) if album_list else 0}] "
                 f"as main artist only [{len(as_main_artist_album_list)}]")
@@ -279,7 +325,7 @@ def get_first_cover_art_from_album_list(album_list: list[Album]) -> str:
     return album.getCoverArt() if album else None
 
 
-def favourite_albums_art_retriever() -> RetrievedArt:
+def favourite_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     fav: RetrievedArt = _favourite_albums_art_retriever()
     return fav if fav else random_albums_art_retriever()
 
@@ -292,28 +338,54 @@ def _favourite_albums_art_retriever() -> RetrievedArt:
     return _get_cover_art_from_album_list(album_list=album_list, random=True)
 
 
-def favourite_artist_art_retriever() -> RetrievedArt:
+def favourite_artist_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     fav: RetrievedArt = _favourite_artist_art_retriever()
     msgproc.log(f"favourite_artist_art_retriever fav found: [{'yes' if fav else 'no'}]")
     return fav if fav is not None else random_albums_art_retriever()
 
 
 def _favourite_artist_art_retriever() -> RetrievedArt:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
         msgproc.log("_favourite_artist_art_retriever no starred artists")
         return None
     artist_list: list[Artist] = response.getObj().getArtists()
-    select_artist: Artist = secrets.choice(artist_list) if artist_list and len(artist_list) > 0 else None
+    with_id: list[Artist] = list(filter(lambda a: a.getId() is not None, artist_list if artist_list else []))
+    select_artist: Artist = secrets.choice(with_id) if with_id and len(with_id) > 0 else None
+    msgproc.log(f"_favourite_artist_art_retriever select_artist is set: {'yes' if select_artist else 'no'}")
     msgproc.log("_favourite_artist_art_retriever selected artist "
-                f"[{select_artist.getId() if select_artist else None}]")
+                f"[{select_artist.getId() if select_artist else None}] "
+                f"[{select_artist.getName() if select_artist else None}]")
     if not select_artist:
         return None
-    art_url: str = get_artist_art_url_using_albums_by_artist_id(artist_id=select_artist.getId())
+    artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=select_artist)
+    art_url: str = None
+    if verbose:
+        msgproc.log("_favourite_artist_art_retriever got cover art from artist "
+                    f"[{select_artist.getId()}] [{select_artist.getName()}]: "
+                    f"[{'yes' if artist_cover_art else 'no'}] "
+                    f"-> CoverArt: [{artist_cover_art}]")
+    if artist_cover_art:
+        msgproc.log(f"_favourite_artist_art_retriever [{select_artist.getId()}] [{select_artist.getName()}] "
+                    f"using artist information (best option)")
+        art_url = subsonic_util.build_cover_art_url(item_id=artist_cover_art)
+        return RetrievedArt(art_url=art_url)
+    # look in cache first
+    select_artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=select_artist.getId())
+    if select_artist_metadata and select_artist_metadata.artist_cover_art:
+        msgproc.log(f"_favourite_artist_art_retriever [{select_artist.getId()}] [{select_artist.getName()}] "
+                    f"using artist metadata (second best option)")
+        art_url = subsonic_util.build_cover_art_url(item_id=select_artist_metadata.artist_cover_art)
+        return RetrievedArt(art_url=art_url)
+    # last chance, load artist, get albums, then select one
+    msgproc.log(f"_favourite_artist_art_retriever [{select_artist.getId()}] [{select_artist.getName()}] "
+                f"loading artist, worst option")
+    art_url = get_artist_art_url_using_albums_by_artist_id(artist_id=select_artist.getId())
     return RetrievedArt(art_url=art_url)
 
 
-def favourite_song_retriever() -> RetrievedArt:
+def favourite_song_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     fav: RetrievedArt = _favourite_song_retriever()
     return fav if fav else random_albums_art_retriever()
 
@@ -336,7 +408,7 @@ def _art_for_favourite_song(random: bool = False) -> RetrievedArt:
     return RetrievedArt(art_url=art_url)
 
 
-def playlists_art_retriever() -> RetrievedArt:
+def playlists_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
     response: Response[Playlists] = request_cache.get_playlists()
     if not response.isOk():
         msgproc.log("playlists_art_retriever - cannot get playlists")
@@ -355,11 +427,13 @@ def playlists_art_retriever() -> RetrievedArt:
     return RetrievedArt(art_url=art_url)
 
 
-def execute_art_retriever(tag: TagType) -> RetrievedArt:
+def execute_art_retriever(
+        tag: TagType,
+        context: TagToEntryContext = None) -> RetrievedArt:
     tagname: str = tag.getTagName()
     if tagname in __tag_art_retriever_dict:
         try:
-            return __tag_art_retriever_dict[tagname]()
+            return __tag_art_retriever_dict[tagname](context)
         except Exception as ex:
             msgproc.log(f"Cannot retrieve art for tag [{tagname}] [{type(ex)}] [{ex}]")
 
@@ -376,6 +450,8 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.MOST_PLAYED_ALBUMS.getTagName(): most_played_albums_art_retriever,
     TagType.RANDOM.getTagName(): random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_COVER.getTagName(): random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_GENRE.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS.getTagName(): random_albums_art_retriever,
     TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,
     TagType.GENRES.getTagName(): random_albums_art_retriever,

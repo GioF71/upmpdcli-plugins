@@ -1,5 +1,16 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.6
+
+- Metadata: album track qualities are made available as metadata, grouped by badge (example value for album with tracks of different qualities: `24/44 (10 songs), 24/48 (1 song)`)
+- Metadata: avoid album track qualities to list too many formats, for better readability
+- Initial presentation, the "Artists" tile is now faster to show
+- Metadata: improved display of artists from a song (should do this for playlists also)
+- Improve responsiveness of initial page
+- Avoid possible timeouts in maintenance page "Albums without MusicBrainz", by reading up to 3k albums before forcing a Next button
+- Add view for albums without CoverArt id (requires to set `subsonicenablemaintenancefeatures` to `1`)
+- Add view for albums without Genre (requires to set `subsonicenablemaintenancefeatures` to `1`)
+
 ## Release 0.8.5
 
 - Better selection of album when retrieving coverArt for entries that lead to album lists for a given artist

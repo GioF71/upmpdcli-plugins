@@ -28,7 +28,6 @@ from element_type import ElementType
 
 from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
-from album_util import get_display_artist
 from album_util import strip_codec_from_album
 from album_util import get_last_path_element
 from album_util import has_year
@@ -60,213 +59,15 @@ import os
 
 import persistence
 
-__DICT_KEY_BITDEPTH: str = "BIT_DEPTH"
-__DICT_KEY_SAMPLERATE: str = "SAMPLE_RATE"
-__DICT_KEY_SUFFIX: str = "SUFFIX"
-__DICT_KEY_BITRATE: str = "BITRATE"
-
-
-__readable_sr: dict[int, str] = {
-    8000: "8k",
-    11025: "11k",
-    12000: "12k",
-    22050: "22k",
-    24000: "24k",
-    32000: "32k",
-    44100: "44k",
-    48000: "48k",
-    88200: "88k",
-    96000: "96k",
-    176400: "176k",
-    192000: "192k",
-    352800: "352k",
-    384000: "384k",
-    705600: "705k",
-    768000: "768k",
-    1411200: "1411k",
-    1536000: "1536k",
-    2822400: "2.8M",
-    5644800: "5.6M",
-    11289600: "11.2M",
-    22579200: "22.4M"
-}
-
-
-def get_readable_sampling_rate(sampling_rate: int) -> str:
-    sr: str = (__readable_sr[sampling_rate]
-               if sampling_rate in __readable_sr
-               else str(sampling_rate))
-    return sr
-
-
-additional_lossy_prefix_set: set[str] = {"m4a", "mp3"}
-
-
-class TrackInfo:
-
-    def __init__(self):
-        self.__trackId: str = None
-        self.__bitrate: int = None
-        self.__bit_depth: int = None
-        self.__sampling_rate: int = None
-        self.__suffix: str = None
-
-    @property
-    def trackId(self) -> str:
-        return self.__trackId
-
-    @trackId.setter
-    def trackId(self, value: str):
-        self.__trackId = value
-
-    @property
-    def bitrate(self) -> int:
-        return self.__bitrate
-
-    @bitrate.setter
-    def bitrate(self, value: int):
-        self.__bitrate = value
-
-    @property
-    def bit_depth(self) -> int:
-        return self.__bit_depth
-
-    @bit_depth.setter
-    def bit_depth(self, value: int):
-        self.__bit_depth = value
-
-    @property
-    def sampling_rate(self) -> int:
-        return self.__sampling_rate
-
-    @sampling_rate.setter
-    def sampling_rate(self, value: int):
-        self.__sampling_rate = value
-
-    @property
-    def suffix(self) -> str:
-        return self.__suffix
-
-    @suffix.setter
-    def suffix(self, value: int):
-        self.__suffix = value
-
-    def is_lossy(self):
-        if not self.bit_depth or self.bit_depth == 0:
-            return True
-        # also select suffix are lossy
-        if self.__suffix:
-            return self.__suffix in additional_lossy_prefix_set
-        return False
-
-
-def __maybe_append_to_dict_list(
-        prop_dict: dict[str, list[any]],
-        dict_key: str,
-        new_value: any):
-    if new_value is None:
-        return
-    item_list: list[any] = None
-    if dict_key not in prop_dict:
-        item_list = list()
-        # list was not there, safe to add
-        item_list.append(new_value)
-        prop_dict[dict_key] = item_list
-    else:
-        item_list = prop_dict[dict_key]
-        if new_value not in item_list:
-            item_list.append(new_value)
-
-
-def __get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
-    result: list[TrackInfo] = list()
-    song: Song
-    for song in track_list:
-        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        suffix: str = song.getSuffix()
-        bitrate: int = song.getBitRate()
-        current: TrackInfo = TrackInfo()
-        current.bit_depth = bit_depth
-        current.sampling_rate = sampling_rate
-        current.suffix = suffix
-        current.bitrate = bitrate
-        result.append(current)
-    return result
-
-
-def __all_lossy(track_info_list: list[TrackInfo]) -> bool:
-    current: TrackInfo
-    for current in track_info_list if track_info_list else list():
-        if not current.is_lossy():
-            return False
-    return True
-
-
-def __get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, list[int]]:
-    result: dict[str, list[int]] = dict()
-    song: Song
-    for song in track_list:
-        # bit depth
-        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-        __maybe_append_to_dict_list(result, __DICT_KEY_BITDEPTH, bit_depth)
-        # sampling rate
-        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        __maybe_append_to_dict_list(result, __DICT_KEY_SAMPLERATE, sampling_rate)
-        # suffix
-        suffix: str = song.getSuffix()
-        __maybe_append_to_dict_list(result, __DICT_KEY_SUFFIX, suffix)
-        # bitrate
-        bitrate: int = song.getBitRate()
-        __maybe_append_to_dict_list(result, __DICT_KEY_BITRATE, bitrate)
-    return result
-
-
-def __get_unique_bitrate(prop_dict: dict[str, list[int]]) -> int:
-    bitrate_list: list[int] = (prop_dict[__DICT_KEY_BITRATE]
-                               if __DICT_KEY_BITRATE in prop_dict
-                               else list())
-    if len(bitrate_list) == 1:
-        return bitrate_list[0]
-    return None
-
-
-def __get_avg_bitrate(track_info_list: list[TrackInfo]) -> float:
-    sum: float = 0.0
-    current: TrackInfo
-    for current in track_info_list:
-        sum += float(current.bitrate) if current.bitrate else 0.0
-    return sum / float(len(track_info_list))
-
-
-def __get_avg_bitrate_int(track_info_list: list[TrackInfo]):
-    return int(__get_avg_bitrate(track_info_list))
-
-
-def __get_unique_sampling_rate(prop_dict: dict[str, list[int]]) -> int:
-    sampling_rate_list: list[int] = (prop_dict[__DICT_KEY_SAMPLERATE]
-                                     if __DICT_KEY_SAMPLERATE in prop_dict
-                                     else list())
-    if len(sampling_rate_list) == 1:
-        return sampling_rate_list[0]
-    return None
-
-
-def __get_unique_suffix(prop_dict: dict[str, list[int]]) -> str:
-    suffix_list: list[str] = (prop_dict[__DICT_KEY_SUFFIX]
-                              if __DICT_KEY_SUFFIX in prop_dict
-                              else list())
-    if len(suffix_list) == 1:
-        return suffix_list[0]
-    return None
-
 
 def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
     msgproc.log(f"artist_entry_for_album creating artist entry for album with album_id: [{album.getId()}]")
     artist_identifier: ItemIdentifier = ItemIdentifier(
         name=ElementType.ARTIST.getName(),
         value=album.getArtistId())
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(artist_identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(artist_identifier))
     artist_entry_title: str = album.getArtist()
     if album.getArtistId() and config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_ID):
         msgproc.log(f"artist_entry_for_album: Adding [{album.getArtistId()}] to [{artist_entry_title}]")
@@ -329,109 +130,11 @@ def get_album_quality_badge(album: Album, force_load: bool = False) -> str:
 
 
 def get_track_list_badge(track_list: list[Song], list_identifier: str = None) -> str:
-    quality_badge: str = __get_track_list_badge(track_list, list_identifier)
+    quality_badge: str = subsonic_util.get_track_list_badge(track_list, list_identifier)
     if config.debug_badge_mngmt:
         msgproc.log(f"Quality badge for id: [{list_identifier}] len: [{len(track_list) if track_list else 0}] -> "
                     f"[{quality_badge}]")
     return quality_badge
-
-
-def __get_track_list_badge(track_list: list[Song], list_identifier: str = None) -> str:
-    prop_dict: dict[str, list[int]] = __get_track_list_streaming_properties(track_list)
-    track_info_list: list[TrackInfo] = __get_track_info_list(track_list)
-    if not track_info_list or len(track_info_list) == 0:
-        # raise Exception("No tracks were processed")
-        msgproc.log(f"__get_track_list_badge for [{list_identifier}] no tracks were processed")
-        return None
-    if (__DICT_KEY_BITDEPTH not in prop_dict or
-       __DICT_KEY_SAMPLERATE not in prop_dict):
-        msgproc.log(f"No streaming information available in [{list_identifier}]")
-        return None
-    # information are available, go on ...
-    # are they all lossy?
-    all_lossy: bool = __all_lossy(track_info_list)
-    # msgproc.log(f"__get_track_list_badge all_lossy is [{all_lossy}]")
-    # do they all have the same bitrate?
-    unique_bitrate: int = __get_unique_bitrate(prop_dict)
-    # do they all have the same suffix?
-    unique_suffix: str = __get_unique_suffix(prop_dict)
-    # do they all have the same sampling rate?
-    unique_sampling_rate: int = __get_unique_sampling_rate(prop_dict)
-    readable_unique_sampling_rate: str = get_readable_sampling_rate(unique_sampling_rate)
-    if all_lossy:
-        # we always return from this branch
-        if unique_bitrate and unique_suffix and unique_sampling_rate:
-            return f"{unique_suffix}@{unique_bitrate}/{readable_unique_sampling_rate}"
-        else:
-            avg_bitrate: int = __get_avg_bitrate_int(track_info_list)
-            if (unique_suffix and unique_sampling_rate and
-                    (avg_bitrate and avg_bitrate > 0)):
-                # use avg bitrate rate
-                return f"{unique_suffix}@{avg_bitrate}/{readable_unique_sampling_rate}"
-            elif unique_suffix and unique_sampling_rate:
-                # no avg bitrate
-                return f"{unique_suffix}/{readable_unique_sampling_rate}"
-            elif unique_suffix:
-                return unique_suffix
-            else:
-                # fallback
-                # msgproc.log("__get_track_list_badge falling back to lossy")
-                return "lossy"
-    bit_depth_list: list[int] = prop_dict[__DICT_KEY_BITDEPTH]
-    bit_depth_list.sort(reverse=True)
-    sampling_rate_list: list[int] = prop_dict[__DICT_KEY_SAMPLERATE]
-    sampling_rate_list.sort(reverse=True)
-    if len(bit_depth_list) == 0 or len(sampling_rate_list) == 0:
-        msgproc.log("Empty streaming info in [{list_identifier}]")
-        return None
-    best_bit_depth: int = bit_depth_list[0]
-    best_sampling_rate: int = sampling_rate_list[0]
-    # msgproc.log(f"__get_track_list_badge best_bit_depth [{best_bit_depth}] n:[{len(bit_depth_list)}] "
-    #             f"best_sampling_rate [{best_sampling_rate}] n:[{len(sampling_rate_list)}]")
-    if len(bit_depth_list) > 1 or len(sampling_rate_list) > 1:
-        if best_bit_depth >= 24 and best_sampling_rate >= 44100:
-            return "~HD"
-        if best_bit_depth == 16 and best_sampling_rate == 44100:
-            return "~CD"
-        if best_bit_depth == 16 and best_sampling_rate >= 48000:
-            return f"~16/{get_readable_sampling_rate(best_sampling_rate)}"
-        if best_bit_depth == 0:
-            # msgproc.log(f"__get_track_list_badge best_bit_depth is [{best_bit_depth}]")
-            return f"~Lossy/{get_readable_sampling_rate(best_sampling_rate)}"
-        # other cases?
-        return f"~{best_bit_depth}/{get_readable_sampling_rate(best_sampling_rate)}"
-    else:
-        # list sizes or bit_depth and sampling rate are 1
-        sr: str = get_readable_sampling_rate(best_sampling_rate)
-        if best_bit_depth == 0:
-            # lossy
-            suffix_list: list[str] = (prop_dict[__DICT_KEY_SUFFIX]
-                                      if __DICT_KEY_SUFFIX in prop_dict
-                                      else list())
-            display_codec: str = (suffix_list[0]
-                                  if len(suffix_list) == 1
-                                  else "lossy")
-            # msgproc.log(f"__get_track_list_badge display_codec is [{display_codec}]")
-            if unique_bitrate:
-                display_codec = f"{display_codec}@{unique_bitrate}"
-            return f"{display_codec}/{sr}"
-        if unique_suffix and unique_suffix.lower() in config.whitelist_codecs:
-            if best_bit_depth == 1:
-                return f"DSD {sr}"
-            else:
-                return f"{best_bit_depth}/{sr}"
-        elif unique_suffix:
-            # mention suffix
-            if best_bit_depth == 1:
-                return f"{unique_suffix}@DSD/{sr}"
-            else:
-                return f"{unique_suffix}@{best_bit_depth}/{sr}"
-        else:
-            # use ~ as we don't have an unique suffix
-            if best_bit_depth == 1:
-                return f"~DSD {sr}"
-            else:
-                return f"~{best_bit_depth}/{sr}"
 
 
 def genre_artist_to_entry(
@@ -445,7 +148,9 @@ def genre_artist_to_entry(
         ElementType.GENRE_ARTIST.getName(),
         artist_id)
     identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(
         id,
         objid,
@@ -736,7 +441,8 @@ def artist_to_entry_raw(
             else:
                 # find art from albums
                 if verbose:
-                    msgproc.log(f"artist_to_entry_raw retrieving cover art for artist_id [{artist_id}] from albums, this is slow ...")
+                    msgproc.log("artist_to_entry_raw retrieving cover art for "
+                                f"artist_id [{artist_id}] from albums, this is slow ...")
                 album_art_uri = art_retriever.get_album_art_uri_for_artist_id(artist_id)
     if album_art_uri:
         upnp_util.set_album_art_from_uri(
@@ -757,7 +463,9 @@ def artist_initial_to_entry(
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_BY_INITIAL.getName(),
         encoded_artist_initial)
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, artist_initial)
     return entry
 
@@ -784,7 +492,9 @@ def song_to_entry(
         options: dict[str, any] = {}) -> dict:
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry['id'] = id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
@@ -804,7 +514,7 @@ def song_to_entry(
     if force_track_number:
         track_num = str(force_track_number)
     upnp_util.set_track_number(track_num, entry)
-    upnp_util.set_artist(get_display_artist(song.getArtist()), entry)
+    upnp_util.set_artist(subsonic_util.join_with_comma(subsonic_util.get_song_artists(song)), entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     entry['res:mime'] = song.getContentType()
@@ -819,8 +529,8 @@ def song_to_entry(
     if song.getItem().hasName(constants.ItemKey.CHANNEL_COUNT.value):
         cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
         upnp_util.set_channel_count(cc, entry)
-    if song.getItem().hasName(constants.ItemKey.BIT_DEPTH.value):
-        bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+    if subsonic_util.get_song_bit_depth(song):
+        bd = subsonic_util.get_song_bit_depth(song)
         upnp_util.set_bit_depth(bd, entry)
     if song.getItem().hasName(constants.ItemKey.SAMPLING_RATE.value):
         sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
@@ -844,7 +554,9 @@ def playlist_to_entry(
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.PLAYLIST.getName(),
         playlist.getId())
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, playlist.getName())
     art_uri: str = (subsonic_util.build_cover_art_url(playlist.getCoverArt())
                     if playlist.getCoverArt() else None)
@@ -976,7 +688,9 @@ def album_to_entry(
     artist = album.getArtist()
     cache_actions.on_album(album)
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     # we save the cover art even if it's already there
     cover_art_url: str = subsonic_util.build_cover_art_url(item_id=album.getCoverArt(), force_save=True)
@@ -1009,7 +723,9 @@ def album_id_to_album_focus(
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALBUM_FOCUS.getName(),
         album.getId())
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     art_uri = subsonic_util.build_cover_art_url(item_id=album.getCoverArt())
     entry = upmplgutils.direntry(id, objid, "Focus")
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
@@ -1022,7 +738,9 @@ def artist_id_to_artist_focus(
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_FOCUS.getName(),
         artist_id)
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, "Focus")
     return entry
 
@@ -1036,7 +754,9 @@ def album_version_to_entry(
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
     avp_encoded: str = codec.encode(album_version_path)
     identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_encoded)
-    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
     title: str = f"Version #{version_number}"
     if (config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW) and
             has_year(current_album)):

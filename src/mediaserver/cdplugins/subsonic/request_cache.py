@@ -23,6 +23,7 @@ from subsonic_connector.starred import Starred
 from subsonic_connector.playlists import Playlists
 from subsonic_connector.artist import Artist
 from subsonic_connector.search_result import SearchResult
+from subsonic_connector.list_type import ListType
 
 import config
 import constants
@@ -55,6 +56,7 @@ cached_response_genres: CachedResponse = CachedResponse()
 cached_starred_albums: CachedResponse = CachedResponse()
 cached_starred: CachedResponse = CachedResponse()
 cached_playlists: CachedResponse = CachedResponse()
+cached_response_newest: CachedResponse = CachedResponse()
 
 cached_all_artist_list: CachedArtistList = CachedArtistList()
 
@@ -119,8 +121,7 @@ def get_starred() -> Response[Artists]:
         return res
     else:
         if verbose:
-            msgproc.log("request_cache.get_starred using cached data!")
-        # msgproc.log("subsonic_util.get_starred using cached starred")
+            msgproc.log("request_cache.get_starred is using cached data")
         return cached_starred.last_response_obj
 
 
@@ -211,16 +212,16 @@ def get_random_album_list(
     else:
         global cached_response_random_firstpage
         if __cached_response_is_expired(cached_response_random_firstpage, config.get_cached_request_timeout_sec()):
-            msgproc.log("subsonic_util.get_random_album_list loading first random albums ...")
+            msgproc.log(f"subsonic_util.get_random_album_list loading first [{config.get_items_per_page()}] random albums ...")
             # actually request first random albums
-            res: Response[Artists] = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
+            res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
             cached_response_random_firstpage = CachedResponse()
             cached_response_random_firstpage.last_response_obj = res
             cached_response_random_firstpage.last_response_time = datetime.datetime.now()
             return res
         else:
             # use cached!
-            # msgproc.log("subsonic_util.get_random_album_list using cached first random albums")
+            msgproc.log(f"subsonic_util.get_random_album_list returning first [{config.get_items_per_page()}] using cached data.")
             return cached_response_random_firstpage.last_response_obj
 
 
@@ -239,3 +240,24 @@ def get_genres() -> Response[Genres]:
         # use cached!
         # msgproc.log("subsonic_util.get_genres using cached response")
         return cached_response_genres.last_response_obj
+
+
+def get_first_newest_album_list() -> list[AlbumList]:
+    global cached_response_newest
+    if __cached_response_is_expired(cached_response_newest, config.get_cached_request_timeout_sec()):
+        msgproc.log("subsonic_util.get_first_newest_album_list loading ...")
+        # actually request genres
+        res: Response[AlbumList] = connector_provider.get().getAlbumList(
+            ltype=ListType.BY_YEAR,
+            size=config.get_items_per_page(),
+            fromYear=datetime.datetime.now().year,
+            toYear=0)
+        cached_response_newest = CachedResponse()
+        cached_response_newest.last_response_obj = res
+        cached_response_newest.last_response_time = datetime.datetime.now()
+        msgproc.log(f"subsonic_util.get_first_newest_album_list finished loading [{len(res.getObj().getAlbums())}] albums")
+        return res
+    else:
+        # use cached!
+        msgproc.log("subsonic_util.get_first_newest_album_list using cached response")
+        return cached_response_newest.last_response_obj

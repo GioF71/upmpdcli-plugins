@@ -31,6 +31,19 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
+def get_album_track_qualities_by_album_id(album_id: str) -> str:
+    return cache_manager_provider.get().get_cached_element(
+        cache_name=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
+        key=album_id)
+
+
+def save_album_track_qualities(album_id: str, qualities: str):
+    cache_manager_provider.get().cache_element_value(
+        cache_name=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
+        key=album_id,
+        value=qualities)
+
+
 def get_album_id_by_artist_id(artist_id: str) -> str:
     return cache_manager_provider.get().get_cached_element(
         cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
