@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.8.9.2
+
+- Bug [#546](https://github.com/GioF71/upmpdcli-docker/issues/546): wrong artist name in log file
+
 ## 0.8.9.1
 
 - Hotfix: avoid to copy images if path are not available in the plugin code
