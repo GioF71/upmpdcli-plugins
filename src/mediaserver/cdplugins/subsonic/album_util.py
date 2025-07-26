@@ -153,8 +153,16 @@ class SortSongListResult:
         return self._multi_codec_album
 
 
-def getOriginalReleaseDate(album: Album) -> str:
-    ord_dict: dict[str, any] = album.getItem().getByName(constants.ItemKey.ORIGINAL_RELEASE_DATE.value)
+def get_album_release_date(album: Album) -> str:
+    return _get_album_release_date(album=album, item_key=constants.ItemKey.RELEASE_DATE)
+
+
+def get_album_original_release_date(album: Album) -> str:
+    return _get_album_release_date(album=album, item_key=constants.ItemKey.ORIGINAL_RELEASE_DATE)
+
+
+def _get_album_release_date(album: Album, item_key: constants.ItemKey) -> str:
+    ord_dict: dict[str, any] = album.getItem().getByName(item_key.value)
     if ord_dict is None:
         return None
     # split and return
@@ -167,6 +175,14 @@ def getOriginalReleaseDate(album: Album) -> str:
         return str(y)
     # ok to combine
     return f"{y:04}-{m:02}-{d:02}"
+
+
+def _get_album_release_year(album: Album, item_key: constants.ItemKey) -> int:
+    ord_dict: dict[str, any] = album.getItem().getByName(item_key.value)
+    if ord_dict is None:
+        return None
+    # just return year.
+    return ord_dict["year"] if "year" in ord_dict else None
 
 
 def sort_song_list(song_list: list[Song]) -> SortSongListResult:
@@ -290,39 +306,18 @@ def has_year(album: Album) -> bool:
 
 
 def get_album_year_str(album: Album) -> str:
-    ord: str = None
-    ord_any: any = getOriginalReleaseDate(album)
-    # convert to str if needed
-    if ord_any is None:
-        # fallback to year if available!
-        year_int: int = album.getYear()
-        if year_int:
-            return str(year_int)
-        return None
-    if isinstance(ord_any, int):
-        ord = str(ord_any)
-    elif isinstance(ord_any, str):
-        ord = ord_any
-    else:
-        raise Exception(f"Unsupported type [{type(ord_any)}]")
-    ord = (ord[0:4]
-           if ord and len(ord) >= 4
-           else None)
     year: int = album.getYear()
-    ord_set: bool = ord and len(ord) > 0
-    if ord_set and year is None:
-        return ord
-    if year is not None and not ord_set:
-        return str(year)
-    if year is None and not ord_set:
-        return None
-    # both set
-    if ord_set and str(year) == ord:
-        return ord
-    to_display_list: list[str] = [ord, str(year)]
-    to_display_list.sort()
-    # return f"{ord} ({str(year)})"
-    return "/".join(to_display_list)
+    rd_year: int = _get_album_release_year(album=album, item_key=constants.ItemKey.RELEASE_DATE)
+    ord_year: int = _get_album_release_year(album=album, item_key=constants.ItemKey.ORIGINAL_RELEASE_DATE)
+    y_list: list[int] = []
+    if year:
+        y_list.append(year)
+    if rd_year and rd_year not in y_list:
+        y_list.append(rd_year)
+    if ord_year and ord_year not in y_list:
+        y_list.append(ord_year)
+    y_list.sort()
+    return "/".join(str(x) for x in y_list)
 
 
 # Tests

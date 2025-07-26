@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.7
+
+- BUG: would not show "Favorite Songs" if there is not at least one starred Album
+- Add support for release date
+
 ## Release 0.8.6
 
 - Metadata: album track qualities are made available as metadata, grouped by badge (example value for album with tracks of different qualities: `24/44 (10 songs), 24/48 (1 song)`)

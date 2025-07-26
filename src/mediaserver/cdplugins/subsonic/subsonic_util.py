@@ -726,7 +726,7 @@ def filter_out_artist_id(artist_list: list[ArtistsOccurrence], artist_id: str) -
 
 
 def get_album_date_for_sorting(album: Album) -> str:
-    result: str = album_util.getOriginalReleaseDate(album)
+    result: str = album_util.get_album_original_release_date(album)
     if not result:
         # fallback to date.
         y: int = album.getYear()
@@ -1422,11 +1422,19 @@ def set_song_metadata(song: Song, target: dict):
 def set_album_metadata(album: Album, target: dict):
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album.getArtist(), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
+    # year
     album_year: str = str(album.getYear()) if album.getYear() else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_YEAR, album_year, target)
-    original_release_date_int: int = album.getOriginalReleaseDate()
-    original_reldate: str = str(original_release_date_int) if original_release_date_int else None
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE, original_reldate, target)
+    # release date
+    upnp_util.set_upmpd_meta(
+        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_RELEASE_DATE,
+        metadata_value=album_util.get_album_release_date(album=album),
+        target=target)
+    # original release date
+    upnp_util.set_upmpd_meta(
+        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE,
+        metadata_value=album_util.get_album_original_release_date(album=album),
+        target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
     joined_genres: str = join_with_comma(album.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)

@@ -59,7 +59,7 @@ def set_class_album(target: dict):
 
 
 def set_date_from_album(album: Album, target: dict):
-    date_str: str = album_util.getOriginalReleaseDate(album)
+    date_str: str = album_util.get_album_original_release_date(album)
     if not date_str:
         # fallback to year
         date_str = str(album.getYear()) if album.getYear() else ""
