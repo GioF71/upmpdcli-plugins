@@ -91,7 +91,7 @@ def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool
 def get_playlists() -> Response[Artists]:
     global cached_playlists
     if __cached_response_is_expired(cached_playlists, config.get_cached_request_timeout_sec()):
-        msgproc.log("subsonic_util.get_playlists loading starred ...")
+        msgproc.log("subsonic_util.get_playlists loading playlists ...")
         # actually request starred
         res: Response[Playlists] = connector_provider.get().getPlaylists()
         # store response along with timestamp
@@ -104,7 +104,7 @@ def get_playlists() -> Response[Artists]:
         return cached_playlists.last_response_obj
 
 
-def get_starred() -> Response[Artists]:
+def get_starred() -> Response[Starred]:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     global cached_starred
     if __cached_response_is_expired(cached_starred, config.get_cached_request_timeout_sec()):

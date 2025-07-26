@@ -2735,7 +2735,7 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
     if not add_fav:
         res: Response[Starred] = request_cache.get_starred()
         if res.isOk:
-            fav_songs: list[Album] = res.getObj().getAlbums()
+            fav_songs: list[Album] = res.getObj().getSongs()
             if fav_songs and len(fav_songs) > 0:
                 # add fav tags
                 add_fav = True
