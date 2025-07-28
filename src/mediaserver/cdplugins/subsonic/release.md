@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.8
+
+- Add support for Oldest albums view [see issue](https://github.com/GioF71/upmpdcli-plugins/issues/36)
+
 ## Release 0.8.7
 
 - BUG: would not show "Favorite Songs" if there is not at least one starred Album

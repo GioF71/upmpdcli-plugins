@@ -465,6 +465,13 @@ def get_albums(
             offset=offset,
             fromYear=fromYear,
             toYear=toYear)
+    elif TagType.OLDEST_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.BY_YEAR,
+            size=size,
+            offset=offset,
+            fromYear=fromYear,
+            toYear=toYear)
     elif TagType.RANDOM.getQueryType() == query_type:
         albumListResponse = request_cache.get_random_album_list(
             size=size,

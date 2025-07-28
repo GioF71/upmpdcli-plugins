@@ -444,6 +444,7 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.SONGS.getTagName(): group_songs_art_retriever,
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): recently_added_albums_art_retriever,
     TagType.NEWEST_ALBUMS.getTagName(): newest_albums_art_retriever,
+    TagType.OLDEST_ALBUMS.getTagName(): random_albums_art_retriever,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): recently_played_albums_art_retriever,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): highest_rated_albums_art_retriever,
     TagType.FAVOURITE_ALBUMS.getTagName(): favourite_albums_art_retriever,

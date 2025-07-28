@@ -106,6 +106,7 @@ upmplgutils.setidprefix(constants.PluginConstant.PLUGIN_NAME.value)
 __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): False,
     TagType.NEWEST_ALBUMS.getTagName(): False,
+    TagType.OLDEST_ALBUMS.getTagName(): False,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): False,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
@@ -427,8 +428,8 @@ def _load_albums_by_type(
         tag_type.getQueryType(),
         size=request_size,
         offset=str(offset),
-        fromYear=fromYear,
-        toYear=toYear)
+        fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
+        toYear=toYear if not tag_type == TagType.OLDEST_ALBUMS else fromYear)
     msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}]")
     current_album: Album
     tag_cached: bool = False
@@ -883,6 +884,10 @@ def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, en
 
 def handler_tag_newest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST_ALBUMS, entries)
+
+
+def handler_tag_oldest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.OLDEST_ALBUMS, entries)
 
 
 def handler_tag_most_played(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -2614,6 +2619,7 @@ def handler_element_track(objid, item_identifier: ItemIdentifier, entries: list)
 def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     tag_list: list[TagType] = [
         TagType.NEWEST_ALBUMS,
+        TagType.OLDEST_ALBUMS,
         TagType.RECENTLY_ADDED_ALBUMS,
         TagType.RECENTLY_PLAYED_ALBUMS,
         TagType.HIGHEST_RATED_ALBUMS,
@@ -2756,6 +2762,7 @@ __tag_action_dict: dict = {
     TagType.SONGS.getTagName(): handler_tag_group_songs,
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): handler_tag_recently_added_albums,
     TagType.NEWEST_ALBUMS.getTagName(): handler_tag_newest_albums,
+    TagType.OLDEST_ALBUMS.getTagName(): handler_tag_oldest_albums,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): handler_tag_recently_played,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): handler_tag_most_played,
