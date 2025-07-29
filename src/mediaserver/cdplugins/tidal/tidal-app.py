@@ -329,7 +329,9 @@ def build_streaming_url(tidal_session: TidalSession, track: TidalTrack) -> Strea
     result.audio_mode = audio_mode
     result.bit_depth = bit_depth
     msgproc.log(f"build_streaming_url for track_id: [{track_id}] [{track.name}] "
-                f"from [{track.album.name}] [{track.album.id}] by [{track.album.name}] -> "
+                f"from [{track.album.name if track.album else ''}] "
+                f"[{track.album.id if track.album else ''}] by "
+                f"[{track.artist.name if track.artist else ''}] -> "
                 f"serve_mode [{config.serve_mode}] "
                 f"session_quality [{tidal_session.audio_quality}] "
                 f"is_pkce [{tidal_session.is_pkce}] "
