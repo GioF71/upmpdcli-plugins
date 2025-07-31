@@ -106,6 +106,7 @@ upmplgutils.setidprefix(constants.PluginConstant.PLUGIN_NAME.value)
 __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): False,
     TagType.NEWEST_ALBUMS.getTagName(): False,
+    TagType.OLDEST_ALBUMS.getTagName(): False,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): False,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
@@ -147,7 +148,6 @@ def tag_enabled_in_initial_page(tag_type: TagType) -> bool:
     enabled_default: bool = (__tag_initial_page_enabled_default[tag_type.getTagName()]
                              if tag_type.getTagName() in __tag_initial_page_enabled_default
                              else True)
-    # msgproc.log(f"Tag enabling key for {tag_type}: [{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}]")
     enabled_int: int = (int(upmplgutils.getOptionValue(
         f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}",
         "1" if enabled_default else "0")))
@@ -182,7 +182,6 @@ def build_streaming_url(track_id: str) -> str:
 def trackuri(a):
     msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
-    # msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
     track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
     orig_url: str = (f"http://{http_host_port}/"
@@ -291,7 +290,6 @@ def present_album_version(
         album_id: str,
         album_version_path: str,
         entries: list) -> list:
-    # msgproc.log(f"present_album_version with album_version_path [{album_version_path}]")
     album: Album
     album_tracks: AlbumTracks
     album, album_tracks = get_album_tracks(album_id)
@@ -305,8 +303,6 @@ def present_album_version(
     max_tracks: int = config.get_config_param_as_int(constants.ConfigParam.MAX_TRACKS_FOR_NO_DISC_SPLIT)
     too_many_songs: bool = album.getSongCount() > max_tracks
     show_as_multidisc = (is_multi_disc) and (has_disc_titles or too_many_songs)
-    # msgproc.log(f"present_album_version album [{album_id}] multidisc [{multi_disc}] "
-    #             f"disc_count [{disc_count}]")
     ignore_multidisc: bool = item_identifier.get(ItemIdentifierKey.ALBUM_IGNORE_DISCNUMBERS, "0") == "1"
     if show_as_multidisc and not ignore_multidisc:
         # we should present discs here, passing for now.
@@ -316,11 +312,7 @@ def present_album_version(
         dn: int
         for dn in discnumber_list:
             disc_title: str = disc_title_dict[dn] if dn in disc_title_dict else ""
-            # msgproc.log(f"present_album_version album [{album_id}] disc # [{dn}] -> "
-            #             f"[{disc_title}]")
             entry_name: str = f"Disc {dn}/{len(discnumber_list)}{': ' + disc_title if disc_title else ''}"
-            # msgproc.log(f"present_album_version album [{album_id}] disc # [{dn}] -> "
-            #             f"entry_name [{entry_name}]")
             # create disc entry.
             disc_identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_DISC.getName(), album_id)
             if avp_enc:
@@ -390,15 +382,12 @@ def present_album_version(
             song_cover_art: str = current_song.getCoverArt()
             if song_cover_art and song_cover_art not in force_cover_art_save_trackid_set:
                 force_cover_art_save = True
-            # msgproc.log(f"present_album_version adding creating entry for [{current_song.getId()}] "
-            #             f"force_cover_art_save [{force_cover_art_save}]")
             entry = entry_creator.song_to_entry(
                 objid=objid,
                 song=current_song,
                 force_cover_art_save=force_cover_art_save,
                 options=options)
             if force_cover_art_save:
-                # msgproc.log(f"present_album_version adding [{song_cover_art}] to force_cover_art_save_trackid_set")
                 force_cover_art_save_trackid_set.add(song_cover_art)
             entries.append(entry)
     # show paths if requested
@@ -427,8 +416,8 @@ def _load_albums_by_type(
         tag_type.getQueryType(),
         size=request_size,
         offset=str(offset),
-        fromYear=fromYear,
-        toYear=toYear)
+        fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
+        toYear=toYear if not tag_type == TagType.OLDEST_ALBUMS else fromYear)
     msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}]")
     current_album: Album
     tag_cached: bool = False
@@ -713,11 +702,9 @@ def _create_list_of_artist_initials(
     artists_response: Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk():
         return entries
-    # msgproc.log(f"_create_list_of_artist_initials artists loaded ...")
     artists_initial: list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial: ArtistsInitial
     for current_artists_initial in artists_initial:
-        # msgproc.log(f"_create_list_of_artist_initials processing [{current_artists_initial.getName()}] ...")
         entry: dict[str, any] = entry_creator.artist_initial_to_entry(
             objid=objid,
             artist_initial=current_artists_initial.getName(),
@@ -883,6 +870,10 @@ def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, en
 
 def handler_tag_newest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST_ALBUMS, entries)
+
+
+def handler_tag_oldest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.OLDEST_ALBUMS, entries)
 
 
 def handler_tag_most_played(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1257,7 +1248,6 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
     for current in to_display:
         # load artist if it has an id
         if current.id:
-            # msgproc.log(f"executing entry_creator.genre_artist_to_entry with artist_id [{current.id}] [{current.name}]")
             artist_entry: dict[str, any] = entry_creator.genre_artist_to_entry(
                 objid=objid,
                 genre=genre,
@@ -2614,6 +2604,7 @@ def handler_element_track(objid, item_identifier: ItemIdentifier, entries: list)
 def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     tag_list: list[TagType] = [
         TagType.NEWEST_ALBUMS,
+        TagType.OLDEST_ALBUMS,
         TagType.RECENTLY_ADDED_ALBUMS,
         TagType.RECENTLY_PLAYED_ALBUMS,
         TagType.HIGHEST_RATED_ALBUMS,
@@ -2756,6 +2747,7 @@ __tag_action_dict: dict = {
     TagType.SONGS.getTagName(): handler_tag_group_songs,
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): handler_tag_recently_added_albums,
     TagType.NEWEST_ALBUMS.getTagName(): handler_tag_newest_albums,
+    TagType.OLDEST_ALBUMS.getTagName(): handler_tag_oldest_albums,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): handler_tag_recently_played,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): handler_tag_most_played,
@@ -2900,7 +2892,6 @@ def browse(a):
         raise Exception("No objid in args")
     objid = a['objid']
     # path = html.unescape(_objidtopath(objid))
-    # msgproc.log(f"browse: path: --{path}--")
     path_list: list[str] = objid.split("/")
     curr_path: str
     for curr_path in path_list:
@@ -2909,12 +2900,10 @@ def browse(a):
             try:
                 # decoded: str = codec.decode(curr_path)
                 codec.decode(curr_path)
-                # msgproc.log(f"browse: path: [{curr_path}] decodes to {decoded}")
             except Exception as ex:
                 msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
                 # decoded = "<decode failed>"
     last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
-    # msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
     entries = []
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags

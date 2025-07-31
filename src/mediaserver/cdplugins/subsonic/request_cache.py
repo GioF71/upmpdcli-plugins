@@ -100,7 +100,6 @@ def get_playlists() -> Response[Artists]:
         cached_playlists.last_response_time = datetime.datetime.now()
         return res
     else:
-        # msgproc.log("subsonic_util.get_playlists using cached starred")
         return cached_playlists.last_response_obj
 
 
@@ -176,7 +175,6 @@ def get_artists() -> Response[Artists]:
         msgproc.log("subsonic_util.get_artists artists have been loaded.")
         return res
     else:
-        # msgproc.log("subsonic_util.get_artists using cached artists!")
         return cached_response_artists.last_response_obj
 
 
@@ -238,7 +236,6 @@ def get_genres() -> Response[Genres]:
         return res
     else:
         # use cached!
-        # msgproc.log("subsonic_util.get_genres using cached response")
         return cached_response_genres.last_response_obj
 
 

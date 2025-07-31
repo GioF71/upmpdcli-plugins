@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ class TagType(Enum):
     FAVOURITE_ALBUMS = 140, "fav", "Favourite Albums", "starred"
     MOST_PLAYED_ALBUMS = 150, "mp", "Most Played Albums", "frequent"
     NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
+    OLDEST_ALBUMS = 156, "ldst", "Oldest Albums", "byYear"
     RANDOM = 160, "r", "Random Albums", "random"
     ALBUMS_WITHOUT_MUSICBRAINZ = 161, "lwb", "Albums without MusicBrainz", None
     ALBUMS_WITHOUT_COVER = 162, "lwc", "Albums without CoverArt", None

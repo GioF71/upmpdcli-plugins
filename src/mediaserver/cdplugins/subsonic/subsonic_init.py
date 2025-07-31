@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,10 +70,7 @@ def prune_cache(images_static_dir: str):
         filename_path = os.path.normpath(filename)
         file_count += 1
         time_diff_sec: float = now - os.path.getmtime(filename_path)
-        # msgproc.log(f"Found file: timediff [{time_diff_sec:.2f}] [{filename}]")
         if time_diff_sec >= float(max_age_seconds):
-            # msgproc.log(f"Deleting file [{filename}] which is older than "
-            #             f"[{config.get_config_param_as_int(constants.ConfigParam.CACHED_IMAGE_MAX_AGE_DAYS)}] days")
             os.remove(filename_path)
             deleted_count += 1
     msgproc.log(f"Deleted [{deleted_count}] cached images out of [{file_count}]")

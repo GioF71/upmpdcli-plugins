@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,8 +12,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# from cache_name import str
 
 
 class CacheManager:
@@ -51,7 +49,6 @@ class CacheManager:
 
     def delete_cached_element(self, cache_name: str, key: str) -> bool:
         cache: dict[str, any] = self.__get_element_cache(cache_name)
-        # return cache[key] if key in cache else None
         can_delete: bool = key in cache
         if can_delete:
             del cache[key]

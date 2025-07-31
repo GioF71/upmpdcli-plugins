@@ -96,7 +96,6 @@ def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
     if isinstance(metadata_value, int):
         metadata_value = str(metadata_value)
     if len(metadata_value) > 0:
-        # msgproc.log(f"Setting [{raw_metadata_name}]=[{metadata_value}]")
         target[raw_metadata_name] = metadata_value
 
 

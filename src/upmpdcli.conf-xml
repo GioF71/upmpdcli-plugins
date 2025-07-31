@@ -806,6 +806,12 @@ upradiostitle = Upmpdcli Radio List
 # <descr>Set it to 1 in order to enable library maintenance features, disabled by default</descr></var>
 #subsonicenablemaintenancefeatures = 0
 
+# <var name="subsonicartistalbumnewestfirst" type="bool">
+# <brief>Show artist albums from newest to older if left empty or set to 1</brief>
+# <descr>Allows to change sort order to artist albums. Set it to 0 if you want the order
+# to be ascending instead of descending (default)</descr></var>
+#subsonicartistalbumnewestfirst = 0
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

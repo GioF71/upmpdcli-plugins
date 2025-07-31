@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024 Giovanni Fulco
+# Copyright (C) 2023,2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ import secrets
 from typing import Callable
 
 import cmdtalkplugin
-import datetime
+
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -182,8 +182,6 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
     # best option, the artist has its coverArt
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=artist)
     if artist_cover_art:
-        # msgproc.log(f"get_album_art_uri_for_artist for artist [{artist.getId()}] [{artist.getName()}] ->"
-        #             f"coverArt [{artist_cover_art}], building url ...")
         return subsonic_util.build_cover_art_url(item_id=artist_cover_art, force_save=force_save)
     # maybe look at the albums if available
     album_list: list[Album] = artist.getAlbumList()
@@ -444,6 +442,7 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.SONGS.getTagName(): group_songs_art_retriever,
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): recently_added_albums_art_retriever,
     TagType.NEWEST_ALBUMS.getTagName(): newest_albums_art_retriever,
+    TagType.OLDEST_ALBUMS.getTagName(): random_albums_art_retriever,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): recently_played_albums_art_retriever,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): highest_rated_albums_art_retriever,
     TagType.FAVOURITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
