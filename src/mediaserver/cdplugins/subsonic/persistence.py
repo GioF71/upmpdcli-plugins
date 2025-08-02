@@ -336,7 +336,6 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
     album_metadata: AlbumMetadata = (__album_metadata_cache[album_id]
                                      if album_id in __album_metadata_cache
                                      else None)
-    # msgproc.log(f"get_album_metadata cache [{'hit' if album_metadata else 'miss'}] for album_id [{album_id}]")
     if not album_metadata:
         album_metadata = _load_album_metadata(album_id=album_id)
         # add to cache if correctly loaded from db
@@ -350,7 +349,6 @@ def get_artist_metadata(artist_id: str) -> ArtistMetadata:
     artist_metadata: ArtistMetadata = (__artist_metadata_cache[artist_id]
                                        if artist_id in __artist_metadata_cache
                                        else None)
-    # msgproc.log(f"get_artist_metadata cache [{'hit' if artist_metadata else 'miss'}] for artist_id [{artist_id}]")
     if not artist_metadata:
         artist_metadata = _load_artist_metadata(artist_id=artist_id)
         # add to cache if correctly loaded from db
@@ -360,19 +358,13 @@ def get_artist_metadata(artist_id: str) -> ArtistMetadata:
 
 
 def get_kv_item(partition: str, key: str) -> KeyValueItem:
-    # msgproc.log(f"get_kv_item for [{partition}] [{key}] ...")
     # try in cache first, otherwise load.
     partition_dict: dict[str, KeyValueItem] = __key_value_cache[partition] if partition in __key_value_cache else None
-    # msgproc.log(f"get_kv_item partition_dict [{partition}]: [{'yes' if partition_dict else 'no'}]")
     kv_item: KeyValueItem = partition_dict[key] if partition_dict and key in partition_dict else None
-    # msgproc.log(f"get_kv_item match [{partition}] [{key}]: [{'yes' if kv_item else 'no'}]")
     # create partition if still not cached
     if not partition_dict:
-        # msgproc.log(f"get_kv_item creating partition [{partition}] ...")
         partition_dict = {}
-        # msgproc.log(f"get_kv_item storing dict for partition [{partition}] ...")
         __key_value_cache[partition] = partition_dict
-    # msgproc.log(f"get_artist_metadata cache [{'hit' if artist_metadata else 'miss'}] for artist_id [{artist_id}]")
     if not kv_item:
         kv_item = _load_kv_item(partition=partition, key=key)
         # add to cache if correctly loaded from db
@@ -528,11 +520,6 @@ def _delete_kv_item_from_db(partition: str, key: str):
 
 
 def save_album_metadata(album_metadata: AlbumMetadata):
-    # msgproc.log(f"save_album_metadata for album_id: [{album_metadata.album_id}] "
-    #             f"artist_id: [{album_metadata.album_artist_id}] "
-    #             f"quality_badge: [{album_metadata.quality_badge}] "
-    #             f"album_mbid: [{'mb' if album_metadata.album_musicbrainz_id else ''}] "
-    #             f"album_path: [{album_metadata.album_path}]")
     existing_metadata: AlbumMetadata = get_album_metadata(album_id=album_metadata.album_id)
     if existing_metadata:
         # update
@@ -635,9 +622,6 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
 
 
 def save_key_value_item(key_value_item: KeyValueItem):
-    # msgproc.log(f"save_key_value_item for partition: [{key_value_item.partition}] "
-    #             f"key: [{key_value_item.key}] "
-    #             f"value: [{key_value_item.value}]")
     existing: KeyValueItem = get_kv_item(partition=key_value_item.partition, key=key_value_item.key)
     if existing:
         # update
@@ -751,7 +735,6 @@ def preload_metadata(
     cursor.close()
     for row in rows if rows else []:
         obj: any = row_converter(row)
-        # msgproc.log(f"Loaded [{obj}]")
         cache_writer(obj)
     msgproc.log(f"Loaded [{len(rows)}] records from [{table_name}].")
 

@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.7"
+    PLUGIN_RELEASE = "0.8.8"
     PLUGIN_NAME = "subsonic"
 
 
@@ -103,7 +103,7 @@ class ConfigParam(Enum):
     ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappendtrackcountinalbumview", False)
     ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappendtrackcountinalbumsearchresult", False)
 
-    ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData("allowprependartistinalbumcontainer", True)
+    ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendartistinalbumcontainer", True)
     ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW = _ConfigParamData("allowappendartistinalbumview", True)
     ALLOW_APPEND_ARTIST_IN_SEARCH_RES = _ConfigParamData("allowappendartistinsearchresult", False)
 
@@ -129,6 +129,7 @@ class ConfigParam(Enum):
     APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData("appendyeartoalbumcontainer", True)
     APPEND_YEAR_TO_ALBUM_VIEW = _ConfigParamData("appendyeartoalbumview", False)
     APPEND_YEAR_TO_ALBUM_SEARCH_RES = _ConfigParamData("appendyeartoalbumsearchresult", False)
+
     SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = _ConfigParamData("setclasstoalbumfornavigablealbum", False)
     DUMP_ALBUM_SORTABLE_DATE = _ConfigParamData("dumpalbumsortabledate", False)
     SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbummbidinalbumcontainer", False)
@@ -139,12 +140,12 @@ class ConfigParam(Enum):
     SHOW_ARTIST_ID = _ConfigParamData("showartistid", False)
     ALBUM_SEARCH_LIMIT = _ConfigParamData("albumsearchlimit", 50)
     ARTIST_SEARCH_LIMIT = _ConfigParamData("artistsearchlimit", 50)
-    SONG_SEARCH_LIMIT = _ConfigParamData("albumsearchlimit", 100)
+    SONG_SEARCH_LIMIT = _ConfigParamData("songsearchlimit", 100)
     ITEMS_PER_PAGE = _ConfigParamData("itemsperpage", 20)
     ADDITIONAL_ARTISTS_MAX = _ConfigParamData("maxadditionalartists", 10)
     MAX_ARTISTS_PER_PAGE = _ConfigParamData("maxartistsperpage", 20)
     MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData("maxadditionalalbumartistsperpage", 10)
-    DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", 0)
+    DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", False)
     APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
     APPEND_ROLES_TO_ARTIST = _ConfigParamData("appendrolestoartist", True)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
@@ -156,7 +157,7 @@ class ConfigParam(Enum):
     ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enablecachedimageagelimit", False)
     CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData("cachedimagemaxagedays", 60)
 
-    SKIP_USER_AGENT = _ConfigParamData("skipuseragent", 0)
+    SKIP_USER_AGENT = _ConfigParamData("skipuseragent", False)
     USER_AGENT = _ConfigParamData("useragent", "upmpdcli")
 
     MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData("maxtracksfornodiscsplit", 60)
@@ -268,6 +269,35 @@ class MetadataMaxLength(Enum):
 class Separator(Enum):
 
     DISC_NUMBER_SEPARATOR = ","
+
+
+class _SupportedImageTypeData:
+
+    def __init__(self, extension_list: list[str], content_type_list: list[str]):
+        self.__extension_list: list[str] = extension_list
+        self.__content_type_list: list[str] = content_type_list
+
+    @property
+    def extension_list(self) -> list[str]:
+        return self.__extension_list
+
+    @property
+    def content_type_list(self) -> list[str]:
+        return self.__content_type_list
+
+
+class SupportedImageType(Enum):
+
+    JPG = _SupportedImageTypeData(extension_list=["jpg", "jpeg", "jpe"], content_type_list=["image/jpeg"])
+    PNG = _SupportedImageTypeData(extension_list=["png"], content_type_list=["image/png"])
+
+    @property
+    def extension_list(self) -> list[str]:
+        return self.value.extension_list
+
+    @property
+    def content_type_list(self) -> list[str]:
+        return self.value.content_type_list
 
 
 default_debug_badge_mngmt: int = 0

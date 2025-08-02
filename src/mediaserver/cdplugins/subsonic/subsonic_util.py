@@ -77,7 +77,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
     prop_dict: dict[str, list[int]] = _get_track_list_streaming_properties(track_list)
     track_info_list: list[TrackInfo] = get_track_info_list(track_list)
     if not track_info_list or len(track_info_list) == 0:
-        # raise Exception("No tracks were processed")
         msgproc.log(f"get_track_list_badge for [{list_identifier}] no tracks were processed")
         return None
     if (DictKey.DICT_KEY_BITDEPTH.value not in prop_dict or
@@ -87,7 +86,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
     # information are available, go on ...
     # are they all lossy?
     all_lossy: bool = __all_lossy(track_info_list)
-    # msgproc.log(f"get_track_list_badge all_lossy is [{all_lossy}]")
     # do they all have the same bitrate?
     unique_bitrate: int = _get_unique_bitrate(prop_dict)
     # do they all have the same suffix?
@@ -112,7 +110,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
                 return unique_suffix
             else:
                 # fallback
-                # msgproc.log("get_track_list_badge falling back to lossy")
                 return "lossy"
     bit_depth_list: list[int] = prop_dict[DictKey.DICT_KEY_BITDEPTH.value]
     bit_depth_list.sort(reverse=True)
@@ -123,8 +120,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
         return None
     best_bit_depth: int = bit_depth_list[0]
     best_sampling_rate: int = sampling_rate_list[0]
-    # msgproc.log(f"get_track_list_badge best_bit_depth [{best_bit_depth}] n:[{len(bit_depth_list)}] "
-    #             f"best_sampling_rate [{best_sampling_rate}] n:[{len(sampling_rate_list)}]")
     if len(bit_depth_list) > 1 or len(sampling_rate_list) > 1:
         if best_bit_depth >= 24 and best_sampling_rate >= 44100:
             return "~HD"
@@ -133,7 +128,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
         if best_bit_depth == 16 and best_sampling_rate >= 48000:
             return f"~16/{__get_readable_sampling_rate(best_sampling_rate)}"
         if best_bit_depth == 0:
-            # msgproc.log(f"get_track_list_badge best_bit_depth is [{best_bit_depth}]")
             return f"~Lossy/{__get_readable_sampling_rate(best_sampling_rate)}"
         # other cases?
         return f"~{best_bit_depth}/{__get_readable_sampling_rate(best_sampling_rate)}"
@@ -148,7 +142,6 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
             display_codec: str = (suffix_list[0]
                                   if len(suffix_list) == 1
                                   else "lossy")
-            # msgproc.log(f"get_track_list_badge display_codec is [{display_codec}]")
             if unique_bitrate:
                 display_codec = f"{display_codec}@{unique_bitrate}"
             return f"{display_codec}/{sr}"
@@ -465,6 +458,13 @@ def get_albums(
             offset=offset,
             fromYear=fromYear,
             toYear=toYear)
+    elif TagType.OLDEST_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.BY_YEAR,
+            size=size,
+            offset=offset,
+            fromYear=fromYear,
+            toYear=toYear)
     elif TagType.RANDOM.getQueryType() == query_type:
         albumListResponse = request_cache.get_random_album_list(
             size=size,
@@ -738,20 +738,14 @@ def get_album_date_for_sorting(album: Album) -> str:
 
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    # if verbose:
-    #     msgproc.log(f"ensure_directory [{base_dir}] [{sub_dir_list}] ...")
     curr_sub_dir: str
     curr_dir: str = base_dir
     for curr_sub_dir in sub_dir_list:
         new_dir: str = os.path.join(curr_dir, curr_sub_dir)
-        # msgproc.log(f"checking dir [{new_dir}] ...")
         if not os.path.exists(new_dir):
             if verbose:
                 msgproc.log(f"creating dir [{new_dir}] ...")
             os.mkdir(new_dir)
-        # else:
-        #     if verbose:
-        #         msgproc.log(f"dir [{new_dir}] already exists.")
         curr_dir = new_dir
     return curr_dir
 
@@ -947,14 +941,8 @@ def append_something_to_album_title(
             do_append = config.get_config_param_as_bool(search_res_config)
         else:
             do_append = config.get_config_param_as_bool(view_config)
-    # msgproc.log(f"append_something_to_album_title EntryType [{album_entry_type}] "
-    #             f"SearchResult [{is_search_result}] -> "
-    #             f"do_append [{do_append}]")
     if do_append:
-        # msgproc.log(f"append_something_to_album_title appending [{something}] to [{album_title}] ...")
         album_title = f"{album_title} [{something}]"
-    # else:
-        # msgproc.log(f"append_something_to_album_title NOT appending [{something}] to [{album_title}]!")
     return album_title
 
 
@@ -1174,24 +1162,46 @@ def get_docroot_base_url() -> str:
 
 def compose_docroot_url(right: str) -> str:
     doc_root_base_url: str = get_docroot_base_url()
-    # msgproc.log(f"compose_docroot_url with doc_root_base_url: [{doc_root_base_url}] right: [{right}]")
     return f"{doc_root_base_url}/{right}" if doc_root_base_url else None
+
+
+def match_supported_image_type_by_name(file_name: str) -> constants.SupportedImageType:
+    if not file_name:
+        return None
+    file_name_lower: str = file_name.lower()
+    s: constants.SupportedImageType
+    for s in constants.SupportedImageType:
+        ext: str
+        for ext in s.extension_list:
+            if (file_name_lower.endswith("." + ext)):
+                return s
+    return None
+
+
+def match_supported_image_type_by_content_type(content_type: str) -> constants.SupportedImageType:
+    s: constants.SupportedImageType
+    for s in constants.SupportedImageType:
+        ct: str
+        for ct in s.content_type_list:
+            if (content_type == ct):
+                return s
+    return None
 
 
 def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
     if not item_id:
-        # msgproc.log("build_cover_art_url got empty item_id")
         return None
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
+    if verbose:
+        msgproc.log(f"build_cover_art_url for [{item_id}] -> cover_art_url [{cover_art_url}]")
     if not cover_art_url:
-        # msgproc.log(f"build_cover_art_url cannot build coverArtUrl for item_id [{item_id}]")
         return None
     if (config.getWebServerDocumentRoot() and
             config.get_config_param_as_bool(constants.ConfigParam.ENABLE_IMAGE_CACHING)):
         images_cached_dir: str = ensure_directory(
             config.getWebServerDocumentRoot(),
             config.get_webserver_path_images_cache())
-        # msgproc.log(f"images_cached_dir=[{images_cached_dir}] item_id=[{item_id}]")
         exists: str = False
         matching_files: list[str] = []
         cached_file_name: str = item_id
@@ -1203,11 +1213,9 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
         item_id_with_ext: str = cached_file_path if item_id_ext else None
         if not item_id_with_ext:
             # item_id does not have an extension
-            matching_files = glob.glob(f"{cached_file_path}.*")
-            # msgproc.log(f"Files matching_files [{item_id}] -> [{matching_files if matching_files else None}]")
+            matching_files = images_only(glob.glob(f"{cached_file_path}.*"))
             if matching_files and len(matching_files) > 0:
                 item_id_with_ext = os.path.basename(matching_files[0])
-                # msgproc.log(f"item_id_with_ext = [{item_id_with_ext}]")
                 # remove other matching_files files ...
                 to_remove: str
                 for to_remove in matching_files[1:]:
@@ -1221,18 +1229,13 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
         serve_local: bool = False
         if exists and not force_save:
             # file exists or force_save not set
-            # msgproc.log(f"Cached file for [{item_id}] exists [{exists}] force_save [{force_save}]")
             serve_local = True
         else:
             # file does not exist or must be saved
-            # msgproc.log(f"Saving file for [{item_id}] [{cached_file_path}] "
-            #             f"exists [{exists}] force_save [{force_save}] ...")
             if exists and force_save:
-                # msgproc.log(f"force_save [{force_save}] -> Removing [{len(matching_files)}] files ...")
                 # remove matching_files
                 to_remove: str
                 for to_remove in matching_files:
-                    # msgproc.log(f"force_save [{force_save}] -> Removing file [{to_remove}] ...")
                     try:
                         os.remove(to_remove)
                     except Exception as ex:
@@ -1241,28 +1244,33 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                 response = requests.get(cover_art_url)
                 content_type = response.headers.get('content-type')
                 file_type: str = mimetypes.guess_all_extensions(content_type)
-                item_id_ext: str = os.path.splitext(cached_file_path)[1]
-                # msgproc.log(f"content_type [{content_type}] file_type [{file_type}] extension [{item_id_ext}]")
-                # is cached_file_path without extension?
-                if item_id_ext is None or len(item_id_ext) == 0:
-                    if file_type and len(file_type) > 0:
-                        cached_file_name = cached_file_name + file_type[0]
-                        item_id_with_ext = cached_file_name
-                        # msgproc.log(f"cached_file_name with extension added: [{cached_file_name}]")
-                        cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
-                        # msgproc.log(f"cached_file_path: [{cached_file_path}]")
+                # if file_type is "application/json", we probably have a failure
+                ct_match: constants.SupportedImageType = match_supported_image_type_by_content_type(content_type)
+                valid_file_type: bool = ct_match is not None
+                if verbose:
+                    msgproc.log(f"reading [{item_id}] [{cover_art_url}] we got: "
+                                f"content_type [{content_type}] "
+                                f"file_type [{file_type}] "
+                                f"valid -> [{valid_file_type}]")
+                if valid_file_type:
+                    item_id_ext: str = os.path.splitext(cached_file_path)[1]
+                    # is cached_file_path without extension?
+                    if item_id_ext is None or len(item_id_ext) == 0:
+                        if file_type and len(file_type) > 0:
+                            cached_file_name = cached_file_name + file_type[0]
+                            item_id_with_ext = cached_file_name
+                            cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
+                        else:
+                            # we cannot save!
+                            cached_file_path = None
                     else:
-                        # we cannot save!
-                        cached_file_path = None
-                else:
-                    cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
-                    item_id_with_ext = item_id
-                # msgproc.log(f"About to save file for [{item_id}] -> [{cached_file_path}] ...")
-                if cached_file_path:
-                    img_data: bytes = response.content
-                    with open(cached_file_path, 'wb') as handler:
-                        handler.write(img_data)
-                    serve_local = True
+                        cached_file_path: str = os.path.join(images_cached_dir, cached_file_name)
+                        item_id_with_ext = item_id
+                    if cached_file_path:
+                        img_data: bytes = response.content
+                        with open(cached_file_path, 'wb') as handler:
+                            handler.write(img_data)
+                        serve_local = True
             except Exception as ex:
                 msgproc.log(f"Could not save file [{cached_file_path}] due to [{type(ex)}] [{ex}]")
         # can we serve the local file?
@@ -1271,10 +1279,23 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
             path.extend(config.get_webserver_path_images_cache())
             path.append(item_id_with_ext)
             cached_image_url: str = compose_docroot_url(os.path.join(*path))
-            # msgproc.log(f"For item_id [{item_id}] cached -> [{cached_image_url}]")
             return cached_image_url
     else:
         return cover_art_url
+
+
+def images_only(match_list: list[str]) -> list[str]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    result: list[str] = []
+    for m in match_list if match_list else []:
+        if match_supported_image_type_by_name(m):
+            if verbose:
+                msgproc.log(f"Matching image success for [{m}]")
+            result.append(m)
+        else:
+            if verbose:
+                msgproc.log(f"Matching image failed for [{m}]")
+    return result
 
 
 def get_album_disc_numbers(album: Album) -> list[int]:
@@ -1348,8 +1369,6 @@ def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
         artist_id,
         target)
     artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
-    # msgproc.log(f"Executing set_artist_metadata_by_artist_id for artist_id [{artist_id}] "
-    #             f"Metadata available [{'yes' if artist_metadata else 'no'}]")
     if not artist_metadata:
         # nothing to do here
         return
@@ -1545,3 +1564,20 @@ def mixed_lossless_lossy(lossless_count: int, lossy_count: int) -> str:
     if lossy_count == 0:
         return f"lossless ({lossless_count})"
     return f"lossless ({lossless_count}), lossy ({lossy_count})"
+
+
+def get_cached_image_subdir_list() -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value]
+
+
+def cached_images_exist(image_file_name: str) -> list[str]:
+    document_root_dir: str = config.getWebServerDocumentRoot()
+    if document_root_dir:
+        sub_dir_list: list[str] = get_cached_image_subdir_list()
+        image_dir: str = ensure_directory(base_dir=document_root_dir, sub_dir_list=sub_dir_list)
+        cached_file_name_no_ext: str = f"{str(image_file_name)}"
+        cached_files: list[str] = images_only(glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*"))
+        return cached_files if cached_files else []
+    return []
