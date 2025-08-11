@@ -231,7 +231,7 @@ def _get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, li
         sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SAMPLERATE.value, sampling_rate)
         # suffix
-        suffix: str = song.getSuffix()
+        suffix: str = song.getSuffix().lower() if song.getSuffix() else None
         __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SUFFIX.value, suffix)
         # bitrate
         bitrate: int = song.getBitRate()

@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.9
+
+- Improved badge calculation algorithm (suffixes treated case-insensitively)
+- Fixed bug which would prevent Kodi playback
+
 ## Release 0.8.8
 
 - Add support for Oldest albums view [see issue](https://github.com/GioF71/upmpdcli-plugins/issues/36)
