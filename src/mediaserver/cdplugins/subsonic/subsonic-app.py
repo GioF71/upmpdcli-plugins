@@ -273,7 +273,9 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     entry['tp'] = 'it'
     entry['discnumber'] = song.getDiscNumber()
     upnp_util.set_track_number(song.getTrack(), entry)
-    upnp_util.set_artist(subsonic_util.join_with_comma(subsonic_util.get_song_artists(song.getArtist)), entry)
+    upnp_util.set_artist(
+        artist=subsonic_util.join_with_comma(subsonic_util.get_song_artists(song=song)),
+        target=entry)
     entry['upnp:album'] = song.getAlbum()
     entry['res:mime'] = song.getContentType()
     entry['upnp:genre'] = song.getGenre()
