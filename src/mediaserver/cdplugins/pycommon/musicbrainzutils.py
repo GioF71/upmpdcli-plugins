@@ -19,11 +19,6 @@ import cmdtalkplugin
 from enum import Enum
 from typing import Callable
 
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
-
 
 class _ReleaseTypeDefinition:
 
@@ -216,25 +211,20 @@ if not compilation_is_secondary:
 album_extract: list[str] = extract_release_types(
     value_list=["Demo", "Album"],
     type_matcher=is_primary_release_type)[0]
-msgproc.log(f"musicbrainz_utils album_extract = [{album_extract}]")
 if not PrimaryReleaseType.ALBUM == match_primary_release_type(album_extract):
     raise Exception("Album should be extract as album regardless of the position")
 # sanitize cases
 sanitized_1: list[str] = sanitize_release_types(["compilation"])
-msgproc.log(f"musicbrainz_utils sanitized_1 [{sanitized_1}]")
 if not ["album", "compilation"] == sanitized_1:
     raise Exception("Sanitization case #1 failed")
 sanitized_2: list[str] = sanitize_release_types(["album", "live"])
-msgproc.log(f"musicbrainz_utils sanitized_2 [{sanitized_2}]")
 if not ["album", "live"] == sanitized_2:
     raise Exception("Sanitization case #2 failed")
 sanitized_3: list[str] = sanitize_release_types(["compilation", "some_other"])
-msgproc.log(f"musicbrainz_utils sanitized_3 [{sanitized_3}]")
 if not ["album", "compilation", "some_other"] == sanitized_3:
     raise Exception("Sanitization case #3 failed")
 wrong_4: list[str] = ["DeMo", "album"]
 sanitized_4: list[str] = sanitize_release_types(wrong_4)
-msgproc.log(f"musicbrainz_utils sanitize [{wrong_4}] -> [{sanitized_4}]")
 if not ["album", "demo"] == sanitized_4:
     raise Exception("Sanitization case #4 failed")
 # secondary with separator
