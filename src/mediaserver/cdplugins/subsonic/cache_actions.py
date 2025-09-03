@@ -24,6 +24,7 @@ import config
 import constants
 import persistence
 import album_util
+from subsonic_connector.album import Album
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -56,6 +57,26 @@ def delete_album_by_artist_id(artist_id: str) -> bool:
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
     return cache_manager_provider.get().delete_cached_element(cache_type.getName(), key)
+
+
+def store_artist_genres(artist_id: str, album_list: list[Album]):
+    if not album_list:
+        return
+    album: Album
+    genre_list: list[str] = []
+    for album in album_list if album_list else []:
+        album_genres: list[str] = album.getGenres()
+        curr_genre: str
+        for curr_genre in album_genres if album_genres else []:
+            if curr_genre not in genre_list:
+                genre_list.append(curr_genre)
+    # genre list now available
+    genre_list_str: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
+    key_value_item: persistence.KeyValueItem = persistence.KeyValueItem(
+        partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
+        key=artist_id,
+        value=genre_list_str)
+    persistence.save_key_value_item(key_value_item=key_value_item)
 
 
 def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album):
@@ -96,8 +117,8 @@ def on_album(album: subsonic_connector.album.Album):
                 artist_id=album.getArtistId(),
                 artist_name=album.getArtist(),
                 artist_cover_art=album.getCoverArt()))
-    # album per genre cache
     album_genre_list = album.getGenres()
+    # album per genre cache
     if album_genre_list:
         genre: str
         for genre in album_genre_list:
@@ -105,3 +126,25 @@ def on_album(album: subsonic_connector.album.Album):
                 partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
                 key=genre,
                 value=album.getCoverArt()))
+    # genres for artist
+    if album_genre_list and album.getArtistId():
+        # load existing.
+        kv_item: persistence.KeyValueItem = persistence.get_kv_item(
+            partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
+            key=album.getArtistId())
+        existing_genre_list_str: str = kv_item.value if kv_item else None
+        # split by separator
+        genre_list: list[str] = (existing_genre_list_str.split(constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value)
+                                 if existing_genre_list_str
+                                 else [])
+        genre: str
+        for genre in album_genre_list:
+            if genre not in genre_list:
+                genre_list.append(genre)
+        # update cached value
+        new_genre_list: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
+        upd_kv_item: persistence.KeyValueItem = persistence.KeyValueItem(
+            partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
+            key=album.getArtistId(),
+            value=new_genre_list)
+        persistence.save_key_value_item(key_value_item=upd_kv_item)

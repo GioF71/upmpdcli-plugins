@@ -1747,6 +1747,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         msgproc.log(f"Cannot retrieve artist by id {artist_id}")
         return entries
     album_list: list[Album] = artist.getAlbumList()
+    cache_actions.store_artist_genres(artist_id=artist.getId(), album_list=album_list)
     artist_mb_id: str = subsonic_util.get_artist_musicbrainz_id(artist)
     artist_album_count: int = artist.getAlbumCount()
     artist_cover_art_from_artist_api: bool = True
@@ -1775,7 +1776,8 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         artist_name=artist.getName(),
         artist_musicbrainz_id=artist_mb_id,
         artist_album_count=artist_album_count,
-        artist_cover_art=artist_cover_art)
+        artist_cover_art=artist_cover_art,
+        artist_media_type=subsonic_util.get_artist_media_type(artist=artist))
     persistence.save_artist_metadata(artist_metadata)
     if artist_mb_id:
         # at least the musicbrainz artist id is logged
@@ -1980,7 +1982,7 @@ def handler_element_artist_focus(objid, item_identifier: ItemIdentifier, entries
     similar_artists_entry: dict[str, any] = create_similar_artists_entry(objid, artist_id)
     if similar_artists_entry:
         entries.append(similar_artists_entry)
-    radio_entry_list: list[dict[str, any]] = _radio_entry(
+    radio_entry_list: list[dict[str, any]] = create_artist_radio_entry(
         objid=objid,
         iid=artist.getId(),
         radio_entry_type=RadioEntryType.ARTIST_RADIO)
@@ -2069,7 +2071,7 @@ def handler_element_album_focus(
                     "not creating similar artists entry")
     get_radio_entry_list_start_time: float = time.time()
     get_radio_entry_list_elapsed_time: float = None
-    _radio_entry_list: list[dict[str, any]] = _radio_entry(
+    _radio_entry_list: list[dict[str, any]] = create_artist_radio_entry(
         objid=objid,
         iid=album.getId(),
         radio_entry_type=RadioEntryType.ALBUM_RADIO)
@@ -2100,7 +2102,7 @@ def handler_element_navigable_album(
         return entries
     clean_title: str = album.getTitle()
     album_mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
-    media_type: str = subsonic_util.get_album_mediatype(album)
+    media_type: str = subsonic_util.get_album_media_type(album)
     release_types: str = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value, [])
     genres: list[str] = album.getGenres()
     album_version: str = subsonic_util.get_album_version(album)
@@ -2359,8 +2361,8 @@ def create_entries_for_album_additional_artists(
     return artist_entries
 
 
-def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, any]]:
-    msgproc.log(f"_radio_entry for {iid} [{radio_entry_type}]")
+def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, any]]:
+    msgproc.log(f"create_artist_radio_entry for {iid} [{radio_entry_type}]")
     radio_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
     radio_id: str = identifier_util.create_objid(
         objid=objid,
@@ -2397,10 +2399,12 @@ def _radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict
 
 
 def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     res_artist_info: Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
     if not res_artist_info.isOk():
         raise Exception(f"Cannot get artist info for artist_id {artist_id}")
-    if len(res_artist_info.getObj().getSimilarArtists()) > 0:
+    similar_artists: list[SimilarArtist] = res_artist_info.getObj().getSimilarArtists()
+    if len(similar_artists if similar_artists else []) > 0:
         # ok to add similar artists entry
         similar_artist_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_SIMILAR.getName(), artist_id)
         similar_artist_id: str = identifier_util.create_objid(
@@ -2411,16 +2415,21 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
             objid,
             title="Similar Artists")
         # artist_art
-        similar_artist_id: str = res_artist_info.getObj().getSimilarArtists()[0].getId()
-        similar_artist_art: str = cache_actions.get_album_id_by_artist_id(similar_artist_id)
-        if similar_artist_art:
-            # load album
-            album: Album = subsonic_util.try_get_album(similar_artist_art)
-            album_cover_art: str = album.getCoverArt() if album else None
+        select_similar_artist: SimilarArtist = res_artist_info.getObj().getSimilarArtists()[0]
+        similar_artist_id: str = select_similar_artist.getId()
+        if verbose:
+            msgproc.log(f"create_similar_artists_entry for artist [{artist_id}] "
+                        f"selected similar artist [{similar_artist_id}] "
+                        f"[{select_similar_artist.getName()}]")
+        # show art for similar_artist_id if available
+        if similar_artist_id:
             upnp_util.set_album_art_from_uri(
-                subsonic_util.build_cover_art_url(album_cover_art),
-                similar_artists_entry)
+                album_art_uri=art_retriever.get_album_art_uri_for_artist_id(artist_id=similar_artist_id),
+                target=similar_artists_entry)
         return similar_artists_entry
+    else:
+        # no similar artists.
+        msgproc.log(f"Similar artists not available for [{artist_id}]")
 
 
 def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> list[dict[str, any]]:
