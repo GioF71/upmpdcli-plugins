@@ -343,19 +343,10 @@ def genre_to_entry(
     return entry
 
 
-def artist_role_key_to_display(role_key: str) -> str:
-    role_translator: constants.RoleTranslator
-    for role_translator in constants.RoleTranslator:
-        if role_translator.role_key == role_key:
-            return role_translator.role_display_name
-    # no match.
-    return role_key.capitalize()
-
-
 def maybe_append_roles(entry_name: str, artist: Artist) -> str:
     if config.get_config_param_as_bool(constants.ConfigParam.APPEND_ROLES_TO_ARTIST):
         artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
-        disp: list[str] = list(map(artist_role_key_to_display, artist_roles))
+        disp: list[str] = list(map(subsonic_util.name_key_to_display, artist_roles))
         return f"{entry_name} [{', '.join(disp)}]"
     else:
         return entry_name

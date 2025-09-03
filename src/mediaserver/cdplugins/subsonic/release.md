@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.10
+
+- Cache and show genres metadata for artist
+- View Artist/Focus/Similar Artists: fix cover art retrieval
+- Display artist roles correctly in metadata
+- Display artist media type in metatata when available
+- General code cleanup, fixes and optimizations
+- Improve musicbrainz support for releasetype
+
 ## Release 0.8.9
 
 - Improved badge calculation algorithm (suffixes treated case-insensitively)

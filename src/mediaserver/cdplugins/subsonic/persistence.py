@@ -132,6 +132,7 @@ class ArtistMetadata:
             artist_musicbrainz_id: str = None,
             artist_album_count: int = None,
             artist_cover_art: str = None,
+            artist_media_type: str = None,
             created_timestamp: datetime.datetime = None,
             updated_timestamp: datetime.datetime = None):
         self.__artist_id: str = artist_id
@@ -139,6 +140,7 @@ class ArtistMetadata:
         self.__artist_musicbrainz_id: str = artist_musicbrainz_id
         self.__artist_album_count: int = artist_album_count
         self.__artist_cover_art: str = artist_cover_art
+        self.__artist_media_type: str = artist_media_type
         self.__created_timestamp: datetime.datetime = (created_timestamp
                                                        if created_timestamp
                                                        else datetime.datetime.now())
@@ -167,6 +169,10 @@ class ArtistMetadata:
         return self.__artist_cover_art
 
     @property
+    def artist_media_type(self) -> str:
+        return self.__artist_media_type
+
+    @property
     def created_timestamp(self) -> datetime.datetime:
         return self.__created_timestamp
 
@@ -179,7 +185,8 @@ class ArtistMetadata:
             artist_name: str,
             artist_musicbrainz_id: str,
             artist_album_count: int = None,
-            artist_cover_art: str = None):
+            artist_cover_art: str = None,
+            artist_media_type: str = None):
         any_update: bool = False
         if artist_name and len(artist_name) > 0:
             self.__artist_name = artist_name
@@ -192,6 +199,9 @@ class ArtistMetadata:
             any_update = True
         if artist_cover_art:
             self.__artist_cover_art = artist_cover_art
+            any_update = True
+        if artist_media_type:
+            self.__artist_media_type = artist_media_type
             any_update = True
         if any_update:
             self.__updated_timestamp = datetime.datetime.now()
@@ -253,6 +263,7 @@ __field_name_artist_name: str = "artist_name"
 __field_name_artist_musicbrainz_id: str = "artist_musicbrainz_id"
 __field_name_artist_album_count: str = "artist_album_count"
 __field_name_artist_cover_art: str = "artist_cover_art"
+__field_name_artist_media_type: str = "artist_media_type"
 
 __field_name_album_id: str = "album_id"
 __field_name_album_quality_badge: str = "quality_badge"
@@ -292,6 +303,12 @@ __sql_create_table_artist_metadata_v1: str = f"""
         {__field_name_artist_name} VARCHAR(255),
         {__field_name_created_timestamp} TIMESTAMP,
         {__field_name_updated_timestamp} TIMESTAMP)
+"""
+
+
+__sql_alter_table_artist_metadata_v1_add_artist_media_type: str = f"""
+        ALTER TABLE {TableName.ARTIST_METADATA.value}
+        ADD COLUMN {__field_name_artist_media_type} VARCHAR(255)
 """
 
 
@@ -418,7 +435,8 @@ def _load_artist_metadata(artist_id: str) -> ArtistMetadata:
                 {__field_name_artist_name},
                 {__field_name_artist_musicbrainz_id},
                 {__field_name_artist_album_count},
-                {__field_name_artist_cover_art}
+                {__field_name_artist_cover_art},
+                {__field_name_artist_media_type}
             FROM
                 {TableName.ARTIST_METADATA.value}
             WHERE {__field_name_artist_id} = ?"""
@@ -437,7 +455,8 @@ def _load_artist_metadata(artist_id: str) -> ArtistMetadata:
         artist_name=row[3],
         artist_musicbrainz_id=row[4],
         artist_album_count=row[5],
-        artist_cover_art=row[6])
+        artist_cover_art=row[6],
+        artist_media_type=row[7])
     return result
 
 
@@ -595,6 +614,9 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
             (artist_metadata.artist_cover_art
                 if artist_metadata.artist_cover_art
                 else existing_metadata.artist_cover_art),
+            (artist_metadata.artist_media_type
+                if artist_metadata.artist_media_type
+                else existing_metadata.artist_media_type),
             now,
             artist_metadata.artist_id)
         update_sql: str = f"""
@@ -605,6 +627,7 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
                 {__field_name_artist_musicbrainz_id} = ?,
                 {__field_name_artist_album_count} = ?,
                 {__field_name_artist_cover_art} = ?,
+                {__field_name_artist_media_type} = ?,
                 {__field_name_updated_timestamp} = ?
             WHERE {__field_name_artist_id} = ?
         """
@@ -614,7 +637,8 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
             artist_name=artist_metadata.artist_name,
             artist_musicbrainz_id=artist_metadata.artist_musicbrainz_id,
             artist_album_count=artist_metadata.artist_album_count,
-            artist_cover_art=artist_metadata.artist_cover_art)
+            artist_cover_art=artist_metadata.artist_cover_art,
+            artist_media_type=artist_metadata.artist_media_type)
     else:
         # insert
         __insert_artist_metadata(artist_metadata=artist_metadata)
@@ -687,6 +711,7 @@ def __insert_artist_metadata(artist_metadata: ArtistMetadata):
         artist_metadata.artist_musicbrainz_id,
         artist_metadata.artist_album_count,
         artist_metadata.artist_cover_art,
+        artist_metadata.artist_media_type,
         now,
         now)
     insert_sql: str = f"""
@@ -696,9 +721,10 @@ def __insert_artist_metadata(artist_metadata: ArtistMetadata):
             {__field_name_artist_musicbrainz_id},
             {__field_name_artist_album_count},
             {__field_name_artist_cover_art},
+            {__field_name_artist_media_type},
             {__field_name_created_timestamp},
             {__field_name_updated_timestamp}
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """
     __execute_update(insert_sql, insert_values)
 
@@ -779,7 +805,8 @@ def __preload_artist_metadata():
             __field_name_artist_name,
             __field_name_artist_musicbrainz_id,
             __field_name_artist_album_count,
-            __field_name_artist_cover_art
+            __field_name_artist_cover_art,
+            __field_name_artist_media_type
             ],
         row_converter=lambda x: ArtistMetadata(
             artist_id=x[2],
@@ -787,6 +814,7 @@ def __preload_artist_metadata():
             artist_musicbrainz_id=x[4],
             artist_album_count=x[5],
             artist_cover_art=x[6],
+            artist_media_type=x[7],
             created_timestamp=x[0],
             updated_timestamp=x[1]),
         cache_writer=lambda x: __update_artist_cache(x))
@@ -870,6 +898,12 @@ def __store_db_version(version: str):
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
+def do_migration_10():
+    __do_create_table(
+        table_name=TableName.ARTIST_METADATA.value,
+        sql=__sql_alter_table_artist_metadata_v1_add_artist_media_type)
+
+
 def do_migration_9():
     __do_create_table(
         table_name=TableName.ALBUM_METADATA.value,
@@ -922,6 +956,10 @@ def do_migration_1():
     __do_create_table(
         table_name=TableName.ALBUM_METADATA.value,
         sql=__sql_create_table_album_metadata_v1)
+
+
+def migration_10():
+    migration_template("11", do_migration_10)
 
 
 def migration_9():
@@ -1038,7 +1076,11 @@ def __init():
         Migration(
             migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding album path",
             apply_on="9",
-            migration_function=migration_9)]
+            migration_function=migration_9),
+        Migration(
+            migration_name=f"Altering {TableName.ALBUM_METADATA.value}, adding album media type",
+            apply_on="10",
+            migration_function=migration_10)]
     current_migration: Migration
     migration_counter: int = 0
     for current_migration in migrations:

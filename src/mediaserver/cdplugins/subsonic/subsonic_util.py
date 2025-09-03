@@ -51,6 +51,7 @@ import glob
 import copy
 import os
 import time
+import musicbrainzutils
 
 from functools import cmp_to_key
 from typing import Callable
@@ -793,7 +794,7 @@ class AlbumReleaseTypes:
         if (len(self.__types) == 0 or
            (len(self.__types) == 1 and len(self.__types[0]) == 0)):
             return "*EMPTY*"
-        return "/".join(x.title() for x in self.__types)
+        return " / ".join(musicbrainzutils.display_value(x) for x in self.__types)
 
     @property
     def key(self) -> str:
@@ -870,26 +871,14 @@ def album_has_release_types(album: Album) -> bool:
 
 
 def get_album_release_types(album: Album) -> AlbumReleaseTypes:
-    result: list[str] = list()
     has_release_types: bool = album_has_release_types(album)
     album_release_types: list[str] = (album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
                                       if has_release_types
                                       else list())
-    if album_release_types and len(album_release_types) > 0:
-        release_type: str
-        for release_type in album_release_types:
-            # split by "/"
-            rt_splitted: list[str] = release_type.split("/")
-            if rt_splitted and len(rt_splitted) > 1:
-                msgproc.log(f"release type for album_id [{album.getId()}] "
-                            f"is [{release_type}] -> [{rt_splitted}]")
-            for rt in rt_splitted:
-                if rt not in result:
-                    result.append(rt)
-    else:
-        # if release_types is empty we default to album
-        result = ["album"]
-    return AlbumReleaseTypes(result)
+    return AlbumReleaseTypes(
+        types=musicbrainzutils.sanitize_release_types(
+            value_list=album_release_types,
+            print_function=lambda x: msgproc.log(x)))
 
 
 def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
@@ -1122,11 +1111,11 @@ def get_album_version(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.VERSION.value) if album else None
 
 
-def get_album_mediatype(album: Album) -> str | None:
+def get_album_media_type(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if album else None
 
 
-def get_artist_mediatype(artist: Artist) -> str | None:
+def get_artist_media_type(artist: Artist) -> str | None:
     return artist.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if artist else None
 
 
@@ -1369,23 +1358,50 @@ def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
         artist_id,
         target)
     artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
-    if not artist_metadata:
-        # nothing to do here
-        return
-    upnp_util.set_upnp_meta(
-        constants.UpnpMeta.ARTIST,
-        artist_metadata.artist_name,
-        target)
-    upnp_util.set_upmpd_meta(
-        upmpdmeta.UpMpdMeta.ARTIST_MUSICBRAINZ_ID,
-        artist_metadata.artist_musicbrainz_id,
-        target)
-    upnp_util.set_upmpd_meta(
-        upmpdmeta.UpMpdMeta.ARTIST_ALBUM_COUNT,
-        (str(artist_metadata.artist_album_count)
-            if artist_metadata.artist_album_count
-            else None),
-        target)
+    if artist_metadata:
+        upnp_util.set_upnp_meta(
+            constants.UpnpMeta.ARTIST,
+            artist_metadata.artist_name,
+            target)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ARTIST_MUSICBRAINZ_ID,
+            artist_metadata.artist_musicbrainz_id,
+            target)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ARTIST_ALBUM_COUNT,
+            (str(artist_metadata.artist_album_count)
+                if artist_metadata.artist_album_count
+                else None),
+            target)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ARTIST_MEDIA_TYPE,
+            name_key_to_display(artist_metadata.artist_media_type),
+            target)
+
+    # genres?
+    genres_kv: persistence.KeyValueItem = persistence.get_kv_item(
+        partition=cache_type.CacheType.GENRES_FOR_ARTIST.value.cache_name,
+        key=artist_id)
+    if genres_kv and genres_kv.value:
+        # prepare for display
+        genre_list: list[str] = genres_kv.value.split(constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value)
+        genre_list.sort()
+        genres_display_value: str = join_with_comma(genre_list)
+        upnp_util.set_upnp_meta(
+            metadata_name=constants.UpnpMeta.GENRE,
+            metadata_value=genres_display_value,
+            target=target)
+
+
+def name_key_to_display(name_key: str) -> str:
+    if not name_key:
+        return None
+    name_translator: constants.NameTranslator
+    for name_translator in constants.NameTranslator:
+        if name_translator.name_key == name_key:
+            return name_translator.display_name
+    # no match.
+    return name_key.capitalize()
 
 
 def set_artist_metadata(artist: Artist, target: dict):
@@ -1407,9 +1423,10 @@ def set_artist_metadata(artist: Artist, target: dict):
         target)
     upnp_util.set_upmpd_meta(
         upmpdmeta.UpMpdMeta.ARTIST_MEDIA_TYPE,
-        get_artist_mediatype(artist),
+        name_key_to_display(get_artist_media_type(artist)),
         target)
     artist_roles: list[str] = get_artist_roles(artist=artist)
+    artist_roles = list(map(name_key_to_display, artist_roles))
     upnp_util.set_upmpd_meta(
         upmpdmeta.UpMpdMeta.ARTIST_ROLE,
         join_with_comma(artist_roles),
@@ -1474,7 +1491,7 @@ def set_album_metadata(album: Album, target: dict):
     album_release_types: AlbumReleaseTypes = get_album_release_types(album)
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, get_album_mediatype(album), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, name_key_to_display(get_album_media_type(album)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, join_with_comma(get_album_moods(album)), target)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
         # album path.
