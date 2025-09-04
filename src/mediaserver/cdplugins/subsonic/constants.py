@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.9"
+    PLUGIN_RELEASE = "0.8.10"
     PLUGIN_NAME = "subsonic"
 
 
@@ -184,44 +184,58 @@ class ConfigParam(Enum):
         return self.value.default_value
 
 
-class RoleTranslatorData:
-
-    def __init__(self, role_key: str, role_display_name: str):
-        self.__role_key: str = role_key
-        self.__role_display_name: str = role_display_name
-
-    @property
-    def role_key(self) -> str:
-        return self.__role_key
-
-    @property
-    def role_display_name(self) -> str:
-        return self.__role_display_name
-
-
-class RoleName(Enum):
-    ALBUM_ARTIST = "albumartist"
+class ThingName(Enum):
+    ALBUM = "album"
     ARTIST = "artist"
+    ALBUM_ARTIST = "albumartist"
     PERFORMER = "performer"
     CONDUCTOR = "conductor"
     COMPOSER = "composer"
 
 
-class RoleTranslator(Enum):
+class RoleName(Enum):
+    ALBUM_ARTIST = ThingName.ALBUM_ARTIST.value
+    ARTIST = ThingName.ARTIST.value
+    PERFORMER = ThingName.PERFORMER.value
+    CONDUCTOR = ThingName.CONDUCTOR.value
+    COMPOSER = ThingName.COMPOSER.value
 
-    ARTIST = RoleTranslatorData(RoleName.ARTIST.value, "Artist")
-    ALBUM_ARTIST = RoleTranslatorData(RoleName.ALBUM_ARTIST.value, "Album Artist")
-    PERFORMER = RoleTranslatorData(RoleName.PERFORMER.value, "Performer")
-    CONDUCTOR = RoleTranslatorData(RoleName.CONDUCTOR.value, "Conductor")
-    COMPOSER = RoleTranslatorData(RoleName.COMPOSER.value, "Composer")
+
+class MediaType(Enum):
+    ARTIST = ThingName.ARTIST.value
+    ALBUM = ThingName.ALBUM.value
+
+
+class NameTranslatorData:
+
+    def __init__(self, name_key: str, display_name: str):
+        self.__name_key: str = name_key
+        self.__display_name: str = display_name
 
     @property
-    def role_key(self) -> str:
-        return self.value.role_key
+    def name_key(self) -> str:
+        return self.__name_key
 
     @property
-    def role_display_name(self) -> str:
-        return self.value.role_display_name
+    def display_name(self) -> str:
+        return self.__display_name
+
+
+class NameTranslator(Enum):
+
+    ARTIST = NameTranslatorData(ThingName.ARTIST.value, "Artist")
+    ALBUM_ARTIST = NameTranslatorData(ThingName.ALBUM_ARTIST.value, "Album Artist")
+    PERFORMER = NameTranslatorData(ThingName.PERFORMER.value, "Performer")
+    CONDUCTOR = NameTranslatorData(ThingName.CONDUCTOR.value, "Conductor")
+    COMPOSER = NameTranslatorData(ThingName.COMPOSER.value, "Composer")
+
+    @property
+    def name_key(self) -> str:
+        return self.value.name_key
+
+    @property
+    def display_name(self) -> str:
+        return self.value.display_name
 
 
 class _ExplicitStatusData:
@@ -269,6 +283,7 @@ class MetadataMaxLength(Enum):
 class Separator(Enum):
 
     DISC_NUMBER_SEPARATOR = ","
+    GENRE_FOR_ARTIST_SEPARATOR = ","
 
 
 class _SupportedImageTypeData:

@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,20 +16,29 @@
 from enum import Enum
 
 
-class CacheType(Enum):
-    ALBUMS_BY_ARTIST = 1, "lbm4rtst"
-    GENRE_ALBUM_ART = 2, "genre_album_art"
-    ALBUM_TRACK_QUALITIES = 3, "album_track_qualities"
+class _CacheTypeData:
 
-    def __init__(
-            self,
-            num: int,
-            cache_name: str):
-        self.num: int = num
+    def __init__(self, cache_name: str):
         self.__cache_name: str = cache_name
 
-    def getName(self) -> str:
+    @property
+    def cache_name(self) -> str:
         return self.__cache_name
+
+
+class CacheType(Enum):
+
+    ALBUMS_BY_ARTIST = _CacheTypeData("lbm4rtst")
+    GENRE_ALBUM_ART = _CacheTypeData("genre_album_art")
+    ALBUM_TRACK_QUALITIES = _CacheTypeData("album_track_qualities")
+    GENRES_FOR_ARTIST = _CacheTypeData("genres_for_artist")
+
+    def getName(self) -> str:
+        return self.value.cache_name
+
+    @property
+    def cache_name(self) -> str:
+        return self.value.cache_name
 
 
 def get_cache_type_by_name(cache_name: str) -> CacheType:
@@ -45,7 +54,5 @@ id_checker_set: set[int] = set()
 for v in CacheType:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")
-    if v.value[0] in id_checker_set:
-        raise Exception(f"Duplicated id [{v.value[0]}]")
     name_checker_set.add(v.getName())
-    id_checker_set.add(v.value[0])
+    id_checker_set.add(v.cache_name)
