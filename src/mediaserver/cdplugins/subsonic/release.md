@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.11
+
+- Caching code move to common (get, put)
+- SQL generation code moved to common (simple update, select, delete)
+- Replace queries with code-generated
+- Improve detection of appearances of an artist among its albums
+- Column names have a dedicated enum in persistence.py
+- General code cleanup, fixes and optimizations
+
 ## Release 0.8.10
 
 - Cache and show genres metadata for artist

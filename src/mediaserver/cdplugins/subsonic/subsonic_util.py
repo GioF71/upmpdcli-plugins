@@ -35,6 +35,7 @@ import cache_manager_provider
 import album_util
 import upnp_util
 import config
+from keyvaluecaching import KeyValueItem
 import persistence
 import persistence_constants
 import cache_type
@@ -762,8 +763,9 @@ def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album], opp
     result: list[Album] = list()
     current: Album
     for current in album_list if album_list else list():
-        # artist is different from artist id
-        different: bool = current.getArtistId() and artist_id != current.getArtistId()
+        # appears on is true if artist_id from current album is empty or
+        # if artist id from current album is different from artist_id
+        different: bool = not current.getArtistId() or (current.getArtistId() and artist_id != current.getArtistId())
         check: bool = not different if opposite else different
         if check:
             result.append(current)
@@ -1379,7 +1381,7 @@ def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
             target)
 
     # genres?
-    genres_kv: persistence.KeyValueItem = persistence.get_kv_item(
+    genres_kv: KeyValueItem = persistence.get_kv_item(
         partition=cache_type.CacheType.GENRES_FOR_ARTIST.value.cache_name,
         key=artist_id)
     if genres_kv and genres_kv.value:
@@ -1516,7 +1518,7 @@ def get_tracks_detailed_quality(album: Album) -> str:
     song_list: list[Song] = album.getSongs()
     if not song_list or len(song_list) == 0:
         # is the value cached?
-        kv_item: persistence.KeyValueItem = persistence.get_kv_item(
+        kv_item: KeyValueItem = persistence.get_kv_item(
             partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
             key=album.getId())
         return kv_item.value if kv_item else None
@@ -1565,7 +1567,7 @@ def get_tracks_detailed_quality(album: Album) -> str:
             to_display.append(f"{k} ({v} {'songs' if v > 1 else 'song'})")
         display_result: str = join_with_comma(to_display)
     # cache the value
-    persistence.save_key_value_item(
+    persistence.save_kv_item(
         key_value_item=persistence.KeyValueItem(
             partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
             key=album.getId(),
