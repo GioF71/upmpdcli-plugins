@@ -25,6 +25,8 @@ import constants
 import persistence
 import album_util
 from subsonic_connector.album import Album
+from keyvaluecaching import KeyValueItem
+
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -72,11 +74,11 @@ def store_artist_genres(artist_id: str, album_list: list[Album]):
                 genre_list.append(curr_genre)
     # genre list now available
     genre_list_str: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
-    key_value_item: persistence.KeyValueItem = persistence.KeyValueItem(
+    key_value_item: KeyValueItem = KeyValueItem(
         partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
         key=artist_id,
         value=genre_list_str)
-    persistence.save_key_value_item(key_value_item=key_value_item)
+    persistence.save_kv_item(key_value_item=key_value_item)
 
 
 def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album):
@@ -122,14 +124,14 @@ def on_album(album: subsonic_connector.album.Album):
     if album_genre_list:
         genre: str
         for genre in album_genre_list:
-            persistence.save_key_value_item(key_value_item=persistence.KeyValueItem(
+            persistence.save_kv_item(key_value_item=KeyValueItem(
                 partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
                 key=genre,
                 value=album.getCoverArt()))
     # genres for artist
     if album_genre_list and album.getArtistId():
         # load existing.
-        kv_item: persistence.KeyValueItem = persistence.get_kv_item(
+        kv_item: KeyValueItem = persistence.get_kv_item(
             partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
             key=album.getArtistId())
         existing_genre_list_str: str = kv_item.value if kv_item else None
@@ -143,8 +145,8 @@ def on_album(album: subsonic_connector.album.Album):
                 genre_list.append(genre)
         # update cached value
         new_genre_list: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
-        upd_kv_item: persistence.KeyValueItem = persistence.KeyValueItem(
+        upd_kv_item: KeyValueItem = persistence.KeyValueItem(
             partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
             key=album.getArtistId(),
             value=new_genre_list)
-        persistence.save_key_value_item(key_value_item=upd_kv_item)
+        persistence.save_kv_item(key_value_item=upd_kv_item)

@@ -1803,19 +1803,19 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     # use one album for this entry image
     # understand release types.
     has_appearances: bool = len(albums_as_appears_on) > 0
-    msgproc.log(f"Artist [{artist_id}] has \"Appears on\" albums: [{len(albums_as_appears_on)}]")
+    msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has \"Appears on\" albums: [{len(albums_as_appears_on)}]")
     artist_release_types: dict[str, int] = subsonic_util.get_release_types(album_list)
-    msgproc.log(f"Artist [{artist_id}] release types counters are: [{artist_release_types}]")
+    msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] release types counters are: [{artist_release_types}]")
     one_release_type: bool = len(artist_release_types.keys()) == 1
     single_release_type: str = next(iter(artist_release_types)) if one_release_type else None
     if one_release_type:
-        msgproc.log(f"Artist [{artist_id}] one release type only: [{single_release_type}]")
+        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] one release type only: [{single_release_type}]")
     if not one_release_type:
-        msgproc.log(f"Artist [{artist_id}] has [({len(artist_release_types.keys())})] "
+        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has [({len(artist_release_types.keys())})] "
                     f"release types: [{single_release_type}] "
                     "so we can add by-releasetype album entries!")
     else:
-        msgproc.log(f"Artist [{artist_id}] has one release type only: [{single_release_type}] "
+        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has one release type only: [{single_release_type}] "
                     "so there is no need for by-releasetype album entries.")
     cover_art_album: Album
     if len(albums_as_main_artist) > 0:
@@ -1831,7 +1831,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         album_entry_name=(subsonic_util.release_type_to_album_list_label(single_release_type, len(album_list))
                           if one_release_type
                           else f"All Releases [{len(album_list)}]"))
-    msgproc.log(f"handler_element_artist for {artist_id} -> "
+    msgproc.log(f"handler_element_artist for [{artist_id}] [{artist.getName()}] -> "
                 f"selected album_id: {cover_art_album.getId() if cover_art_album else None}")
     if not one_release_type:
         # add by release type.
@@ -2340,7 +2340,7 @@ def create_entries_for_album_additional_artists(
                 else:
                     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                         msgproc.log(f"Cannot find mbid for artist_id [{curr_artist.id}]")
-            msgproc.log(f"Adding artist entry [{entry_name}] for [{curr_artist.id}] ...")
+            msgproc.log(f"Adding artist entry: [{entry_name}] for artist_id: [{curr_artist.id}] ...")
             additional_identifier_properties: dict[ItemIdentifierKey, any] = {}
             if curr_artist.id not in skip_artist_id_set:
                 additional_identifier_properties[ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST] = album_id
@@ -2351,7 +2351,7 @@ def create_entries_for_album_additional_artists(
                     objid=objid,
                     artist=curr_artist_obj,
                     additional_identifier_properties=additional_identifier_properties))
-                msgproc.log(f"Adding [{curr_artist.id}] to skip set ...")
+                msgproc.log(f"Adding artist_id: [{curr_artist.id}] to skip set ...")
                 skip_artist_id_set.add(curr_artist.id)
             else:
                 msgproc.log(f"create_entries_for_album_additional_artists could not add artist [{curr_artist.id}]")
