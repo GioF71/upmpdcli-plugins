@@ -15,7 +15,6 @@
 
 # source: https://musicbrainz.org/doc/Release_Group/Type
 
-import cmdtalkplugin
 from enum import Enum
 from typing import Callable
 
@@ -192,6 +191,9 @@ def sanitize_release_types(
         res.extend(others)
         if print_function:
             print_function(f"sanitize_release_types values [{value_list}] -> [{res}] (missing primary)")
+    elif len(primaries) == 0 and len(secondaries) == 0 and len(others) == 0:
+        if fallback_primary:
+            res.append(fallback_primary.reference_value)
     else:
         # push everything.
         res.extend(map(lambda p: p.reference_value, primaries))

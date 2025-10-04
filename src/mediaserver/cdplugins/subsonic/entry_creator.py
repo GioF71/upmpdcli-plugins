@@ -57,6 +57,7 @@ from msgproc_provider import msgproc
 
 import os
 
+from keyvaluecaching import KeyValueItem
 import persistence
 
 
@@ -299,7 +300,7 @@ def genre_to_entry(
     genre_art: str = None
     genre_art_url: str = None
     # first, try to look in kv cache
-    kv_item_for_genre: persistence.KeyValueItem = persistence.get_kv_item(
+    kv_item_for_genre: KeyValueItem = persistence.get_kv_item(
         partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
         key=genre_name)
     msgproc.log(f"genre_to_entry cache hit for [{genre_name}]: "
@@ -327,7 +328,7 @@ def genre_to_entry(
                     continue
                 genre_art = album.getCoverArt()
                 # store in kv cache!
-                persistence.save_key_value_item(key_value_item=persistence.KeyValueItem(
+                persistence.save_kv_item(key_value_item=persistence.KeyValueItem(
                     partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
                     key=genre_name,
                     value=genre_art))
