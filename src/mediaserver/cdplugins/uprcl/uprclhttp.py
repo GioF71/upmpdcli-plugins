@@ -160,7 +160,7 @@ def runbottle(host="0.0.0.0", port=9278, topdirs="", pathprefix=""):
             rt += "/"
         streamer = Streamer(rt)
         rt = rt.replace(":", "\\:")
-        rt += "<filepath>"
+        rt += "<filepath:path>"
         uplog(f"runbottle: adding route for: {rt}")
         bottle.route(rt, "GET", streamer)
 
