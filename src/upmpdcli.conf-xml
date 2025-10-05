@@ -19,7 +19,7 @@
 #loglevel = 2
 
 # <var name="upnplogfilename" type="fn">
-# <brief>Log file name for the low level UPnP lib (libnpupnp).</brief>
+# <brief>Enable low level libnpupnp logging and set output name. Set to empty for stderr.</brief>
 # <descr>This log is not active if this variable is not set at all. Use an empty value for
 # the messages to go to stderr.</descr>
 # </var>
