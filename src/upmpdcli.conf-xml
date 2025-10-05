@@ -595,12 +595,6 @@ uprcltitle = Local Music
 # </var>
 #uprclnotagview=false
 
-# <var name="uprclpaths" type="string"><brief>Path translations.</brief>
-# <descr>Translations from real paths to ones relative to the HTTP server
-# doc tree. If this is not set, uprcl will use a null translation for each
-# of the uprclmediadirs entries.</descr></var>
-#uprclpaths =
-
 
 # <grouptitle>Upmpdcli Radios plugin parameters</grouptitle>
 

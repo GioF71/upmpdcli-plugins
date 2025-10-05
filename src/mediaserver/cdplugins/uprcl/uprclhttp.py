@@ -51,7 +51,7 @@ def main():
     # Using params.get will work with either the form's POST or an URL GET query value
     # See https://bottlepy.org/docs/dev/tutorial.html#request-data
     what = bottle.request.params.get("what")
-    # uplog("bottle:main: what value is %s" % what)
+    #uplog("bottle:main: what value is %s" % what)
 
     status = uprclinit.updaterunning()
     if not status:
@@ -94,11 +94,12 @@ def static(filepath):
 # when creating the object.
 class Streamer(object):
     def __init__(self, root):
-        self.root = root
+        self.root = root.replace("\\:", ":")
 
     def __call__(self, filepath):
         if not _checkhost():
             return bottle.HTTPResponse(status=404)
+        uplog(f"Streamer.__call__: myroot [{self.root}] filepath [{filepath}]", level=4)
         embedded = True if "embed" in bottle.request.query else False
         if embedded:
             # Embedded image urls have had a .jpg or .png
@@ -132,7 +133,7 @@ class Streamer(object):
                 uplog("uprcl: no such file: %s" % fullpath)
                 return bottle.HTTPResponse(status=404)
 
-        uplog("Streaming: %s " % fullpath)
+        uplog(f"Streaming: {fullpath}")
         mutf = mutagen.File(fullpath)
         if mutf:
             return bottle.static_file(fullpath, root=root, mimetype=mutf.mime[0])
@@ -141,34 +142,26 @@ class Streamer(object):
 
 
 # Bottle handle both the streaming and control requests.
-def runbottle(host="0.0.0.0", port=9278, pthstr="", pathprefix=""):
+def runbottle(host="0.0.0.0", port=9278, topdirs="", pathprefix=""):
     global datadir
     uplog(
-        "runbottle: version %s host %s port %d pthstr %s pathprefix %s"
-        % (bottle.__version__, host, port, pthstr, pathprefix)
+        f"runbottle: version {bottle.__version__} host {host} port {port} topdirs {topdirs} " \
+        f"pathprefix {pathprefix}"
     )
     datadir = os.path.dirname(__file__)
     datadir = os.path.join(datadir, "bottle")
     bottle.TEMPLATE_PATH = (os.path.join(datadir, "views"),)
 
-    # All the file urls must be like /some/prefix/path where
-    # /some/prefix must be in the path translation map (which I'm not
-    # sure what the use of is). By default the map is an identical
-    # translation of all topdirs entries. We create one route for each
-    # prefix. As I don't know how a bottle method can retrieve the
-    # route it was called from, we create a callable for each prefix.
-    # Each route is built on the translation input, and the processor
-    # uses the translated path as root
-    lpth = pthstr.split(",")
-    for ptt in lpth:
-        l = ptt.split(":")
-        rt = l[0]
+    # Add routes for all the recoll start directories.
+    # As I don't know how a bottle method can retrieve the route it
+    # was called from, we create a callable for each prefix.
+    for rt in topdirs:
         if rt[-1] != "/":
             rt += "/"
-        rt += "<filepath:path>"
-        uplog("runbottle: adding route for: %s" % rt)
-        # We build the streamer with the translated
-        streamer = Streamer(l[1])
+        streamer = Streamer(rt)
+        rt = rt.replace(":", "\\:")
+        rt += "<filepath>"
+        uplog(f"runbottle: adding route for: {rt}")
         bottle.route(rt, "GET", streamer)
 
     bottle.run(server="waitress", host=host, port=port)

@@ -224,15 +224,6 @@ def uprcl_init():
         g_initmessage = "No accessible media directories in configuration"
         return
 
-    pthstr = getOptionValue("uprclpaths")
-    if pthstr is None:
-        uplog("uprclpaths not in config, using topdirs: [%s]" % g_rcltopdirs)
-        pthstr = ""
-        for p in g_rcltopdirs:
-            pthstr += p + ":" + p + ","
-        pthstr = pthstr.rstrip(",")
-    uplog("Path translation: pthstr: %s" % pthstr)
-
     host, port = _g_httphp.split(":")
 
     # Turn g_rcltopdirs back into a string, that's how it's used by runindexer
@@ -243,7 +234,8 @@ def uprcl_init():
     # Start the bottle app. It's both the control/config interface and the file streamer
     httpthread = threading.Thread(
         target=runbottle,
-        kwargs={"host": host, "port": int(port), "pthstr": pthstr, "pathprefix": _g_pathprefix},
+        kwargs={"host": host, "port": int(port),
+                "topdirs": goodpthlist, "pathprefix": _g_pathprefix},
     )
     httpthread.daemon = True
     httpthread.start()
