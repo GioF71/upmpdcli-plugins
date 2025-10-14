@@ -19,7 +19,7 @@
 #loglevel = 2
 
 # <var name="upnplogfilename" type="fn">
-# <brief>Log file name for the low level UPnP lib (libnpupnp).</brief>
+# <brief>Enable low level libnpupnp logging and set output name. Set to empty for stderr.</brief>
 # <descr>This log is not active if this variable is not set at all. Use an empty value for
 # the messages to go to stderr.</descr>
 # </var>
@@ -594,12 +594,6 @@ uprcltitle = Local Music
 # a problem with some Control Points, or kinds of usage.</descr>
 # </var>
 #uprclnotagview=false
-
-# <var name="uprclpaths" type="string"><brief>Path translations.</brief>
-# <descr>Translations from real paths to ones relative to the HTTP server
-# doc tree. If this is not set, uprcl will use a null translation for each
-# of the uprclmediadirs entries.</descr></var>
-#uprclpaths =
 
 
 # <grouptitle>Upmpdcli Radios plugin parameters</grouptitle>

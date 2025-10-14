@@ -13,7 +13,7 @@ loglevel:: Log
 level. Can also be specified as -l loglevel.
 
 [[upnplogfilename]]
-upnplogfilename:: Log file name for the low level UPnP lib (libnpupnp). This log is not active if this variable is not set at all. Use an empty value for
+upnplogfilename:: Enable low level libnpupnp logging and set output name. Set to empty for stderr. This log is not active if this variable is not set at all. Use an empty value for
 the messages to go to stderr.
 
 [[upnploglevel]]
@@ -434,6 +434,13 @@ tidalsearchlimit:: Tidal search limit Set the maximum numbers of items returned 
 tidaloverridecountrycode:: Override the country code. This will allow you to specify the desired two-letter country code.
 When not specified, it should default to the country code of the profile.
 
+[[tidaltrackidregex]]
+tidaltrackidregex:: Track id regex expression. The expression used to validate the track_id in trackuri.
+Do not set it unless you know what you are doing.
+
+[[tidalverboselogging]]
+tidalverboselogging:: Enables verbose logging, defaults to 0 (no) Enables more verbose logging, might be useful for testing
+
 === UPRCL Local Media Server parameters 
 
 [[uprcluser]]
@@ -493,11 +500,6 @@ manual). Not set by default, and optional.
 [[uprclnotagview]]
 uprclnotagview:: Suppress folder "Tag View" entries. The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
 a problem with some Control Points, or kinds of usage.
-
-[[uprclpaths]]
-uprclpaths:: Path translations. Translations from real paths to ones relative to the HTTP server
-doc tree. If this is not set, uprcl will use a null translation for each
-of the uprclmediadirs entries.
 
 === Upmpdcli Radios plugin parameters 
 
@@ -582,6 +584,9 @@ subsonicbaseurl:: SubSonic server base url. URL of the server, without the port.
 [[subsonicport]]
 subsonicport:: SubSonic server port. The port of the SubSonic server
 
+[[subsonicserverpath]]
+subsonicserverpath:: SubSonic server path. Optional, use only if the server is exposed on a specific path
+
 [[subsonicitemsperpage]]
 subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic
 
@@ -597,6 +602,9 @@ subsonicappendyeartoalbumview:: Append year to album view If enabled, the year w
 
 [[subsonicappendyeartoalbumsearchres]]
 subsonicappendyeartoalbumsearchres:: Append year to album as search result If enabled, the year will be appended to the album as a search result. Disabled by default.
+
+[[subsonicappendrolestoartist]]
+subsonicappendrolestoartist:: Append roles to artists If enabled, the artist roles will be appended to artist entries. Enabled by default.
 
 [[subsonictranscodecodec]]
 subsonictranscodecodec:: Enable transcoding If a value is set, it will be used as the codec for the transcoding process
@@ -642,6 +650,17 @@ subsonicenablecachedimageagelimit:: Enables pruning for image cache, requires we
 
 [[subsoniccachedimagemaxagedays]]
 subsoniccachedimagemaxagedays:: Age limit for image files in image cache in days Sets the maximum image file age in days, relevant when pruning is enabled
+
+[[subsonicallowartistcoverart]]
+subsonicallowartistcoverart:: Enables use of cover art from artists, enabled by default Set it to `0` in order to avoid to use coverArt from artists, which can
+be expensive/slow against Navidrome if Spotify is enabled
+
+[[subsonicenablemaintenancefeatures]]
+subsonicenablemaintenancefeatures:: Enables maintenance features, e.g. list albums without MusicBrainz Id Set it to 1 in order to enable library maintenance features, disabled by default
+
+[[subsonicartistalbumnewestfirst]]
+subsonicartistalbumnewestfirst:: Show artist albums from newest to older if left empty or set to 1 Allows to change sort order to artist albums. Set it to 0 if you want the order
+to be ascending instead of descending (default)
 
 === Upmpdcli BBC Sounds plugin parameters 
 

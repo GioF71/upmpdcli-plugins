@@ -516,21 +516,19 @@ def song_to_entry(
     bd: int = 0
     sr: int = 0
     br: int = 0
-    if song.getItem().hasName(constants.ItemKey.CHANNEL_COUNT.value):
-        cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
-        upnp_util.set_channel_count(cc, entry)
-    if subsonic_util.get_song_bit_depth(song):
-        bd = subsonic_util.get_song_bit_depth(song)
-        upnp_util.set_bit_depth(bd, entry)
-    if song.getItem().hasName(constants.ItemKey.SAMPLING_RATE.value):
-        sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        upnp_util.set_sample_rate(sr, entry)
+    cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
+    upnp_util.set_channel_count(cc, entry)
+    bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+    upnp_util.set_bit_depth(bd, entry)
+    sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
+    upnp_util.set_sample_rate(sr, entry)
     br = song.getBitRate()
-    if br:
-        upnp_util.set_bit_rate(br, entry)
+    upnp_util.set_bit_rate(br, entry)
     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_STREAMING_PROPERTIES):
-        msgproc.log(f"Song [{song.getId()}] -> bitDepth [{bd}] "
-                    f"samplingRate [{sr}] bitRate [{br}] "
+        msgproc.log(f"Song [{song.getId()}] -> "
+                    f"bitDepth [{bd}] "
+                    f"samplingRate [{sr}] "
+                    f"bitRate [{br}] "
                     f"channelCount [{cc}] "
                     f"mimetype [{song.getContentType()}] "
                     f"duration [{song.getDuration()}]")

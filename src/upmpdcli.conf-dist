@@ -13,7 +13,7 @@
 #logfilename =
 # Log level.
 #loglevel = 2
-# Log file name for the low level UPnP lib (libnpupnp).
+# Enable low level libnpupnp logging and set output name. Set to empty for stderr.
 #upnplogfilename=
 # Log level for the low level UPnP lib.
 #upnploglevel = 2
@@ -198,6 +198,10 @@
 #tidalsearchlimit = 15
 # Override the country code.
 #tidaloverridecountrycode = US
+# Track id regex expression.
+#tidaltrackidregex =
+# Enables verbose logging, defaults to 0 (no)
+#tidalverboselogging = 0
 
 # UPRCL Local Media Server parameters
 
@@ -222,8 +226,6 @@ uprcltitle = Local Music
 #uprclminimconfig =
 # Suppress folder "Tag View" entries.
 #uprclnotagview=false
-# Path translations.
-#uprclpaths =
 
 # Upmpdcli Radios plugin parameters
 
@@ -275,6 +277,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonicbaseurl = http://subsonic.localdomain.local
 # SubSonic server port.
 #subsonicport = 4533
+# SubSonic server path.
+#subsonicserverpath = my-srv-path
 # SubSonic items per page
 #subsonicitemsperpage = 36
 # SubSonic cache timeout for artists
@@ -285,6 +289,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonicappendyeartoalbumview = 0
 # Append year to album as search result
 #subsonicappendyeartoalbumsearchres = 0
+# Append roles to artists
+#subsonicappendrolestoartist = 1
 # Enable transcoding
 #subsonictranscodecodec = ogg
 # Set max bitrate for transcoding
@@ -311,6 +317,12 @@ upradiostitle = Upmpdcli Radio List
 #subsonicenablecachedimageagelimit = 0
 # Age limit for image files in image cache in days
 #subsoniccachedimagemaxagedays = 60
+# Enables use of cover art from artists, enabled by default
+#subsonicallowartistcoverart = 0
+# Enables maintenance features, e.g. list albums without MusicBrainz Id
+#subsonicenablemaintenancefeatures = 0
+# Show artist albums from newest to older if left empty or set to 1
+#subsonicartistalbumnewestfirst = 0
 
 # Upmpdcli BBC Sounds plugin parameters
 

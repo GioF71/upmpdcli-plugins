@@ -771,7 +771,7 @@ link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidro
 code.
 
 NOTE: The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.3.10b5/[subsonic-connector version 0.3.10b5].
+link:https://pypi.org/project/subsonic-connector/0.3.10/[subsonic-connector version 0.3.10].
 
 List of currently available Features:
 
