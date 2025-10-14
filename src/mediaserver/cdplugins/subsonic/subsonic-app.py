@@ -680,20 +680,46 @@ def _playlist_entry_to_entry(
         album_art_uri=subsonic_util.build_cover_art_url(playlist_entry.getCoverArt()),
         target=entry)
     entry['duration'] = str(playlist_entry.getDuration())
+    # add track quality information
+    cc = playlist_entry.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
+    upnp_util.set_channel_count(cc, entry)
+    bd: int = playlist_entry.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+    upnp_util.set_bit_depth(bd, entry)
+    sr = playlist_entry.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
+    upnp_util.set_sample_rate(sr, entry)
+    br = playlist_entry.getBitRate()
+    upnp_util.set_bit_rate(br, entry)
     return entry
 
 
 def _create_list_of_playlist_entries(objid, playlist_id: str, entries: list) -> list:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    start_time: float = time.time()
     response: Response[Playlist] = connector_provider.get().getPlaylist(playlist_id)
+    get_playlist_elapsed: float = time.time() - start_time
     if not response.isOk():
+        msgproc.log(f"_create_list_of_playlist_entries for playlist_id [{playlist_id}] api call failed.")
         return entries
     entry_list: list[PlaylistEntry] = response.getObj().getEntries()
+    song_count: int = len(entry_list)
+    msgproc.log(f"_create_list_of_playlist_entries for playlist_id [{playlist_id}] count [{song_count}] "
+                f"api call took [{get_playlist_elapsed:.3f}]")
+    start_time = time.time()
     playlist_entry: PlaylistEntry
+    counter: int = 0
     for playlist_entry in entry_list:
+        counter += 1
+        entry_start_time: float = time.time()
         entry: dict[str, any] = _playlist_entry_to_entry(
             objid,
             playlist_entry)
         entries.append(entry)
+        entry_elapsed_time: float = time.time() - entry_start_time
+        if verbose:
+            msgproc.log(f"_create_list_of_playlist_entries adding song [{counter}/{song_count}] "
+                        f"took [{entry_elapsed_time:.3f}]")
+    create_entries_elapsed: float = time.time() - start_time
+    msgproc.log(f"_create_list_of_playlist_entries add [{song_count}] entries took [{create_entries_elapsed:.3f}]")
     return entries
 
 
