@@ -75,19 +75,23 @@ def set_class_artist(target: dict):
 
 
 def set_bit_depth(bit_depth: int, target: dict):
-    target['res:bitsPerSample'] = str(bit_depth)
+    if bit_depth:
+        target['res:bitsPerSample'] = str(bit_depth)
 
 
 def set_channel_count(channel_count: int, target: dict):
-    target['res:channels'] = str(channel_count)
+    if channel_count:
+        target['res:channels'] = str(channel_count)
 
 
 def set_sample_rate(sample_rate: int, target: dict):
-    target['res:samplefreq'] = str(sample_rate)
+    if sample_rate:
+        target['res:samplefreq'] = str(sample_rate)
 
 
 def set_bit_rate(bit_rate: int, target: dict):
-    target['kbs'] = str(bit_rate)
+    if bit_rate:
+        target['kbs'] = str(bit_rate)
 
 
 def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):

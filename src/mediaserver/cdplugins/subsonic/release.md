@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.12
+
+- Improve logging when handling a playlist
+- Add quality metadata to playlist items
+- Bump to subsonic-connector 0.3.10 (nice performance improvement)
+
 ## Release 0.8.11
 
 - Caching code move to common (get, put)

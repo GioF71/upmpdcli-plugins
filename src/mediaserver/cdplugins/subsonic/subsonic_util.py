@@ -22,6 +22,7 @@ from subsonic_connector.album_list import AlbumList
 from subsonic_connector.album import Album
 from subsonic_connector.artist import Artist
 from subsonic_connector.song import Song
+from subsonic_connector.playlist_entry import PlaylistEntry
 from subsonic_connector.search_result import SearchResult
 
 import cache_actions
@@ -182,7 +183,7 @@ def get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
     result: list[TrackInfo] = list()
     song: Song
     for song in track_list:
-        bit_depth: int = get_song_bit_depth(song)
+        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
         sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
         suffix: str = song.getSuffix()
         bitrate: int = song.getBitRate()
@@ -227,7 +228,7 @@ def _get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, li
     song: Song
     for song in track_list:
         # bit depth
-        bit_depth: int = get_song_bit_depth(song)
+        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
         __maybe_append_to_dict_list(result, DictKey.DICT_KEY_BITDEPTH.value, bit_depth)
         # sampling rate
         sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
@@ -1182,8 +1183,8 @@ def match_supported_image_type_by_content_type(content_type: str) -> constants.S
 def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
     if not item_id:
         return None
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     if verbose:
         msgproc.log(f"build_cover_art_url for [{item_id}] -> cover_art_url [{cover_art_url}]")
     if not cover_art_url:
@@ -1270,6 +1271,8 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
             path.extend(config.get_webserver_path_images_cache())
             path.append(item_id_with_ext)
             cached_image_url: str = compose_docroot_url(os.path.join(*path))
+            # if verbose:
+            #     msgproc.log(f"build_cover_art_url serving cached [{cached_image_url}] instead of [{cover_art_url}]")
             return cached_image_url
     else:
         return cover_art_url
@@ -1297,10 +1300,6 @@ def get_album_disc_numbers(album: Album) -> list[int]:
         if dn and dn not in disc_list:
             disc_list.append(dn)
     return disc_list
-
-
-def get_song_bit_depth(song: Song) -> int:
-    return song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
 
 
 def get_song_duration_display(song: Song) -> str:
@@ -1532,7 +1531,7 @@ def get_tracks_detailed_quality(album: Album) -> str:
     song: Song
     for song in song_list:
         # get song quality badge
-        song_is_lossy: bool = is_lossy(song.getSuffix(), get_song_bit_depth(song))
+        song_is_lossy: bool = is_lossy(song.getSuffix(), song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value))
         if song_is_lossy:
             lossy_count += 1
         else:
