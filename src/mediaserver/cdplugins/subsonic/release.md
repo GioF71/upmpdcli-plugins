@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.13b1
+
+- Improve logging in order to identify bottlenecks
+
 ## Release 0.8.12
 
 - Improve logging when handling a playlist

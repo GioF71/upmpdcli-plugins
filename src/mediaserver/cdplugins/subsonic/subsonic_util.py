@@ -22,7 +22,6 @@ from subsonic_connector.album_list import AlbumList
 from subsonic_connector.album import Album
 from subsonic_connector.artist import Artist
 from subsonic_connector.song import Song
-from subsonic_connector.playlist_entry import PlaylistEntry
 from subsonic_connector.search_result import SearchResult
 
 import cache_actions
@@ -1181,19 +1180,43 @@ def match_supported_image_type_by_content_type(content_type: str) -> constants.S
 
 
 def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
+    start: float = time.time()
+    cover_art_url: str = __build_cover_art_url(item_id=item_id, force_save=force_save)
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"build_cover_art_url for item_id [{item_id}] total elapsed [{elapsed:.3f}]")
+    return cover_art_url
+
+
+def __validate_image_caching_enabled() -> bool:
+    return (config.getWebServerDocumentRoot() and
+            config.get_config_param_as_bool(constants.ConfigParam.ENABLE_IMAGE_CACHING))
+
+
+def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
     if not item_id:
         return None
+    start: float = time.time()
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
+    build_cover_art_url_elapsed: float = time.time() - start
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     if verbose:
-        msgproc.log(f"build_cover_art_url for [{item_id}] -> cover_art_url [{cover_art_url}]")
+        msgproc.log(f"__build_cover_art_url for [{item_id}] -> "
+                    f"cover_art_url is [{cover_art_url}] "
+                    f"created in [{build_cover_art_url_elapsed:.3f}]")
     if not cover_art_url:
         return None
-    if (config.getWebServerDocumentRoot() and
-            config.get_config_param_as_bool(constants.ConfigParam.ENABLE_IMAGE_CACHING)):
+    if (__validate_image_caching_enabled()):
+        save_start: float = time.time()
+        if verbose:
+            msgproc.log(f"__build_cover_art_url saving image for item_id [{item_id}] ...")
         images_cached_dir: str = ensure_directory(
             config.getWebServerDocumentRoot(),
             config.get_webserver_path_images_cache())
+        ensure_directory_elapsed: float = time.time() - save_start
+        if verbose:
+            msgproc.log(f"__build_cover_art_url ensured directory [{images_cached_dir}] "
+                        f"exists in [{ensure_directory_elapsed:.3f}]")
         exists: str = False
         matching_files: list[str] = []
         cached_file_name: str = item_id
@@ -1205,13 +1228,13 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
         item_id_with_ext: str = cached_file_path if item_id_ext else None
         if not item_id_with_ext:
             # item_id does not have an extension
-            matching_files = images_only(glob.glob(f"{cached_file_path}.*"))
+            matching_files = __match_images_only(glob.glob(f"{cached_file_path}.*"))
             if matching_files and len(matching_files) > 0:
                 item_id_with_ext = os.path.basename(matching_files[0])
                 # remove other matching_files files ...
                 to_remove: str
                 for to_remove in matching_files[1:]:
-                    msgproc.log(f"build_cover_art_url Removing spurious file [{to_remove}] ...")
+                    msgproc.log(f"__build_cover_art_url removing spurious file [{to_remove}] ...")
                     os.remove(to_remove)
                 exists = True
         else:
@@ -1233,17 +1256,20 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                     except Exception as ex:
                         msgproc.log(f"Failed to remove [{to_remove}] due to [{type(ex)}] [{ex}]")
             try:
+                read_start: float = time.time()
                 response = requests.get(cover_art_url)
                 content_type = response.headers.get('content-type')
                 file_type: str = mimetypes.guess_all_extensions(content_type)
                 # if file_type is "application/json", we probably have a failure
                 ct_match: constants.SupportedImageType = match_supported_image_type_by_content_type(content_type)
                 valid_file_type: bool = ct_match is not None
+                read_elapsed: float = time.time() - read_start
                 if verbose:
-                    msgproc.log(f"reading [{item_id}] [{cover_art_url}] we got: "
+                    msgproc.log(f"reading [{item_id}] [{cover_art_url}] we got "
                                 f"content_type [{content_type}] "
                                 f"file_type [{file_type}] "
-                                f"valid -> [{valid_file_type}]")
+                                f"valid -> [{valid_file_type}] "
+                                f"in [{read_elapsed:.3f}]")
                 if valid_file_type:
                     item_id_ext: str = os.path.splitext(cached_file_path)[1]
                     # is cached_file_path without extension?
@@ -1267,28 +1293,34 @@ def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                 msgproc.log(f"Could not save file [{cached_file_path}] due to [{type(ex)}] [{ex}]")
         # can we serve the local file?
         if serve_local:
-            path: list[str] = list()
-            path.extend(config.get_webserver_path_images_cache())
-            path.append(item_id_with_ext)
-            cached_image_url: str = compose_docroot_url(os.path.join(*path))
-            # if verbose:
-            #     msgproc.log(f"build_cover_art_url serving cached [{cached_image_url}] instead of [{cover_art_url}]")
+            cached_image_url: str = __build_image_path_as_list(item_id_with_ext=item_id_with_ext)
+            save_elapsed: float = time.time() - save_start
+            if verbose:
+                msgproc.log(f"__build_cover_art_url serving cached [{cached_image_url}] instead of "
+                            f"[{cover_art_url}] in [{save_elapsed:.3f}]")
             return cached_image_url
     else:
         return cover_art_url
 
 
-def images_only(match_list: list[str]) -> list[str]:
+def __build_image_path_as_list(item_id_with_ext: str) -> list[str]:
+    path: list[str] = list()
+    path.extend(config.get_webserver_path_images_cache())
+    path.append(item_id_with_ext)
+    return compose_docroot_url(os.path.join(*path))
+
+
+def __match_images_only(match_list: list[str]) -> list[str]:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     result: list[str] = []
     for m in match_list if match_list else []:
         if match_supported_image_type_by_name(m):
             if verbose:
-                msgproc.log(f"Matching image success for [{m}]")
+                msgproc.log(f"__match_images_only matching image success for [{m}]")
             result.append(m)
         else:
             if verbose:
-                msgproc.log(f"Matching image failed for [{m}]")
+                msgproc.log(f"__match_images_only matching image failed for [{m}]")
     return result
 
 
@@ -1596,6 +1628,6 @@ def cached_images_exist(image_file_name: str) -> list[str]:
         sub_dir_list: list[str] = get_cached_image_subdir_list()
         image_dir: str = ensure_directory(base_dir=document_root_dir, sub_dir_list=sub_dir_list)
         cached_file_name_no_ext: str = f"{str(image_file_name)}"
-        cached_files: list[str] = images_only(glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*"))
+        cached_files: list[str] = __match_images_only(glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*"))
         return cached_files if cached_files else []
     return []

@@ -22,6 +22,7 @@ import json
 import upmplgutils
 import upmpdmeta
 import os
+import statistics
 
 from subsonic_connector.response import Response
 from subsonic_connector.album_list import AlbumList
@@ -412,29 +413,34 @@ def _load_albums_by_type(
         fromYear: any = None,
         toYear: any = None,
         options: dict[str, any] = dict()) -> list:
+    roundtrip_start: float = time.time()
     use_last_for_next: bool = option_util.get_option(options=options, option_key=OptionKey.USE_LAST_FOR_NEXT)
     request_size: int = size + 1 if use_last_for_next else size
+    req_start: float = time.time()
     albumList: list[Album] = subsonic_util.get_albums(
         tag_type.getQueryType(),
         size=request_size,
         offset=str(offset),
         fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
         toYear=toYear if not tag_type == TagType.OLDEST_ALBUMS else fromYear)
-    msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}]")
+    req_elapsed: float = time.time() - req_start
+    msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}] in [{req_elapsed:.3f}]")
     current_album: Album
     tag_cached: bool = False
     counter: int = offset
     to_show: list[Album] = albumList[0:min(len(albumList), size)]
     add_next: bool = len(albumList) == request_size
-    iteration: int = 0
+    total_elapsed_list: list[float] = []
+    caching_elapsed_list: list[float] = []
     for current_album in to_show:
-        iteration += 1
+        current_total_start: float = time.time()
         counter += 1
         if config.prepend_number_in_album_list:
             option_util.set_option(
                 options=options,
                 option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value=counter)
+        current_caching_start: float = time.time()
         cache_actions.on_album(current_album)
         if tag_type and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(
@@ -442,6 +448,8 @@ def _load_albums_by_type(
                 tag_type.getTagName(),
                 current_album.getId())
             tag_cached = True
+        current_caching_elapsed: float = time.time() - current_caching_start
+        caching_elapsed_list.append(current_caching_elapsed)
         if config.get_config_param_as_bool(constants.ConfigParam.DISABLE_NAVIGABLE_ALBUM):
             entries.append(entry_creator.album_to_entry(
                 objid=objid,
@@ -452,7 +460,10 @@ def _load_albums_by_type(
                 objid=objid,
                 album=current_album,
                 options=options))
+        current_total_elapsed: float = time.time() - current_total_start
+        total_elapsed_list.append(current_total_elapsed)
     if add_next:
+        next_start: float = time.time()
         for_next: Album = albumList[len(albumList) - 1]
         next_page: dict[str, any] = _create_tag_next_entry(
             objid=objid,
@@ -461,6 +472,19 @@ def _load_albums_by_type(
         next_cover_art: str = subsonic_util.build_cover_art_url(for_next.getCoverArt())
         upnp_util.set_album_art_from_uri(next_cover_art, next_page)
         entries.append(next_page)
+        next_total_elapsed: float = time.time() - next_start
+        total_elapsed_list.append(next_total_elapsed)
+    roundtrip_elapsed: float = time.time() - roundtrip_start
+    msgproc.log(f"_load_albums_by_type roundtrip [{roundtrip_elapsed:.3f}] "
+                f"api [{req_elapsed:.3f}] "
+                f"elapsed: (cnt [{len(total_elapsed_list)}] "
+                f"avg [{statistics.fmean(total_elapsed_list):.3f}] "
+                f"min [{min(total_elapsed_list):.3f}] "
+                f"max [{max(total_elapsed_list):.3f}]) "
+                f"caching: (cnt [{len(caching_elapsed_list)}] "
+                f"avg [{statistics.fmean(caching_elapsed_list):.3f}] "
+                f"min [{min(caching_elapsed_list):.3f}] "
+                f"max [{max(caching_elapsed_list):.3f}])")
     return entries
 
 
