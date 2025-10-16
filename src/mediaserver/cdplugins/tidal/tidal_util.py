@@ -34,6 +34,7 @@ from tidalapi.album import Album as TidalAlbum
 from tidalapi.playlist import Playlist as TidalPlaylist
 from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
 from tidalapi.mix import Mix as TidalMix
+from tidalapi.mix import MixV2 as TidalMixV2
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
 from tidalapi.media import Video as TidalVideo
@@ -74,6 +75,7 @@ default_image_sz_by_type[TidalArtist.__name__] = [750, 480, 320, 160]
 default_image_sz_by_type[TidalAlbum.__name__] = [1280, 640, 320, 160, 80]
 default_image_sz_by_type[TidalPlaylist.__name__] = [1080, 750, 640, 480, 320, 160]
 default_image_sz_by_type[TidalMix.__name__] = [1500, 640, 320]
+default_image_sz_by_type[TidalMixV2.__name__] = [1500, 640, 320]
 default_image_sz_by_type[TidalUserPlaylist.__name__] = default_image_sz_by_type[TidalPlaylist.__name__]
 
 
@@ -128,44 +130,62 @@ def get_name_or_title(obj: any) -> str:
     return None
 
 
+def get_cached_image_subdir_list(image_type: str) -> list[str]:
+    return [
+        constants.PluginConstant.PLUGIN_NAME.value,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
+        image_type]
+
+
+def cached_images_exist(album_id: str) -> list[str]:
+    document_root_dir: str = config.getWebServerDocumentRoot()
+    if document_root_dir:
+        sub_dir_list: list[str] = get_cached_image_subdir_list(image_type=TidalAlbum.__name__)
+        image_dir: str = ensure_directory(base_dir=document_root_dir, sub_dir_list=sub_dir_list)
+        cached_file_name_no_ext: str = f"{str(album_id)}"
+        cached_files: list[str] = glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*")
+        return cached_files if cached_files else []
+    return []
+
+
+def if_cached_exists(album_id: str, image_url: str) -> str:
+    return image_url if album_id and len(cached_images_exist(album_id=album_id)) > 0 else None
+
+
 def get_album_art_url_by_album_id(
         album_id: str,
         tidal_session: TidalSession,
         album: TidalAlbum = None) -> str:
+    use_cached: bool = config.get_enable_image_caching()
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-    # if True:
-        msgproc.log(f"get_album_art_url_by_album_id for album_id [{album_id}] album [{'set' if album else 'not set'}]")
-    if config.get_enable_image_caching():
+        msgproc.log(f"get_album_art_url_by_album_id caching [{use_cached}] "
+                    f"for album_id [{album_id}] "
+                    f"title [{album.name if album else None}] "
+                    f"by [{album.artist.name if album and album.artist else None}] "
+                    f"album [{'set' if album else 'not set'}]")
+    # use cached?
+    cached_files: list[str] = cached_images_exist(album_id=album_id) if use_cached else []
+    use_cached = len(cached_files) > 0 if use_cached else False
+    if use_cached:
         # try cached!
-        document_root_dir: str = config.getWebServerDocumentRoot()
-        if document_root_dir:
-            sub_dir_list: list[str] = [
-                constants.PluginConstant.PLUGIN_NAME.value,
-                constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
-                TidalAlbum.__name__]
-            image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
-            cached_file_name_no_ext: str = f"{str(album_id)}"
-            cached_files: list[str] = glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*")
-            if config.get_dump_image_caching():
-                msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_files if cached_files else []}]")
-            if cached_files and len(cached_files) > 0:
-                # pick newest file
-                cached_file: str = __select_newest_file(cached_files)
-                cached_file_name_ext: str = os.path.splitext(cached_file)[1]
-                # touch the file.
-                # msgproc.log(f"About to touch file [{cached_file}] ...")
-                pathlib.Path(cached_file).touch()
-                # use cached file
-                path: list[str] = list()
-                path.extend(sub_dir_list)
-                path.append(f"{str(album_id)}{cached_file_name_ext}")
-                cached_image_url: str = compose_docroot_url(os.path.join(*path))
-                if config.get_dump_image_caching():
-                    msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_image_url}]")
-                return cached_image_url
-            else:
-                if config.get_dump_image_caching():
-                    msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> cache miss")
+        # pick newest file
+        cached_file: str = __select_newest_file(cached_files)
+        cached_file_name_ext: str = os.path.splitext(cached_file)[1]
+        # touch the file.
+        # msgproc.log(f"About to touch file [{cached_file}] ...")
+        pathlib.Path(cached_file).touch()
+        # use cached file
+        path: list[str] = list()
+        sub_dir_list: list[str] = get_cached_image_subdir_list(image_type=TidalAlbum.__name__)
+        path.extend(sub_dir_list)
+        path.append(f"{str(album_id)}{cached_file_name_ext}")
+        cached_image_url: str = compose_docroot_url(os.path.join(*path))
+        if config.get_dump_image_caching():
+            msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_image_url}]")
+        return cached_image_url
+    else:
+        if config.get_dump_image_caching():
+            msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> cache miss")
     # if we are are, we fallback to normal
     if config.get_dump_image_caching():
         msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> loading from upstream service is required")
@@ -245,13 +265,6 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
             msgproc.log(f"Cannot understand file type for item id [{str(obj.id)}], cannot cache.")
             return None
     elif cached_file_name:
-        ## path: list[str] = list()
-        ## path.extend(sub_dir_list)
-        ## path.append(f"{str(obj.id)}{cached_file_name_ext}")
-        # remember, cached_file_name_ext will include the ".", so it will likely be ".jpg"
-        # cached_image_url: str = compose_docroot_url(os.path.join(*path))
-        # msgproc.log(f"get_image_url returning cached [{cached_image_url}]")
-        # return cached_image_url
         return get_web_document_root_file_url(
                 dir_list=sub_dir_list,
                 file_name=f"{str(obj.id)}{cached_file_name_ext}")
@@ -343,13 +356,15 @@ def try_get_track(tidal_session: TidalSession, track_id: str) -> tuple[TidalTrac
 def try_get_album(tidal_session: TidalSession, album_id: str) -> TidalAlbum:
     album: TidalAlbum = None
     try:
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"try_get_album loading album_id [{album_id}] ...")
         album = tidal_session.album(album_id)
+        return album
     except ObjectNotFound as onfEx:
         msgproc.log(f"try_get_album could not find album_id [{album_id}] [{type(onfEx)}] [{onfEx}]")
         # TODO more actions? like e.g. remove from favorites
     except Exception as ex:
         msgproc.log(f"try_get_album failed for album_id [{album_id}] [{type(ex)}] [{ex}]")
-    return album
 
 
 def try_get_artist(tidal_session: TidalSession, artist_id: str) -> TidalArtist:

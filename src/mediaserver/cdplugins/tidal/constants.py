@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.9.1"
+    PLUGIN_RELEASE = "0.8.10"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
     STATIC_IMAGES_DIRECTORY = "static-images"
@@ -31,6 +31,8 @@ class PluginConstant(Enum):
 class PluginImageDirectory(Enum):
     PAGES = "pages"
     BUTTONS = "buttons"
+    GENERIC = "generic"
+    TAG = "tag"
 
 
 class _FunctionProxy:
@@ -135,8 +137,21 @@ class ConfigParam(Enum):
 
     TRACK_ID_REGEX = _ConfigParamData("trackidregex", "^[0-9]+$")
     VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
+    SEARCH_LIMIT = _ConfigParamData("searchlimit", 15)
 
-    ALLOW_STATIC_IMAGES_FOR_PAGES = _ConfigParamData("allowstaticimagesforpages", False)
+    ALLOW_NAMED_STATIC_IMAGES = _ConfigParamData("allownamedstaticimages", True)
+    ALLOW_GENERIC_STATIC_IMAGES = _ConfigParamData("allowgenericstaticimages", True)
+
+    # ALLOW_STATIC_IMAGES_FOR_PAGES = _ConfigParamData("allowstaticimagesforpages", True)
+
+    SEARCH_RESULT_TRACK_AS_CONTAINER = _ConfigParamData("searchresulttrackascontainer", True)
+    ALLOW_NEXT_IN_SEARCH_RESULT = _ConfigParamData("allownextinsearchresult", True)
+
+    PAGE_ITEMS_FOR_TILE_IMAGE = _ConfigParamData("pageitemsfortileimage", 1)
+    ALLOW_SEARCH_IMAGE_FOR_PAGELINK = _ConfigParamData("allowsearchimageforpagelink", False)
+    ALLOW_SEARCH_IMAGE_FOR_PAGE = _ConfigParamData("allowsearchimageforpage", False)
+
+    ENABLE_TILE_IMAGE_CACHE = _ConfigParamData("enabletileimagecache", False)
 
     @property
     def key(self) -> str:
@@ -215,8 +230,6 @@ default_albums_per_page: int = 25
 default_artists_per_page: int = 25
 default_page_items_per_page: int = 20
 
-default_page_items_for_tile_image: int = 1
-
 # this one should be disabled by default for the release
 default_dump_track_to_entry_result: int = 0
 
@@ -245,7 +258,5 @@ default_listen_queue_playlist_name: str = "Listening Queue"
 default_display_quality_badge: bool = False
 
 default_enable_image_caching: bool = False
-
-default_search_limit: int = 15
 
 default_dump_image_caching: bool = False

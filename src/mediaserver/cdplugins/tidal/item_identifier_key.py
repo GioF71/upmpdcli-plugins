@@ -36,6 +36,8 @@ class ItemIdentifierKey(Enum):
     LAST_FOUND_ID = 19, "lfid"
     FAVORITE_ACTION = 20, "fvctn"
     RANDOM_VALUE = 21, "rnd"
+    SEARCH_FIELD = 22, "srchfld"
+    SEARCH_KIND = 23, "srchknd"
 
     def __init__(
             self,
