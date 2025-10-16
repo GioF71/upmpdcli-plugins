@@ -16,48 +16,45 @@
 from enum import Enum
 
 
+class _OptionKeyData:
+
+    def __init__(self, name: str, default_value: any = None):
+        self.__name: str = name
+        self.__default_value: any = default_value
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
+    def default_value(self) -> any:
+        return self.__default_value
+
+
 class OptionKey(Enum):
-    SKIP_TRACK_NUMBER = 0, "skip-track-number", False
-    FORCED_TRACK_NUMBER = 1, "forced-track-number", None
-    SKIP_TRACK_ARTIST = 3, "skip-track-artist", False
-    OVERRIDDEN_ART_URI = 4, "overriden-art-uri", None
-    OVERRIDDEN_TRACK_NAME = 5, "overridden-track-name", None
-    ENTRY_AS_CONTAINER = 6, "entry-as-container", False
-    ADD_EXPLICIT = 7, "add-explicit", True
-    ADD_ALBUM_YEAR = 8, "add-album-year", True
-    SKIP_ART = 9, "skip-art", False
-    ADD_ARTIST_TO_ALBUM_ENTRY = 10, "add-artist-to-album-entry", False
+    SKIP_TRACK_NUMBER = _OptionKeyData("skip-track-number", False)
+    FORCED_TRACK_NUMBER = _OptionKeyData("forced-track-number", None)
+    SKIP_TRACK_ARTIST = _OptionKeyData("skip-track-artist", False)
+    OVERRIDDEN_ART_URI = _OptionKeyData("overriden-art-uri", None)
+    OVERRIDDEN_TRACK_NAME = _OptionKeyData("overridden-track-name", None)
+    ENTRY_AS_CONTAINER = _OptionKeyData("entry-as-container", False)
+    ADD_EXPLICIT = _OptionKeyData("add-explicit", True)
+    ADD_ALBUM_YEAR = _OptionKeyData("add-album-year", True)
+    SKIP_ART = _OptionKeyData("skip-art", False)
+    ADD_ARTIST_TO_ALBUM_ENTRY = _OptionKeyData("add-artist-to-album-entry", False)
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
-    PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME = 11, "prepend-entry-number-in-entry-name", None
-    OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT = 12, "omit-rsts-nls-dffrnt", False
-    ALBUM_OMITTABLE_ARTIST_ID = 13, "lbm-omit-rtst", None
-    TRACK_OMITTABLE_ARTIST_NAME = 14, "trk-omit-rtst", None
-    INITIAL_TRACK_NUMBER = 15, "ntl-trkn", 1
-    TRACK_AS_NAVIGABLE = 16, "nvgbl-trk", False
+    PREPEND_ENTRY_NUMBER_IN_ENTRY_NAME = _OptionKeyData("prepend-entry-number-in-entry-name", None)
+    OMIT_ARTIST_TO_ALBUM_ENTRY_UNLESS_DIFFERENT = _OptionKeyData("omit-rsts-nls-dffrnt", False)
+    ALBUM_OMITTABLE_ARTIST_ID = _OptionKeyData("lbm-omit-rtst", None)
+    TRACK_OMITTABLE_ARTIST_NAME = _OptionKeyData("trk-omit-rtst", None)
+    INITIAL_TRACK_NUMBER = _OptionKeyData("ntl-trkn", 1)
+    TRACK_AS_NAVIGABLE = _OptionKeyData("nvgbl-trk", False)
+    TRACK_CONTAINER_SET_CLASS = _OptionKeyData("trkc-sclzz", False)
 
-    def __init__(
-            self,
-            num: int,
-            element_name: str,
-            default_value: any):
-        self.num: int = num
-        self.element_name: str = element_name
-        self.default_value: any = default_value
+    @property
+    def name(self) -> str:
+        return self.value.name
 
-    def get_name(self) -> str:
-        return self.element_name
-
-    def get_default_value(self) -> any:
-        return self.default_value
-
-
-# duplicate check
-name_checker_set: set[str] = set()
-id_checker_set: set[int] = set()
-for v in OptionKey:
-    if v.get_name() in name_checker_set:
-        raise Exception(f"Duplicated name [{v.get_name()}]")
-    if v.value[0] in id_checker_set:
-        raise Exception(f"Duplicated id [{v.value[0]}]")
-    name_checker_set.add(v.get_name())
-    id_checker_set.add(v.value[0])
+    @property
+    def default_value(self) -> any:
+        return self.value.default_value

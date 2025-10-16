@@ -22,14 +22,16 @@ class Context:
         self._dict: dict[str, any] = dict()
 
     def __not_null(self, key: ContextKey):
-        if not key: raise Exception("Provided key is None")
+        if not key:
+            raise Exception("Provided key is None")
 
     def __raise_missing_key(self, key_str: str):
         raise Exception(f"Missing key [{key_str}]")
 
     def __not_in(self, key: ContextKey):
         self.__not_null(key)
-        if key in self._dict: raise Exception(f"Duplicate key [{key.name}]")
+        if key in self._dict:
+            raise Exception(f"Duplicate key [{key.name}]")
 
     def contains(self, key: ContextKey) -> bool:
         self.__not_null(key)
@@ -47,7 +49,8 @@ class Context:
 
     def increment(self, key: ContextKey):
         v: any = self.get(key=key)
-        if not isinstance(v, int): raise Exception(f"Item at key [{key.name}] is not a int")
+        if not isinstance(v, int):
+            raise Exception(f"Item at key [{key.name}] is not a int")
         self.update(key=key, value=int(v) + 1)
 
     def get(self, key: ContextKey, allow_empty: bool = True):
@@ -66,7 +69,8 @@ class Context:
     def __get_dict(self, dict_key: ContextKey, allow_empty: bool = True) -> dict[str, any]:
         select_dict: dict[str, any] = self.get(key=dict_key)
         if not select_dict:
-            if not allow_empty: raise Exception(f"Key [{dict_key.name}] not found")
+            if not allow_empty:
+                raise Exception(f"Key [{dict_key.name}] not found")
             select_dict = dict()
             self.add(key=dict_key, value=select_dict)
         else:
@@ -84,7 +88,8 @@ class Context:
             allow_update: bool = False):
         # check if key exists
         select_dict: dict[str, any] = self.__get_dict(dict_key=dict_key, allow_empty=allow_empty)
-        if entry_key in select_dict and not allow_update: raise Exception(f"Duplicate key [{entry_key}]")
+        if entry_key in select_dict and not allow_update:
+            raise Exception(f"Duplicate key [{entry_key}]")
         select_dict[entry_key] = entry_value
 
     def dict_update(
@@ -110,7 +115,8 @@ class Context:
         if entry_key in select_dict:
             del select_dict[entry_key]
         else:
-            if not allow_missing: raise Exception(f"Key [{entry_key}] not found")
+            if not allow_missing:
+                raise Exception(f"Key [{entry_key}] not found")
 
     def dict_get(
             self,
@@ -121,7 +127,8 @@ class Context:
             default_value: any = None) -> bool:
         select_dict: dict[str, any] = self.__get_dict(dict_key=dict_key, allow_empty=allow_empty)
         if entry_key not in select_dict:
-            if not allow_missing: raise Exception(f"Key [{entry_key}] not found")
+            if not allow_missing:
+                raise Exception(f"Key [{entry_key}] not found")
             return default_value
         else:
             return select_dict[entry_key]
