@@ -16,57 +16,61 @@
 from enum import Enum
 
 
+class _TagTypeData:
+
+    def __init__(self, name: str, title: str, prefer_non_static_icon: bool = False):
+        self.__name: str = name
+        self.__title: str = title
+        self.__prefer_non_static_icon: bool = prefer_non_static_icon
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
+    def title(self) -> str:
+        return self.__title
+
+    @property
+    def prefer_non_static_icon(self) -> bool:
+        return self.__prefer_non_static_icon
+
+
 class TagType(Enum):
-    PAGE_SELECTION = 10, "pgslctn", "Page Selection"
-    CATEGORIES = 100, "ctgrs", "Categories"
-    HOME = 112, "home", "Home"
-    EXPLORE = 113, "xplr", "Explore"
-    EXPLORE_NEW_MUSIC = 114, "new", "New Music"
-    EXPLORE_TIDAL_RISING = 116, "rising", "Tidal Rising"
-    FOR_YOU = 115, "foru", "For You"
-    HIRES_PAGE = 120, "hires", "Hi-Res"
-    GENRES_PAGE = 129, "genres", "Genres"
-    LOCAL_GENRES_PAGE = 140, "local_genres", "Local Genres"
-    MOODS_PAGE = 130, "moods", "Moods"
-    ALL_PLAYLISTS = 200, "allplsts", "Playlists"
-    MY_PLAYLISTS = 300, "myplsts", "My Playlists"
-    FAVORITE_ARTISTS = 400, "fvrtsts", "My Artists"
-    FAVORITE_ALBUMS = 500, "fvlbms", "My Albums"
-    FAVORITE_TRACKS = 600, "fvrttrks", "My Tracks"
-    BOOKMARKS = 700, "lstnq", "Bookmarks"
-    PLAYBACK_STATISTICS = 800, "plbkstts", "Playback Statistics"
+    PAGE_SELECTION = _TagTypeData("pgslctn", "Page Selection")
+    CATEGORIES = _TagTypeData("ctgrs", "Categories")
+    HOME = _TagTypeData("home", "Home")
+    EXPLORE = _TagTypeData("xplr", "Explore")
+    EXPLORE_NEW_MUSIC = _TagTypeData("new", "New Music")
+    EXPLORE_TIDAL_RISING = _TagTypeData("rising", "Tidal Rising")
+    FOR_YOU = _TagTypeData("foru", "For You")
+    HIRES_PAGE = _TagTypeData("hires", "Hi-Res")
+    GENRES_PAGE = _TagTypeData("genres", "Genres")
+    LOCAL_GENRES_PAGE = _TagTypeData("local_genres", "Local Genres")
+    MOODS_PAGE = _TagTypeData("moods", "Moods")
+    ALL_PLAYLISTS = _TagTypeData("allplsts", "Playlists", prefer_non_static_icon=True)
+    MY_PLAYLISTS = _TagTypeData("myplsts", "My Playlists", prefer_non_static_icon=True)
+    FAVORITE_ARTISTS = _TagTypeData("fvrtsts", "My Artists", prefer_non_static_icon=True)
+    FAVORITE_ALBUMS = _TagTypeData("fvlbms", "My Albums", prefer_non_static_icon=True)
+    FAVORITE_TRACKS = _TagTypeData("fvrttrks", "My Tracks", prefer_non_static_icon=True)
+    BOOKMARKS = _TagTypeData("lstnq", "Bookmarks", prefer_non_static_icon=True)
+    PLAYBACK_STATISTICS = _TagTypeData("plbkstts", "Playback Statistics", prefer_non_static_icon=True)
 
-    def __init__(
-            self,
-            num: int,
-            tag_name: str,
-            tag_title: str):
-        self.num: int = num
-        self.tag_name: str = tag_name
-        self.tag_title: str = tag_title
+    @property
+    def name(self) -> str:
+        return self.value.name
 
-    def getTagName(self) -> str:
-        return self.tag_name
+    @property
+    def title(self) -> str:
+        return self.value.title
 
-    def getTagTitle(self) -> str:
-        return self.tag_title
+    @property
+    def prefer_non_static_icon(self) -> bool:
+        return self.value.prefer_non_static_icon
 
 
 def get_tidal_tag_type_by_name(tag_name: str) -> TagType:
-    # msgproc.log(f"get_tidal_tag_type_by_name with {tag_name}")
     for _, member in TagType.__members__.items():
-        if tag_name == member.getTagName():
+        if tag_name == member.name:
             return member
     raise Exception(f"get_tidal_tag_type_by_name with {tag_name} NOT found")
-
-
-# duplicate check
-name_checker_set: set[str] = set()
-id_checker_set: set[int] = set()
-for v in TagType:
-    if v.getTagName() in name_checker_set:
-        raise Exception(f"Duplicated name [{v.getTagName()}]")
-    if v.value[0] in id_checker_set:
-        raise Exception(f"Duplicated id [{v.value[0]}]")
-    name_checker_set.add(v.getTagName())
-    id_checker_set.add(v.value[0])

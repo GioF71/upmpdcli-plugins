@@ -202,10 +202,6 @@ def get_enable_image_caching() -> bool:
     return __getPluginOptionAsBool("enableimagecaching", constants.default_enable_image_caching)
 
 
-def get_search_limit() -> int:
-    return getPluginOptionValue("searchlimit", constants.default_search_limit)
-
-
 __fallback_for_missing_quality: dict[str, str] = {
     TidalQuality.hi_res_lossless: TidalQuality.high_lossless,
     TidalQuality.high_lossless: TidalQuality.high_lossless,
@@ -235,12 +231,6 @@ def get_tile_image_expiration_time_sec() -> int:
     return getPluginOptionValue(
         "tileimageexpirationtimesec",
         constants.tile_image_expiration_time_sec)
-
-
-def get_page_items_for_tile_image() -> int:
-    return getPluginOptionValue(
-        "pageitemsfortileimage",
-        constants.default_page_items_for_tile_image)
 
 
 def get_allow_favorite_actions() -> bool:

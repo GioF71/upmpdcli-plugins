@@ -84,6 +84,7 @@ class ElementType(Enum):
     ALL_TRACKS_IN_PLAYLIST_OR_MIX = 64, "lltrksmxplst"
     TRACK = 101, "trk"
     TRACK_CONTAINER = 102, "trkc"
+    SEARCH = 103, "srch"
 
     def __init__(
             self,
