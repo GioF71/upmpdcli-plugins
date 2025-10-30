@@ -77,3 +77,5 @@ genreviewsearchalbumsforcoverart|Search albums for cover art for genres view, de
 allowartistcoverart|Allow to use coverArt from subsonic api for artist art. Usually it's safe to enable. Can be slow on navidrome when spotify is integrated because of them applying some throttling.
 allowfavoritesforfrontpagetags|Allow to use favorites when searching images to apply to the initial view entries
 allowshufflerandomalbumsforfrontpagetags|Allow to shuffle random albums when selecting image for initial view entries
+defeatcoverarturl|Allows to entirely defeat loading of cover art, defaults to 0
+logwithtimestamp|Adds a timestamp to log entries, defaults to 1

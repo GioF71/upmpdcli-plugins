@@ -115,18 +115,18 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): False,
     TagType.ALBUMS_WITHOUT_COVER.getTagName(): False,
     TagType.ALBUMS_WITHOUT_GENRE.getTagName(): False,
-    TagType.FAVOURITE_ALBUMS.getTagName(): False,
+    TagType.FAVORITE_ALBUMS.getTagName(): False,
     TagType.ALL_ARTISTS.getTagName(): False,
     TagType.ALL_ARTISTS_INDEXED.getTagName(): False,
     TagType.ALL_ARTISTS_UNSORTED.getTagName(): False,
     TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): False,
     TagType.ALL_COMPOSERS_UNSORTED.getTagName(): False,
     TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): False,
-    TagType.FAVOURITE_ARTISTS.getTagName(): False,
+    TagType.FAVORITE_ARTISTS.getTagName(): False,
     TagType.RANDOM_SONGS.getTagName(): False,
     TagType.RANDOM_SONGS_LIST.getTagName(): False,
-    TagType.FAVOURITE_SONGS.getTagName(): False,
-    TagType.FAVOURITE_SONGS_LIST.getTagName(): False,
+    TagType.FAVORITE_SONGS.getTagName(): False,
+    TagType.FAVORITE_SONGS_LIST.getTagName(): False,
     TagType.INTERNET_RADIOS.getTagName(): False
 }
 
@@ -281,7 +281,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     entry['res:mime'] = song.getContentType()
     entry['upnp:genre'] = song.getGenre()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.build_cover_art_url(song.getCoverArt()),
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=song.getCoverArt()),
         target=entry)
     entry['duration'] = str(song.getDuration())
     return entry
@@ -424,7 +424,7 @@ def _load_albums_by_type(
         fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
         toYear=toYear if not tag_type == TagType.OLDEST_ALBUMS else fromYear)
     req_elapsed: float = time.time() - req_start
-    msgproc.log(f"Requested [{request_size}] albums from offset [{offset}], got [{len(albumList)}] in [{req_elapsed:.3f}]")
+    msgproc.log(f"Requested [{request_size}] albums from offset [{offset}] -> received [{len(albumList)}] in [{req_elapsed:.3f}]")
     current_album: Album
     tag_cached: bool = False
     counter: int = offset
@@ -441,7 +441,7 @@ def _load_albums_by_type(
                 option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                 option_value=counter)
         current_caching_start: float = time.time()
-        cache_actions.on_album(current_album)
+        cache_actions.on_album(album=current_album)
         if tag_type and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(
                 ElementType.TAG,
@@ -469,7 +469,7 @@ def _load_albums_by_type(
             objid=objid,
             tag=tag_type,
             offset=offset + len(entries))
-        next_cover_art: str = subsonic_util.build_cover_art_url(for_next.getCoverArt())
+        next_cover_art: str = subsonic_util.build_cover_art_url(item_id=for_next.getCoverArt())
         upnp_util.set_album_art_from_uri(next_cover_art, next_page)
         entries.append(next_page)
         next_total_elapsed: float = time.time() - next_start
@@ -477,11 +477,11 @@ def _load_albums_by_type(
     roundtrip_elapsed: float = time.time() - roundtrip_start
     msgproc.log(f"_load_albums_by_type roundtrip [{roundtrip_elapsed:.3f}] "
                 f"api [{req_elapsed:.3f}] "
-                f"elapsed: (cnt [{len(total_elapsed_list)}] "
+                f"proc total: (cnt [{len(total_elapsed_list)}] "
                 f"avg [{statistics.fmean(total_elapsed_list):.3f}] "
                 f"min [{min(total_elapsed_list):.3f}] "
                 f"max [{max(total_elapsed_list):.3f}]) "
-                f"caching: (cnt [{len(caching_elapsed_list)}] "
+                f"proc caching: (cnt [{len(caching_elapsed_list)}] "
                 f"avg [{statistics.fmean(caching_elapsed_list):.3f}] "
                 f"min [{min(caching_elapsed_list):.3f}] "
                 f"max [{max(caching_elapsed_list):.3f}])")
@@ -509,7 +509,7 @@ def _albums_by_artist_to_entries(
     for current_album in album_list:
         counter += 1
         if current_album.getArtistId():
-            cache_actions.on_album(current_album)
+            cache_actions.on_album(album=current_album)
         genre_list: list[str] = current_album.getGenres()
         for curr in genre_list:
             # TODO what do I do with these genres?
@@ -701,7 +701,7 @@ def _playlist_entry_to_entry(
     entry['upnp:album'] = playlist_entry.getAlbum()
     entry['res:mime'] = playlist_entry.getContentType()
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.build_cover_art_url(playlist_entry.getCoverArt()),
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=playlist_entry.getCoverArt()),
         target=entry)
     entry['duration'] = str(playlist_entry.getDuration())
     # add track quality information
@@ -910,7 +910,7 @@ def handle_tag_albums_with_anomaly(
             offset=offset)
         if next_album:
             # set album art
-            next_cover_art: str = subsonic_util.build_cover_art_url(next_album.getCoverArt())
+            next_cover_art: str = subsonic_util.build_cover_art_url(item_id=next_album.getCoverArt())
             upnp_util.set_album_art_from_uri(next_cover_art, next_entry)
         entries.append(next_entry)
     return entries
@@ -933,7 +933,7 @@ def handler_tag_most_played(objid, item_identifier: ItemIdentifier, entries: lis
 
 
 def handler_tag_favourite_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    return __handler_tag_album_listype(objid, item_identifier, TagType.FAVOURITE_ALBUMS, entries)
+    return __handler_tag_album_listype(objid, item_identifier, TagType.FAVORITE_ALBUMS, entries)
 
 
 def handler_tag_highest_rated(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1099,7 +1099,7 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
         id=identifier_util.create_id_from_identifier(identifier))
     entry = upmplgutils.direntry(id, objid, name)
     upnp_util.set_album_art_from_uri(
-        album_art_uri=subsonic_util.build_cover_art_url(song_cover_art),
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=song_cover_art),
         target=entry)
     entry['upnp:album'] = song.getAlbum()
     upnp_util.set_artist(
@@ -1120,7 +1120,9 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
         objid=objid,
         id=identifier_util.create_id_from_identifier(song_identifier))
     song_entry = upmplgutils.direntry(song_entry_id, objid, "Song")
-    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(song.getCoverArt()), song_entry)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=song.getCoverArt()),
+        target=song_entry)
     entries.append(song_entry)
     msgproc.log(f"handler_element_song_entry start song_id {song_id} go on with album")
     album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId(), propagate_fail=True)
@@ -1168,7 +1170,7 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
     if need_next:
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.getName(),
-            TagType.FAVOURITE_SONGS_LIST.getTagName())
+            TagType.FAVORITE_SONGS_LIST.getTagName())
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1234,7 +1236,9 @@ def _genre_add_artists_node(objid, item_identifier: ItemIdentifier, entries: lis
     artists_entry = upmplgutils.direntry(id, objid, name)
     cover_art: str = get_random_art_by_genre(genre)
     if cover_art:
-        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), artists_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art),
+            target=artists_entry)
     entries.append(artists_entry)
     return entries
 
@@ -1258,7 +1262,9 @@ def _genre_add_albums_node(
     albums_entry = upmplgutils.direntry(id, objid, name)
     if offset == 0:
         art_id: str = get_random_art_by_genre(genre)
-        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(art_id), albums_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=art_id),
+            target=albums_entry)
     entries.append(albums_entry)
     return entries
 
@@ -1314,7 +1320,7 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
                 msgproc.log(f"handler_element_genre_artists cover for [{current.name}] was not set, "
                             f"falling back to album cover art [{current.cover_art}]")
                 upnp_util.set_album_art_from_uri(
-                    album_art_uri=subsonic_util.build_cover_art_url(current.cover_art),
+                    album_art_uri=subsonic_util.build_cover_art_url(item_id=current.cover_art),
                     target=artist_entry)
             item_count += 1
         else:
@@ -1440,7 +1446,7 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
             title="Next")
         cover_art: str = next_album.getCoverArt()
         upnp_util.set_album_art_from_uri(
-            album_art_uri=subsonic_util.build_cover_art_url(cover_art),
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art),
             target=next_entry)
         entries.append(next_entry)
     return entries
@@ -1598,7 +1604,7 @@ def handler_tag_favourite_artists(objid, item_identifier: ItemIdentifier, entrie
         next_artist: Artist = artist_list[offset + config.get_items_per_page()]
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.getName(),
-            TagType.FAVOURITE_ARTISTS.getTagName())
+            TagType.FAVORITE_ARTISTS.getTagName())
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1702,7 +1708,9 @@ def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entrie
                 title="Next")
             next_album: Album = album_list[offset + num_albums_to_show]
             cover_art: str = next_album.getCoverArt()
-            upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), next_entry)
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art),
+                target=next_entry)
             entries.append(next_entry)
     return entries
 
@@ -1751,7 +1759,9 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
                 title="Next")
             next_album: Album = album_list[offset + num_albums_to_show]
             cover_art: str = next_album.getCoverArt()
-            upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(cover_art), next_entry)
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art),
+                target=next_entry)
             entries.append(next_entry)
     return entries
 
@@ -1929,8 +1939,8 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
                           else None)
     focus_select_album_cover_art: str = focus_select_album.getCoverArt() if focus_select_album else None
     upnp_util.set_album_art_from_uri(
-        subsonic_util.build_cover_art_url(focus_select_album_cover_art),
-        artist_focus_entry)
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=focus_select_album_cover_art),
+        target=artist_focus_entry)
     entries.append(artist_focus_entry)
     return entries
 
@@ -1987,8 +1997,8 @@ def create_artist_albums_entry(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        subsonic_util.build_cover_art_url(cover_art_album.getCoverArt()) if cover_art_album else None,
-        albums_entry)
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art_album.getCoverArt()) if cover_art_album else None,
+        target=albums_entry)
     return albums_entry
 
 
@@ -2009,8 +2019,8 @@ def create_artist_albums_entry_for_appearances(
         pid=objid,
         title=album_entry_name)
     upnp_util.set_album_art_from_uri(
-        subsonic_util.build_cover_art_url(cover_art_album.getCoverArt()) if cover_art_album else None,
-        albums_entry)
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=cover_art_album.getCoverArt()) if cover_art_album else None,
+        target=albums_entry)
     return albums_entry
 
 
@@ -2058,7 +2068,9 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     # load the album
     album: Album = subsonic_util.try_get_album(artist_entry_album_id)
     album_cover_art: str = album.getCoverArt() if album else None
-    upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(album_cover_art), artist_entry)
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=album_cover_art),
+        target=artist_entry)
     entries.append(artist_entry)
     # entry for albums from artist within genre
     album_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
@@ -2085,7 +2097,7 @@ def handler_element_album_focus(
         item_identifier: ItemIdentifier,
         entries: list) -> list:
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    album: Album = subsonic_util.try_get_album(album_id)
+    album: Album = subsonic_util.try_get_album(album_id=album_id)
     if not album:
         return entries
     start_time: float = time.time()
@@ -2191,7 +2203,7 @@ def handler_element_navigable_album(
         album=album,
         config_getter=(lambda: config.get_config_param_as_bool(constants.ConfigParam.ALLOW_GENRE_IN_ALBUM_VIEW)))
     # badge if available
-    album_quality_badge: str = entry_creator.get_album_quality_badge(album=album, force_load=True)
+    album_quality_badge: str = entry_creator.get_album_quality_badge(album_id=album.getId(), force_load=True)
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
         album_quality_badge=album_quality_badge,
@@ -2298,7 +2310,7 @@ def handler_additional_album_artists(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     page_size: int = config.get_config_param_as_int(constants.ConfigParam.MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE)
     msgproc.log(f"handler_additional_album_artists for album_id [{album_id}] offset [{offset}]")
-    album: Album = subsonic_util.try_get_album(album_id)
+    album: Album = subsonic_util.try_get_album(album_id=album_id)
     if not album:
         return entries
     skip_artist_id_set: set[str] = set()
@@ -2437,14 +2449,18 @@ def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType)
         first_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
         second_art_album: Album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
         upnp_util.set_album_art_from_uri(
-            subsonic_util.build_cover_art_url(first_art_album.getCoverArt()) if first_art_album else None,
-            radio_entry)
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=first_art_album.getCoverArt()) if first_art_album else None,
+            target=radio_entry)
         upnp_util.set_album_art_from_uri(
-            subsonic_util.build_cover_art_url(second_art_album.getCoverArt() if second_art_album else None),
-            radio_song_list_entry)
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=second_art_album.getCoverArt() if second_art_album else None),
+            target=radio_song_list_entry)
     else:
-        upnp_util.set_album_art_from_uri(subsonic_util.get_cover_art_url_by_album_id(iid), radio_entry)
-        upnp_util.set_album_art_from_uri(subsonic_util.get_cover_art_url_by_album_id(iid), radio_song_list_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.get_cover_art_url_by_album_id(album_id=iid),
+            target=radio_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.get_cover_art_url_by_album_id(album_id=iid),
+            target=radio_song_list_entry)
     return [radio_entry, radio_song_list_entry]
 
 
@@ -2501,8 +2517,8 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
         art_select_song: Song = secrets.choice(top_songs) if top_songs and len(top_songs) > 0 else None
         art_select_song_art: str = art_select_song.getCoverArt() if art_select_song else None
         upnp_util.set_album_art_from_uri(
-            subsonic_util.build_cover_art_url(art_select_song_art),
-            top_songs_entry)
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=art_select_song_art),
+            target=top_songs_entry)
         result.append(top_songs_entry)
         top_songs_list_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ARTIST_TOP_SONGS_LIST.getName(),
@@ -2516,8 +2532,8 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
             title=f"Top Songs (List) by {artist_name}")
         art_select_song = secrets.choice(res_top_songs.getObj().getSongs())
         upnp_util.set_album_art_from_uri(
-            subsonic_util.build_cover_art_url(art_select_song.getCoverArt()),
-            top_songs_list_entry)
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=art_select_song.getCoverArt()),
+            target=top_songs_list_entry)
         result.append(top_songs_list_entry)
     return result
 
@@ -2578,7 +2594,7 @@ def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: 
     disc_number_list: list[int] = list(map(int, disc_number_str_list))
     # get the album tracks
     album_version_path: str = codec.decode(avp_enc) if avp_enc else None
-    album: Album = subsonic_util.try_get_album(album_id)
+    album: Album = subsonic_util.try_get_album(album_id=album_id)
     if not album:
         msgproc.log(f"handler_element_album_disc cannot get album by album_id [{album_id}]")
         return entries
@@ -2682,7 +2698,7 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
                 # add fav tags
                 add_fav = True
     if add_fav:
-        tag_list.append(TagType.FAVOURITE_ALBUMS)
+        tag_list.append(TagType.FAVORITE_ALBUMS)
     # add maintenance features
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_MAINTENANCE_FEATURES):
         tag_list.extend([
@@ -2746,7 +2762,9 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
         if not select_cover_art:
             select_album: Album = secrets.choice(album_list)
             select_cover_art = select_album.getCoverArt() if select_album else None
-        upnp_util.set_album_art_from_uri(subsonic_util.build_cover_art_url(select_cover_art), target=entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_cover_art),
+            target=entry)
         entries.append(entry)
     fav_artists: list[Artist] = list()
     fav_res: Response[Starred] = request_cache.get_starred()
@@ -2756,7 +2774,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
     add_fav: bool = (config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
                      or select_fav is not None)
     if add_fav:
-        fav_artist_entry: dict[str, any] = create_entry_for_tag(objid, TagType.FAVOURITE_ARTISTS)
+        fav_artist_entry: dict[str, any] = create_entry_for_tag(objid, TagType.FAVORITE_ARTISTS)
         if select_fav:
             msgproc.log(f"handler_tag_group_artists fav_artist [{select_fav.getId()}] "
                         f"[{select_fav.getName() if select_fav else None}]")
@@ -2793,8 +2811,8 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
                 add_fav = True
     if add_fav:
         tag_list.extend([
-            TagType.FAVOURITE_SONGS,
-            TagType.FAVOURITE_SONGS_LIST])
+            TagType.FAVORITE_SONGS,
+            TagType.FAVORITE_SONGS_LIST])
     entry_list: list[dict[str, any]] = tag_list_to_entries(
         objid,
         tag_list)
@@ -2812,7 +2830,7 @@ __tag_action_dict: dict = {
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): handler_tag_recently_played,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): handler_tag_most_played,
-    TagType.FAVOURITE_ALBUMS.getTagName(): handler_tag_favourite_albums,
+    TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favourite_albums,
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): handler_tag_albums_without_musicbrainz,
     TagType.ALBUMS_WITHOUT_COVER.getTagName(): handler_tag_albums_without_cover,
     TagType.ALBUMS_WITHOUT_GENRE.getTagName(): handler_tag_albums_without_genre,
@@ -2824,13 +2842,13 @@ __tag_action_dict: dict = {
     TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): handler_tag_all_album_artists_unsorted,
     TagType.ALL_COMPOSERS_UNSORTED.getTagName(): handler_tag_all_composers_unsorted,
     TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): handler_tag_all_conductors_unsorted,
-    TagType.FAVOURITE_ARTISTS.getTagName(): handler_tag_favourite_artists,
+    TagType.FAVORITE_ARTISTS.getTagName(): handler_tag_favourite_artists,
     TagType.PLAYLISTS.getTagName(): handler_tag_playlists,
     TagType.INTERNET_RADIOS.getTagName(): handler_tag_internet_radios,
     TagType.RANDOM_SONGS.getTagName(): handler_tag_random_songs,
     TagType.RANDOM_SONGS_LIST.getTagName(): handler_tag_random_songs_list,
-    TagType.FAVOURITE_SONGS.getTagName(): handler_tag_favourite_songs,
-    TagType.FAVOURITE_SONGS_LIST.getTagName(): handler_tag_favourite_songs_list,
+    TagType.FAVORITE_SONGS.getTagName(): handler_tag_favourite_songs,
+    TagType.FAVORITE_SONGS_LIST.getTagName(): handler_tag_favourite_songs_list,
 }
 
 __elem_action_dict: dict = {
@@ -2969,7 +2987,8 @@ def browse(a):
     if len(path_list) == 1 and _g_myprefix == last_path_item:
         # show tags
         entries = show_tag_entries(objid, entries)
-        msgproc.log(f"browse executed (show_tag_entries) in [{(time.time() - start):.3f}]")
+        msgproc.log(f"browse executed (show_tag_entries) collecting [{len(entries if entries else 0)}] entries "
+                    f"in [{(time.time() - start):.3f}]")
         return _returnentries(entries, no_cache=True)
     else:
         # decode
@@ -2985,7 +3004,9 @@ def browse(a):
             if tag_handler:
                 msgproc.log(f"browse: found tag handler for: --{get_tag_type_by_name(thing_value)}--")
                 entries = tag_handler(objid, item_identifier, entries)
-                msgproc.log(f"browse executed (tag [{thing_value}]) in [{(time.time() - start):.3f}]")
+                msgproc.log(f"browse executed (tag [{thing_value}]) "
+                            f"collecting [{len(entries) if entries else 0}] entries "
+                            f"in [{(time.time() - start):.3f}]")
                 return _returnentries(entries)
             else:
                 msgproc.log(f"browse: tag handler for: --{thing_value}-- not found")
@@ -2996,7 +3017,9 @@ def browse(a):
             if elem_handler:
                 msgproc.log(f"browse: found elem handler for: --{get_element_type_by_name(thing_name)}--")
                 entries = elem_handler(objid, item_identifier, entries)
-                msgproc.log(f"browse executed (element [{thing_name}]) in [{(time.time() - start):.3f}]")
+                msgproc.log(f"browse executed (element [{thing_name}]) "
+                            f"collecting [{len(entries) if entries else 0}] entries "
+                            f"in [{(time.time() - start):.3f}]")
                 return _returnentries(entries)
 
             else:
@@ -3008,6 +3031,16 @@ def _objidtopath(objid):
     if objid.find(_g_myprefix) != 0:
         raise Exception(f"subsonic: bad objid {objid}: bad prefix")
     return objid[len(_g_myprefix):].lstrip("/")
+
+
+def log_search_duration(
+        search_type: str,
+        what: str,
+        how_many: int,
+        start: float):
+    duration: float = time.time() - start
+    msgproc.log(f"Search (api) t:[{search_type}] q:[{what}] "
+                f"returned [{how_many}] entries in [{duration:.3f}]")
 
 
 @dispatcher.record('search')
@@ -3035,6 +3068,7 @@ def search(a):
         option_key=OptionKey.SEARCH_RESULT,
         option_value=True)
     resultset_length: int = 0
+    search_start: float = time.time()
     if not objkind or len(objkind) == 0:
         if SearchType.ALBUM.getName() == field:
             # search albums by specified value
@@ -3046,11 +3080,12 @@ def search(a):
                 songCount=0,
                 albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT))
             album_list: list[Album] = search_result.getAlbums()
+            log_search_duration(search_type="album", what=value, how_many=len(album_list), start=search_start)
             current_album: Album
             filters: dict[str, str] = {}
             msgproc.log(f"search: filters = {filters}")
             for current_album in album_list:
-                cache_actions.on_album(current_album)
+                cache_actions.on_album(album=current_album)
                 if album_as_container:
                     entries.append(entry_creator.album_to_navigable_entry(
                         objid=objid,
@@ -3071,6 +3106,7 @@ def search(a):
                 songCount=config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT),
                 albumCount=0)
             song_list: list[Song] = search_result.getSongs()
+            log_search_duration(search_type="track", what=query, how_many=len(song_list), start=search_start)
             sorted_song_list: list[Song] = sort_song_list(song_list).getSongList()
             current_song: Song
             for current_song in sorted_song_list:
@@ -3088,6 +3124,7 @@ def search(a):
                 songCount=0,
                 albumCount=0)
             artist_list: list[Artist] = search_result.getArtists()
+            log_search_duration(search_type="artist", what=value, how_many=len(artist_list), start=search_start)
             current_artist: Artist
             for current_artist in artist_list:
                 roles: list[str] = current_artist.getItem().getByName("roles", [])
@@ -3123,6 +3160,7 @@ def search(a):
                 songCount=0,
                 albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT))
             album_list: list[Album] = search_result.getAlbums()
+            log_search_duration(search_type="album", what=value, how_many=len(album_list), start=search_start)
             current_album: Album
             filters: dict[str, str] = {}
             msgproc.log(f"search: filters = {filters}")
@@ -3153,6 +3191,7 @@ def search(a):
                 songCount=config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT),
                 albumCount=0)
             song_list: list[Song] = search_result.getSongs()
+            log_search_duration(search_type="song", what=value, how_many=len(song_list), start=search_start)
             sorted_song_list: list[Song] = sort_song_list(song_list).getSongList()
             current_song: Song
             for current_song in sorted_song_list:
@@ -3170,6 +3209,7 @@ def search(a):
                 songCount=0,
                 albumCount=0)
             artist_list: list[Artist] = search_result.getArtists()
+            log_search_duration(search_type="artist", what=value, how_many=len(artist_list), start=search_start)
             current_artist: Artist
             for current_artist in artist_list:
                 roles: list[str] = current_artist.getItem().getByName("roles", [])

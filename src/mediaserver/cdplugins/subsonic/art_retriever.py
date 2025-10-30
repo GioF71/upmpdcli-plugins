@@ -39,14 +39,7 @@ import constants
 import secrets
 
 from typing import Callable
-
-import cmdtalkplugin
-
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+from msgproc_provider import msgproc
 
 
 def _get_cover_art_from_res_album_list(response: Response[AlbumList], random: bool = False) -> RetrievedArt:
@@ -236,7 +229,7 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
             cache_actions.delete_album_by_artist_id(artist_id)
             persistence.delete_album_metadata(art_album_id)
         elif art_album.getCoverArt():
-            art_album_cover_art_uri: str = (subsonic_util.build_cover_art_url(art_album.getCoverArt())
+            art_album_cover_art_uri: str = (subsonic_util.build_cover_art_url(item_id=art_album.getCoverArt())
                                             if art_album
                                             else None)
             return art_album_cover_art_uri
@@ -249,7 +242,7 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
         # use this!
         if verbose:
             msgproc.log(f"get_album_art_uri_for_artist_id using artist coverArt for artist_id [{artist_id}]")
-        return subsonic_util.build_cover_art_url(artist_cover_art)
+        return subsonic_util.build_cover_art_url(item_id=artist_cover_art)
     album_list: list[Album] = artist.getAlbumList() if artist else []
     select_album_list: list[Album] = album_list
     # try to avoid "appearances" first
@@ -269,7 +262,7 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
     if select_album:
         cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
         cache_actions.on_album(album=select_album)
-    album_art_uri: str = (subsonic_util.build_cover_art_url(select_album.getCoverArt())
+    album_art_uri: str = (subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt())
                           if select_album
                           else None)
     return album_art_uri
@@ -303,7 +296,7 @@ def get_artist_art_url_using_albums_by_artist(artist: Artist) -> str:
     msgproc.log(f"artist_entry_for_album selected album: [{select_album.getId() if select_album else None}]")
     loaded_album: Album = subsonic_util.try_get_album(album_id=select_album.getId()) if select_album else None
     select_cover: str = loaded_album.getCoverArt() if loaded_album else None
-    return subsonic_util.build_cover_art_url(select_cover) if select_cover else None
+    return subsonic_util.build_cover_art_url(item_id=select_cover) if select_cover else None
 
 
 def get_first_album_with_cover_art_from_album_list(album_list: list[Album]) -> str:
@@ -419,7 +412,7 @@ def playlists_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> R
     if not select:
         msgproc.log("playlists_art_retriever - no playlist selected")
         return None
-    art_url: str = (subsonic_util.build_cover_art_url(select.getCoverArt())
+    art_url: str = (subsonic_util.build_cover_art_url(item_id=select.getCoverArt())
                     if select and select.getCoverArt()
                     else None)
     return RetrievedArt(art_url=art_url)
@@ -445,7 +438,7 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.OLDEST_ALBUMS.getTagName(): random_albums_art_retriever,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): recently_played_albums_art_retriever,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): highest_rated_albums_art_retriever,
-    TagType.FAVOURITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
+    TagType.FAVORITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): most_played_albums_art_retriever,
     TagType.RANDOM.getTagName(): random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): random_albums_art_retriever,
@@ -457,8 +450,8 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.ALL_ARTISTS.getTagName(): random_albums_art_retriever,
     TagType.ALL_ARTISTS_UNSORTED.getTagName(): random_albums_art_retriever,
     TagType.ALL_ARTISTS_INDEXED.getTagName(): random_albums_art_retriever,
-    TagType.FAVOURITE_ARTISTS.getTagName(): favourite_artist_art_retriever,
+    TagType.FAVORITE_ARTISTS.getTagName(): favourite_artist_art_retriever,
     TagType.PLAYLISTS.getTagName(): playlists_art_retriever,
-    TagType.FAVOURITE_SONGS.getTagName(): favourite_song_retriever,
-    TagType.FAVOURITE_SONGS_LIST.getTagName(): favourite_song_retriever
+    TagType.FAVORITE_SONGS.getTagName(): favourite_song_retriever,
+    TagType.FAVORITE_SONGS_LIST.getTagName(): favourite_song_retriever
 }

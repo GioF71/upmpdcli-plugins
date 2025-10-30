@@ -39,8 +39,6 @@ from keyvaluecaching import KeyValueItem
 import persistence
 import persistence_constants
 import cache_type
-
-import cmdtalkplugin
 import upmpdmeta
 
 import secrets
@@ -48,7 +46,6 @@ import constants
 import requests
 import mimetypes
 import glob
-
 import copy
 import os
 import time
@@ -58,11 +55,7 @@ from functools import cmp_to_key
 from typing import Callable
 from enum import Enum
 from track_info import TrackInfo
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+from msgproc_provider import msgproc
 
 # additional lossy extensions listed here
 additional_lossy_prefix_set: set[str] = {"m4a", "mp3"}
@@ -364,13 +357,17 @@ def try_get_album(
         album_id: str,
         propagate_fail: bool = False,
         execute_cache_action: bool = False) -> Album:
+    start: float = time.time()
     try:
         res: Response[Album] = connector_provider.get().getAlbum(album_id)
         if res and res.getObj() and res.isOk():
             album: Album = res.getObj()
+            elapsed: float = time.time() - start
+            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                msgproc.log(f"try_get_album loaded album for album_id [{album_id}] in [{elapsed:.3f}]")
             # execute on_album from cache_actions (stores metadata)
             if execute_cache_action:
-                cache_actions.on_album(album)
+                cache_actions.on_album(album=album)
             return album
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
@@ -384,7 +381,7 @@ def try_get_artist(artist_id: str) -> Artist:
         res: Response[Artist] = connector_provider.get().getArtist(artist_id)
         artist: Artist = res.getObj() if res and res.isOk() else None
         if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-            msgproc.log(f"try_get_artist loaded artid_id [{artist_id}] "
+            msgproc.log(f"try_get_artist loaded artist_id [{artist_id}] "
                         f"success [{artist is not None}] in "
                         f"[{(time.time() - start):.3f}] sec")
         return artist
@@ -401,38 +398,39 @@ def get_cover_art_by_album(album: Album) -> str:
 
 
 def get_cover_art_by_album_id(album_id: str) -> str:
-    album: Album = try_get_album(album_id)
-    return get_cover_art_by_album(album)
+    album: Album = try_get_album(album_id=album_id)
+    return get_cover_art_by_album(album=album)
 
 
 def get_cover_art_url_by_album(album: Album) -> str:
-    return build_cover_art_url(get_cover_art_by_album(album))
+    return build_cover_art_url(item_id=get_cover_art_by_album(album=album))
 
 
 def get_cover_art_url_by_song(song: Song) -> str:
-    return build_cover_art_url(get_cover_art_by_song(song))
+    return build_cover_art_url(item_id=get_cover_art_by_song(song=song))
 
 
 def get_cover_art_url_by_album_id(album_id: str) -> str:
-    return build_cover_art_url(get_cover_art_by_album_id(album_id))
+    return build_cover_art_url(item_id=get_cover_art_by_album_id(album_id=album_id))
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     result: list[Song] = []
-    album: Album = try_get_album(album_id)
+    album: Album = try_get_album(album_id=album_id)
     if album and album.getArtist():
-        msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] artist [{album.getArtist()}] ...")
-        cache_actions.on_album(album)
+        msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] "
+                    f"artist [{album.getArtist()}] ...")
+        cache_actions.on_album(album=album)
     else:
         msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] ...")
         return None, []
-    albumArtURI: str = build_cover_art_url(album.getCoverArt())
+    albumArtURI: str = build_cover_art_url(item_id=album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
-    albumArtURI: str = build_cover_art_url(album.getCoverArt())
+    albumArtURI: str = build_cover_art_url(item_id=album.getCoverArt())
     return album, album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
@@ -486,7 +484,7 @@ def get_albums(
             ltype=ListType.HIGHEST,
             size=size,
             offset=offset)
-    elif TagType.FAVOURITE_ALBUMS.getQueryType() == query_type:
+    elif TagType.FAVORITE_ALBUMS.getQueryType() == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.STARRED,
             size=size,
@@ -1194,18 +1192,12 @@ def __validate_image_caching_enabled() -> bool:
 
 
 def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
-    if not item_id:
+    if not item_id or config.get_config_param_as_bool(constants.ConfigParam.DEFEAT_COVER_ART_URL):
         return None
-    start: float = time.time()
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
-    build_cover_art_url_elapsed: float = time.time() - start
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    if verbose:
-        msgproc.log(f"__build_cover_art_url for [{item_id}] -> "
-                    f"cover_art_url is [{cover_art_url}] "
-                    f"created in [{build_cover_art_url_elapsed:.3f}]")
     if not cover_art_url:
         return None
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     if (__validate_image_caching_enabled()):
         save_start: float = time.time()
         if verbose:
@@ -1254,7 +1246,7 @@ def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                     try:
                         os.remove(to_remove)
                     except Exception as ex:
-                        msgproc.log(f"Failed to remove [{to_remove}] due to [{type(ex)}] [{ex}]")
+                        msgproc.log(f"__build_cover_art_url failed to remove [{to_remove}] due to [{type(ex)}] [{ex}]")
             try:
                 read_start: float = time.time()
                 response = requests.get(cover_art_url)
@@ -1265,7 +1257,8 @@ def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                 valid_file_type: bool = ct_match is not None
                 read_elapsed: float = time.time() - read_start
                 if verbose:
-                    msgproc.log(f"reading [{item_id}] [{cover_art_url}] we got "
+                    msgproc.log(f"__build_cover_art_url reading [{item_id}] "
+                                f"[{cover_art_url}] -> "
                                 f"content_type [{content_type}] "
                                 f"file_type [{file_type}] "
                                 f"valid -> [{valid_file_type}] "
@@ -1290,14 +1283,15 @@ def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
                             handler.write(img_data)
                         serve_local = True
             except Exception as ex:
-                msgproc.log(f"Could not save file [{cached_file_path}] due to [{type(ex)}] [{ex}]")
+                msgproc.log(f"__build_cover_art_url could not save file [{cached_file_path}] due to [{type(ex)}] [{ex}]")
         # can we serve the local file?
         if serve_local:
             cached_image_url: str = __build_image_path_as_list(item_id_with_ext=item_id_with_ext)
             save_elapsed: float = time.time() - save_start
             if verbose:
-                msgproc.log(f"__build_cover_art_url serving cached [{cached_image_url}] instead of "
-                            f"[{cover_art_url}] in [{save_elapsed:.3f}]")
+                msgproc.log(f"__build_cover_art_url serving cached [{cached_image_url}] "
+                            f"for item_id [{item_id}] "
+                            f"in [{save_elapsed:.3f}]")
             return cached_image_url
     else:
         return cover_art_url

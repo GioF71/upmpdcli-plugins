@@ -1,7 +1,12 @@
 # Subsonic Plugin Release Notes
 
-## Release 0.8.13b1
+## Release 0.8.13
 
+- Reverted change on method name get_album_path_list
+- Add configuration parameter `defeatcoverarturl` (DEFEAT_COVER_ART_URL) to defeat cover art retrieval
+- Avoid duplicate cache lookups when showing list of albums
+- Improved logging with timestamp, configurable with `logwithtimestamp`, enabled by default
+- General code cleanup, fixes and optimizations
 - Improve logging in order to identify bottlenecks
 
 ## Release 0.8.12

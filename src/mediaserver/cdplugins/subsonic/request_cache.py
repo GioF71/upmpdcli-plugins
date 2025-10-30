@@ -24,20 +24,12 @@ from subsonic_connector.playlists import Playlists
 from subsonic_connector.artist import Artist
 from subsonic_connector.search_result import SearchResult
 from subsonic_connector.list_type import ListType
-
+from msgproc_provider import msgproc
 import config
 import constants
 import connector_provider
-
-import cmdtalkplugin
-
 import datetime
 import time
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
 class CachedResponse:
