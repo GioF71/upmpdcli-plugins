@@ -17,6 +17,7 @@ import os
 import sqlite3
 import sqlite3util
 import datetime
+import time
 
 from typing import Callable
 
@@ -301,6 +302,15 @@ __sql_alter_table_album_metadata_v1_add_album_path: str = f"""
 
 
 def get_album_metadata(album_id: str) -> AlbumMetadata:
+    start: float = time.time()
+    result: AlbumMetadata = __get_album_metadata(album_id=album_id)
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_album_metadata for album_id [{album_id}] executed in [{elapsed:.3f}]")
+    return result
+
+
+def __get_album_metadata(album_id: str) -> AlbumMetadata:
     # try in cache first, otherwise load.
     album_metadata: AlbumMetadata = (__album_metadata_cache[album_id]
                                      if album_id in __album_metadata_cache
@@ -467,7 +477,16 @@ def _delete_kv_item_from_db(partition: str, key: str):
         key=key)
 
 
-def save_album_metadata(album_metadata: AlbumMetadata):
+def save_album_metadata(album_metadata: AlbumMetadata) -> AlbumMetadata:
+    start: float = time.time()
+    result: ArtistMetadata = __save_album_metadata(album_metadata=album_metadata)
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"save_album_metadata for album_id [{album_metadata.album_id}] executed in [{elapsed:.3f}]")
+    return result
+
+
+def __save_album_metadata(album_metadata: AlbumMetadata) -> AlbumMetadata:
     existing_metadata: AlbumMetadata = get_album_metadata(album_id=album_metadata.album_id)
     if existing_metadata:
         # update
@@ -511,17 +530,28 @@ def save_album_metadata(album_metadata: AlbumMetadata):
             album_musicbrainz_id=latest_mb_id,
             album_artist_id=latest_artist_id,
             album_path=latest_album_path)
+        return existing_metadata
     else:
         # insert
         __insert_album_metadata(album_metadata=album_metadata)
         __album_metadata_cache[album_metadata.album_id] = album_metadata
+        return album_metadata
 
 
-def save_artist_metadata(artist_metadata: ArtistMetadata):
+def save_artist_metadata(artist_metadata: ArtistMetadata) -> ArtistMetadata:
+    start: float = time.time()
+    result: ArtistMetadata = __save_artist_metadata(artist_metadata=artist_metadata)
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"save_artist_metadata for artist_id [{artist_metadata.artist_id}] executed in [{elapsed:.3f}]")
+    return result
+
+
+def __save_artist_metadata(artist_metadata: ArtistMetadata) -> ArtistMetadata:
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"save_artist_metadata for artist_id: {artist_metadata.artist_id} "
-                    f"name: {artist_metadata.artist_name} "
-                    f"musicbrainz_id: {artist_metadata.artist_musicbrainz_id}")
+                    f"name [{artist_metadata.artist_name}] "
+                    f"musicbrainz_id [{artist_metadata.artist_musicbrainz_id}]")
     existing_metadata: ArtistMetadata = get_artist_metadata(artist_id=artist_metadata.artist_id)
     if existing_metadata:
         # update
@@ -565,10 +595,12 @@ def save_artist_metadata(artist_metadata: ArtistMetadata):
             artist_album_count=artist_metadata.artist_album_count,
             artist_cover_art=artist_metadata.artist_cover_art,
             artist_media_type=artist_metadata.artist_media_type)
+        return existing_metadata
     else:
         # insert
         __insert_artist_metadata(artist_metadata=artist_metadata)
         __artist_metadata_cache[artist_metadata.artist_id] = artist_metadata
+        return artist_metadata
 
 
 def save_kv_item(key_value_item: KeyValueItem):

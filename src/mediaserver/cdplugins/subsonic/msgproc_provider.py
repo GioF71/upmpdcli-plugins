@@ -14,8 +14,25 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import cmdtalkplugin
+import datetime
+import config
+import constants
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+
+
+class SimpleMsgProcessor(cmdtalkplugin.Processor):
+
+    def __init__(self, dispatcher):
+        super().__init__(dispatcher)
+        self.__append_timestamp: bool = config.get_config_param_as_bool(constants.ConfigParam.LOG_WITH_TIMESTAMP)
+
+    def log(self, s):
+        if self.__append_timestamp:
+            super().log(f"{datetime.datetime.now()} {s}")
+        else:
+            super().log(s)
+
+
+msgproc: SimpleMsgProcessor = SimpleMsgProcessor(dispatcher=dispatcher)

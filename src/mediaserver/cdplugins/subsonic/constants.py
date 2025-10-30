@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.12"
+    PLUGIN_RELEASE = "0.8.13"
     PLUGIN_NAME = "subsonic"
 
 
@@ -174,6 +174,9 @@ class ConfigParam(Enum):
 
     ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowfavoritesforfrontpagetags", False)
     ALLOW_SHUFFLE_RANDOM_ALBUM_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowshufflerandomalbumsforfrontpagetags", True)
+
+    DEFEAT_COVER_ART_URL = _ConfigParamData("defeatcoverarturl", False)
+    LOG_WITH_TIMESTAMP = _ConfigParamData("logwithtimestamp", True)
 
     @property
     def key(self) -> str:
