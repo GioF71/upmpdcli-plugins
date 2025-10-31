@@ -18,13 +18,16 @@ import re
 from enum import Enum
 from functools import cmp_to_key
 import copy
+import time
 
 from subsonic_connector.song import Song
 from subsonic_connector.album import Album
 
 from codec_delimiter_style import CodecDelimiterStyle
 import constants
+import config
 import persistence_constants
+from msgproc_provider import msgproc
 
 
 __split_characters: list[str] = [' ', '-', '_']
@@ -225,7 +228,17 @@ def get_album_path_list(album: Album) -> list[str]:
 
 
 def get_album_path_list_joined(album: Album) -> list[str]:
-    return persistence_constants.Separator.PATH.value.join(get_album_path_list(album=album))
+    # this will return None if the album does not have songs
+    # so if the album comes from a album list, the result will always be None
+    start: float = time.time()
+    result: str = persistence_constants.Separator.PATH.value.join(get_album_path_list(album=album))
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"get_album_path_list_joined for album [{album.getId()}] "
+                    f"song_count [{album.getSongCount()}] "
+                    f"available_song_count [{len(album.getSongs())}] -> "
+                    f"[{result}] in [{elapsed:.3f}]")
+    return result
 
 
 class AlbumTracks:

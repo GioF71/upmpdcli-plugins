@@ -19,19 +19,14 @@ import subsonic_connector
 import cache_manager_provider
 from caching import CacheManager
 import subsonic_util
-import cmdtalkplugin
 import config
 import constants
 import persistence
 import album_util
 from subsonic_connector.album import Album
 from keyvaluecaching import KeyValueItem
-
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+from msgproc_provider import msgproc
+import time
 
 
 def get_album_track_qualities_by_album_id(album_id: str) -> str:
@@ -90,6 +85,14 @@ def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album
 
 
 def on_album(album: subsonic_connector.album.Album):
+    start: float = time.time()
+    __on_album(album=album)
+    elapsed: float = time.time() - start
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
+
+
+def __on_album(album: subsonic_connector.album.Album):
     if not album or not album.getId():
         return
     cache_manager: CacheManager = cache_manager_provider.get()
@@ -113,7 +116,9 @@ def on_album(album: subsonic_connector.album.Album):
     # update artist with cover art, if available
     if album.getArtistId() and album.getCoverArt():
         artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=album.getArtistId())
-        if not artist_metadata or not artist_metadata.artist_name or not artist_metadata.artist_cover_art:
+        if (not artist_metadata or
+            (not artist_metadata.artist_name or not artist_metadata.artist_name == album.getArtist()) or
+                (not artist_metadata.artist_cover_art or not artist_metadata.artist_cover_art == album.getCoverArt())):
             # store this one as fallback
             persistence.save_artist_metadata(artist_metadata=persistence.ArtistMetadata(
                 artist_id=album.getArtistId(),
