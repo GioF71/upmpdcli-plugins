@@ -780,12 +780,12 @@ List of currently available Features:
 - List Highest Rated Albums
 - List Most Played Albums
 - List Random Albums
-- List Favourite Albums
+- List Favorite Albums
 - List Artists (All)
 - List Artists (By Initial)
-- List Favourite Artists
+- List Favorite Artists
 - List Random Songs (Navigable and List mode)
-- List Favourite Songs (Navigable and List mode)
+- List Favorite Songs (Navigable and List mode)
 - List Genres: each Genre return Albums and the relevant Artists
 - List Playlists
 - List Internet Radios

@@ -22,7 +22,7 @@ class TagType(Enum):
     RECENTLY_ADDED_ALBUMS = 110, "n", "Recently Added Albums", "newest"
     RECENTLY_PLAYED_ALBUMS = 120, "rp", "Recently Played Albums", "recent"
     HIGHEST_RATED_ALBUMS = 130, "hr", "Highest Rated Albums", "highest"
-    FAVOURITE_ALBUMS = 140, "fav", "Favourite Albums", "starred"
+    FAVORITE_ALBUMS = 140, "fav", "Favorite Albums", "starred"
     MOST_PLAYED_ALBUMS = 150, "mp", "Most Played Albums", "frequent"
     NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
     OLDEST_ALBUMS = 156, "ldst", "Oldest Albums", "byYear"
@@ -37,12 +37,12 @@ class TagType(Enum):
     ALL_ALBUM_ARTISTS_UNSORTED = 223, "lllbmrtst_nst", "Album Artists", None
     ALL_COMPOSERS_UNSORTED = 224, "cmpsrs_nst", "Composers", None
     ALL_CONDUCTORS_UNSORTED = 225, "cndctrs_nst", "Conductors", None
-    FAVOURITE_ARTISTS = 230, "fav_rtsts", "Favourite Artists", "starred"
+    FAVORITE_ARTISTS = 230, "fav_rtsts", "Favorite Artists", "starred"
     SONGS = 300, "gsngs", "Songs", None,
     RANDOM_SONGS = 310, "rs", "Random Songs", None,
     RANDOM_SONGS_LIST = 320, "rsl", "Random Songs (List)", None
-    FAVOURITE_SONGS = 330, "fs", "Favourite Songs", None,
-    FAVOURITE_SONGS_LIST = 340, "fsl", "Favourite Songs (List)", None,
+    FAVORITE_SONGS = 330, "fs", "Favorite Songs", None,
+    FAVORITE_SONGS_LIST = 340, "fsl", "Favorite Songs (List)", None,
     GENRES = 400, "g", "Genres", None
     PLAYLISTS = 500, "pl", "Playlists", None
     INTERNET_RADIOS = 600, "ir", "Internet Radios", None

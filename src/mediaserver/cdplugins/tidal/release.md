@@ -376,7 +376,7 @@ This has been the first release note, so it briefly reports a summary of the fea
 
 - All tidal categories are available under the tile "Categories".
 - Tiles on the first level have an image when possibile. Of course playlist, mixes, albums, artists and tracks have always had their tile image
-- Views for favourite Artists, Albums and Tracks are available
+- Views for favorite Artists, Albums and Tracks are available
 - Views for Playlist and User Playlist are available
 - Playback statistics are available, relying on data collected by the plugin itself locally
 - The "Playback statistics" will show recent/most played albums/tracks, collected considering the playback history from the server itself.
