@@ -1,3 +1,11 @@
+upmpdcli (1.9.7-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: Tidal and Subsonic plugins updates
+  * Media server: uprcl: fix issue with streaming URL containing
+    colon characters. Update bottle module version.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Sun, 02 Nov 2025 09:10:00 +0100
+
 upmpdcli (1.9.6-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Tidal and Subsonic plugins updates
