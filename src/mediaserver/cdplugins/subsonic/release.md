@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.14
+
+- Fixed bug in search (passing wrong variable)
+
 ## Release 0.8.13
 
 - Reverted change on method name get_album_path_list
