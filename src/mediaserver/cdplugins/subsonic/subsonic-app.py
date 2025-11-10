@@ -3106,7 +3106,7 @@ def search(a):
                 songCount=config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT),
                 albumCount=0)
             song_list: list[Song] = search_result.getSongs()
-            log_search_duration(search_type="track", what=query, how_many=len(song_list), start=search_start)
+            log_search_duration(search_type="track", what=value, how_many=len(song_list), start=search_start)
             sorted_song_list: list[Song] = sort_song_list(song_list).getSongList()
             current_song: Song
             for current_song in sorted_song_list:
