@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.15
+
+- Improve badge assignment for "HD" when not all files share the same format
+- New upmpd metadata "last played" for albums and tracks
+
 ## Release 0.8.14
 
 - Fixed bug in search (passing wrong variable)
