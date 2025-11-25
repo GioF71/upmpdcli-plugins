@@ -2168,6 +2168,7 @@ def handler_element_navigable_album(
     release_types: str = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value, [])
     genres: list[str] = album.getGenres()
     album_version: str = subsonic_util.get_album_version(album)
+    album_last_played: str = subsonic_util.get_album_last_played(album)
     record_label_names: list[str] = subsonic_util.get_album_record_label_names(album)
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> artist_id: [{album.getArtistId()}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> album_mbid: [{album_mb_id}]")
@@ -2175,6 +2176,7 @@ def handler_element_navigable_album(
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> release types [{release_types}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> genres [{genres}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> version [{album_version}]")
+    msgproc.log(f"handler_element_navigable_album album [{album_id}] -> last played [{album_last_played}]")
     msgproc.log(f"handler_element_navigable_album album [{album_id}] -> record label names [{record_label_names}]")
     album_entry: dict[str, any] = entry_creator.album_to_entry(objid=objid, album=album)
     # which album art?

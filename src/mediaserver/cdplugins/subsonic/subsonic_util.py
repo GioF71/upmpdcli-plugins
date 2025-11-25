@@ -114,9 +114,17 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
         msgproc.log("Empty streaming info in [{list_identifier}]")
         return None
     best_bit_depth: int = bit_depth_list[0]
+    worst_bit_depth: int = bit_depth_list[len(bit_depth_list) - 1]
     best_sampling_rate: int = sampling_rate_list[0]
+    worst_sampling_rate: int = sampling_rate_list[len(sampling_rate_list) - 1]
     if len(bit_depth_list) > 1 or len(sampling_rate_list) > 1:
         if best_bit_depth >= 24 and best_sampling_rate >= 44100:
+            # can we show HD instead of ~HD?
+            # yes if worst bitrate and samplerate are still up to be considered HD
+            if worst_bit_depth >= 24 and worst_sampling_rate >= 44100:
+                # so all hires
+                return "HD"
+            # so almost HD
             return "~HD"
         if best_bit_depth == 16 and best_sampling_rate == 44100:
             return "~CD"
@@ -1111,6 +1119,14 @@ def get_album_version(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.VERSION.value) if album else None
 
 
+def get_album_last_played(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.LAST_PLAYED.value) if album else None
+
+
+def get_song_last_played(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.LAST_PLAYED.value) if song else None
+
+
 def get_album_media_type(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if album else None
 
@@ -1472,6 +1488,7 @@ def set_song_metadata(song: Song, target: dict):
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_DURATION, get_song_duration_display(song), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.DISC_NUMBER, song.getDiscNumber(), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_NUMBER, song.getTrack(), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_LAST_PLAYED, get_song_last_played(song), target)
     # album quality if available
     album_id: str = song.getAlbumId()
     album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
@@ -1499,6 +1516,7 @@ def set_album_metadata(album: Album, target: dict):
         metadata_value=album_util.get_album_original_release_date(album=album),
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, get_album_last_played(album), target)
     joined_genres: str = join_with_comma(album.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album.getId(), target)

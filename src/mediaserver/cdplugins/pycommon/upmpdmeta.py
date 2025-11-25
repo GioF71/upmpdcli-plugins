@@ -44,11 +44,13 @@ class UpMpdMeta(Enum):
     ALBUM_PATH = "albumpath"
     TRACK_DURATION = "trackduration"
     TRACK_NUMBER = "tracknumber"
+    TRACK_LAST_PLAYED = "tracklastplayed"
     DISC_NUMBER = "discnumber"
     COPYRIGHT = "copyright"
     UNIVERSAL_PRODUCT_NUMBER = "universalproductnumber"
     TRACK_QUALITY = "trackquality"
     ALBUM_QUALITY_OF_TRACKS = "albumqualityoftracks"
+    ALBUM_LAST_PLAYED = "albumlastplayed"
 
 
 def get_duration_display_from_sec(duration_sec: int) -> str:
