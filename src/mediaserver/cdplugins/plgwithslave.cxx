@@ -235,6 +235,7 @@ bool PlgWithSlave::maybeStartProxy(CDPluginServices *cdsrv)
 {
     if (nullptr == o_proxy) {
         int port = CDPluginServices::microhttpport();
+        LOGINF("PlgWithSlave: starting streaming proxy on port " << port << '\n');
         o_proxy = new StreamProxy(port, std::bind(&translateurl, cdsrv, _1, _2, _3, _4));
             
         if (nullptr == o_proxy) {

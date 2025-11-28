@@ -71,8 +71,8 @@ static const char usage[] =
     "-P upport    \t specify port number to be used for UPnP\n"
     "-O 0|1\t decide if we run and export the OpenHome services\n"
     "-v      \tprint version info\n"
-    "-m <0|1|2|3|4> media server mode "
-    "(default, multidev|only renderer|only media|embedded|multidev)\n"
+    "-m <0|1|2|3|4> media server mode. 0 or no option: default, currently equivalent to 4\n"
+    "    1: renderer only, 2: media server only,  3: combined embedded, 4: combined dual roots.\n"
     "\n"
     ;
 

@@ -30,6 +30,9 @@ overview] section, which exposes the above in a little more detail, or, even dir
 xref:UPMPDCLI-RENDERER[upmpdcli media renderer] section, or to one of the chapters in the
 xref:UPMPDCLI-MS[upmpdcli media server] section.
 
+However, if you just want to use upmpdcli as a media renderer with default parameters, you can just
+jump to the xref:UPMPDCLI-INSTALLATION[installation] section. In most situation upmpdcli will need
+no custom configuration.
 
 === Security
 
@@ -1117,26 +1120,43 @@ the `UPMPD_CONFIG` environment variable.
 include::upmpdcli-config.txt[]
 
 
+[[UPMPDCLI-INSTALLATION]]
+== Upmpdcli installation
+
+The first step is always to check that your mpd instance is available and running correctly. It is
+best to test it with an mpd client before installing upmpdcli.
+
+[[UPMPDCLI-PORTS]]
+== IP ports
+If the machine is running a firewall, the following ports should be accessible:
+
+Mandatory:
+
+- UDP/1900 is the standard UPnP multicast port. It can't be changed.
+- For its main UPnP HTTP server, upmpdcli will try to find an available TCP port beginning
+  at 49152. If there are no other libupnp-based programs on the machine, 49152 is usually
+  available. You can change the base port with the `upnpport` variable.
+
+Optional:
+
+- 49149 is used by the auxiliary HTTP server used for proxying streaming media. It will opened
+  except if running as strict media renderer only (-m 1). You can change it with `plgmicrohttpport`.
+- The UPRCL media server, if you use it will use port 9090 by default. Can be changed with
+  `uprclport`.
+- Other ports may be used by some Media Server plugins, see their documentation.  
+
 [[UPMPDCLI-PACKAGES]]
-== Installation from packages
+=== Installation from packages
 
 The link:https://www.lesbonscomptes.com/upmpdcli/pages/downloads.html[upmpdcli downloads page] has a
 number of pointers to binary packages for a number of common distributions (Debian, Raspbian,
 Ubuntu) and architectures (ARM and x86).
 
 
-
 [[UPMPDCLI-BUILDING]]
-== Building from source
+=== Building from source
 
-
-=== Running upmpdcli on Android
-
-We've had an link:https://framagit.org/medoc92/upmpdcli/-/issues/67[adventurous user] building and
-running upmpdcli on Android. The main gotcha seems to be that you will need to add the upmpdcli user
-to appropriate groups to allow it to open TCP sockets. See the issue entries for details.
-
-=== Building upmpdcli on Linux
+==== Building upmpdcli on Linux
 
 For building from source, you will need a C\++ compiler with C++17 support, and the development
 packages for the supporting libraries: *libcurl*, *libmicrohttpd*, *libmpdclient*, and possibly
@@ -1196,25 +1216,26 @@ Which you should apply first to the *libnpupnp* source, then to *libupnpp*, then
 If you omit the `--sysconfdir=/etc` part, `upmpdcli.conf` will end up in `/usr/etc/`, which is ok,
 but confusing, as package installers put it in `/etc/`
 
+==== Building and running upmpdcli on Android
 
-==== Boot time startup
+We've had an link:https://framagit.org/medoc92/upmpdcli/-/issues/67[adventurous user] building and
+running upmpdcli on Android. The main gotcha seems to be that you will need to add the upmpdcli user
+to appropriate groups to allow it to open TCP sockets. See the issue entries for details.
+
+
+=== Boot time startup
 
 If it is started as root, *upmpdcli* will try to change its `uid` to user `upmpdcli`.  It will
 refuse to run if the user does not exist.
 
-If started by `root`, *upmpdcli* will also write its process id to
-`/var/run/upmpdcli.pid`.
+If started by `root`, *upmpdcli* will also write its process id to `/var/run/upmpdcli.pid`.
 
-There is no need for upmpdcli to be started by root, it can run as any user, but in this case, it
-will create its cache files in subdirectories the user home directory.
+There is no need for upmpdcli to be started by root, it can run as any user. In this case, it
+will create its cache files in user home directory normal cache location ($XDG_CACHE_HOME/upmpdcli
+or ~/.cache/upmpdcli).
 
-There are boot-time startup scripts in the `debian/` directory inside the
-source tree (for Debian/Ubuntu/Mint/Raspbian etc.). There is also a systemd
-service file under `systemd/` (for Fedora et al.).
-
-The boot scripts are installed by the pre-built packages, so will just have
-to edit the configuration file after installing them, all the rest should
-just work.
+On systemd platforms, upmpdcli will usually be started through a unit files. This is usually taken
+care of by the package. There is a also an init file in the source tree.
 
 
 ////

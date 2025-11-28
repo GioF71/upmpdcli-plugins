@@ -185,6 +185,8 @@ def getserviceuserpass(servicename):
         altconf = conftree.ConfSimple(credsfile)
         username = altconf.get(servicename + "user")
         password = altconf.get(servicename + "pass")
+        if not username or not password:
+            uplog("Failed retrieving user/pass")
     return username, password
 
 
