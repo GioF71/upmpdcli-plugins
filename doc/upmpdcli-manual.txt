@@ -31,7 +31,7 @@ xref:UPMPDCLI-RENDERER[upmpdcli media renderer] section, or to one of the chapte
 xref:UPMPDCLI-MS[upmpdcli media server] section.
 
 However, if you just want to use upmpdcli as a media renderer with default parameters, you can just
-jump to the xref:UPMPDCLI-INSTALLATION[installation] section. In most situation upmpdcli will need
+jump to the xref:UPMPDCLI-INSTALLATION[installation] section. In most situations upmpdcli will need
 no custom configuration.
 
 === Security
