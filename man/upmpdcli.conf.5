@@ -29,7 +29,7 @@ Log
 level. Can also be specified as -l loglevel.
 .TP
 .BI "upnplogfilename = "fn
-Log file name for the low level UPnP lib (libnpupnp). This log is not active if this variable is not set at all. Use an empty value for
+Enable low level libnpupnp logging and set output name. Set to empty for stderr. This log is not active if this variable is not set at all. Use an empty value for
 the messages to go to stderr.
 .TP
 .BI "upnploglevel = "int
@@ -354,10 +354,11 @@ it. Due to current (and probably permanent) *upmpdcli* limitations, the
 image file *must* be a 64x64 32 bits-per-pixel png file. Default: '$pkgdatadir/icon.png'.
 The icon will only be read once, when upmpdcli starts up.
 .TP
-.BI "webserverdocumentroot = "fn
-Directory from which the internal HTTP server will directly serve files This is disabled by default for compatibility with older versions which never served
-files directly from the filesystem. Some Mediaserver plugins ask to enable it, e.g. for
-serving icon files (normally from directories under /usr/share/upmpdcli/www).
+.BI "webserverdocumentroot = "string
+Path from which the UPnP HTTP server will serve files: 0:none, 1:auto, abs. path: use
+it. Some Mediaserver plugins need it, e.g. for serving icon files or cached data. The default
+value is 1, resulting into an actual path of /var/cache/upmpdcli/www or ~/.cache/upmpdcli/www.
+
 .TP
 .BI "hrauser = "string
 Hra user name. Your Hra login name.
@@ -403,19 +404,10 @@ directory.
 Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 .TP
 .BI "tidaltokentype = "string
-Authentication token type. The type of token used for authentication, typically Bearer.
-.TP
-.BI "tidalaccesstoken = "string
-Access Token. The access token used for authentication.
-.TP
-.BI "tidalrefreshtoken = "string
-Refresh Token. The refresh token used for authentication.
-.TP
-.BI "tidalexpirytime = "string
-Token expiry time. The expiry time, as an epoch-based floating point number, of the token used for authentication.
+Oath2 authentication token type. The type of token used for OAUTH2 authentication, typically Bearer.
 .TP
 .BI "tidalaudioquality = "cstr
-Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for MQA,
+Tidal maximum stream quality. LOW for mp3/96, HIGH for mp3/320, LOSSLESS for FLAC 16/44, HI_RES for FLAC up to 24/48,
 HI_RES_LOSSLESS for hi-res FLAC files (if your subscription allows streaming each of the
 formats).
 .TP
@@ -427,6 +419,24 @@ directory.
 Use item numbers in album lists for kodi compatibility Kodi always tries to sort things, with this parameter we force it to show
 the entries in the desired order.
 .TP
+.BI "tidalenableimagecaching = "bool
+Enables image caching, requires webdocumentroot Allows the plugin to cache images for Artists and Albums, requires
+webdocumentroot and some disk space, recommended
+.TP
+.BI "tidalsearchlimit = "int
+Tidal search limit Set the maximum numbers of items returned by search, defaults to 15
+.TP
+.BI "tidaloverridecountrycode = "string
+Override the country code. This will allow you to specify the desired two-letter country code.
+When not specified, it should default to the country code of the profile.
+.TP
+.BI "tidaltrackidregex = "string
+Track id regex expression. The expression used to validate the track_id in trackuri.
+Do not set it unless you know what you are doing.
+.TP
+.BI "tidalverboselogging = "bool
+Enables verbose logging, defaults to 0 (no) Enables more verbose logging, might be useful for testing
+.TP
 .BI "uprcluser = "string
 Bogus user name variable. Used for consistency with other Media Server plugins to decide if the service should be
 started (so, do set it if you want a Media Server). You probably also want to set uprclautostart=1
@@ -436,6 +446,18 @@ so that initialisation starts as soon as the program does.
 Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
+.TP
+.BI "uprclmediadirs = "string
+Media directories This is a space-separated list of directories to explore for music
+files. This is used directly as the recoll "topdirs" value, so you can use
+double-quote quoting for paths with embedded spaces. If not set, we will try
+to use contentDirs from the Minim config. An error will occur if both are
+empty.
+.TP
+.BI "uprclnoradioconf = "bool
+Don't make the local radio list as a playlist. By default, uprcl will process the local radio list and make it available as a playlist (in
+the Playlists top container). This can slow down the initialisation and is useless if the upradios
+plugin is also running, so you can disable it with this variable.
 .TP
 .BI "uprclhostport = "string
 Uprcl HTTP server host and port for serving media files. Uprcl uses a separate HTTP server based on the Python Bottle framework
@@ -469,21 +491,9 @@ Name of the Minim Server configuration file If set, this is the name of a Minim 
 which we should fetch parameters like aliasTags, etc. (See the
 manual). Not set by default, and optional.
 .TP
-.BI "uprclmediadirs = "string
-Media directories This is a space-separated list of directories to explore for music
-files. This is used directly as the recoll "topdirs" value, so you can use
-double-quote quoting for paths with embedded spaces. If not set, we will try
-to use contentDirs from the Minim config. An error will occur if both are
-empty.
-.TP
 .BI "uprclnotagview = "bool
 Suppress folder "Tag View" entries. The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
 a problem with some Control Points, or kinds of usage.
-.TP
-.BI "uprclpaths = "string
-Path translations. Translations from real paths to ones relative to the HTTP server
-doc tree. If this is not set, uprcl will use a null translation for each
-of the uprclmediadirs entries.
 .TP
 .BI "upradiosuser = "string
 Bogus user name variable. Used for consistency with other Media Server plugins to decide if
@@ -508,6 +518,16 @@ Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
 .TP
+.BI "radio-browseripinfotoken = "string
+IPInfo token. Set your ipinfo
+token in order to have the shortcut to the local radios.
+.TP
+.BI "radio-browsercountry = "string
+The preferred country. Set this
+to the preferred country in order to have the shortcut to the local radios.
+This is alternative to using the ipinfo token.
+The values is to be specified in the form of a country code, e.g. `FR`, `IT`, etc.
+.TP
 .BI "radio-paradiseuser = "string
 Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
 .TP
@@ -525,13 +545,22 @@ will be displayed as the plugin entry in the Media Server root
 directory.
 .TP
 .BI "subsonicuser = "string
-SubSonic User name variable. Decides if the service should be started. Set it to the appropriate user name.
+SubSonic User name. Decides if the service should be started. Set it to the appropriate user name.
 .TP
 .BI "subsonicpassword = "string
-SubSonic Password variable. Required for SubSonic authentication. Set it to the appropriate password.
+SubSonic Password. Required for SubSonic authentication. Set it to the appropriate password.
 .TP
 .BI "subsoniclegacyauth = "bool
 SubSonic legacy authentication mode. Required for SubSonic authentication with some servers (e.g. lms). Set to 1 to enable.
+
+.TP
+.BI "subsonicuseragent = "string
+SubSonic user agent. Lets you specify the user agent in http requests, defaults to upmpdcli.
+
+.TP
+.BI "subsonicskipuseragent = "bool
+Force user agent to be empty. You might want to enable this one in case the default user agent causes some trouble. YMMV.
+
 .TP
 .BI "subsonicbaseurl = "string
 SubSonic server base url. URL of the server, without the port. Specify http or https
@@ -539,11 +568,27 @@ SubSonic server base url. URL of the server, without the port. Specify http or h
 .BI "subsonicport = "int
 SubSonic server port. The port of the SubSonic server
 .TP
+.BI "subsonicserverpath = "str
+SubSonic server path. Optional, use only if the server is exposed on a specific path
+.TP
 .BI "subsonicitemsperpage = "int
 SubSonic items per page Number of items per page for SubSonic
 .TP
-.BI "subsonicappendyeartoalbum = "bool
-Append year to album If enabled, the year will be appended to the album in the lists. Enabled by default.
+.BI "subsoniccachetimeoutartists = "int
+SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
+.TP
+.BI "subsonicappendyeartoalbumcontainer = "bool
+Append year to album container If enabled, the year will be appended to the album as a container.
+Enabled by default.
+.TP
+.BI "subsonicappendyeartoalbumview = "bool
+Append year to album view If enabled, the year will be appended to the album view. Disabled by default.
+.TP
+.BI "subsonicappendyeartoalbumsearchres = "bool
+Append year to album as search result If enabled, the year will be appended to the album as a search result. Disabled by default.
+.TP
+.BI "subsonicappendrolestoartist = "bool
+Append roles to artists If enabled, the artist roles will be appended to artist entries. Enabled by default.
 .TP
 .BI "subsonictranscodecodec = "string
 Enable transcoding If a value is set, it will be used as the codec for the transcoding process
@@ -557,14 +602,49 @@ Enable server-side scrobbling If enabled, we will scrobble the song when streami
 .BI "subsonicprependnumberinalbumlist = "bool
 Add a progressive number to album in album lists. Mostly for Kodi compatibility and usability. Enabled by default.
 .TP
-.BI "subsonictaginitialpageenabledir = "int
+.BI "subsonictaginitialpageenabledir = "bool
 Subsonic enable Internet Radios Enables Internet Radios. Disabled by default, upmpdcli offers multiple ways of handling
 Internet Radios
+.TP
+.BI "subsonicshowemptyfavorites = "bool
+Subsonic show empty Favorites entries Force entries for Favorites, even if there are no Favorites,
+disabled by default
+.TP
+.BI "subsonicshowemptyplaylists = "bool
+Subsonic show empty Playlists entry Force entry for Playlists, even if there are no Playlists,
+disabled by default
 .TP
 .BI "subsonictitle = "string
 Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
+.TP
+.BI "subsonicallowappendgenreinalbumview = "bool
+Subsonic show genres in album view Show Genres in album view, disabled by defaults
+.TP
+.BI "subsonicallowgenreinalbumcontainer = "bool
+Subsonic show genres in album container entry Show Genres in album container, used in album lists, disabled by defaults
+.TP
+.BI "subsonicenableimagecaching = "bool
+Enables image caching, requires webdocumentroot Allows the plugin to cache images from the server, requires
+webdocumentroot and some disk space, recommended
+.TP
+.BI "subsonicenablecachedimageagelimit = "bool
+Enables pruning for image cache, requires webdocumentroot Allows the plugin to remove old cache images from the server, recommended
+.TP
+.BI "subsoniccachedimagemaxagedays = "int
+Age limit for image files in image cache in days Sets the maximum image file age in days, relevant when pruning is enabled
+.TP
+.BI "subsonicallowartistcoverart = "bool
+Enables use of cover art from artists, enabled by default Set it to `0` in order to avoid to use coverArt from artists, which can
+be expensive/slow against Navidrome if Spotify is enabled
+.TP
+.BI "subsonicenablemaintenancefeatures = "bool
+Enables maintenance features, e.g. list albums without MusicBrainz Id Set it to 1 in order to enable library maintenance features, disabled by default
+.TP
+.BI "subsonicartistalbumnewestfirst = "bool
+Show artist albums from newest to older if left empty or set to 1 Allows to change sort order to artist albums. Set it to 0 if you want the order
+to be ascending instead of descending (default)
 .TP
 .BI "bbcuser = "string
 Bogus user name variable. Set this to activate the plugin, the value is ignored.
