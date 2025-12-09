@@ -7,11 +7,6 @@ project(
   meson_version: '>=0.49',
 )
 
-# Things that existed in the autoconf build
-# HAVE_EXP10: use cc.links()
-# https://mesonbuild.com/Compiler-properties.html
-# CONFIGDIR not used at all in the code.
-#
 # MDU_INCLUDE_LOG (log.h include path in medocutils shared code): initially thought not needed
 # but actually now needed because libupnpp.pc was changed to not set -I${includedir}/libupnpp
 # in order to make sure of avoiding possible collisions by forcing user code to always use
