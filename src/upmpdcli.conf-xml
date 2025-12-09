@@ -11,11 +11,12 @@
 
 # <var name="logfilename" type="fn"><brief>Log file
 # name.</brief><descr>Defaults to stderr. This can also be specified as -d
-# logfilename.</descr></var>
-#logfilename = 
+# logfilename. Some plugins use different files or stderr to log their messages to.</descr></var>
+#logfilename =
 
 # <var name="loglevel" type="int" values="0 5 2"><brief>Log
-# level.</brief><descr>Can also be specified as -l loglevel.</descr></var>
+# level.</brief><descr>Can also be specified as -l loglevel. Some plugins have their own settings that
+# control log verbosity.</descr></var>
 #loglevel = 2
 
 # <var name="upnplogfilename" type="fn">
@@ -52,17 +53,17 @@
 # <descr>This can be left empty to use the first found suitable interface, or set to a single "*"
 # character for using all interfaces. Else set it to a space-separated list of interface names (use
 # double quotes if the names have embedded space characters).</descr></var>
-#upnpiface = 
+#upnpiface =
 
-# <var name="upnpip" type="string"><brief>IP V4 address to use for UPnP, 
+# <var name="upnpip" type="string"><brief>IP V4 address to use for UPnP,
 # alternative to using an interface name.</brief></var>
-#upnpip = 
+#upnpip =
 
 # <var name="upnpport" type="int" values="0 65635 49152"><brief>Port number
 # used for UPnP.</brief><descr>libupnp/pupnp defaults to using the first
 # free port after 49152. Note that clients do not need to know about the
 # value, which is automatically discovered.</descr></var>
-#upnpport = 
+#upnpport =
 
 # <var name="useipv6" type="bool">
 # <brief>Enable use of IPV6.</brief>
@@ -81,7 +82,7 @@
 # <var name="avfriendlyname" type="string">
 # <brief>Specific friendly name for the UPnP/AV Media Renderer.</brief>
 # <descr>The default is to append "-av" to the friendlyname value.</descr></var>
-#avfriendlyname = 
+#avfriendlyname =
 
 # <var name="upnpav" type="bool" values="1">
 # <brief>Enable UPnP AV services (0/1).</brief>
@@ -143,7 +144,7 @@
 # <descr>The OHCredentials service needs openssl 1.1.x or newer.
 # Path to the openssl command to use if the system one (in /usr/bin) is too
 # old. Not set by default.</descr></var>
-#opensslcmd = 
+#opensslcmd =
 
 # <var name="cachedir" type="dfn"><brief>Directory used to store cached
 # data</brief><descr>Only used for the OpenHome queue metadata for now.
@@ -239,7 +240,7 @@
 # set and read the volume through scripts. If set, the calls to MPD to set
 # and read the volume will be replaced by executions of 'onvolumechange'
 # and 'getexternalvolume'</descr></var>
-#externalvolumecontrol = 
+#externalvolumecontrol =
 
 # <var name="getexternalvolume" type="fn"><brief>Command to run for reading
 # the sound volume.</brief><descr>The command should write a 0-100 numeric
@@ -354,7 +355,7 @@
 # <var name="msfriendlyname" type="string"><brief>Friendly name for the
 # Media Server (if enabled).</brief><descr>The default is to append
 # "-mediaserver" to the friendlyname value.</descr></var>
-#msfriendlyname = 
+#msfriendlyname =
 
 # <var name="msrootalias" type="string">
 # <brief>Media Server root alias Object ID.</brief>
@@ -371,27 +372,38 @@
 # except `pycommon` (e.g. `uprcl`, `qobuz`, `upradios`...), and the rest would depend on the plugin
 # type.
 # </descr></var>
-#msrootalias = 
+#msrootalias =
 
 # <var name="plgmicrohttphost" type="string">
 # <brief>Hostname/IP address used in proxy URLs.</brief>
 # <descr>The default is to use the same host/address as the UPnP
 # server. Using localhost/127.0.0.1 instead loses the ability to stream to
 # a remote renderer, but allows for portable playlists.</descr></var>
-#plgmicrohttphost = 
+#plgmicrohttphost =
 
 # <var name="plgmicrohttpport" type="int" values="1 65535 49149">
-# <brief>IP port for the tidal/qobuz local HTTP service.</brief>
+# <brief>IP port for Subsonic, Tidal, or Qobuz local HTTP service.</brief>
 # <descr>The URLs for tracks streamed from these services point to a local
-# microhttpd server running on this port (it uses redirection to the actual
-# service URL when actually streaming). The default is 49149.</descr></var>
+# microhttpd Media Server running on this port. It uses redirection
+# to the actual service URL during streaming. The default is 49149.</descr></var>
 #plgmicrohttpport = 49149
 
 # <var name="plgproxymethod" type="string" values="proxy redirect">
-# <brief>Decide if we proxy (copy: fetch/serve), or redirect the streaming
-# services streams.</brief><descr>Using redirect is much more efficient,
-# but the proxy has a facility to retry when a stream is dropped by the
-# service, which seems to happen esp. with Qobuz.</descr></var>
+# <brief>Decide if we proxy (copy from the service to the renderer), or redirect the streaming
+# services streams.</brief>
+# <descr>This setting is related to response handling from a streaming service, e.g. Subsonic,
+# Tidal, or Qobuz. The URLs, that these services offer, are usually short-lived, therefore they
+# can't be part of a playlist. upmpdcli hides these resources behind a stable URL that is
+# presented to the renderer (player).
+#
+# With the "redirect" default setting, the stable URL becomes an HTTP 302 redirection, pointing
+# to the original streaming resource. The renderer has to resolve this redirection and then can
+# stream from the original location. Some renderers, e.g. AV receivers, are not able to follow
+# an HTTP redirection.
+#
+# With the "proxy" setting, the original URL remains concealed and there's no redirection.
+# upmpdcli reads the music from the remote service, and serves it to the renderer in parallel.
+# It requires more resources compared to the redirection and is less efficient.</descr></var>
 #plgproxymethod = redirect
 
 # <var name="msiconpath" type="fn">
@@ -404,7 +416,7 @@
 
 # <var name="webserverdocumentroot" type="string">
 # <brief>Path from which the UPnP HTTP server will serve files: 0:none, 1:auto, abs. path: use
-# it.</brief> 
+# it.</brief>
 # <descr>Some Mediaserver plugins need it, e.g. for serving icon files or cached data. The default
 # value is 1, resulting into an actual path of /var/cache/upmpdcli/www or ~/.cache/upmpdcli/www.
 # </descr></var>
@@ -499,7 +511,7 @@
 # <brief>Track id regex expression.</brief>
 # <descr>The expression used to validate the track_id in trackuri.
 # Do not set it unless you know what you are doing.</descr></var>
-#tidaltrackidregex = 
+#tidaltrackidregex =
 # <var name="tidalverboselogging" type="bool">
 # <brief>Enables verbose logging, defaults to 0 (no)</brief>
 # <descr>Enables more verbose logging, might be useful for testing</descr></var>
@@ -528,7 +540,7 @@ uprcltitle = Local Music
 # to use contentDirs from the Minim config. An error will occur if both are
 # empty.</descr>
 # </var>
-#uprclmediadirs = 
+#uprclmediadirs =
 
 # <var name="uprclnoradioconf" type="bool">
 # <brief>Don't make the local radio list as a playlist.</brief>
@@ -549,7 +561,7 @@ uprcltitle = Local Music
 # not. Example: 192.168.1.1:9090. As it is reasonable to use the same address as
 # the upnp layer, see also uprclport for just specifying the port.</descr>
 </var>
-#uprclhostport = 
+#uprclhostport =
 
 # <var name="uprclport" type="string">
 # <brief>Uprcl HTTP server port for serving media files.</brief>
@@ -566,7 +578,7 @@ uprcltitle = Local Music
 # little real configuration data in there: it's mostly programmatically
 # generated from actual configuration found elsewhere (but also see
 # uprclconfrecolluser).</descr>
-# </var> 
+# </var>
 #uprclconfdir = /var/cache/upmpdcli/uprcl
 
 # <var name="uprclconfrecolluser" type="fn">
@@ -722,7 +734,15 @@ upradiostitle = Upmpdcli Radio List
 #subsonicappendrolestoartist = 1
 
 # <var name="subsonictranscodecodec" type="string"><brief>Enable transcoding</brief>
-# <descr>If a value is set, it will be used as the codec for the transcoding process</descr></var>
+# <descr>If a value is set, it will be used as the codec for the transcoding process.
+# The value should be the file extension of the desired format (without the leading dot), e.g. "mp3"
+# or "flac" as this will provide the ground for communicating the correct MIME type to the renderer.
+#
+# This is a free-form text that's used in the communication between the Subsonic server (e.g. Navidrome)
+# and upmpdcli. The server must have the corresponding entry for this format value to start the assigned
+# transcoding command.
+#
+# Transcoding doesn't happen for files that are already in the required format.</descr></var>
 #subsonictranscodecodec = ogg
 
 # <var name="subsonictranscodemaxbitrate" type="int" values="32 320 320">
@@ -748,13 +768,13 @@ upradiostitle = Upmpdcli Radio List
 
 # <var name="subsonicshowemptyfavorites" type="bool">
 # <brief>Subsonic show empty Favorites entries</brief>
-# <descr>Force entries for Favorites, even if there are no Favorites, 
+# <descr>Force entries for Favorites, even if there are no Favorites,
 # disabled by default</descr></var>
 #subsonicshowemptyfavorites = 0
 
 # <var name="subsonicshowemptyplaylists" type="bool">
 # <brief>Subsonic show empty Playlists entry</brief>
-# <descr>Force entry for Playlists, even if there are no Playlists, 
+# <descr>Force entry for Playlists, even if there are no Playlists,
 # disabled by default</descr></var>
 #subsonicshowemptyplaylists = 0
 
@@ -831,7 +851,7 @@ bbctitle = BBC Sounds
 # <var name="sclogfilename" type="fn"><brief>Log file name for sc2mpd (default
 # stderr)</brief><descr>The value *must not* be the same as the one used
 # for upmpdcli (except if empty).</descr></var>
-#sclogfilename = 
+#sclogfilename =
 
 # <var name="scloglevel" type="int" values="0 5 2"><brief>Log verbosity for
 # sc2mpd.</brief></var>
@@ -858,7 +878,7 @@ bbctitle = BBC Sounds
 
 # <var name="sccvttype" type="cstr" values="SRC_SINC_FASTEST
 # SRC_SINC_BEST_QUALITY SRC_SINC_MEDIUM_QUALITY SRC_ZERO_ORDER_HOLD
-# SRC_LINEAR NONE"><brief>sc2mpd resampling method.</brief><descr> 
+# SRC_LINEAR NONE"><brief>sc2mpd resampling method.</brief><descr>
 # Only used for scplaymethod=alsa. sc2mpd uses libsamplerate. The default
 # method is SRC_SINC_FASTEST and a Rasberry Pi 1 is fast enough to use it.
 # Possible values: SRC_SINC_BEST_QUALITY, SRC_SINC_MEDIUM_QUALITY,
@@ -883,7 +903,7 @@ bbctitle = BBC Sounds
 # <var name="sc2mpd" type="string"><brief>Path to
 # sc2mpd.</brief><descr>Only useful if it is not in /usr/bin and the
 # location is not in the $PATH for the init scripts.</descr></var>
-#sc2mpd = 
+#sc2mpd =
 
 # <var name="screceiverstatefile" type="string"><brief>Path to a screceiver
 # state file.</brief><descr>If set, the sender uri and metadata will be read

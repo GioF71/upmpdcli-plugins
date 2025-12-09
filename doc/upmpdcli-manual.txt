@@ -85,7 +85,7 @@ In the UPnP world:
  - The player is named Media Renderer. It usually does not implement much
    user interface.
  - The remote control is named Control Point
-  
+
 The good people who specified UPnP AV got something wrong: the playlist
 is owned by the Control Point, not by the Renderer. This means that the
 Renderer will not play the next track if the Control Point goes to sleep,
@@ -115,7 +115,7 @@ OpenHome Sources are designated by a type and name, and a Renderer can have
 any number of them (for example, Upmpdcli uses additional sources to
 control its Sender mode).
 
-=== Songcast 
+=== Songcast
 
 link:https://docs.linn.co.uk/wiki/index.php/Songcast[Songcast] is an open protocol designed by Linn
 for real-time network audio, allowing synchronized playing on multiple sources. Its only
@@ -136,7 +136,7 @@ models. However, Songcast can still be useful for synchronized playing on multip
 players, Linn or other.
 
 === Gapless ?
- 	
+
 This is a relatively small issue, but people are very sensitive to it, it is important from some
 music pieces and you will hear about it all the time if you read forums, so, a quick explanation
 follows.
@@ -213,7 +213,7 @@ Additionally:
 
 - Upmpdcli implements control functions for the Linn Songcast protocol, allowing the local machine
   to behave as a Songcast Receiver or Sender (with help from the closely related *sc2mpd* package,
-  for processing the audio streams). 
+  for processing the audio streams).
 
 
 Upmpdcli can be installed on most Linux systems. It is frequently used on small single board
@@ -259,15 +259,11 @@ be started by any regular user, in which case it will store its data under `~/.c
 This section goes in a little more detail about miscellaneous aspects of
 the Media Renderer, and describe a few of the most used configuration
 parameters. See the <<UPMPDCLI-CONFIGURATION,configuration reference section>>
-for more details (I would very much like to link each parameter to its
-definition but Asciidoc won't let me do it, so they link to the top of the
-appropriate section.).
+for more details.
 
-If several instances of *upmpdcli* run on the same network, you will want
-to give them distinct names. The name which is displayed by most Control
-Points can be set with the <<friendlyname,`friendlyname`>> configuration
-parameter. Some Linn Control Points (e.g. Kazoo) use another value, set
-with <<ohproductroom,`ohproductroom`>>.
+Media Renderer is used when the music is played locally via MPD, on the host where upmpdcli
+runs. MPD is then commanded by a remote control application (Control Point – e.g. a mobile
+application) via upmpdcli.
 
 Upmpdcli usually controls the MPD instance running on the same
 host. However, there may be reasons to do otherwise, and the host name and
@@ -281,6 +277,18 @@ enforced, and misuse will result in miscellaneous weirdnesses. In some
 special situations, it may be useful to limit the interface to UPnP AV or
 OpenHome only (or disable both), which can be done with the
 <<friendlyname,`openhome`>> and <<friendlyname,`upnpav`>> parameters.
+
+It's also possible to disable both Media Renderer interfaces when the playback is handled by
+other renderers (e.g. on a mobile phone, or on a modern AV receiver that connects to upmpdcli
+via UPnP). In this case upmpdcli acts as a UPnP endpoint that receives commands from the
+Control Point, then streams (but not plays) the music to the other Renderer.
+
+If several instances of *upmpdcli* run on the same network, you will want
+to give them distinct names. The name which is displayed by most Control
+Points can be set with the <<friendlyname,`friendlyname`>> configuration
+parameter. Some Linn Control Points (e.g. Kazoo) use another value, set
+with <<ohproductroom,`ohproductroom`>>.
+
 
 [[UPMPDCLI-RENDERER-FORMATS]]
 === Audio formats
@@ -392,7 +400,7 @@ source are playing (e.g. Skype phone conversations are out of reach).
 Upmpdcli Senders and Receivers can be mixed with Linn ones and controlled
 from Upplay or BubbleDS (and maybe other control points).
 
-Neither Linn nor upmpdcli receivers can be linked to an upmpdcli Sender using 
+Neither Linn nor upmpdcli receivers can be linked to an upmpdcli Sender using
 Linn Kazoo (tested with release 4.11.226), the reason is unknown.
 
 Upmpdcli Receivers before release 1.2.14 are not visible in Linn
@@ -420,14 +428,14 @@ connecting, so it is unusable in this context.
 |=============
 
 What approach is used is decided by the <<sclogfilename,`scplaymethod`>>
-configuration parameter, which can be set to _mpd_ or _alsa_. 
+configuration parameter, which can be set to _mpd_ or _alsa_.
 
 The _mpd_ mode is the default, because it needs no configuration, but there
 are *multiple* problems with it. If you go the _alsa_ route,
 you will need to set <<sclogfilename, `scalsadevice`>> in the
 configuration, but you probably had to set it in the MPD configuration too,
 so this may not be too much of an issue.
- 
+
 NOTE: when using the _alsa_ approach, *sc2mpd* will open the audio driver
 directly. The *sc2mpd* process is started by *upmpdcli*, which normally
 runs with user id _upmpdcli_. A frequent cause preventing the Receiver from
@@ -454,7 +462,7 @@ Given the bufferisation and delay control issues when going through MPD,
 only the _alsa_ method is usable in multi-room configurations. Even with a
 single player, the _mpd_ method will experience skips from time to
 time. The reasons are explained in the xref:UPMPDCLI-MULTIROOM-SYNC[multiroom
-synchronization section]. 
+synchronization section].
 
 The following steps are taken for establishing a Songcast connection:
 
@@ -549,7 +557,7 @@ other Receivers from the *upplay* control panel is quite straightforward.
 
 In the Sender modes described above, *upmpdcli* (or rather its *mpd*
 process) is the source of the audio stream. The *mpd2sc* program (which is
-just a slight modification of a Linn sample) reads the *mpd* output from 
+just a slight modification of a Linn sample) reads the *mpd* output from
 a FIFO and sends it to Songcast Receivers (including the local one).
 
 There is nothing special with the *mpd* output (it is just PCM audio), and
@@ -610,7 +618,7 @@ Receiver, which can be done in two ways:
    their hardware sample clock.
  - *sc2mpd* in _alsa_ mode uses sample rate conversion to adjust the stream.
  - *sc2mpd* in _mpd_ mode can't do a thing about it.
- 
+
 This is not specific to *Songcast* of course, all real time audio network
 transports have to do something similar (e.g. Roon does individual stream
 adjustments on the server).
@@ -644,14 +652,14 @@ the configuration file.
 
 - A plugin can be a quite simple Python program, and if you feel like writing one, we have a
   link:https://www.lesbonscomptes.com/upmpdcli/pages/upmpdcli-plugin-dev.html[doc for you].
-  
+
 When at least one plugin is activated, *upmpdcli* creates a separate auxiliary Media Server. By
 default, the Media Server name is the `friendlyname` for the Upmpdcli instance, with _-mediaserver_
 appended, but this can be changed in the xref:msfriendlyname[configuration].
 
 In general, a plugin is activated by being installed, and having its user name defined in the
 configuration file (e.g. for a plugin named _myplugin_ `mypluginuser = somevalue`). Depending on the
-plugin, the variable value maybe real (e.g. a Qobuz user name), or bogus and unused. 
+plugin, the variable value maybe real (e.g. a Qobuz user name), or bogus and unused.
 
 For each plugin, a second variable, `mypluginautostart` decides if the function is activated when
 *upmpdcli* starts or at the time of first use. Some plugins with lengthy initialisations profit from
@@ -697,7 +705,7 @@ Some *uprcl* features:
 - Tries to mimick the MinimServer tree view and functionality. We're not quite there yet, many
   functions and niceties are still missing.
 - Uses Recoll and python3-recoll (hence the uprcl name) for harvesting the metadata and searching.
-- Uses Python3 Sqlite3 (on a memory DB) for the tags tree. 
+- Uses Python3 Sqlite3 (on a memory DB) for the tags tree.
 - Can retrieve some parameters from the MinimServer configuration file. Will support more in the
   future.
 
@@ -705,7 +713,7 @@ The list of MinimServer functions which are _not_ supported would be too long. H
 *uprcl* does support, at least partially:
 
 - `contentDir` will be used if `uprclmediadirs` is not set in
-  '/etc/upmpdcli.conf' 
+  '/etc/upmpdcli.conf'
 - `excludePattern`
 - `aliasTags`
 - `indexTags`
@@ -773,10 +781,10 @@ The plugin allows access to a SubSonic server.  Specifically, it has been tested
 link:https://www.navidrome.org[Navidrome] instance, but there is nothing Navidrome-specific in the
 code.
 
-NOTE: The plugin needs the installation of two additional Python packages:
-link:https://pypi.org/project/subsonic-connector/0.3.10/[subsonic-connector version 0.3.10].
+NOTE: The plugin needs the installation of the
+link:https://pypi.org/project/subsonic-connector[subsonic-connector] Python package.
 
-List of currently available Features:
+List of currently available features:
 
 - List Newest Albums
 - List Recently Played Albums
@@ -809,7 +817,7 @@ Notes on navigation by genre:
 - Clicking on a Genre will show two entries, named Artists and Albums
 - Clicking on Albums from a selected Genre, you will see a list of Albums from the selected genre
 - Clicking on Artists from a selected Genre, you will get a list of Artist which have albums for the selected Genre
-- Clicking on Albums from an Artist within a Genre, you will get a list of Albums from the selected artist in the select genre 
+- Clicking on Albums from an Artist within a Genre, you will get a list of Albums from the selected artist in the select genre
 
 The subsonic plugin is enabled by uncommenting the bogus setting for the `subsonicuser` variable
 in the upmpdcli configuration file.
@@ -821,7 +829,7 @@ So you will also need to specify:
 - subsonicuser
 - subsonicpassword
 
-and, optionally, 
+and, optionally,
 
 - subsoniclegacyauth
 - subsonicuseragent
@@ -852,12 +860,12 @@ This parameter defaults to 'upmpdcli'
 
 The parameter subsonicskipuseragent can be set to 1 in order to force the user-agent to be empty.
 
-There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.  
+There are currently a few additional configuration parameters in the <<subsonicuser,configuration section>>.
 
 '''
 [[UPMPDCLI-MS-STR]]
 === Streaming Services
-  
+
 The Media Server function in Upmpdcli gives access to external streaming services: Highresaudio,
 Tidal and Qobuz currently work fine (1.7.0). Deezer used to work, but does not any more (API change
 fall 2023).
@@ -936,7 +944,7 @@ Visit https://link.tidal.com/XXXXX to log in, the code will expire in 300 second
 Copy the URL and paste it to your browser. You will be presented with a Tidal authentication
 screen. Log in with your username and password (if you weren't logged in already), and then click on
 the "Authorize application" (or the button with some similar text). After that, you will get an
-output from the script, which will include a json file.  
+output from the script, which will include a json file.
 This is the content that you should store in the tidal cache plugin, which is
 typically `/var/cache/upmpdcli/tidal`.
 
@@ -952,10 +960,10 @@ sudo -u upmpdcli python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py 
 The ownership of the generated file depend on the user which runs the script.
 In the previous example, the script will run as the `upmpdcli` user.
 
-Alternatively, you can skip all configuration parameters, and authenticate directly on the 
-first access to tidal. 
+Alternatively, you can skip all configuration parameters, and authenticate directly on the
+first access to tidal.
 In order to do so, you will need to monitor the upmpdcli application logs.
-When the plugin is accessed and authentication details are not available yet, 
+When the plugin is accessed and authentication details are not available yet,
 the log will present the same output described before:
 
 ....
@@ -1026,7 +1034,7 @@ In the latter case, the country will be selected according to the country of you
 The `radio-browsercountry` parameter has the priority on the `radio-browseripinfotoken` parameter.
 
 The plugin arguments are listed in the
-<<radio-browseruser,configuration section>>.  
+<<radio-browseruser,configuration section>>.
 
 
 '''
@@ -1041,7 +1049,7 @@ package), and uncommenting the bogus setting for the `radio-paradiseuser` variab
 configuration file.
 
 There are currently no additional configuration parameters. Any would go in the
-<<radio-paradiseuser,configuration section>>.  
+<<radio-paradiseuser,configuration section>>.
 
 
 '''
@@ -1056,7 +1064,7 @@ package), and uncommenting the bogus setting for the `mother-earth-radiouser` va
 configuration file.
 
 There are currently no additional configuration parameters. Any would go in the
-<<mother-earth-radiouser,configuration section>>.  
+<<mother-earth-radiouser,configuration section>>.
 
 
 '''
@@ -1071,14 +1079,14 @@ Enable this function by installing the upmpdcli BBC module (which may be a separ
 e.g. `upmpdcli-bbc` on Debian), and uncommenting the bogus setting for the `bbcuser` variable
 in the upmpdcli configuration file.
 
-The configuration parameters are described in the <<bbcuser,configuration section>>. 
+The configuration parameters are described in the <<bbcuser,configuration section>>.
 
 NOTE: the plugin needs the installation of additional Python3 packages, which may or may not be
 packaged by your distribution. link:https://pypi.org/project/beautifulsoup4/[beautifulsoup4 (aka
 bs4)],  link:https://pypi.org/project/python-dateutil/[dateutil],
 link:https://pypi.org/project/feedparser/[feedparser], and
 link:https://pypi.org/project/requests/[requests]. Install them as packages if possible, else, from
-Pypi. 
+Pypi.
 
 
 '''
@@ -1100,22 +1108,28 @@ Enable this function by installing the upmpdcli Radios module (which may be a se
 e.g. upmpdcli-radios on Debian), and uncommenting the bogus setting for the 'upradiosuser' variable
 in the upmpdcli configuration file.
 
-The configuration parameters are described in the <<upradiosuser,configuration section>>. 
+The configuration parameters are described in the <<upradiosuser,configuration section>>.
 
 
 '''
 [[UPMPDCLI-CONFIGURATION]]
 == Configuration file reference
 
-A description of upmpdcli configuration variables follow. As of upmpdcli 1.6.0, all
-values can also be set through environment variables named UPMPD_XXX where XXX is the
-upper-cased version of the variable name (Ex: loglevel -> UPMPD_LOGLEVEL).
+A description of upmpdcli configuration variables follow.
+
+As of upmpdcli 1.6.0, all values can also be set through environment variables named UPMPD_XXX
+where XXX is the upper-cased version of the variable name (Ex: loglevel -> UPMPD_LOGLEVEL).
 
 In the case where a variable is set in several ways, the order of precedence is: command line
 (highest), configuration file, environment.
 
 If used, the configuration file name can be set either with the `-c` command line option or through
 the `UPMPD_CONFIG` environment variable.
+
+A boolean value is set using integer 0 or 1.
+
+Many more Subsonic-related configuration options can be found
+link:https://framagit.org/medoc92/upmpdcli/-/blob/master/src/mediaserver/cdplugins/subsonic/config.md[at its own documentation page].
 
 include::upmpdcli-config.txt[]
 
@@ -1127,8 +1141,8 @@ The first step is always to check that your mpd instance is available and runnin
 best to test it with an mpd client before installing upmpdcli.
 
 [[UPMPDCLI-PORTS]]
-== IP ports
-If the machine is running a firewall, the following ports should be accessible:
+== Firewall and ports
+If the machine is running behind a firewall, the following ports should be made accessible:
 
 Mandatory:
 
@@ -1139,11 +1153,13 @@ Mandatory:
 
 Optional:
 
-- 49149 is used by the auxiliary HTTP server used for proxying streaming media. It will opened
-  except if running as strict media renderer only (-m 1). You can change it with `plgmicrohttpport`.
-- The UPRCL media server, if you use it will use port 9090 by default. Can be changed with
+- 49149 is used by the auxiliary HTTP server used for proxying streaming media. This is usually the
+  case with Subsonic, Tidal, or Qobuz integration enabled.
+  It will be opened except if running as strict media renderer only (-m 1). You can change it with
+  `plgmicrohttpport`.
+- The UPRCL media server, if you use it, will use port 9090 by default. Can be changed with
   `uprclport`.
-- Other ports may be used by some Media Server plugins, see their documentation.  
+- Other ports may be used by some Media Server plugins, see their documentation.
 
 [[UPMPDCLI-PACKAGES]]
 === Installation from packages
@@ -1192,7 +1208,7 @@ The upmpdcli build has one optional target, which needs the installation of addi
 is set with _--enable-confgui_ when using the autotools build, or with _-Dconfgui=true_ with the
 *meson* build.
 
-  
+
 Once the source is extracted, the procedure is standard for each of the three packages:
 
 For the older autotools builds:
@@ -1210,7 +1226,7 @@ With *meson*:
     cd build
     ninja
     sudo meson install
-    
+
 Which you should apply first to the *libnpupnp* source, then to *libupnpp*, then to *upmpdcli*.
 
 If you omit the `--sysconfdir=/etc` part, `upmpdcli.conf` will end up in `/usr/etc/`, which is ok,
@@ -1307,7 +1323,7 @@ just an example), create an empty directory, untar it in it
     mkdir openhome
     cd openhome
     tar xf /path/to/openhome-sc2-20210305.tar.gz
-    
+
 ===== OpenHome source tree, the complicated way
 
 The *sc2mpd* source comes with a shell script named _ohbuild.sh_ to help
@@ -1417,7 +1433,7 @@ browser. You will need to execute the following steps to set things up:
   install it.
 - Run the helper script inside the unzipped directory. Replace 'username'
   with your Spotify user id.
-  
+
     ./spotiauthinit.py username
 
 - The script will start a Web browser, and you will be asked to log in to
@@ -1502,7 +1518,7 @@ there is a configuration variable to disable it: '`lumincompat`'. Set to 1 to us
 with Lumin.
 
 Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
-dependency, so you should check that it is installed. 
+dependency, so you should check that it is installed.
 
 The media service icons will appear in the Control Point interface, and the service will be
 accessible after entering the login and password.
@@ -1512,14 +1528,14 @@ someone steals the machine or obtains root access, there is nothing to prevent t
 credentials.
 
 Of course any renderer can also access the services through the Media Server interface
-(after configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]). 
+(after configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]).
 
-For reference, this method is *not* usable with *Upplay*. 
+For reference, this method is *not* usable with *Upplay*.
 
 [[SC2MPD-INSTALL]]
 == Annex: Songcast installation walkthrough
 
-If you want to play from a Mac or Windows machine, install the 
+If you want to play from a Mac or Windows machine, install the
 link:http://www.linn.co.uk/software#songcast[Songcast application]
 
 NOTE: Not all http://oss.linn.co.uk/Releases/Songcast/Davaar/[Songcast
@@ -1534,7 +1550,7 @@ constantly).
 
 There are well-known problems with multicast and WIFI (see for example
 http://superuser.com/questions/730288/why-do-some-wifi-routers-block-multicast-packets-going-from-wired-to-wireless[this
-superuser.com question] 
+superuser.com question]
 for detailed explanations). This seems to be dependent on the WIFI hardware
 (router/access points) used, so maybe you will have more luck than me.
 
@@ -1670,7 +1686,7 @@ which may not be the case for your home. `/usr/local/bin` is your
 friend. The Upmpdcli installation has a very small set of scripts inside
 the '/usr/share/upmpdcli/radio_scripts' directory. This includes a very
 rough example for retrieving the Radio Paradise art URI,
-'radio-paradise-get-art.sh' 
+'radio-paradise-get-art.sh'
 
 The art script is executed each time the stream metadata changes (the data
 is obtained by mpd from Icy metadata in the stream).
@@ -1749,7 +1765,7 @@ All parameters have defaults, and a minimal installation will need no customisat
 |Host name or IP address where *MPD* runs|-h mpdhost|$UPMPD_HOST or (1.6) $UPMPD_MPDHOST|mpdhost
 |TCP port for *MPD*|-p mpdport|$UPMPD_PORT or (1.6) $UPMPD_MPDPORT|mpdport
 |UPnP "friendly name" for the device. This gets displayed in network search
-  results.|-f friendlyname|$UPMPD_FRIENDLYNAME|friendlyname 
+  results.|-f friendlyname|$UPMPD_FRIENDLYNAME|friendlyname
 |Log file name. Leave empty for stderr|-d logfilename|(1.6) $UPMPD_LOGFILENAME|logfilename
 |Verbosity level (0-4)|-l loglevel|(1.6) $UPMPD_LOGLEVEL|loglevel
 |UPnP network interface|-i iface|$UPMPD_UPNPIFACE|upnpiface
@@ -1776,7 +1792,7 @@ future 'Save' command (you can change it by using 'Save as'). When using
 'Open', you will be asked to choose an output destination when saving.
 
 Each control has a label, and an longer explanation in a tooltip, which you
-can see by leaving the cursor on the label. 
+can see by leaving the cursor on the label.
 
 Once you are satisfied with the changes, you can save the file, and move it
 to its normal location if needed (e.g. '/etc/upmpdcli.conf').
@@ -1798,13 +1814,13 @@ To avoid having to access the command line interface to control the
 *scctl* to actually do the work. This is found inside the `web/`
 subdirectory inside the *upmpdcli* source tree.
 
-The server is based on the 
+The server is based on the
 link:http://bottlepy.org/docs/dev/index.html[Bottle Python Web Framework]
 and it only depends on Python 3.
 
 You can use the `scweb-standalone.py` script to manually start the
 interface:
-    
+
     python3 ./scweb-standalone.py
 
 This will start a server on localhost, on port 8680 by default which is
