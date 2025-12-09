@@ -181,6 +181,7 @@ def build_streaming_url(track_id: str) -> str:
 
 @dispatcher.record('trackuri')
 def trackuri(a):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     track_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
@@ -188,8 +189,12 @@ def trackuri(a):
     orig_url: str = (f"http://{http_host_port}/"
                      f"{constants.PluginConstant.PLUGIN_NAME.value}/"
                      f"track/version/1/trackId/{track_id}")
-    res: Response[Song] = connector_provider.get().getSong(song_id=track_id)
-    song: Song = res.getObj() if res else None
+    song: Song = None
+    try:
+        res: Response[Song] = connector_provider.get().getSong(song_id=track_id)
+        song = res.getObj() if res and res.isOk() else None
+    except Exception as ex:
+        msgproc.log(f"Cannot get a song from id [{track_id}] [{type(ex)}] [{ex}]")
     if not song:
         return {'media_url': ""}
     song_suffix: str = song.getSuffix()
@@ -206,23 +211,35 @@ def trackuri(a):
             msgproc.log(f"trackuri scrobble failed [{type(ex)}] [{ex}]")
         scrobble_time = time.time() - scrobble_start
         scrobble_msg = f"Success: ({'yes' if scrobble_success else 'no'}) Elapsed ({scrobble_time:.3f})]"
+    tr_format: str = config.get_transcode_codec()
+    tr_bitrate: int = config.get_transcode_max_bitrate()
+    if tr_format and song.getSuffix() and tr_format.lower() == song.getSuffix().lower():
+        # skip transcoding when not needed
+        if verbose:
+            msgproc.log(f"trackuri transcoding skipped because suffix is [{song.getSuffix()}] "
+                        f"and transcoding format is [{tr_format}]")
+        tr_format = None
+        tr_bitrate = None
     media_url: str = connector_provider.get().buildSongUrlBySong(
         song=song,
-        format=config.get_transcode_codec(),
-        max_bitrate=config.get_transcode_max_bitrate())
+        format=tr_format,
+        max_bitrate=tr_bitrate)
     # media_url is now set, we can now start collecting information
     # just to show metadata from the subsonic server
-    mime_type: str = song.getContentType()
-    suffix: str = config.get_transcode_codec() if config.get_transcode_codec() else song_suffix
-    kbs: str = (str(config.get_transcode_max_bitrate())
-                if config.get_transcode_max_bitrate()
-                else (str(song.getBitRate())
-                      if song.getBitRate()
-                      else None))
+    mimetype: str = song.getContentType()
+    bitrate: str = str(song.getBitRate()) if song.getBitRate() else None
     duration: str = str(song.getDuration()) if song.getDuration() else None
-    msgproc.log(f"trackuri intermediate_url [{orig_url}] media_url [{media_url}] "
-                f"mimetype [{mime_type}] suffix [{suffix}] kbs [{kbs}] "
-                f"duration [{duration}] scrobble [{scrobble_msg}]")
+    msgproc.log(f"trackuri intermediate_url [{orig_url}] "
+                f"tr_format [{tr_format}] "
+                f"tr_bitrate [{tr_bitrate}] "
+                f"media_url [{media_url}] "
+                f"source mimetype [{mimetype}] "
+                f"source suffix [{song_suffix}] "
+                f"source bitRate [{bitrate}] "
+                f"source bitDepth [{song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)}] "
+                f"source samplingRate [{song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)}] "
+                f"duration [{duration}] "
+                f"scrobble [{scrobble_msg}]")
     result: dict[str, str] = dict()
     # only media_url is necessary
     # anything else would be ignored
@@ -254,11 +271,11 @@ def _station_to_entry(
     entry['tp'] = 'it'
     upnp_util.set_artist("Internet Radio", entry)
     guess_mimetype_tuple = mimetypes.guess_type(stream_url)
-    mime_type: str = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
-    msgproc.log(f"_station_to_entry guessed mimetype [{mime_type}] for stream_url [{stream_url}]")
-    if not mime_type:
-        mime_type = "audio/mpeg"
-    entry['res:mime'] = mime_type
+    mimetype: str = guess_mimetype_tuple[0] if guess_mimetype_tuple else None
+    msgproc.log(f"_station_to_entry guessed mimetype [{mimetype}] for stream_url [{stream_url}]")
+    if not mimetype:
+        mimetype = "audio/mpeg"
+    upnp_util.set_mimetype(mimetype, entry)
     return entry
 
 
@@ -268,7 +285,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     entry['id'] = entry_id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
-    entry['uri'] = entry_creator.build_intermediate_url(track_id=song.getId())
+    entry['uri'] = entry_creator.build_intermediate_url(track_id=song.getId(), suffix=song.getSuffix())
     title: str = song.getTitle()
     upnp_util.set_album_title(title, entry)
     entry['tp'] = 'it'
@@ -278,7 +295,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
         artist=subsonic_util.join_with_comma(subsonic_util.get_song_artists(song=song)),
         target=entry)
     entry['upnp:album'] = song.getAlbum()
-    entry['res:mime'] = song.getContentType()
+    upnp_util.set_mimetype(song.getContentType(), entry)
     entry['upnp:genre'] = song.getGenre()
     upnp_util.set_album_art_from_uri(
         album_art_uri=subsonic_util.build_cover_art_url(item_id=song.getCoverArt()),
@@ -689,7 +706,7 @@ def _playlist_entry_to_entry(
     entry['id'] = id
     entry['pid'] = playlist_entry.getId()
     upnp_util.set_class_music_track(entry)
-    song_uri: str = entry_creator.build_intermediate_url(track_id=playlist_entry.getId())
+    song_uri: str = entry_creator.build_intermediate_url(track_id=playlist_entry.getId(), suffix=playlist_entry.getSuffix())
     entry['uri'] = song_uri
     title: str = playlist_entry.getTitle()
     entry['tt'] = title
@@ -699,7 +716,7 @@ def _playlist_entry_to_entry(
         artist=get_playlist_display_artist(playlist_entry_artist=playlist_entry.getArtist()),
         target=entry)
     entry['upnp:album'] = playlist_entry.getAlbum()
-    entry['res:mime'] = playlist_entry.getContentType()
+    upnp_util.set_mimetype(playlist_entry.getContentType(), entry)
     upnp_util.set_album_art_from_uri(
         album_art_uri=subsonic_util.build_cover_art_url(item_id=playlist_entry.getCoverArt()),
         target=entry)

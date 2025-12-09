@@ -57,6 +57,7 @@ from msgproc_provider import msgproc
 
 import os
 import time
+from typing import Optional
 
 from keyvaluecaching import KeyValueItem
 import persistence
@@ -487,7 +488,12 @@ def artist_initial_to_entry(
     return entry
 
 
-def build_intermediate_url(track_id: str) -> str:
+def build_intermediate_url(track_id: str, suffix: str) -> str:
+    msgproc.log(f"build_intermediate_url skip_intermediate_url [{config.skip_intermediate_url}] "
+                f"track_id [{track_id}] "
+                f"suffix [{suffix}] "
+                f"transcode_format [{config.get_transcode_codec()}] "
+                f"transcode max bitrate [{config.get_transcode_max_bitrate()}]")
     if not config.skip_intermediate_url:
         http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
         url = (f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}"
@@ -496,10 +502,18 @@ def build_intermediate_url(track_id: str) -> str:
             msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
         return url
     else:
+        tr_format: str = config.get_transcode_codec()
+        tr_bitrate: int = config.get_transcode_max_bitrate()
+        if tr_format and suffix and tr_format.lower() == suffix.lower():
+            # same suffix, avoid transcoding
+            msgproc.log(f"build_intermediate_url transcoding skipped because suffix is [{suffix}] "
+                        f"and transcoding format is [{tr_format}]")
+            tr_format = None
+            tr_bitrate = None
         return connector_provider.get().buildSongUrl(
             song_id=track_id,
-            format=config.get_transcode_codec(),
-            max_bitrate=config.get_transcode_max_bitrate())
+            format=tr_format,
+            max_bitrate=tr_bitrate)
 
 
 def song_to_entry(
@@ -515,7 +529,7 @@ def song_to_entry(
     entry['id'] = id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
-    song_uri: str = build_intermediate_url(track_id=song.getId())
+    song_uri: str = build_intermediate_url(track_id=song.getId(), suffix=song.getSuffix())
     entry['uri'] = song_uri
     title: str = song.getTitle()
     multi_codec_album: MultiCodecAlbum = get_option(options=options, option_key=OptionKey.MULTI_CODEC_ALBUM)
@@ -534,30 +548,58 @@ def song_to_entry(
     upnp_util.set_artist(subsonic_util.join_with_comma(subsonic_util.get_song_artists(song)), entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
-    entry['res:mime'] = song.getContentType()
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
     upnp_util.set_album_art_from_uri(album_art_uri=album_art_uri, target=entry)
     entry['duration'] = str(song.getDuration())
-    # channel count, bit depth, sample rate and bit rate
+    # declaring channel count, bit depth, sample rate and bit rate
     cc: int = 2
     bd: int = 0
     sr: int = 0
     br: int = 0
+    mimetype: str = ""
     cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
     upnp_util.set_channel_count(cc, entry)
     bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-    upnp_util.set_bit_depth(bd, entry)
     sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
     upnp_util.set_sample_rate(sr, entry)
-    br = song.getBitRate()
-    upnp_util.set_bit_rate(br, entry)
+    # will transcoding be applied?
+    tr_format: str = config.get_transcode_codec()
+    tr_bitrate: int = config.get_transcode_max_bitrate()
+    transcoding_applies: bool = tr_format and song.getSuffix() and tr_format.lower() != song.getSuffix().lower()
+    msgproc.log(f"song_to_entry transcoding applies song_suffix [{song.getSuffix()}] "
+                f"tr_format [{tr_format}] -> "
+                f"[{transcoding_applies}]")
+    if transcoding_applies:
+        # transcoding applies
+        # we set values from transcoding configuration
+        br = tr_bitrate
+        upnp_util.set_bit_rate(tr_bitrate, entry)
+        # set bitdepth
+        tr_bitdepth: int = constants.get_default_bitdepth_by_codec(tr_format)
+        msgproc.log(f"tr_bitdepth for [{tr_format}] -> [{tr_bitdepth}]")
+        # update bd with tr_bitdepth if meaningful
+        bd = tr_bitdepth if tr_bitdepth else bd
+        upnp_util.set_bit_depth(bd, entry)
+        # guess mime type from suffx
+        guessed_mimetype: Optional[str] = subsonic_util.get_mime_type_from_extension(tr_format)
+        msgproc.log(f"song_to_entry guessed_mimetype from tr_format [{tr_format}]: [{guessed_mimetype}]")
+        mimetype = guessed_mimetype
+        upnp_util.set_mimetype(mimetype, entry)
+    else:
+        # transcoding does not apply
+        upnp_util.set_bit_depth(bd, entry)
+        br = song.getBitRate()
+        upnp_util.set_bit_rate(br, entry)
+        # mime type from song itself
+        mimetype = song.getContentType()
+        upnp_util.set_mimetype(mimetype, entry)
     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_STREAMING_PROPERTIES):
         msgproc.log(f"Song [{song.getId()}] -> "
                     f"bitDepth [{bd}] "
                     f"samplingRate [{sr}] "
                     f"bitRate [{br}] "
                     f"channelCount [{cc}] "
-                    f"mimetype [{song.getContentType()}] "
+                    f"mimetype [{mimetype}] "
                     f"duration [{song.getDuration()}]")
     subsonic_util.set_song_metadata(song=song, target=entry)
     return entry

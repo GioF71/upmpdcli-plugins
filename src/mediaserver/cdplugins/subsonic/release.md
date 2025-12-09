@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.17
+
+- Fix [issue 151](https://framagit.org/medoc92/upmpdcli/-/issues/151) Mimetypes should reflect transcoding settings
+- Fix issue with transcoding bitrate (see [issue 149](https://framagit.org/medoc92/upmpdcli/-/issues/149))
+- Add default values for transcoding bitrate as a fallback set of values
+- Add try except block in trackuri in order to handle track_ids that do not actually represent a song
+
 ## Release 0.8.15
 
 - Improve badge assignment for "HD" when not all files share the same format

@@ -49,8 +49,6 @@ skip_intermediate_url: bool = get_option_value("skipintermediateurl", "0") == "1
 server_side_scrobbling: bool = get_option_value("serversidescrobbling", "0") == "1"
 prepend_number_in_album_list: bool = get_option_value("prependnumberinalbumlist", "0") == "1"
 
-configured_transcode_max_bitrate: str = get_option_value("transcodemaxbitrate", "")
-
 debug_badge_mngmt: bool = get_option_value_as_bool("debugbadgemanagement", constants.default_debug_badge_mngmt)
 debug_artist_albums: bool = get_option_value_as_bool("debugartistalbums", constants.default_debug_artist_albums)
 
@@ -64,24 +62,28 @@ internet_radio_stations_supported: bool = True
 
 def is_transcode_enabled() -> bool:
     return (get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC) or
-            configured_transcode_max_bitrate)
+            get_config_param_as_str(constants.ConfigParam.TRANSCODE_MAX_BITRATE))
 
 
 def get_transcode_codec() -> str:
     transcode_codec: str = get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC)
     if transcode_codec:
         return transcode_codec
+    # only bitrate might be specified, in this case we return a fallback value for transcode codec
     if is_transcode_enabled():
         return constants.Defaults.FALLBACK_TRANSCODE_CODEC.value
     return None
 
 
 def get_transcode_max_bitrate() -> int:
+    transcode_max_bitrate: str = get_config_param_as_str(constants.ConfigParam.TRANSCODE_MAX_BITRATE)
+    if transcode_max_bitrate:
+        return int(transcode_max_bitrate)
+    # if transcode codec is specified, we return the default, if available
     transcode_codec: str = get_config_param_as_str(constants.ConfigParam.TRANSCODE_CODEC)
     if transcode_codec:
-        return int(configured_transcode_max_bitrate)
-    if transcode_codec:
-        return 320
+        return constants.get_default_bitrate_by_codec(transcode_codec)
+    # nothing to do
     return None
 
 

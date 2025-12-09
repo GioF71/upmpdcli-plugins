@@ -94,6 +94,11 @@ def set_bit_rate(bit_rate: int, target: dict):
         target['kbs'] = str(bit_rate)
 
 
+def set_mimetype(mimetype: str, target: dict):
+    if mimetype:
+        target['res:mime'] = mimetype
+
+
 def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
     if not metadata_value:
         return

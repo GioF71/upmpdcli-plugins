@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.15"
+    PLUGIN_RELEASE = "0.8.17"
     PLUGIN_NAME = "subsonic"
 
 
@@ -150,6 +150,7 @@ class ConfigParam(Enum):
     APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
     APPEND_ROLES_TO_ARTIST = _ConfigParamData("appendrolestoartist", True)
     TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
+    TRANSCODE_MAX_BITRATE = _ConfigParamData("transcodemaxbitrate", "")
     DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
     DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
     ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
@@ -186,6 +187,65 @@ class ConfigParam(Enum):
     @property
     def default_value(self) -> any:
         return self.value.default_value
+
+
+class _TranscodingInfoData:
+
+    def __init__(self, codec: str, default_bitrate: int, default_bitdepth: int = None):
+        self.__codec: str = codec
+        self.__default_bitrate: int = default_bitrate
+        self.__default_bitdepth: int = default_bitdepth
+
+    @property
+    def codec(self) -> str:
+        return self.__codec
+
+    @property
+    def default_bitrate(self) -> int:
+        return self.__default_bitrate
+
+    @property
+    def default_bitdepth(self) -> int:
+        return self.__default_bitdepth
+
+
+class TranscodingInfo(Enum):
+
+    OPUS = _TranscodingInfoData(codec="opus", default_bitrate=512, default_bitdepth=0)
+    OGG = _TranscodingInfoData(codec="ogg", default_bitrate=500, default_bitdepth=0)
+    MP3 = _TranscodingInfoData(codec="mp3", default_bitrate=320, default_bitdepth=0)
+    FLAC = _TranscodingInfoData(codec="flac", default_bitrate=None, default_bitdepth=16)
+
+    @property
+    def codec(self) -> str:
+        return self.value.codec
+
+    @property
+    def default_bitrate(self) -> int:
+        return self.value.default_bitrate
+
+    @property
+    def default_bitdepth(self) -> int:
+        return self.value.default_bitdepth
+
+
+def get_transcoding_information_by_coded(codec: str) -> TranscodingInfo | None:
+    current: TranscodingInfo
+    for current in TranscodingInfo:
+        if current.codec.lower() == codec.lower():
+            # found!
+            return current
+    return None
+
+
+def get_default_bitrate_by_codec(codec: str) -> int | None:
+    info: TranscodingInfo = get_transcoding_information_by_coded(codec=codec)
+    return info.default_bitrate if info else None
+
+
+def get_default_bitdepth_by_codec(codec: str) -> int | None:
+    info: TranscodingInfo = get_transcoding_information_by_coded(codec=codec)
+    return info.default_bitdepth if info else None
 
 
 class ThingName(Enum):
