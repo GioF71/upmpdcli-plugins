@@ -8,6 +8,16 @@ builtlib=
 
 MYNAME=`echo $myname | tr a-z A-Z`
 
+# upmpdcli-specific: update the config man page
+cd man || exit 1
+make || exit 1
+manconf=upmpdcli.conf.5
+if test "`git status -s $manconf`" = " M $manconf"; then
+    git add $manconf
+    git commit -m "updated $manconf" $manconf
+fi
+cd ..
+
 # A shell-script to make a source distribution.
 
 fatal() {
@@ -33,8 +43,8 @@ test_tag() {
 
 TAR=${TAR-/bin/tar}
 
-if test ! -f $tfile;then
-    echo "Should be executed in the top source directory"
+if test ! -f $wherefile;then
+    echo "$wherefile not seen. Should be executed in the top source directory"
     exit 1
 fi
 targetdir=${targetdir-/tmp}
