@@ -710,7 +710,7 @@ upradiostitle = Upmpdcli Radio List
 # <var name="subsonicitemsperpage" type="int" values="1 200 36">
 # <brief>SubSonic items per page</brief>
 # <descr>Number of items per page for SubSonic</descr></var>
-#subsonicitemsperpage = 36
+#subsonicitemsperpage = 20
 
 # <var name="subsoniccachetimeoutartists" type="int" values="180 1800 600">
 # <brief>SubSonic cache timeout for artists</brief>

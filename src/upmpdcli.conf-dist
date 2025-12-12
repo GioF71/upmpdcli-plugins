@@ -280,7 +280,7 @@ upradiostitle = Upmpdcli Radio List
 # SubSonic server path.
 #subsonicserverpath = my-srv-path
 # SubSonic items per page
-#subsonicitemsperpage = 36
+#subsonicitemsperpage = 20
 # SubSonic cache timeout for artists
 #subsoniccachetimeoutartists = 600
 # Append year to album container

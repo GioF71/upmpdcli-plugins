@@ -1981,8 +1981,8 @@ def albums_by_release_type(
     rt_key: str = release_types.key
     current: Album
     for current in album_list if album_list else list():
-        # must belong to artist id
-        if current.getArtistId() != artist_id:
+        # artist id must be among the album main artists, otherwise it's a contributor (shown separately)
+        if not subsonic_util.artist_id_among_main_artists(artist_id=artist_id, album=current):
             continue
         # check release type
         if subsonic_util.album_has_release_types(current):

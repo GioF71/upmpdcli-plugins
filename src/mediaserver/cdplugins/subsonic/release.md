@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.18
+
+- Correct documentation for `subsonicitemsperpage` in documentation
+- Improve detection of albums where an artist just appears while not being a main artist (see [this post](https://forum.wiimhome.com/threads/lms-not-that-one-the-other-one.8170/post-161556))
+
 ## Release 0.8.17
 
 - Fix [issue 151](https://framagit.org/medoc92/upmpdcli/-/issues/151) Mimetypes should reflect transcoding settings

@@ -766,14 +766,29 @@ def get_artist_albums_as_main_artist(artist_id: str, album_list: list[Album]) ->
         opposite=True)
 
 
+def artist_id_among_main_artists(artist_id: str, album: Album) -> bool:
+    if artist_id == album.getArtistId():
+        return True
+    artists: list[str] = list(map(lambda x: x.id, get_artists_in_song_or_album(
+        obj=album,
+        item_key=constants.ItemKey.ARTISTS)))
+    if artist_id in artists:
+        return True
+    album_artists: list[str] = list(map(lambda x: x.id, get_artists_in_song_or_album(
+        obj=album,
+        item_key=constants.ItemKey.ALBUM_ARTISTS)))
+    if artist_id in album_artists:
+        return True
+    return False
+
+
 def get_artist_albums_as_appears_on(artist_id: str, album_list: list[Album], opposite: bool = False) -> list[Album]:
     result: list[Album] = list()
     current: Album
     for current in album_list if album_list else list():
-        # appears on is true if artist_id from current album is empty or
-        # if artist id from current album is different from artist_id
-        different: bool = not current.getArtistId() or (current.getArtistId() and artist_id != current.getArtistId())
-        check: bool = not different if opposite else different
+        # the following also consider artists and albumartists, not only current.getArtistId()
+        among_main: bool = artist_id_among_main_artists(artist_id=artist_id, album=current)
+        check: bool = among_main if opposite else not among_main
         if check:
             result.append(current)
     return result

@@ -588,7 +588,7 @@ subsonicport:: SubSonic server port. The port of the SubSonic server
 subsonicserverpath:: SubSonic server path. Optional, use only if the server is exposed on a specific path
 
 [[subsonicitemsperpage]]
-subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic
+subsonicitemsperpage:: SubSonic items per page Number of items per page for SubSonic, defaults to 20
 
 [[subsoniccachetimeoutartists]]
 subsoniccachetimeoutartists:: SubSonic cache timeout for artists Cache timeout for artists, defaults to 600
