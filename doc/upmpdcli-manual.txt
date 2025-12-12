@@ -255,39 +255,34 @@ be started by any regular user, in which case it will store its data under `~/.c
 // subsection. Hence refs like <<mpdhost,`mpdport`>>, which are not typos
 ////
 
-
 This section goes in a little more detail about miscellaneous aspects of
 the Media Renderer, and describe a few of the most used configuration
 parameters. See the <<UPMPDCLI-CONFIGURATION,configuration reference section>>
 for more details.
 
-Media Renderer is used when the music is played locally via MPD, on the host where upmpdcli
-runs. MPD is then commanded by a remote control application (Control Point – e.g. a mobile
-application) via upmpdcli.
+In its role as an UPnP Media Renderer, upmpdcli accepts commands from and returns status to an UPnP
+Control Point, typically, but not necessarily, an application running on a mobile device, like Linn
+Kazoo or Bubble UPnP. Instead of executing the commands itself, it translates them and controls an
+MPD instance. During actual streaming, MPD reads directly from the Media Server, and the upmpdcli
+Media Renderer is not involved.
 
-Upmpdcli usually controls the MPD instance running on the same
-host. However, there may be reasons to do otherwise, and the host name and
-port where mpd should be reached can be set with <<mpdhost,`mpdhost`>>,
-and <<mpdhost,`mpdport`>>.
+Upmpdcli usually controls the MPD instance running on the same host. However, there may be reasons
+to do otherwise, and the host name and port where mpd should be reached can be set with
+<<mpdhost,`mpdhost`>>, and <<mpdhost,`mpdport`>>.
 
-The Upmpdcli Media Renderer has two active interfaces by default: UPnP AV
-and OpenHome. Only OpenHome Control Points can share the renderer. If you
-use an UPnP AV Control Point, it must be the only one. This is not
-enforced, and misuse will result in miscellaneous weirdnesses. In some
-special situations, it may be useful to limit the interface to UPnP AV or
-OpenHome only (or disable both), which can be done with the
-<<friendlyname,`openhome`>> and <<friendlyname,`upnpav`>> parameters.
+The Upmpdcli Media Renderer has two active interfaces by default: UPnP AV and OpenHome. Only
+OpenHome Control Points can share the renderer. If you use an UPnP AV Control Point, it must be the
+only one. This is not enforced, and misuse will result in miscellaneous weirdnesses. In some special
+situations, it may be useful to limit the interface to UPnP AV or OpenHome only (or disable both),
+which can be done with the <<friendlyname,`openhome`>> and <<friendlyname,`upnpav`>> parameters.
 
-It's also possible to disable both Media Renderer interfaces when the playback is handled by
-other renderers (e.g. on a mobile phone, or on a modern AV receiver that connects to upmpdcli
-via UPnP). In this case upmpdcli acts as a UPnP endpoint that receives commands from the
-Control Point, then streams (but not plays) the music to the other Renderer.
+You can disable the upmpdcli Media Renderer (for using the application as a pure media server),
+either by disabling both upnpav and openhome in the configuration, or through a command line option.
 
-If several instances of *upmpdcli* run on the same network, you will want
-to give them distinct names. The name which is displayed by most Control
-Points can be set with the <<friendlyname,`friendlyname`>> configuration
-parameter. Some Linn Control Points (e.g. Kazoo) use another value, set
-with <<ohproductroom,`ohproductroom`>>.
+If several instances of *upmpdcli* run on the same network, you will want to give them distinct
+names. The name which is displayed by most Control Points can be set with the
+<<friendlyname,`friendlyname`>> configuration parameter. Some Linn Control Points (e.g. Kazoo) use
+another value, set with <<ohproductroom,`ohproductroom`>>.
 
 
 [[UPMPDCLI-RENDERER-FORMATS]]

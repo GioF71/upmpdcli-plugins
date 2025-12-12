@@ -384,8 +384,9 @@
 # <var name="plgmicrohttpport" type="int" values="1 65535 49149">
 # <brief>IP port for Subsonic, Tidal, or Qobuz local HTTP service.</brief>
 # <descr>The URLs for tracks streamed from these services point to a local
-# microhttpd Media Server running on this port. It uses redirection
-# to the actual service URL during streaming. The default is 49149.</descr></var>
+# microhttpd HTTP server running on this port. It uses redirection
+# to the actual service URL, or proxying from it, during streaming.
+# The default is 49149.</descr></var>
 #plgmicrohttpport = 49149
 
 # <var name="plgproxymethod" type="string" values="proxy redirect">
@@ -403,7 +404,8 @@
 #
 # With the "proxy" setting, the original URL remains concealed and there's no redirection.
 # upmpdcli reads the music from the remote service, and serves it to the renderer in parallel.
-# It requires more resources compared to the redirection and is less efficient.</descr></var>
+# It requires more resources compared to the redirection and is less efficient, but some renderers
+# do not support HTTP redirection.</descr></var>
 #plgproxymethod = redirect
 
 # <var name="msiconpath" type="fn">
