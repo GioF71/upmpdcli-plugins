@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.20
+
+- Add escaping to value in build_didlfrag
+
 ## Release 0.8.19
 
 - Use displayArtist instead of artist from Albums
