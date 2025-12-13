@@ -23,6 +23,7 @@ from subsonic_connector.album import Album
 from subsonic_connector.artist import Artist
 from subsonic_connector.song import Song
 from subsonic_connector.search_result import SearchResult
+from subsonic_connector.playlist_entry import PlaylistEntry
 
 import cache_actions
 from tag_type import TagType
@@ -426,9 +427,9 @@ def get_cover_art_url_by_album_id(album_id: str) -> str:
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     result: list[Song] = []
     album: Album = try_get_album(album_id=album_id)
-    if album and album.getArtist():
+    if album:
         msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] "
-                    f"artist [{album.getArtist()}] ...")
+                    f"artist [{get_album_display_artist(album=album)}] ...")
         cache_actions.on_album(album=album)
     else:
         msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] ...")
@@ -532,12 +533,12 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
         for album in album_list:
             artist_id: str = album.getArtistId()
             if not artist_id:
-                msgproc.log(f"load_artists_by_genre skipping artist [{album.getArtist()}] (no artist_id)")
+                msgproc.log(f"load_artists_by_genre skipping artist [{get_album_display_artist(album=album)}] (no artist_id)")
                 continue
             if artist_id not in artist_id_set:
                 artist_set.add(ArtistIdAndName(
                     id=artist_id,
-                    name=album.getArtist(),
+                    name=get_album_display_artist(album=album),
                     cover_art=album.getCoverArt()))
                 artist_id_set.add(artist_id)
                 if not cached:
@@ -579,7 +580,7 @@ def get_album_list_by_artist_genre(
         album_list: list[Album] = album_list_response.getObj().getAlbums()
         current_album: Album
         for current_album in album_list if album_list and len(album_list) > 0 else []:
-            if artist.getName() in current_album.getArtist():
+            if artist.getName() in get_album_display_artist(album=current_album):
                 result.append(current_album)
         offset += len(album_list)
     return result
@@ -662,7 +663,7 @@ def get_all_artists_in_album(album: Album, in_songs: bool = True) -> list[Artist
     artist_id_set: set[str] = set()
     # add id,name from album itself
     artist_id: str = album.getArtistId()
-    artist_name: str = album.getArtist()
+    artist_name: str = get_album_display_artist(album=album)
     if artist_id and artist_name:
         occ_list.append(ArtistsOccurrence(id=artist_id, name=artist_name))
         artist_id_set.add(artist_id)
@@ -1010,7 +1011,8 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
             and len(explicit_status) > 0):
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS):
             msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
-                        f"[{album.getTitle()}] by [{album.getArtist()}]")
+                        f"[{album.getTitle()}] "
+                        f"by [{get_album_display_artist(album=album)}]")
         # find match ...
         display_value: str = get_explicit_status_display_value(explicit_status)
         explicit_expression = display_value if display_value else explicit_status
@@ -1137,6 +1139,36 @@ def get_album_version(album: Album) -> str | None:
 
 def get_album_last_played(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.LAST_PLAYED.value) if album else None
+
+
+def get_playlist_entry_display_artist(playlist_entry: PlaylistEntry) -> str:
+    display_artist: str = (playlist_entry.getItem().getByName(constants.ItemKey.PLAYLIST_ENTRY_DISPLAY_ARTIST.value)
+                           if playlist_entry
+                           else None)
+    if not display_artist:
+        # fallback to artist
+        display_artist = playlist_entry.getArtist()
+    return display_artist
+
+
+def get_song_display_artist(song: Song) -> str:
+    display_artist: str = song.getItem().getByName(constants.ItemKey.SONG_DISPLAY_ARTIST.value) if song else None
+    if not display_artist:
+        # fallback to artist
+        display_artist = song.getArtist()
+    return display_artist
+
+
+def get_song_display_album_artist(song: Song) -> str:
+    return song.getItem().getByName(constants.ItemKey.SONG_DISPLAY_ALBUM_ARTIST.value) if song else None
+
+
+def get_album_display_artist(album: Album) -> str:
+    display_artist: str = album.getItem().getByName(constants.ItemKey.ALBUM_DISPLAY_ARTIST.value) if album else None
+    if not display_artist:
+        # fallback to artist
+        display_artist = album.getArtist()
+    return display_artist
 
 
 def get_song_last_played(song: Song) -> str | None:
@@ -1516,7 +1548,7 @@ def set_song_metadata(song: Song, target: dict):
 
 
 def set_album_metadata(album: Album, target: dict):
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album.getArtist(), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, get_album_display_artist(album=album), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
     # year
     album_year: str = str(album.getYear()) if album.getYear() else None
@@ -1670,7 +1702,7 @@ def get_mime_type_from_extension(extension: str) -> Optional[str]:
     Returns:
         The MIME type string, or None if not found.
     """
-    # 1. Ensure the extension has a leading dot, as guess_type 
+    # 1. Ensure the extension has a leading dot, as guess_type
     #    expects a filename/path (e.g., 'dummy.flac').
     if not extension.startswith('.'):
         extension = '.' + extension

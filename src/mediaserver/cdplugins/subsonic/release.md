@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.19
+
+- Use displayArtist instead of artist from Albums
+- Use displayArtist instead of artist from Songs
+- Use displayArtist instead of artist from Playlist entries
+- Fix classtype for Playlists
+- Add artist to song entries
+- Add upnp:artist with role="AlbumArtist" for Songs (see [this post](https://github.com/GioF71/upmpdcli-docker/discussions/583#discussioncomment-15244289)) (thank you @medoc92 for the precious assistance!)
+
 ## Release 0.8.18
 
 - Correct documentation for `subsonicitemsperpage` in documentation

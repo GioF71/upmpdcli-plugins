@@ -117,12 +117,13 @@ def __on_album(album: subsonic_connector.album.Album):
     if album.getArtistId() and album.getCoverArt():
         artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=album.getArtistId())
         if (not artist_metadata or
-            (not artist_metadata.artist_name or not artist_metadata.artist_name == album.getArtist()) or
+            (not artist_metadata.artist_name or
+             not artist_metadata.artist_name == subsonic_util.get_album_display_artist(album=album)) or
                 (not artist_metadata.artist_cover_art or not artist_metadata.artist_cover_art == album.getCoverArt())):
             # store this one as fallback
             persistence.save_artist_metadata(artist_metadata=persistence.ArtistMetadata(
                 artist_id=album.getArtistId(),
-                artist_name=album.getArtist(),
+                artist_name=subsonic_util.get_album_display_artist(album=album),
                 artist_cover_art=album.getCoverArt()))
     album_genre_list = album.getGenres()
     # album per genre cache

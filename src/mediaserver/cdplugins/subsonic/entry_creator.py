@@ -71,7 +71,7 @@ def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(artist_identifier))
-    artist_entry_title: str = album.getArtist()
+    artist_entry_title: str = subsonic_util.get_album_display_artist(album=album)
     if album.getArtistId() and config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_ID):
         msgproc.log(f"artist_entry_for_album: Adding [{album.getArtistId()}] to [{artist_entry_title}]")
         artist_entry_title = f"{artist_entry_title} [{album.getArtistId()}]"
@@ -221,12 +221,12 @@ def album_to_navigable_entry(
     album_date_for_sorting: str = subsonic_util.get_album_date_for_sorting(album)
     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ALBUM_SORTABLE_DATE):
         msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] "
-                    f"by [{album.getArtist()}] "
+                    f"by [{subsonic_util.get_album_display_artist(album=album)}] "
                     f"Sortable Date [{album_date_for_sorting}]")
     prepend_number: int = get_option(options=options, option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
     if prepend_number:
         title = f"[{prepend_number:02}] {title}"
-    artist: str = album.getArtist()
+    artist: str = subsonic_util.get_album_display_artist(album=album)
     identifier: ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.getName(), album.getId())
     # ask to skip artist?
     skip_artist_id: str = get_option(options=options, option_key=OptionKey.SKIP_ARTIST_ID)
@@ -239,7 +239,9 @@ def album_to_navigable_entry(
         if config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_CONTAINER):
             title = f"{title} [{get_album_year_str(album)}]"
     else:
-        msgproc.log(f"Cannot find year for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
+        msgproc.log(f"Cannot find year for album [{album.getId()}] "
+                    f"[{album.getTitle()}] by "
+                    f"[{subsonic_util.get_album_display_artist(album=album)}]")
     # append genre if allowed
     title = subsonic_util.append_genre_to_artist_entry_name_if_allowed(
         entry_name=title,
@@ -262,7 +264,7 @@ def album_to_navigable_entry(
                            constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER) and
                            get_option(options=options, option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE))
     if append_artist:
-        artist: str = album.getArtist()
+        artist: str = subsonic_util.get_album_display_artist(album=album)
         if artist:
             title = f"{title} - {artist}"
     entry_title: str = title
@@ -316,9 +318,12 @@ def show_album_genre_information(album: Album):
         return
     genre_list: list[str] = album.getGenres()
     if not genre_list or len(genre_list) == 0:
-        msgproc.log(f"WARN: Album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}] has no genres")
+        msgproc.log(f"WARN: Album [{album.getId()}] [{album.getTitle()}] "
+                    f"by [{subsonic_util.get_album_display_artist(album=album)}] has no genres")
     else:
-        msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}] has genres [{genre_list}]")
+        msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] by "
+                    f"[{subsonic_util.get_album_display_artist(album=album)}] "
+                    f"has genres [{genre_list}]")
 
 
 def genre_to_entry(
@@ -545,7 +550,16 @@ def song_to_entry(
     if force_track_number:
         track_num = str(force_track_number)
     upnp_util.set_track_number(track_num, entry)
-    upnp_util.set_artist(subsonic_util.join_with_comma(subsonic_util.get_song_artists(song)), entry)
+    upnp_util.set_artist(subsonic_util.get_song_display_artist(song=song), entry)
+    song_album_artist: str = subsonic_util.get_song_display_album_artist(song=song)
+    if song_album_artist:
+        msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
+        upnp_util.set_didlfrag(
+            didlfrag=upnp_util.build_didlfrag(
+                key="upnp:artist",
+                role="AlbumArtist",
+                value=song_album_artist),
+            target=entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
@@ -618,6 +632,7 @@ def playlist_to_entry(
     art_uri: str = (subsonic_util.build_cover_art_url(item_id=playlist.getCoverArt())
                     if playlist.getCoverArt() else None)
     upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=entry)
+    upnp_util.set_class_playlist_container(target=entry)
     return entry
 
 
@@ -660,7 +675,7 @@ def album_to_entry(
                            if not is_search_result
                            else config.get_config_param_as_bool(constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_SEARCH_RES))
     if append_artist:
-        artist: str = album.getArtist()
+        artist: str = subsonic_util.get_album_display_artist(album=album)
         if artist:
             title = f"{artist} - {title}"
     prepend_number: int = get_option(options=options, option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
@@ -728,7 +743,10 @@ def album_to_entry(
         is_search_result=is_search_result)
     # musicbrainz?
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
-    msgproc.log(f"Found album_mbid [{album_mbid}] for album [{album.getId()}] [{album.getTitle()}] by [{album.getArtist()}]")
+    msgproc.log(f"Found album_mbid [{album_mbid}] "
+                f"for album [{album.getId()}] "
+                f"[{album.getTitle()}] "
+                f"by [{subsonic_util.get_album_display_artist(album=album)}]")
     show_mbid: bool = config.get_config_param_as_bool(
         constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES
         if is_search_result
@@ -738,7 +756,7 @@ def album_to_entry(
             title = f"{title} [mb]"
         else:
             title = f"{title} [{album_mbid}]"
-    artist = album.getArtist()
+    artist = subsonic_util.get_album_display_artist(album=album)
     cache_actions.on_album(album=album)
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
     id: str = identifier_util.create_objid(
@@ -749,7 +767,7 @@ def album_to_entry(
     cover_art_url: str = subsonic_util.build_cover_art_url(item_id=album.getCoverArt(), force_save=True)
     upnp_util.set_album_art_from_uri(cover_art_url, entry)
     upnp_util.set_album_id(album.getId(), entry)
-    upnp_util.set_artist(artist=album.getArtist(), target=entry)
+    upnp_util.set_artist(artist=subsonic_util.get_album_display_artist(album=album), target=entry)
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
@@ -827,7 +845,7 @@ def album_version_to_entry(
     if album_quality_badge:
         title = f"{title} [{album_quality_badge}]"
         msgproc.log(f"album_version_to_entry title [{title}]")
-    artist = current_album.getArtist()
+    artist = subsonic_util.get_album_display_artist(album=current_album)
     cache_actions.on_album(current_album)
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     current_album_cover_art: str = subsonic_util.build_cover_art_url(item_id=current_album.getCoverArt())
