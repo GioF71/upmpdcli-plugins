@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.22
+
+- Make favorite song list playble (see [issue 590](https://github.com/GioF71/upmpdcli-docker/issues/590))
+
 ## Release 0.8.21
 
 - build_didlfrag: role does not need escaping
