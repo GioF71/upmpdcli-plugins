@@ -275,11 +275,12 @@ class AlbumTracks:
         return self._multi_codec_album
 
 
-def get_playlist_display_artist(playlist_entry_artist: str) -> str:
-    if not playlist_entry_artist or len(playlist_entry_artist) == 0:
-        return ""
-    artist_list: list[str] = playlist_entry_artist.split(";")
-    return ", ".join(artist_list)
+# maybe delete this
+# def get_playlist_display_artist(playlist_entry_artist: str) -> str:
+#     if not playlist_entry_artist or len(playlist_entry_artist) == 0:
+#         return ""
+#     artist_list: list[str] = playlist_entry_artist.split(";")
+#     return ", ".join(artist_list)
 
 
 def strip_substring(initial_str, pattern):
