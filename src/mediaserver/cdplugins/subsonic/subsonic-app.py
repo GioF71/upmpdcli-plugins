@@ -71,7 +71,6 @@ from album_util import get_album_base_path
 from album_util import get_dir_from_path
 from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
-from album_util import get_playlist_display_artist
 from album_util import get_album_year_str
 from album_util import has_year
 from album_util import get_album_path_list_joined
@@ -292,7 +291,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     entry['discnumber'] = song.getDiscNumber()
     upnp_util.set_track_number(song.getTrack(), entry)
     upnp_util.set_artist(
-        artist=subsonic_util.join_with_comma(subsonic_util.get_song_artists(song=song)),
+        artist=subsonic_util.get_song_display_artist(song=song),
         target=entry)
     entry['upnp:album'] = song.getAlbum()
     upnp_util.set_mimetype(song.getContentType(), entry)
@@ -713,9 +712,10 @@ def _playlist_entry_to_entry(
     entry['tp'] = 'it'
     upnp_util.set_track_number(playlist_entry.getTrack(), entry)
     upnp_util.set_artist(
-        artist=get_playlist_display_artist(playlist_entry_artist=playlist_entry.getArtist()),
+        artist=subsonic_util.get_playlist_entry_display_artist(playlist_entry=playlist_entry),
         target=entry)
     entry['upnp:album'] = playlist_entry.getAlbum()
+    entry['upnp:artist'] = playlist_entry.getArtist()
     upnp_util.set_mimetype(playlist_entry.getContentType(), entry)
     upnp_util.set_album_art_from_uri(
         album_art_uri=subsonic_util.build_cover_art_url(item_id=playlist_entry.getCoverArt()),
@@ -1120,7 +1120,7 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
         target=entry)
     entry['upnp:album'] = song.getAlbum()
     upnp_util.set_artist(
-        artist=subsonic_util.join_with_comma(subsonic_util.get_song_artists(song=song)),
+        artist=subsonic_util.get_song_display_artist(song=song),
         target=entry)
     upnp_util.set_track_number(track_number=song.getTrack(), target=entry)
     subsonic_util.set_song_metadata(song=song, target=entry)
@@ -2126,7 +2126,7 @@ def handler_element_album_focus(
             top_songs_entry_list: list[dict[str, any]] = create_artist_top_songs_entry(
                 objid=objid,
                 artist_id=album.getArtistId(),
-                artist_name=album.getArtist())
+                artist_name=subsonic_util.get_album_display_artist(album=album))
             top_songs_entry: dict[str, any]
             get_top_songs_elapsed_time = time.time() - get_top_songs_start_time
             for top_songs_entry in top_songs_entry_list:

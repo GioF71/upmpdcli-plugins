@@ -19,6 +19,7 @@ import album_util
 import constants
 
 from subsonic_connector.album import Album
+import html
 
 
 def set_track_number(track_number: str, target: dict):
@@ -56,6 +57,10 @@ def set_class_music_track(target: dict):
 
 def set_class_album(target: dict):
     target['upnp:class'] = upmplgmodels.Album.upnpclass
+
+
+def set_class_playlist_container(target: dict):
+    target['upnp:class'] = upmplgmodels.Playlist.upnpclass
 
 
 def set_date_from_album(album: Album, target: dict):
@@ -97,6 +102,15 @@ def set_bit_rate(bit_rate: int, target: dict):
 def set_mimetype(mimetype: str, target: dict):
     if mimetype:
         target['res:mime'] = mimetype
+
+
+def build_didlfrag(key: str, role: str, value: str):
+    return f"<{key} role=\"{html.escape(role)}\">{html.escape(value)}</{key}>"
+
+
+def set_didlfrag(didlfrag: str, target: dict):
+    if didlfrag:
+        target["didlfrag"] = didlfrag
 
 
 def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
