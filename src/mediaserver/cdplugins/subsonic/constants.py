@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.20"
+    PLUGIN_RELEASE = "0.8.21"
     PLUGIN_NAME = "subsonic"
 
 
@@ -183,6 +183,10 @@ class ConfigParam(Enum):
 
     DEFEAT_COVER_ART_URL = _ConfigParamData("defeatcoverarturl", False)
     LOG_WITH_TIMESTAMP = _ConfigParamData("logwithtimestamp", True)
+
+    # 250 seems a good compromise, still quite fast
+    # 500 is still the absolute max
+    MAX_RANDOM_SONG_LIST_SIZE = _ConfigParamData("maxrandomsonglistsize", 250)
 
     @property
     def key(self) -> str:

@@ -105,7 +105,7 @@ def set_mimetype(mimetype: str, target: dict):
 
 
 def build_didlfrag(key: str, role: str, value: str):
-    return f"<{key} role=\"{html.escape(role)}\">{html.escape(value)}</{key}>"
+    return f"<{key} role=\"{role}\">{html.escape(value)}</{key}>"
 
 
 def set_didlfrag(didlfrag: str, target: dict):

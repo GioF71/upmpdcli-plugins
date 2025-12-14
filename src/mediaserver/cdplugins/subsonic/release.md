@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.21
+
+- build_didlfrag: role does not need escaping
+- General code cleanup, fixes and optimizations
+- Make random song list playble (see [issue 585](https://github.com/GioF71/upmpdcli-docker/issues/585))
+- Random song list shows 250 items by default, configurable using `subsonicmaxrandomsonglistsize`
+
 ## Release 0.8.20
 
 - Add escaping to value in build_didlfrag

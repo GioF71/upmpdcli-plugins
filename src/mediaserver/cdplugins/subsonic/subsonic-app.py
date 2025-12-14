@@ -971,8 +971,36 @@ def handler_tag_random_songs(objid, item_identifier: ItemIdentifier, entries: li
 
 
 def handler_tag_random_songs_list(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, False)
-    return _get_random_songs(objid, item_identifier, entries)
+    # item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, False)
+    # return _get_random_songs(objid, item_identifier, entries)
+    # just show plain songs here
+    max_songs: int = min(
+        config.get_config_param_as_int(constants.ConfigParam.MAX_RANDOM_SONG_LIST_SIZE),
+        constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value)
+    res: Response[RandomSongs]
+    try:
+        res: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=max_songs)
+        if not res or not res.isOk():
+            msgproc.log("Cannot load random songs")
+            return entries
+    except Exception as ex:
+        msgproc.log(f"Cannot load random songs [{type(ex)}] [{ex}]")
+        return entries
+    # good to go
+    song_options: dict[str, any] = dict()
+    song: Song
+    for song in res.getObj().getSongs():
+        option_util.set_option(
+            options=song_options,
+            option_key=OptionKey.FORCE_TRACK_NUMBER,
+            option_value=len(entries) + 1)
+        song_entry: dict[str, any] = entry_creator.song_to_entry(
+            objid=objid,
+            song=song,
+            options=song_options)
+        if song_entry:
+            entries.append(song_entry)
+    return entries
 
 
 def handler_tag_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
