@@ -21,12 +21,12 @@ allowappendtrackcountinalbumcontainer|Append track number to album container, de
 allowappendtrackcountinalbumview|Append track number to album view, defaults to False
 allowappendtrackcountinalbumsearchresult|Append track number to album search result, defaults to False
 allowappendartistinalbumcontainer|Append artist to album container, defaults to True
-allowappendartistinalbumview|Append artist to album view, defaults to True
+allowappendartistinalbumview|Append artist to album view, defaults to False
 allowappendartistinsearchresult|Append artist to album search result, defaults to False
 artistalbumnewestfirst|Show albums from the artist from newest to oldest (True) or the opposite (False), defaults to True
 allowqbadgeinalbumcontainer|Append quality badge to album container, defaults to True
-allowqbadgeinalbumview|Append quality badge to album view, defaults to True
-allowqbadgeinalbumsearchresult|Append quality badge to album search result, defaults to True
+allowqbadgeinalbumview|Append quality badge to album view, defaults to False
+allowqbadgeinalbumsearchresult|Append quality badge to album search result, defaults to False
 allowversioninalbumcontainer|Append version to album container, defaults to True
 allowversioninalbumview|Append version to album view, defaults to True
 allowversioninalbumsearchresult|Append version to album search result, defaults to True
@@ -59,6 +59,7 @@ dumpstreamingproperties|Dump streaming properties to log, defaults to False
 appendcodecstoalbum|Show codec in album, defaults to True
 appendrolestoartist|Append roles to artist, defaults to True
 transcodecodec|Transcode codec to use, defaults to none (empty). See upmpdcli docs for more details
+transcodemaxbitrate|Max bitrate to be used when transcoding
 disablenavigablealbum|Disable navigability for albums, defaults to False
 dumpexplicitstatus|Dump explicit status to logs, defaults to False
 enableimagecaching|Enables the server to cache images locally, defaults to False
@@ -79,3 +80,5 @@ allowfavoritesforfrontpagetags|Allow to use favorites when searching images to a
 allowshufflerandomalbumsforfrontpagetags|Allow to shuffle random albums when selecting image for initial view entries, defaults to True
 defeatcoverarturl|Allows to entirely defeat loading of cover art, defaults to False
 logwithtimestamp|Adds a timestamp to log entries, defaults to True
+maxrandomsonglistsize|Max number of random songs to display, defaults to 250
+setalbumartistrolealbumartist|Enable set the role "albumartist" in album, defaults to False

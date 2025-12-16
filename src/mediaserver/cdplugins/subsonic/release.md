@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.23
+
+- Append Artists to Albums now always default to false for album view and search result
+- Only show quality badge in album containers by default
+- Add description of configuration parameters in constants.py
+- Do not append roles to artists by default
+- Add initial support for BubbleUPnP features "Albums by artist" and "Tracks by artist"
+- Cache artist id lists by artist display name and use them when searching (see use case above, more to implement)
+
 ## Release 0.8.22
 
 - Make favorite song list playble (see [issue 590](https://github.com/GioF71/upmpdcli-docker/issues/590))

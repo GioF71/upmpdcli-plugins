@@ -1468,7 +1468,6 @@ def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
             upmpdmeta.UpMpdMeta.ARTIST_MEDIA_TYPE,
             name_key_to_display(artist_metadata.artist_media_type),
             target)
-
     # genres?
     genres_kv: KeyValueItem = persistence.get_kv_item(
         partition=cache_type.CacheType.GENRES_FOR_ARTIST.value.cache_name,
@@ -1691,6 +1690,14 @@ def cached_images_exist(image_file_name: str) -> list[str]:
         cached_files: list[str] = __match_images_only(glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*"))
         return cached_files if cached_files else []
     return []
+
+
+def id_list_join(id_list: list[str]) -> str:
+    return ",".join(id_list)
+
+
+def id_list_split(id_list: str) -> list[str]:
+    return id_list.split(",")
 
 
 def get_mime_type_from_extension(extension: str) -> Optional[str]:

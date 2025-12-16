@@ -22,6 +22,31 @@ from subsonic_connector.album import Album
 import html
 
 
+def set_entry_value(key_name: str, key_value: str, target: dict):
+    if key_name and key_value:
+        target[key_name] = key_value
+
+
+def set_class(upnp_class: str, target: dict):
+    target["upnp:class"] = upnp_class
+
+
+def set_class_artist(target: dict):
+    set_class(target=target, upnp_class=upmplgmodels.Artist.upnpclass)
+
+
+def set_class_music_track(target: dict):
+    set_class(target=target, upnp_class=upmplgmodels.Track.upnpclass)
+
+
+def set_class_album(target: dict):
+    set_class(target=target, upnp_class=upmplgmodels.Album.upnpclass)
+
+
+def set_class_playlist_container(target: dict):
+    set_class(target=target, upnp_class=upmplgmodels.Playlist.upnpclass)
+
+
 def set_track_number(track_number: str, target: dict):
     target['upnp:originalTrackNumber'] = track_number
 
@@ -31,36 +56,19 @@ def get_album_art_uri(entry: dict):
 
 
 def set_album_art_from_uri(album_art_uri: str, target: dict):
-    if album_art_uri:
-        target['upnp:albumArtURI'] = album_art_uri
+    set_entry_value(key_name="upnp:albumArtURI", key_value=album_art_uri, target=target)
 
 
-def set_album_title(album_title: str, target: dict):
-    target['tt'] = album_title
+def set_track_title(track_title: str, target: dict):
+    set_entry_value(key_name="tt", key_value=track_title, target=target)
 
 
 def set_album_id(album_id: str, target: dict):
     target['album_id'] = album_id
 
 
-def set_class(upnp_class: str, target: dict):
-    target['upnp:class'] = upnp_class
-
-
 def set_artist(artist: str, target: dict):
-    target['upnp:artist'] = artist
-
-
-def set_class_music_track(target: dict):
-    target['upnp:class'] = upmplgmodels.Track.upnpclass
-
-
-def set_class_album(target: dict):
-    target['upnp:class'] = upmplgmodels.Album.upnpclass
-
-
-def set_class_playlist_container(target: dict):
-    target['upnp:class'] = upmplgmodels.Playlist.upnpclass
+    target[constants.UpnpMeta.ARTIST.value] = artist
 
 
 def set_date_from_album(album: Album, target: dict):
@@ -73,10 +81,6 @@ def set_date_from_album(album: Album, target: dict):
 
 def set_date_str(date_str: str, target: dict):
     target['dc:date'] = date_str
-
-
-def set_class_artist(target: dict):
-    target['upnp:class'] = upmplgmodels.Artist.upnpclass
 
 
 def set_bit_depth(bit_depth: int, target: dict):
