@@ -16,6 +16,13 @@
 from enum import Enum
 
 
+class KindType:
+
+    ARTIST = "artist"
+    ALBUM = "album"
+    TRACK = "track"
+
+
 class SearchType(Enum):
     ALBUM = 0, "album"
     ARTIST = 1, "artist"

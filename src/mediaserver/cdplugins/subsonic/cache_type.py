@@ -32,6 +32,7 @@ class CacheType(Enum):
     GENRE_ALBUM_ART = _CacheTypeData("genre_album_art")
     ALBUM_TRACK_QUALITIES = _CacheTypeData("album_track_qualities")
     GENRES_FOR_ARTIST = _CacheTypeData("genres_for_artist")
+    ARTIST_ID_BY_DISPLAY_NAME = _CacheTypeData("artist_id_by_display_name")
 
     def getName(self) -> str:
         return self.value.cache_name

@@ -323,6 +323,8 @@ upradiostitle = Upmpdcli Radio List
 #subsonicenablemaintenancefeatures = 0
 # Show artist albums from newest to older if left empty or set to 1
 #subsonicartistalbumnewestfirst = 0
+# max number of songs in random song list
+#subsonicmaxrandomsonglistsize = 250
 
 # Upmpdcli BBC Sounds plugin parameters
 
