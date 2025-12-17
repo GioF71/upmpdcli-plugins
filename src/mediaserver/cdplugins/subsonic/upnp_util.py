@@ -68,7 +68,7 @@ def set_album_id(album_id: str, target: dict):
 
 
 def set_artist(artist: str, target: dict):
-    target[constants.UpnpMeta.ARTIST.value] = artist
+    target["upnp:" + constants.UpnpMeta.ARTIST.value] = artist
 
 
 def set_date_from_album(album: Album, target: dict):

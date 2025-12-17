@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.23"
+    PLUGIN_RELEASE = "0.8.24"
     PLUGIN_NAME = "subsonic"
 
 
@@ -357,10 +357,8 @@ class ConfigParam(Enum):
     MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData(
         "maxtracksfornodiscsplit",
         default_value=60,
-        description="""
-            Maximum number of tracks, under this value the album will not
-            be split to discs unless there are disc subtitles
-            """)
+        description=("Maximum number of tracks, under this value the album will not "
+                     "be split to discs unless there are disc subtitles"))
 
     VERBOSE_LOGGING = _ConfigParamData(
         "verboselogging",
@@ -391,10 +389,9 @@ class ConfigParam(Enum):
     ALLOW_ARTIST_COVER_ART = _ConfigParamData(
         "allowartistcoverart",
         default_value=True,
-        description="""
-            Allow to use coverArt from subsonic api for artist art.
-            Usually it's safe to enable. Can be slow on navidrome when spotify is integrated because of throttling
-            """)
+        description=("Allow to use coverArt from subsonic api for artist art. "
+                     "Usually it's safe to enable. Can be slow on navidrome when spotify "
+                     "is integrated because of throttling"))
     ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS = _ConfigParamData(
         "allowfavoritesforfrontpagetags",
         default_value=False,
@@ -425,6 +422,11 @@ class ConfigParam(Enum):
         default_value=False,
         description="Enable set the role 'albumartist' in album")
 
+    ALLOW_SONG_DIDL_ALBUMARTIST = _ConfigParamData(
+        "allowsongdidlalbumartist",
+        default_value=True,
+        description="Allow to add DIDL fragment for album artist in song")
+
     @property
     def key(self) -> str:
         return self.value.key
@@ -432,6 +434,10 @@ class ConfigParam(Enum):
     @property
     def default_value(self) -> any:
         return self.value.default_value
+
+    @property
+    def description(self) -> str:
+        return self.value.description
 
 
 class _TranscodingInfoData:

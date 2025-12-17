@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.24
+
+- Support BubbleUPnP searches: add ability to search albums by song title
+- Support BubbleUPnP searches: add ability to search songs by song title
+- Support BubbleUPnP searches: when searching albums by song title, we also search by album title
+- Support BubbleUPnP searches: add ability to search artists by title (referred to artist, album or songs)
+- Add generate_config.py so I can generated config.md from the ConfigParam enumerated
+- Fixed wrong key for artist in Song
+- DIDL fragment for album artist role is now configurable, enabled by default
+
 ## Release 0.8.23
 
 - Append Artists to Albums now always default to false for album view and search result
@@ -8,6 +18,7 @@
 - Do not append roles to artists by default
 - Add initial support for BubbleUPnP features "Albums by artist" and "Tracks by artist"
 - Cache artist id lists by artist display name and use them when searching (see use case above, more to implement)
+- General code cleanup, fixes and optimizations
 
 ## Release 0.8.22
 

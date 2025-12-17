@@ -3112,7 +3112,7 @@ def log_search_duration(
                 f"returned [{how_many}] entries in [{duration:.3f}]")
 
 
-def search_artist_list_by_artist_name(artist_name: str) -> list[Artist]:
+def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
     artist_list: list[Artist] = []
     artist_id_set: set[str] = set()
     # try to search artists by the provided artist_name
@@ -3121,21 +3121,17 @@ def search_artist_list_by_artist_name(artist_name: str) -> list[Artist]:
         artistCount=20,
         albumCount=0,
         songCount=0)
-    msgproc.log(f"search_artist_list_by_artist_name for [{artist_name}] -> [{len(res.getArtists()) if res else 0}] artists")
+    msgproc.log(f"search_artist_by_artist_name for [{artist_name}] -> [{len(res.getArtists()) if res else 0}] artists")
     current: Artist
     for current in res.getArtists():
         if not current.getId() in artist_id_set:
             # keep track and store in list
             artist_id_set.add(current.getId())
-            msgproc.log(f"search_artist_list_by_artist_name for [{artist_name}] adding [{current.getId()}] [{current.getName()}]")
+            msgproc.log(f"search_artist_by_artist_name for [{artist_name}] adding [{current.getId()}] [{current.getName()}]")
             artist_list.append(current)
     # we also want to see if we have matching artist id by the provided artist_name
     artist_id_list: list[str] = cache_actions.get_artist_id_list_by_display_name(artist_name=artist_name)
-    # artist_id_list_joined: str = cache_manager_provider.get().get_cached_element(
-    #     cache_name=cache_type.CacheType.ARTIST_ID_BY_DISPLAY_NAME.getName(),
-    #     key=artist_name)
-    msgproc.log(f"search_artist_list_by_artist_name [{artist_name}] -> [{artist_id_list}]")
-    # if artist_id_list_joined:
+    msgproc.log(f"search_artist_by_artist_name [{artist_name}] -> [{artist_id_list}]")
     artist_id: str
     # split it!
     for artist_id in artist_id_list:
@@ -3146,12 +3142,31 @@ def search_artist_list_by_artist_name(artist_name: str) -> list[Artist]:
         # load the artist and add to artist_list
         artist_res: Response[Artist] = connector_provider.get().getArtist(artist_id=artist_id)
         if not artist_res or not artist_res.isOk():
-            msgproc.log(f"search_artist_list_by_artist_name could not retrieve artist by id [{artist_id}]")
+            msgproc.log(f"search_artist_by_artist_name could not retrieve artist by id [{artist_id}]")
             continue
         found: Artist = artist_res.getObj()
-        msgproc.log(f"search_artist_list_by_artist_name for [{artist_name}] adding [{found.getId()}] [{found.getName()}]")
+        msgproc.log(f"search_artist_by_artist_name for [{artist_name}] adding [{found.getId()}] [{found.getName()}]")
         artist_list.append(found)
     return artist_list
+
+
+def search_songs_by_song_title(song_title: str) -> list[Song]:
+    song_list: list[Song] = []
+    res: SearchResult = connector_provider.get().search(
+        query=song_title,
+        artistCount=0,
+        albumCount=0,
+        songCount=20)
+    msgproc.log(f"search_songs_by_song_title for [{song_title}] -> [{len(res.getSongs()) if res else 0}] songs")
+    song: Song
+    for song in res.getSongs():
+        msgproc.log(f"search_songs_by_song_title for song_title [{song_title}] "
+                    f"found song_id [{song.getId()}] "
+                    f"title [{song.getTitle()}] "
+                    f"album_id [{song.getAlbumId()}]")
+        # we must load the album
+        song_list.append(song)
+    return song_list
 
 
 def search_songs_by_artist(artist_name: str) -> list[Song]:
@@ -3159,7 +3174,7 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
     album_id_set: set[str] = set()
     song_id_set: set[str] = set()
     # get the artists by the provided name
-    artist_list: list[Artist] = search_artist_list_by_artist_name(artist_name=artist_name)
+    artist_list: list[Artist] = search_artist_by_artist_name(artist_name=artist_name)
     current_artist: Artist
     for current_artist in artist_list:
         msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
@@ -3201,11 +3216,115 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
     return song_list
 
 
+def search_albums_by_album_title(album_title: str, found_album_id_set: set[str]) -> list[Album]:
+    album_list: list[Album] = []
+    res: SearchResult = connector_provider.get().search(
+        query=album_title,
+        artistCount=0,
+        albumCount=20,
+        songCount=0)
+    msgproc.log(f"search_albums_by_album_title for [{album_title}] -> [{len(res.getAlbums()) if res else 0}] albums")
+    album: Album
+    for album in res.getAlbums():
+        if album.getId() in found_album_id_set:
+            continue
+        found_album_id_set.add(album.getId())
+        msgproc.log(f"search_albums_by_album_title for album_title [{album_title}] "
+                    f"found album_id [{album.getId()}] "
+                    f"title [{album.getTitle()}]")
+        # we must load the album
+        loaded: Album = subsonic_util.try_get_album(album_id=album.getId())
+        if loaded:
+            album_list.append(loaded)
+    return album_list
+
+
+def search_albums_by_song_title(song_title: str, found_album_id_set: set[str]) -> list[Album]:
+    album_list: list[Album] = []
+    res: SearchResult = connector_provider.get().search(
+        query=song_title,
+        artistCount=0,
+        albumCount=0,
+        songCount=20)
+    msgproc.log(f"search_albums_by_song_title for [{song_title}] -> [{len(res.getArtists()) if res else 0}] songs")
+    song: Song
+    for song in res.getSongs():
+        if song.getAlbumId() in found_album_id_set:
+            continue
+        found_album_id_set.add(song.getAlbumId())
+        msgproc.log(f"search_albums_by_song_title for song_title [{song_title}] "
+                    f"found song_id [{song.getId()}] "
+                    f"title [{song.getTitle()}] "
+                    f"album_id [{song.getAlbumId()}]")
+        # we must load the album
+        album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId())
+        if album:
+            album_list.append(album)
+    return album_list
+
+
+def search_artist_by_title(title: str) -> list[Artist]:
+    artist_list: list[Artist] = []
+    artist_id_set: set[str] = set()
+    res: SearchResult = connector_provider.get().search(
+        query=title,
+        artistCount=20,
+        albumCount=20,
+        songCount=20)
+    if not res:
+        # it's already over
+        return artist_list
+    msgproc.log(f"search_artist_by_title for [{title}] -> "
+                f"[{len(res.getArtists())}] artists "
+                f"[{len(res.getAlbums())}] albums "
+                f"[{len(res.getSongs())}] songs")
+    # process artists
+    loaded: Artist
+    artist: Artist
+    for artist in res.getArtists():
+        if artist.getId() in artist_id_set:
+            continue
+        artist_id_set.add(artist.getId())
+        loaded = subsonic_util.try_get_artist(artist_id=artist.getId())
+        if loaded:
+            artist_list.append(loaded)
+    # process albums
+    album: Album
+    for album in res.getAlbums():
+        artist_id_list: list[str] = subsonic_util.get_album_artist_id_list_from_album(album=album)
+        curr_artist_id: str
+        for curr_artist_id in artist_id_list:
+            if curr_artist_id in artist_id_set:
+                continue
+            artist_id_set.add(curr_artist_id)
+            loaded = subsonic_util.try_get_artist(artist_id=curr_artist_id)
+            if loaded:
+                artist_list.append(loaded)
+    # process songs
+    song: Song
+    for song in res.getSongs():
+        artist_occ: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_artists_in_song_or_album(
+            obj=song,
+            item_key=constants.ItemKey.ALBUM_ARTISTS)
+        artist_occ.extend(subsonic_util.get_artists_in_song_or_album(
+            obj=song,
+            item_key=constants.ItemKey.ARTISTS))
+        curr_occ: subsonic_util.ArtistsOccurrence
+        for curr_occ in artist_occ:
+            if curr_occ.id in artist_id_set:
+                continue
+            artist_id_set.add(curr_occ.id)
+            loaded = subsonic_util.try_get_artist(artist_id=curr_occ.id)
+            if loaded:
+                artist_list.append(loaded)
+    return artist_list
+
+
 def search_albums_by_artist(artist_name: str) -> list[Album]:
     album_list: list[Album] = []
     album_id_set: set[str] = set()
     # get the artists.
-    artist_list: list[Artist] = search_artist_list_by_artist_name(artist_name=artist_name)
+    artist_list: list[Artist] = search_artist_by_artist_name(artist_name=artist_name)
     current_artist: Artist
     for current_artist in artist_list:
         msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
@@ -3281,6 +3400,27 @@ def search(a):
                             album=current_album,
                             options=album_entry_options))
                     resultset_length += 1
+            elif SearchType.TRACK.getName() == field:
+                found_album_id_set: set[str] = set()
+                # we need to find albums by tracks
+                album_list: list[Album] = search_albums_by_song_title(song_title=value, found_album_id_set=found_album_id_set)
+                # actually the searcher might also want to search album by the album title
+                # we will use value as the album title
+                album_list.extend(search_albums_by_album_title(album_title=value, found_album_id_set=found_album_id_set))
+                for current_album in album_list:
+                    cache_actions.on_album(album=current_album)
+                    if album_as_container:
+                        entries.append(entry_creator.album_to_navigable_entry(
+                            objid=objid,
+                            album=current_album))
+                    else:
+                        entries.append(entry_creator.album_to_entry(
+                            objid=objid,
+                            album=current_album,
+                            options=album_entry_options))
+                    resultset_length += 1
+                # actually the searcher might also want to search album by the album title
+                # we will use value as the album title
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
         elif objkind == KindType.TRACK:
@@ -3293,8 +3433,30 @@ def search(a):
                         objid=objid,
                         song=current_song))
                     resultset_length += 1
+            elif SearchType.TRACK.getName() == field:
+                # looking for track by tracks
+                song_list: list[Song] = search_songs_by_song_title(song_title=value)
+                for current_song in song_list:
+                    entries.append(entry_creator.song_to_entry(
+                        objid=objid,
+                        song=current_song))
+                    resultset_length += 1
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
+        elif objkind == KindType.ARTIST:
+            if SearchType.TRACK.getName() == field:
+                # we search artists by any title
+                artist_list: list[Artist] = search_artist_by_title(title=value)
+                artist: Artist
+                for artist in artist_list:
+                    entries.append(entry_creator.artist_to_entry(
+                        objid=objid,
+                        artist=artist))
+                    resultset_length += 1
+            else:
+                msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")    
+        else:
+            msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
     # if not kind_specified:
     elif field_specified:
         if SearchType.ALBUM.getName() == field:

@@ -620,6 +620,10 @@ def get_album_artists_from_album(album: Album) -> list[dict[str, str]]:
     return album.getItem().getListByName(constants.ItemKey.ARTISTS.value)
 
 
+def get_album_artist_id_list_from_album(album: Album) -> list[str]:
+    return list(map(lambda x: x[constants.DictKey.ID.value], get_album_artists_from_album(album=album)))
+
+
 def get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurrence]:
     contributor_list: list[dict[str, str]] = obj.getItem().getListByName(constants.ItemKey.CONTRIBUTORS.value)
     result: list[Contributor] = []

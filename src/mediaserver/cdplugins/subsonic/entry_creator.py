@@ -528,6 +528,7 @@ def song_to_entry(
         song: Song,
         force_cover_art_save: bool = False,
         options: dict[str, any] = {}) -> dict:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
     id: str = identifier_util.create_objid(
@@ -555,13 +556,15 @@ def song_to_entry(
     upnp_util.set_artist(subsonic_util.get_song_display_artist(song=song), entry)
     song_album_artist: str = subsonic_util.get_song_display_album_artist(song=song)
     if song_album_artist:
-        msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
-        upnp_util.set_didlfrag(
-            didlfrag=upnp_util.build_didlfrag(
-                key="upnp:artist",
-                role="AlbumArtist",
-                value=song_album_artist),
-            target=entry)
+        if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_SONG_DIDL_ALBUMARTIST):
+            if verbose:
+                msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
+            upnp_util.set_didlfrag(
+                didlfrag=upnp_util.build_didlfrag(
+                    key="upnp:artist",
+                    role="AlbumArtist",
+                    value=song_album_artist),
+                target=entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
