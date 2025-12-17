@@ -6,7 +6,7 @@
 - Support BubbleUPnP searches: add ability to search songs by song title
 - Support BubbleUPnP searches: when searching albums by song title, we also search by album title
 - Support BubbleUPnP searches: add ability to search artists by title (referred to artist, album or songs)
-- Add generate_config.py so I can generated config.md from the ConfigParam enumerated
+- Add generate_config.py so I can generate config.md from the ConfigParam enumerated
 - Fixed wrong key for artist in Song
 - DIDL fragment for album artist role is now configurable, enabled by default
 
