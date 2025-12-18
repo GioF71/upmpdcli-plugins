@@ -1,6 +1,32 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.24
+
+- Support BubbleUPnP searches: add ability to search albums by song title
+- Support BubbleUPnP searches: add ability to search songs by song title
+- Support BubbleUPnP searches: when searching albums by song title, we also search by album title
+- Support BubbleUPnP searches: add ability to search artists by title (referred to artist, album or songs)
+- Add generate_config.py so I can generate config.md from the ConfigParam enumerated
+- Fixed wrong key for artist in Song
+- DIDL fragment for album artist role is now configurable, enabled by default
+- Append Artists to Albums now always default to false for album view and search result
+- Only show quality badge in album containers by default
+- Add description of configuration parameters in constants.py
+- Do not append roles to artists by default
+- Add initial support for BubbleUPnP features "Albums by artist" and "Tracks by artist"
+- Cache artist id lists by artist display name and use them when searching (see use case above, more to implement)
+- General code cleanup, fixes and optimizations
+- Make favorite song list playble (see [issue 590](https://github.com/GioF71/upmpdcli-docker/issues/590))
+- build_didlfrag: role does not need escaping
+- General code cleanup, fixes and optimizations
+- Make random song list playble (see [issue 585](https://github.com/GioF71/upmpdcli-docker/issues/585))
+- Random song list shows 250 items by default, configurable using `subsonicmaxrandomsonglistsize`
+
 ## Release 0.8.20
+
+- Add escaping to value in build_didlfrag
+
+## Release 0.8.19
 
 - Use displayArtist instead of artist from Albums
 - Use displayArtist instead of artist from Songs

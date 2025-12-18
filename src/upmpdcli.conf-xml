@@ -828,6 +828,12 @@ upradiostitle = Upmpdcli Radio List
 # to be ascending instead of descending (default)</descr></var>
 #subsonicartistalbumnewestfirst = 0
 
+# <var name="subsonicmaxrandomsonglistsize" type="int">
+# <brief>Number of songs in Random Songs (list)</brief>
+# <descr>Set the maximum number of songs in Random Songs (list),
+# defaults to 250, cannot be more than 500</descr></var>
+#subsonicmaxrandomsonglistsize = 250
+
 # <grouptitle>Upmpdcli BBC Sounds plugin parameters</grouptitle>
 
 # <var name="bbcuser" type="string"><brief>Bogus user name variable.</brief>

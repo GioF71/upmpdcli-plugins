@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.20"
+    PLUGIN_RELEASE = "0.8.24"
     PLUGIN_NAME = "subsonic"
 
 
@@ -77,9 +77,10 @@ class Defaults(Enum):
 # we should remove the Defaults enumerated and converge to this new enumerated
 class _ConfigParamData:
 
-    def __init__(self, key: str, default_value: any):
+    def __init__(self, key: str, default_value: any, description: str):
         self.__key: str = key
         self.__default_value: any = default_value
+        self.__description: str = description
 
     @property
     def key(self) -> str:
@@ -89,100 +90,342 @@ class _ConfigParamData:
     def default_value(self) -> any:
         return self.__default_value
 
+    @property
+    def description(self) -> str:
+        return self.__description
+
 
 class ConfigParam(Enum):
 
-    ALLOW_GENRE_IN_ALBUM_VIEW = _ConfigParamData("allowgenreinalbumview", False)
-    ALLOW_GENRE_IN_ALBUM_CONTAINER = _ConfigParamData("allowgenreinalbumcontainer", False)
+    ALLOW_GENRE_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowgenreinalbumcontainer",
+        default_value=False,
+        description="Show genre in album container")
+    ALLOW_GENRE_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowgenreinalbumview",
+        default_value=False,
+        description="Show genre in album view")
 
-    SHOW_EMPTY_FAVORITES = _ConfigParamData("showemptyfavorites", False)
-    SHOW_EMPTY_PLAYLISTS = _ConfigParamData("showemptyplaylists", False)
+    SHOW_EMPTY_FAVORITES = _ConfigParamData(
+        "showemptyfavorites",
+        default_value=False,
+        description="Show the Favorites entry, even when there are none")
+    SHOW_EMPTY_PLAYLISTS = _ConfigParamData(
+        "showemptyplaylists",
+        default_value=False,
+        description="Show the Playlists entry, even when there are none")
 
-    SEARCH_RESULT_ALBUM_AS_CONTAINER = _ConfigParamData("searchresultalbumascontainer", False)
+    SEARCH_RESULT_ALBUM_AS_CONTAINER = _ConfigParamData(
+        "searchresultalbumascontainer",
+        default_value=False,
+        description="Show search results for albums as containers (breaks some control points, but not upplay)")
 
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappenddisccountinalbumcontainer", False)
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappenddisccountinalbumview", False)
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappenddisccountinalbumsearchresult", False)
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowappenddisccountinalbumcontainer",
+        default_value=False,
+        description="Append disc count to album container")
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowappenddisccountinalbumview",
+        default_value=False,
+        description="Append disc count to album view")
+    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData(
+        "allowappenddisccountinalbumsearchresult",
+        default_value=False,
+        description="Append disc count to album search result")
 
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendtrackcountinalbumcontainer", False)
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData("allowappendtrackcountinalbumview", False)
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData("allowappendtrackcountinalbumsearchresult", False)
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowappendtrackcountinalbumcontainer",
+        default_value=False,
+        description="Append track number to album container")
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowappendtrackcountinalbumview",
+        default_value=False,
+        description="Append track number to album view")
+    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData(
+        "allowappendtrackcountinalbumsearchresult",
+        default_value=False,
+        description="Append track number to album search result")
 
-    ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData("allowappendartistinalbumcontainer", True)
-    ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW = _ConfigParamData("allowappendartistinalbumview", True)
-    ALLOW_APPEND_ARTIST_IN_SEARCH_RES = _ConfigParamData("allowappendartistinsearchresult", False)
+    ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowappendartistinalbumcontainer",
+        default_value=True,
+        description="Append artist to album container")
+    ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowappendartistinalbumview",
+        default_value=False,
+        description="Append artist to album view")
+    ALLOW_APPEND_ARTIST_IN_SEARCH_RES = _ConfigParamData(
+        "allowappendartistinsearchresult",
+        default_value=False,
+        description="Append artist to album search result")
 
-    ARTIST_ALBUM_NEWEST_FIRST = _ConfigParamData("artistalbumnewestfirst", True)
+    ARTIST_ALBUM_NEWEST_FIRST = _ConfigParamData(
+        "artistalbumnewestfirst",
+        default_value=True,
+        description="Show albums from the artist from newest to oldest (True) or the opposite (False)")
 
-    ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER = _ConfigParamData("allowqbadgeinalbumcontainer", True)
-    ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData("allowqbadgeinalbumview", True)
-    ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowqbadgeinalbumsearchresult", True)
+    ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowqbadgeinalbumcontainer",
+        default_value=True,
+        description="Append quality badge to album container")
+    ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowqbadgeinalbumview",
+        default_value=False,
+        description="Append quality badge to album view")
+    ALLOW_QUALITY_BADGE_IN_ALBUM_SEARCH_RES = _ConfigParamData(
+        "allowqbadgeinalbumsearchresult",
+        default_value=False,
+        description="Append quality badge to album search result")
 
-    ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER = _ConfigParamData("allowversioninalbumcontainer", True)
-    ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW = _ConfigParamData("allowversioninalbumview", True)
-    ALLOW_ALBUM_VERSION_IN_ALBUM_SEARCH_RES = _ConfigParamData("allowversioninalbumsearchresult", True)
+    ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "allowversioninalbumcontainer",
+        default_value=True,
+        description="Append version to album container")
+    ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW = _ConfigParamData(
+        "allowversioninalbumview",
+        default_value=True,
+        description="Append version to album view")
+    ALLOW_ALBUM_VERSION_IN_ALBUM_SEARCH_RES = _ConfigParamData(
+        "allowversioninalbumsearchresult",
+        default_value=True,
+        description="Append version to album search result")
 
-    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbumidinalbumcontainer", False)
-    APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData("showalbumidinalbumview", False)
-    APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbumidinalbumsearchresult", False)
+    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "showalbumidinalbumcontainer",
+        default_value=False,
+        description="Show album id in album container")
+    APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData(
+        "showalbumidinalbumview",
+        default_value=False,
+        description="Show album id in album search result")
+    APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData(
+        "showalbumidinalbumsearchresult",
+        default_value=False,
+        description="Show album id in album search result")
 
-    SHOW_ALBUM_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showalbummbidasplaceholder", True)
-    SHOW_ARTIST_MB_ID_AS_PLACEHOLDER = _ConfigParamData("showartistmbidasplaceholder", True)
+    APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData(
+        "appendyeartoalbumcontainer",
+        default_value=True,
+        description="Show year in album container")
+    APPEND_YEAR_TO_ALBUM_VIEW = _ConfigParamData(
+        "appendyeartoalbumview",
+        default_value=False,
+        description="Show year in album view")
+    APPEND_YEAR_TO_ALBUM_SEARCH_RES = _ConfigParamData(
+        "appendyeartoalbumsearchresult",
+        default_value=False,
+        description="Show year in album search result")
 
-    DUMP_ACTION_ON_MB_ALBUM_CACHE = _ConfigParamData("dumpactiononmbalbumcache", False)
-    DUMP_ALBUM_GENRE = _ConfigParamData("dumpalbumgenre", False)
-    APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData("appendyeartoalbumcontainer", True)
-    APPEND_YEAR_TO_ALBUM_VIEW = _ConfigParamData("appendyeartoalbumview", False)
-    APPEND_YEAR_TO_ALBUM_SEARCH_RES = _ConfigParamData("appendyeartoalbumsearchresult", False)
+    SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER = _ConfigParamData(
+        "showalbummbidinalbumcontainer",
+        default_value=False,
+        description="Show album musicbrainz id in album container")
+    SHOW_ALBUM_MBID_IN_ALBUM_VIEW = _ConfigParamData(
+        "showalbummbidinalbumview",
+        default_value=False,
+        description="Show album musicbrainz id in album view")
+    SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES = _ConfigParamData(
+        "showalbummbidinalbumsearchres",
+        default_value=False,
+        description="Show album musicbrainz id in album search result")
+    # only determines if mb id is shown or we just show "mb" in order to say that there is an album mb id
+    SHOW_ALBUM_MB_ID_AS_PLACEHOLDER = _ConfigParamData(
+        "showalbummbidasplaceholder",
+        default_value=True,
+        description="Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for album is enabled")
 
-    SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = _ConfigParamData("setclasstoalbumfornavigablealbum", False)
-    DUMP_ALBUM_SORTABLE_DATE = _ConfigParamData("dumpalbumsortabledate", False)
-    SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER = _ConfigParamData("showalbummbidinalbumcontainer", False)
-    SHOW_ALBUM_MBID_IN_ALBUM_VIEW = _ConfigParamData("showalbummbidinalbumview", False)
-    SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES = _ConfigParamData("showalbummbidinalbumsearchres", False)
-    SHOW_PATHS_IN_ALBUM = _ConfigParamData("showpathsinalbum", False)
-    SHOW_ARTIST_MB_ID = _ConfigParamData("showartistmbid", False)
-    SHOW_ARTIST_ID = _ConfigParamData("showartistid", False)
-    ALBUM_SEARCH_LIMIT = _ConfigParamData("albumsearchlimit", 50)
-    ARTIST_SEARCH_LIMIT = _ConfigParamData("artistsearchlimit", 50)
-    SONG_SEARCH_LIMIT = _ConfigParamData("songsearchlimit", 100)
-    ITEMS_PER_PAGE = _ConfigParamData("itemsperpage", 20)
-    ADDITIONAL_ARTISTS_MAX = _ConfigParamData("maxadditionalartists", 10)
-    MAX_ARTISTS_PER_PAGE = _ConfigParamData("maxartistsperpage", 20)
-    MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData("maxadditionalalbumartistsperpage", 10)
-    DUMP_STREAMING_PROPERTIES = _ConfigParamData("dumpstreamingproperties", False)
-    APPEND_CODEC_TO_ALBUM = _ConfigParamData("appendcodecstoalbum", True)
-    APPEND_ROLES_TO_ARTIST = _ConfigParamData("appendrolestoartist", True)
-    TRANSCODE_CODEC = _ConfigParamData("transcodecodec", "")
-    TRANSCODE_MAX_BITRATE = _ConfigParamData("transcodemaxbitrate", "")
-    DISABLE_NAVIGABLE_ALBUM = _ConfigParamData("disablenavigablealbum", False)
-    DUMP_EXPLICIT_STATUS = _ConfigParamData("dumpexplicitstatus", False)
-    ENABLE_IMAGE_CACHING = _ConfigParamData("enableimagecaching", False)
-    SHOW_META_ALBUM_PATH = _ConfigParamData("showmetaalbumpath", False)
+    SHOW_ARTIST_MB_ID = _ConfigParamData(
+        "showartistmbid",
+        default_value=False,
+        description="Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for artist is enabled")
+    # only determines if mb id is shown or we just show "mb" in order to say that there is an artist mb id
+    SHOW_ARTIST_MB_ID_AS_PLACEHOLDER = _ConfigParamData(
+        "showartistmbidasplaceholder",
+        default_value=True,
+        description="Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for artist is enabled")
 
-    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enablecachedimageagelimit", False)
-    CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData("cachedimagemaxagedays", 60)
+    DUMP_ACTION_ON_MB_ALBUM_CACHE = _ConfigParamData(
+        "dumpactiononmbalbumcache",
+        default_value=False,
+        description="Show actions on album cache in logs")
+    DUMP_ALBUM_GENRE = _ConfigParamData(
+        "dumpalbumgenre",
+        default_value=False,
+        description="Show album genre in logs")
 
-    SKIP_USER_AGENT = _ConfigParamData("skipuseragent", False)
-    USER_AGENT = _ConfigParamData("useragent", "upmpdcli")
+    SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM = _ConfigParamData(
+        "setclasstoalbumfornavigablealbum",
+        default_value=False,
+        description="Force the navigable album to have the album class")
+    DUMP_ALBUM_SORTABLE_DATE = _ConfigParamData(
+        "dumpalbumsortabledate",
+        default_value=False,
+        description="Show what is used for sorting by date in logs")
+    SHOW_PATHS_IN_ALBUM = _ConfigParamData(
+        "showpathsinalbum",
+        default_value=False,
+        description="Show album path in logs")
+    SHOW_ARTIST_ID = _ConfigParamData(
+        "showartistid",
+        default_value=False,
+        description="Show artist id in artist")
 
-    MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData("maxtracksfornodiscsplit", 60)
+    ARTIST_SEARCH_LIMIT = _ConfigParamData(
+        "artistsearchlimit",
+        default_value=50,
+        description="Max artists to show when searching")
+    ALBUM_SEARCH_LIMIT = _ConfigParamData(
+        "albumsearchlimit",
+        default_value=50,
+        description="Max albums to show when searching")
+    SONG_SEARCH_LIMIT = _ConfigParamData(
+        "songsearchlimit",
+        default_value=100,
+        description="Max songs to show when searching")
 
-    VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
+    ITEMS_PER_PAGE = _ConfigParamData(
+        "itemsperpage",
+        default_value=20,
+        description="Items per page")
+    MAX_ADDITIONAL_ARTISTS = _ConfigParamData(
+        "maxadditionalartists",
+        default_value=10,
+        description="Max additional artists shown without creating a dedicated entry")
+    MAX_ARTISTS_PER_PAGE = _ConfigParamData(
+        "maxartistsperpage",
+        default_value=20,
+        description="Artists per page")
+    MAX_ADDITIONAL_ALBUM_ARTISTS_PER_PAGE = _ConfigParamData(
+        "maxadditionalalbumartistsperpage",
+        default_value=10,
+        description="Max number of additional artists per page")
+    DUMP_STREAMING_PROPERTIES = _ConfigParamData(
+        "dumpstreamingproperties",
+        default_value=False,
+        description="Dump streaming properties to log")
+    APPEND_CODEC_TO_ALBUM = _ConfigParamData(
+        "appendcodecstoalbum",
+        default_value=True,
+        description="Show codec in album")
+    APPEND_ROLES_TO_ARTIST = _ConfigParamData(
+        "appendrolestoartist",
+        default_value=False,
+        description="Append roles to artist")
+    TRANSCODE_CODEC = _ConfigParamData(
+        "transcodecodec",
+        default_value="",
+        description="Transcode codec to use")
+    TRANSCODE_MAX_BITRATE = _ConfigParamData(
+        "transcodemaxbitrate",
+        default_value="",
+        description="Max bitrate to be used when transcoding")
+    DISABLE_NAVIGABLE_ALBUM = _ConfigParamData(
+        "disablenavigablealbum",
+        default_value=False,
+        description="Disable navigability for albums")
+    DUMP_EXPLICIT_STATUS = _ConfigParamData(
+        "dumpexplicitstatus",
+        default_value=False,
+        description="Dump explicit status to logs")
+    ENABLE_IMAGE_CACHING = _ConfigParamData(
+        "enableimagecaching",
+        default_value=False,
+        description="Enables the server to cache images locally")
+    SHOW_META_ALBUM_PATH = _ConfigParamData(
+        "showmetaalbumpath",
+        default_value=False,
+        description="Add album paths to upmpd metadata")
 
-    CACHED_ARTIST_LIST_CACHE_TIMEOUT_SEC = _ConfigParamData("cachedartistlistcachetimeoutsec", 300)
-    SEARCH_SIZE_ALBUM_LIBRARY_MAINTENANCE = _ConfigParamData("searchsizealbumlibrarymaintenance", 1000)
-    ENABLE_MAINTENANCE_FEATURES = _ConfigParamData("enablemaintenancefeatures", False)
-    MAINTENANCE_MAX_ALBUM_LOAD_SIZE = _ConfigParamData("maintenancemaxalbumloadsize", 3000)
+    ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData(
+        "enablecachedimageagelimit",
+        default_value=False,
+        description="Enables check on age for cached images")
+    CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData(
+        "cachedimagemaxagedays",
+        default_value=60,
+        description="If cache files are older than the specified max age, they are deleted on startup")
 
-    GENRE_VIEW_SEARCH_ALBUMS_FOR_COVER_ART = _ConfigParamData("genreviewsearchalbumsforcoverart", False)
-    ALLOW_ARTIST_COVER_ART = _ConfigParamData("allowartistcoverart", True)
+    SKIP_USER_AGENT = _ConfigParamData(
+        "skipuseragent",
+        default_value=False,
+        description="Skip specification of a custom user agent")
+    USER_AGENT = _ConfigParamData(
+        "useragent",
+        default_value="upmpdcli",
+        description="User agent for api calls")
 
-    ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowfavoritesforfrontpagetags", False)
-    ALLOW_SHUFFLE_RANDOM_ALBUM_FOR_FRONT_PAGE_TAGS = _ConfigParamData("allowshufflerandomalbumsforfrontpagetags", True)
+    MAX_TRACKS_FOR_NO_DISC_SPLIT = _ConfigParamData(
+        "maxtracksfornodiscsplit",
+        default_value=60,
+        description=("Maximum number of tracks, under this value the album will not "
+                     "be split to discs unless there are disc subtitles"))
 
-    DEFEAT_COVER_ART_URL = _ConfigParamData("defeatcoverarturl", False)
-    LOG_WITH_TIMESTAMP = _ConfigParamData("logwithtimestamp", True)
+    VERBOSE_LOGGING = _ConfigParamData(
+        "verboselogging",
+        default_value=False,
+        description="General verbose logging")
+
+    CACHED_ARTIST_LIST_CACHE_TIMEOUT_SEC = _ConfigParamData(
+        "cachedartistlistcachetimeoutsec",
+        default_value=300,
+        description="Timeout for cached artist list")
+    SEARCH_SIZE_ALBUM_LIBRARY_MAINTENANCE = _ConfigParamData(
+        "searchsizealbumlibrarymaintenance",
+        default_value=1000,
+        description="Maximum number of albums to search in maintenance features")
+    ENABLE_MAINTENANCE_FEATURES = _ConfigParamData(
+        "enablemaintenancefeatures",
+        default_value=False,
+        description="Enable maintenance features")
+    MAINTENANCE_MAX_ALBUM_LOAD_SIZE = _ConfigParamData(
+        "maintenancemaxalbumloadsize",
+        default_value=3000,
+        description="Max number of albums to load for a single page in order to avoid timeouts")
+
+    GENRE_VIEW_SEARCH_ALBUMS_FOR_COVER_ART = _ConfigParamData(
+        "genreviewsearchalbumsforcoverart",
+        default_value=False,
+        description="Search albums for cover art for genres view (it might be slow)")
+    ALLOW_ARTIST_COVER_ART = _ConfigParamData(
+        "allowartistcoverart",
+        default_value=True,
+        description=("Allow to use coverArt from subsonic api for artist art. "
+                     "Usually it's safe to enable. Can be slow on navidrome when spotify "
+                     "is integrated because of throttling"))
+    ALLOW_FAVORITES_FOR_FRONT_PAGE_TAGS = _ConfigParamData(
+        "allowfavoritesforfrontpagetags",
+        default_value=False,
+        description="Allow to use favorites when searching images to apply to the initial view entries")
+    ALLOW_SHUFFLE_RANDOM_ALBUM_FOR_FRONT_PAGE_TAGS = _ConfigParamData(
+        "allowshufflerandomalbumsforfrontpagetags",
+        default_value=True,
+        description="Allow to shuffle random albums when selecting image for initial view entries")
+
+    DEFEAT_COVER_ART_URL = _ConfigParamData(
+        "defeatcoverarturl",
+        default_value=False,
+        description="Allows to entirely defeat loading of cover art")
+    LOG_WITH_TIMESTAMP = _ConfigParamData(
+        "logwithtimestamp",
+        default_value=True,
+        description="Adds a timestamp to log entries")
+
+    # 250 seems a good compromise, still quite fast
+    # 500 is still the absolute max
+    MAX_RANDOM_SONG_LIST_SIZE = _ConfigParamData(
+        "maxrandomsonglistsize",
+        default_value=250,
+        description="Max number of random songs to display")
+
+    SET_ALBUM_ARTIST_ROLE_ALBUMARTIST = _ConfigParamData(
+        "setalbumartistrolealbumartist",
+        default_value=False,
+        description="Enable set the role 'albumartist' in album")
+
+    ALLOW_SONG_DIDL_ALBUMARTIST = _ConfigParamData(
+        "allowsongdidlalbumartist",
+        default_value=True,
+        description="Allow to add DIDL fragment for album artist in song")
 
     @property
     def key(self) -> str:
@@ -191,6 +434,10 @@ class ConfigParam(Enum):
     @property
     def default_value(self) -> any:
         return self.value.default_value
+
+    @property
+    def description(self) -> str:
+        return self.value.description
 
 
 class _TranscodingInfoData:

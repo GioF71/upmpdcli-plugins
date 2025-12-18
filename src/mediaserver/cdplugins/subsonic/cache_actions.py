@@ -92,6 +92,32 @@ def on_album(album: subsonic_connector.album.Album):
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
+def get_artist_id_list_by_display_name(artist_name: str):
+    artist_id_list_joined: str = cache_manager_provider.get().get_cached_element(
+        cache_name=cache_type.CacheType.ARTIST_ID_BY_DISPLAY_NAME.getName(),
+        key=artist_name)
+    return subsonic_util.id_list_split(artist_id_list_joined) if artist_id_list_joined else []
+
+
+def store_artist_id_list_by_artist_name(album: subsonic_connector.album.Album):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    # update artist id mapped by the artist_display_name
+    artist_display_name: str = subsonic_util.get_album_display_artist(album=album)
+    artist_id_list: list[str] = list(map(lambda x: x.id, subsonic_util.get_artists_in_song_or_album(
+        obj=album,
+        item_key=constants.ItemKey.ARTISTS)))
+    # actually cache
+    joined: str = subsonic_util.id_list_join(artist_id_list)
+    cache_manager_provider.get().cache_element_value(
+        cache_name=cache_type.CacheType.ARTIST_ID_BY_DISPLAY_NAME.getName(),
+        key=artist_display_name,
+        value=joined)
+    if verbose:
+        msgproc.log(f"store_artist_id_list_by_artist_name album_id [{album.getId()}] "
+                    f"artist_display_name [{artist_display_name}] -> "
+                    f"[{joined}]")
+
+
 def __on_album(album: subsonic_connector.album.Album):
     if not album or not album.getId():
         return
@@ -102,6 +128,8 @@ def __on_album(album: subsonic_connector.album.Album):
             key=album.getArtistId(),
             value=album.getId())
     artist_id: str = album.getArtistId()
+    # update artist id by display_artist
+    store_artist_id_list_by_artist_name(album=album)
     # musicbrainz album id
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
     album_path_joined: str = album_util.get_album_path_list_joined(album=album)

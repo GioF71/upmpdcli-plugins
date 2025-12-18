@@ -310,6 +310,8 @@ def album_to_navigable_entry(
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
     cache_actions.on_album(album=album)
+    # update artist id by display_artist
+    cache_actions.store_artist_id_list_by_artist_name(album=album)
     return entry
 
 
@@ -526,6 +528,7 @@ def song_to_entry(
         song: Song,
         force_cover_art_save: bool = False,
         options: dict[str, any] = {}) -> dict:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
     id: str = identifier_util.create_objid(
@@ -542,7 +545,7 @@ def song_to_entry(
         config.allow_blacklisted_codec_in_song == 1 and
             (not song.getSuffix().lower() in config.whitelist_codecs)):
         title = "{} [{}]".format(title, song.getSuffix())
-    upnp_util.set_album_title(title, entry)
+    upnp_util.set_track_title(title, entry)
     entry['tp'] = 'it'
     entry['discnumber'] = song.getDiscNumber()
     track_num: str = song.getTrack()
@@ -553,13 +556,15 @@ def song_to_entry(
     upnp_util.set_artist(subsonic_util.get_song_display_artist(song=song), entry)
     song_album_artist: str = subsonic_util.get_song_display_album_artist(song=song)
     if song_album_artist:
-        msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
-        upnp_util.set_didlfrag(
-            didlfrag=upnp_util.build_didlfrag(
-                key="upnp:artist",
-                role="AlbumArtist",
-                value=song_album_artist),
-            target=entry)
+        if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_SONG_DIDL_ALBUMARTIST):
+            if verbose:
+                msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
+            upnp_util.set_didlfrag(
+                didlfrag=upnp_util.build_didlfrag(
+                    key="upnp:artist",
+                    role="AlbumArtist",
+                    value=song_album_artist),
+                target=entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
@@ -763,6 +768,12 @@ def album_to_entry(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
+    didl_fragment: str = ""
+    # add album artist
+    if config.get_config_param_as_bool(constants.ConfigParam.SET_ALBUM_ARTIST_ROLE_ALBUMARTIST):
+        didl_fragment += upnp_util.build_didlfrag(key="upnp:artist", role="albumartist", value=artist)
+    if didl_fragment:
+        upnp_util.set_didlfrag(didlfrag=didl_fragment, target=entry)
     # we save the cover art even if it's already there
     cover_art_url: str = subsonic_util.build_cover_art_url(item_id=album.getCoverArt(), force_save=True)
     upnp_util.set_album_art_from_uri(cover_art_url, entry)
