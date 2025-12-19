@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.25
+
+- Add song information like mimetype, sampleFrequency, bitsPerSample, and nrAudioChannels also when responding to ElementType.TRACK (BrowseMetadata)
+- General code cleanup, fixes and optimizations
+
 ## Release 0.8.24
 
 - Support BubbleUPnP searches: add ability to search albums by song title

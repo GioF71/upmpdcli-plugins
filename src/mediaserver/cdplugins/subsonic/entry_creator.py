@@ -523,6 +523,56 @@ def build_intermediate_url(track_id: str, suffix: str) -> str:
             max_bitrate=tr_bitrate)
 
 
+def set_song_quality_flags(song: Song, entry: dict[str, any]):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    # declaring channel count, bit depth, sample rate and bit rate
+    cc: int = 2
+    bd: int = 0
+    sr: int = 0
+    br: int = 0
+    mimetype: str = ""
+    cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
+    upnp_util.set_channel_count(cc, entry)
+    bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
+    sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
+    upnp_util.set_sample_rate(sr, entry)
+    # will transcoding be applied?
+    tr_format: str = config.get_transcode_codec()
+    tr_bitrate: int = config.get_transcode_max_bitrate()
+    transcoding_applies: bool = tr_format is not None and song.getSuffix() and tr_format.lower() != song.getSuffix().lower()
+    if verbose:
+        msgproc.log(f"set_song_quality_flags transcoding applies [{transcoding_applies}] "
+                    f"song_suffix [{song.getSuffix()}] "
+                    f"tr_format [{tr_format}] -> "
+                    f"[{transcoding_applies}]")
+    if transcoding_applies:
+        # transcoding applies
+        # we set values from transcoding configuration
+        br = tr_bitrate
+        upnp_util.set_bit_rate(tr_bitrate, entry)
+        # set bitdepth
+        tr_bitdepth: int = constants.get_default_bitdepth_by_codec(tr_format)
+        if verbose:
+            msgproc.log(f"set_song_quality_flags tr_bitdepth for [{tr_format}] -> [{tr_bitdepth}]")
+        # update bd with tr_bitdepth if meaningful
+        bd = tr_bitdepth if tr_bitdepth else bd
+        upnp_util.set_bit_depth(bd, entry)
+        # guess mime type from suffx
+        guessed_mimetype: Optional[str] = subsonic_util.get_mime_type_from_extension(tr_format)
+        if verbose:
+            msgproc.log(f"set_song_quality_flags guessed_mimetype from tr_format [{tr_format}]: [{guessed_mimetype}]")
+        mimetype = guessed_mimetype
+        upnp_util.set_mimetype(mimetype, entry)
+    else:
+        # transcoding does not apply
+        upnp_util.set_bit_depth(bd, entry)
+        br = song.getBitRate()
+        upnp_util.set_bit_rate(br, entry)
+        # mime type from song itself
+        mimetype = song.getContentType()
+        upnp_util.set_mimetype(mimetype, entry)
+
+
 def song_to_entry(
         objid,
         song: Song,
@@ -570,56 +620,9 @@ def song_to_entry(
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
     upnp_util.set_album_art_from_uri(album_art_uri=album_art_uri, target=entry)
     entry['duration'] = str(song.getDuration())
-    # declaring channel count, bit depth, sample rate and bit rate
-    cc: int = 2
-    bd: int = 0
-    sr: int = 0
-    br: int = 0
-    mimetype: str = ""
-    cc = song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
-    upnp_util.set_channel_count(cc, entry)
-    bd = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-    sr = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-    upnp_util.set_sample_rate(sr, entry)
-    # will transcoding be applied?
-    tr_format: str = config.get_transcode_codec()
-    tr_bitrate: int = config.get_transcode_max_bitrate()
-    transcoding_applies: bool = tr_format and song.getSuffix() and tr_format.lower() != song.getSuffix().lower()
-    msgproc.log(f"song_to_entry transcoding applies song_suffix [{song.getSuffix()}] "
-                f"tr_format [{tr_format}] -> "
-                f"[{transcoding_applies}]")
-    if transcoding_applies:
-        # transcoding applies
-        # we set values from transcoding configuration
-        br = tr_bitrate
-        upnp_util.set_bit_rate(tr_bitrate, entry)
-        # set bitdepth
-        tr_bitdepth: int = constants.get_default_bitdepth_by_codec(tr_format)
-        msgproc.log(f"tr_bitdepth for [{tr_format}] -> [{tr_bitdepth}]")
-        # update bd with tr_bitdepth if meaningful
-        bd = tr_bitdepth if tr_bitdepth else bd
-        upnp_util.set_bit_depth(bd, entry)
-        # guess mime type from suffx
-        guessed_mimetype: Optional[str] = subsonic_util.get_mime_type_from_extension(tr_format)
-        msgproc.log(f"song_to_entry guessed_mimetype from tr_format [{tr_format}]: [{guessed_mimetype}]")
-        mimetype = guessed_mimetype
-        upnp_util.set_mimetype(mimetype, entry)
-    else:
-        # transcoding does not apply
-        upnp_util.set_bit_depth(bd, entry)
-        br = song.getBitRate()
-        upnp_util.set_bit_rate(br, entry)
-        # mime type from song itself
-        mimetype = song.getContentType()
-        upnp_util.set_mimetype(mimetype, entry)
-    if config.get_config_param_as_bool(constants.ConfigParam.DUMP_STREAMING_PROPERTIES):
-        msgproc.log(f"Song [{song.getId()}] -> "
-                    f"bitDepth [{bd}] "
-                    f"samplingRate [{sr}] "
-                    f"bitRate [{br}] "
-                    f"channelCount [{cc}] "
-                    f"mimetype [{mimetype}] "
-                    f"duration [{song.getDuration()}]")
+    set_song_quality_flags(song=song, entry=entry)
+    if verbose:
+        msgproc.log(f"song_to_entry song id [{song.getId()}] -> [{entry}]")
     subsonic_util.set_song_metadata(song=song, target=entry)
     return entry
 
