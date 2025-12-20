@@ -22,11 +22,12 @@ You should have a look at the online manual for more complete information:
 .BI "logfilename = "fn
 Log file
 name. Defaults to stderr. This can also be specified as -d
-logfilename.
+logfilename. Some plugins use different files or stderr to log their messages to.
 .TP
 .BI "loglevel = "int
 Log
-level. Can also be specified as -l loglevel.
+level. Can also be specified as -l loglevel. Some plugins have their own settings that
+control log verbosity.
 .TP
 .BI "upnplogfilename = "fn
 Enable low level libnpupnp logging and set output name. Set to empty for stderr. This log is not active if this variable is not set at all. Use an empty value for
@@ -338,15 +339,27 @@ server. Using localhost/127.0.0.1 instead loses the ability to stream to
 a remote renderer, but allows for portable playlists.
 .TP
 .BI "plgmicrohttpport = "int
-IP port for the tidal/qobuz local HTTP service. The URLs for tracks streamed from these services point to a local
-microhttpd server running on this port (it uses redirection to the actual
-service URL when actually streaming). The default is 49149.
+IP port for Subsonic, Tidal, or Qobuz local HTTP service. The URLs for tracks streamed from these services point to a local
+microhttpd HTTP server running on this port. It uses redirection
+to the actual service URL, or proxying from it, during streaming.
+The default is 49149.
 .TP
 .BI "plgproxymethod = "string
-Decide if we proxy (copy: fetch/serve), or redirect the streaming
-services streams. Using redirect is much more efficient,
-but the proxy has a facility to retry when a stream is dropped by the
-service, which seems to happen esp. with Qobuz.
+Decide if we proxy (copy from the service to the renderer), or redirect the streaming
+services streams. This setting is related to response handling from a streaming service, e.g. Subsonic,
+Tidal, or Qobuz. The URLs, that these services offer, are usually short-lived, therefore they
+can't be part of a playlist. upmpdcli hides these resources behind a stable URL that is
+presented to the renderer (player).
+
+With the "redirect" default setting, the stable URL becomes an HTTP 302 redirection, pointing
+to the original streaming resource. The renderer has to resolve this redirection and then can
+stream from the original location. Some renderers, e.g. AV receivers, are not able to follow
+an HTTP redirection.
+
+With the "proxy" setting, the original URL remains concealed and there's no redirection.
+upmpdcli reads the music from the remote service, and serves it to the renderer in parallel.
+It requires more resources compared to the redirection and is less efficient, but some renderers
+do not support HTTP redirection.
 .TP
 .BI "msiconpath = "fn
 Path to the Media Server icon. The image will be displayed by Control Points which support
@@ -591,7 +604,15 @@ Append year to album as search result If enabled, the year will be appended to t
 Append roles to artists If enabled, the artist roles will be appended to artist entries. Enabled by default.
 .TP
 .BI "subsonictranscodecodec = "string
-Enable transcoding If a value is set, it will be used as the codec for the transcoding process
+Enable transcoding If a value is set, it will be used as the codec for the transcoding process.
+The value should be the file extension of the desired format (without the leading dot), e.g. "mp3"
+or "flac" as this will provide the ground for communicating the correct MIME type to the renderer.
+
+This is a free-form text that's used in the communication between the Subsonic server (e.g. Navidrome)
+and upmpdcli. The server must have the corresponding entry for this format value to start the assigned
+transcoding command.
+
+Transcoding doesn't happen for files that are already in the required format.
 .TP
 .BI "subsonictranscodemaxbitrate = "int
 Set max bitrate for transcoding If a value is set, it will be used as the max bitrate for the transcoding process
@@ -645,6 +666,10 @@ Enables maintenance features, e.g. list albums without MusicBrainz Id Set it to 
 .BI "subsonicartistalbumnewestfirst = "bool
 Show artist albums from newest to older if left empty or set to 1 Allows to change sort order to artist albums. Set it to 0 if you want the order
 to be ascending instead of descending (default)
+.TP
+.BI "subsonicmaxrandomsonglistsize = "int
+Number of songs in Random Songs (list) Set the maximum number of songs in Random Songs (list),
+defaults to 250, cannot be more than 500
 .TP
 .BI "bbcuser = "string
 Bogus user name variable. Set this to activate the plugin, the value is ignored.
