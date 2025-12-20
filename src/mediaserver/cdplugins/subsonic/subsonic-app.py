@@ -280,7 +280,9 @@ def _station_to_entry(
 
 
 def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
-    msgproc.log("entering _song_data_to_entry ...")
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    if verbose:
+        msgproc.log(f"entering _song_data_to_entry for song id [{song.getId()}] ...")
     entry: dict[str, any] = {}
     entry['id'] = entry_id
     entry['pid'] = song.getId()
@@ -301,6 +303,9 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
         album_art_uri=subsonic_util.build_cover_art_url(item_id=song.getCoverArt()),
         target=entry)
     entry['duration'] = str(song.getDuration())
+    entry_creator.set_song_quality_flags(song=song, entry=entry)
+    if verbose:
+        msgproc.log(f"_song_data_to_entry song id [{song.getId()}] -> [{entry}]")
     return entry
 
 

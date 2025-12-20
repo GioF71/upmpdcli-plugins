@@ -83,9 +83,23 @@ def set_date_str(date_str: str, target: dict):
     target['dc:date'] = date_str
 
 
+def get_as_int(entry_key: str, entry: dict) -> int:
+    v: str = (entry[entry_key]
+              if entry_key in entry else None)
+    return int(v) if v else None
+
+
+def get_bit_depth(entry: dict) -> int:
+    return get_as_int(entry_key="res:bitsPerSample", entry=entry)
+
+
 def set_bit_depth(bit_depth: int, target: dict):
     if bit_depth:
-        target['res:bitsPerSample'] = str(bit_depth)
+        target["res:bitsPerSample"] = str(bit_depth)
+
+
+def get_channel_count(entry: dict) -> int:
+    return get_as_int(entry_key="res:channels", entry=entry)
 
 
 def set_channel_count(channel_count: int, target: dict):
@@ -93,15 +107,26 @@ def set_channel_count(channel_count: int, target: dict):
         target['res:channels'] = str(channel_count)
 
 
+def get_sample_reate(entry: dict) -> int:
+    return get_as_int(entry_key="res:samplefreq", entry=entry)
+
+
 def set_sample_rate(sample_rate: int, target: dict):
     if sample_rate:
         target['res:samplefreq'] = str(sample_rate)
+
+
+def get_bit_rate(entry: dict) -> int:
+    return get_as_int(entry_key="kbs", entry=entry)
 
 
 def set_bit_rate(bit_rate: int, target: dict):
     if bit_rate:
         target['kbs'] = str(bit_rate)
 
+
+def get_mimetype(entry: dict[str, any]) -> str:
+    return entry["res:mime"] if "res:mime" in entry else None
 
 def set_mimetype(mimetype: str, target: dict):
     if mimetype:
