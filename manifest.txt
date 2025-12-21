@@ -190,6 +190,7 @@ src/mediaserver/cdplugins/subsonic/connector_provider.py
 src/mediaserver/cdplugins/subsonic/constants.py
 src/mediaserver/cdplugins/subsonic/element_type.py
 src/mediaserver/cdplugins/subsonic/entry_creator.py
+src/mediaserver/cdplugins/subsonic/generate_config-md.py
 src/mediaserver/cdplugins/subsonic/identifier_util.py
 src/mediaserver/cdplugins/subsonic/images/
 src/mediaserver/cdplugins/subsonic/images/static/

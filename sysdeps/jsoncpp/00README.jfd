@@ -1,5 +1,5 @@
-This directory is only used on Windows, we use the distribution libjsoncpp
-on Linux.
+This directory is only used for the little maintained Mac OS port, we use the distribution
+libjsoncpp on Linux.
 
 Directory produced by jsoncpp's "python amalgamate.py" on the
 master branch @ 2baad492
