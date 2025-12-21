@@ -21,6 +21,7 @@ from subsonic_connector.artist import Artist
 from subsonic_connector.playlist import Playlist
 from subsonic_connector.response import Response
 from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist_entry import PlaylistEntry
 
 from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
@@ -309,6 +310,8 @@ def album_to_navigable_entry(
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
+    else:
+        upnp_util.set_class(upnp_class="object.container", target=entry)
     cache_actions.on_album(album=album)
     # update artist id by display_artist
     cache_actions.store_artist_id_list_by_artist_name(album=album)
@@ -523,7 +526,7 @@ def build_intermediate_url(track_id: str, suffix: str) -> str:
             max_bitrate=tr_bitrate)
 
 
-def set_song_quality_flags(song: Song, entry: dict[str, any]):
+def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, any]):
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     # declaring channel count, bit depth, sample rate and bit rate
     cc: int = 2
@@ -571,6 +574,8 @@ def set_song_quality_flags(song: Song, entry: dict[str, any]):
         # mime type from song itself
         mimetype = song.getContentType()
         upnp_util.set_mimetype(mimetype, entry)
+        # size is known
+        upnp_util.set_size(subsonic_util.get_size(obj=song), entry)
 
 
 def song_to_entry(

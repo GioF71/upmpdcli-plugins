@@ -494,6 +494,16 @@ def get_albums(
             ltype=ListType.HIGHEST,
             size=size,
             offset=offset)
+    elif TagType.ALPHABETICAL_BY_NAME_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.ALPHABETICAL_BY_NAME,
+            size=size,
+            offset=offset)
+    elif TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.getQueryType() == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.ALPHABETICAL_BY_ARTIST,
+            size=size,
+            offset=offset)
     elif TagType.FAVORITE_ALBUMS.getQueryType() == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.STARRED,
@@ -921,6 +931,10 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
         return True
     else:
         return False
+
+
+def get_size(obj: Song) -> str:
+    return obj.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
 
 
 def get_explicit_status(album: Album) -> str:

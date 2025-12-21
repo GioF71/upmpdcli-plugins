@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.26
+
+- ALLOW_SONG_DIDL_ALBUMARTIST (subsonicallowsongdidlalbumartist) to default to 0, as it breaks scrobblers
+- Add support for GetAlbumList2 with type alphabeticalByName and alphabeticalByArtist
+- Correct res entry from kbs to res:bitrate in streaming information
+- Add support for size in streaming information, but only when there is no transcoding for now
+
 ## Release 0.8.25
 
 - Add song information like mimetype, sampleFrequency, bitsPerSample, and nrAudioChannels also when responding to ElementType.TRACK (BrowseMetadata)

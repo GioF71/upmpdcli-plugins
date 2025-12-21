@@ -111,6 +111,8 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): False,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
     TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
+    TagType.ALPHABETICAL_BY_NAME_ALBUMS.getTagName(): False,
+    TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.getTagName(): False,
     TagType.RANDOM.getTagName(): False,
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): False,
     TagType.ALBUMS_WITHOUT_COVER.getTagName(): False,
@@ -499,11 +501,11 @@ def _load_albums_by_type(
     roundtrip_elapsed: float = time.time() - roundtrip_start
     msgproc.log(f"_load_albums_by_type roundtrip [{roundtrip_elapsed:.3f}] "
                 f"api [{req_elapsed:.3f}] "
-                f"proc total: (cnt [{len(total_elapsed_list)}] "
+                f"proc total [{sum(total_elapsed_list):.3f}] (cnt [{len(total_elapsed_list)}] "
                 f"avg [{statistics.fmean(total_elapsed_list):.3f}] "
                 f"min [{min(total_elapsed_list):.3f}] "
                 f"max [{max(total_elapsed_list):.3f}]) "
-                f"proc caching: (cnt [{len(caching_elapsed_list)}] "
+                f"proc caching (portion of proc) [{sum(caching_elapsed_list):.3f}] (cnt [{len(caching_elapsed_list)}] "
                 f"avg [{statistics.fmean(caching_elapsed_list):.3f}] "
                 f"min [{min(caching_elapsed_list):.3f}] "
                 f"max [{max(caching_elapsed_list):.3f}])")
@@ -728,14 +730,7 @@ def _playlist_entry_to_entry(
         target=entry)
     entry['duration'] = str(playlist_entry.getDuration())
     # add track quality information
-    cc = playlist_entry.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
-    upnp_util.set_channel_count(cc, entry)
-    bd: int = playlist_entry.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-    upnp_util.set_bit_depth(bd, entry)
-    sr = playlist_entry.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-    upnp_util.set_sample_rate(sr, entry)
-    br = playlist_entry.getBitRate()
-    upnp_util.set_bit_rate(br, entry)
+    entry_creator.set_song_quality_flags(song=playlist_entry, entry=entry)
     return entry
 
 
@@ -945,6 +940,14 @@ def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, en
 
 def handler_tag_newest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST_ALBUMS, entries)
+
+
+def handler_tag_alphabetical_by_name_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.ALPHABETICAL_BY_NAME_ALBUMS, entries)
+
+
+def handler_tag_alphabetical_by_artist_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.ALPHABETICAL_BY_ARTIST_ALBUMS, entries)
 
 
 def handler_tag_oldest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -2760,6 +2763,8 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
         TagType.RECENTLY_PLAYED_ALBUMS,
         TagType.HIGHEST_RATED_ALBUMS,
         TagType.MOST_PLAYED_ALBUMS,
+        TagType.ALPHABETICAL_BY_NAME_ALBUMS,
+        TagType.ALPHABETICAL_BY_ARTIST_ALBUMS,
         TagType.RANDOM]
     add_fav: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
     if not add_fav:
@@ -2900,6 +2905,8 @@ __tag_action_dict: dict = {
     TagType.SONGS.getTagName(): handler_tag_group_songs,
     TagType.RECENTLY_ADDED_ALBUMS.getTagName(): handler_tag_recently_added_albums,
     TagType.NEWEST_ALBUMS.getTagName(): handler_tag_newest_albums,
+    TagType.ALPHABETICAL_BY_NAME_ALBUMS.getTagName(): handler_tag_alphabetical_by_name_albums,
+    TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.getTagName(): handler_tag_alphabetical_by_artist_albums,
     TagType.OLDEST_ALBUMS.getTagName(): handler_tag_oldest_albums,
     TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): handler_tag_recently_played,
     TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,

@@ -26,6 +26,8 @@ class TagType(Enum):
     MOST_PLAYED_ALBUMS = 150, "mp", "Most Played Albums", "frequent"
     NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
     OLDEST_ALBUMS = 156, "ldst", "Oldest Albums", "byYear"
+    ALPHABETICAL_BY_NAME_ALBUMS = 157, "lphnmlbm", "Alphabetical By Name", "alphabeticalByName"
+    ALPHABETICAL_BY_ARTIST_ALBUMS = 158, "lphrtstlbm", "Alphabetical By Artist", "alphabeticalByArtist"
     RANDOM = 160, "r", "Random Albums", "random"
     ALBUMS_WITHOUT_MUSICBRAINZ = 161, "lwb", "Albums without MusicBrainz", None
     ALBUMS_WITHOUT_COVER = 162, "lwc", "Albums without CoverArt", None
