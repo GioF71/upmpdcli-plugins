@@ -90,7 +90,8 @@ def get_as_int(entry_key: str, entry: dict) -> int:
 
 
 def set_bit_depth(bit_depth: int, target: dict):
-    if bit_depth:
+    # we avoid to set bitDepth to 0
+    if bit_depth is not None and bit_depth != 0:
         target["res:bitsPerSample"] = str(bit_depth)
 
 

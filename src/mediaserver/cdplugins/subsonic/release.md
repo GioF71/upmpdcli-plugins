@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.27
+
+- Avoid to set bitDepth to 0 (lossy streams)
+- Updated config.md to reflect default value changes for `allowsongdidlalbumartist`
+
 ## Release 0.8.26
 
 - ALLOW_SONG_DIDL_ALBUMARTIST (subsonicallowsongdidlalbumartist) to default to 0, as it breaks scrobblers
