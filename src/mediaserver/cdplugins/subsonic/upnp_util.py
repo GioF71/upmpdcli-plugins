@@ -106,7 +106,7 @@ def set_sample_rate(sample_rate: int, target: dict):
 
 
 def set_bit_rate(bit_rate: int, target: dict):
-    if bit_rate:
+    if bit_rate is not None and bit_rate != 0:
         target["res:bitrate"] = str(bit_rate)
 
 

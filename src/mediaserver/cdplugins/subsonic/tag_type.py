@@ -14,76 +14,86 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+import idgenerator
+
+base_chars: str = "abcdefghijklmnopqrtuvwxyz0123456789"
+current_id: int = None
+
+
+class _TagTypeData:
+
+    def __init__(self, tag_title: str, query_type: str = None):
+        global current_id
+        if current_id is None:
+            current_id = 0
+        else:
+            current_id += 1
+        self.__tag_name: str = idgenerator.number_to_base_decoded(n=current_id, base_chars=base_chars)
+        self.__tag_title: str = tag_title
+        self.__query_type: str = query_type
+
+    @property
+    def tag_name(self) -> str:
+        return self.__tag_name
+
+    @property
+    def tag_title(self) -> str:
+        return self.__tag_title
+
+    @property
+    def query_type(self) -> str:
+        return self.__query_type
 
 
 class TagType(Enum):
 
-    ALBUMS = 100, "glbms", "Albums", None
-    RECENTLY_ADDED_ALBUMS = 110, "n", "Recently Added Albums", "newest"
-    RECENTLY_PLAYED_ALBUMS = 120, "rp", "Recently Played Albums", "recent"
-    HIGHEST_RATED_ALBUMS = 130, "hr", "Highest Rated Albums", "highest"
-    FAVORITE_ALBUMS = 140, "fav", "Favorite Albums", "starred"
-    MOST_PLAYED_ALBUMS = 150, "mp", "Most Played Albums", "frequent"
-    NEWEST_ALBUMS = 155, "nwst", "Newest Albums", "byYear"
-    OLDEST_ALBUMS = 156, "ldst", "Oldest Albums", "byYear"
-    ALPHABETICAL_BY_NAME_ALBUMS = 157, "lphnmlbm", "Alphabetical By Name", "alphabeticalByName"
-    ALPHABETICAL_BY_ARTIST_ALBUMS = 158, "lphrtstlbm", "Alphabetical By Artist", "alphabeticalByArtist"
-    RANDOM = 160, "r", "Random Albums", "random"
-    ALBUMS_WITHOUT_MUSICBRAINZ = 161, "lwb", "Albums without MusicBrainz", None
-    ALBUMS_WITHOUT_COVER = 162, "lwc", "Albums without CoverArt", None
-    ALBUMS_WITHOUT_GENRE = 163, "lwg", "Albums without Genre", None
-    ARTISTS = 200, "grtsts", "Artists", None
-    ALL_ARTISTS = 212, "llrtsts", "All Artists (Sorted) (slow!)", None
-    ALL_ARTISTS_INDEXED = 221, "ll_ndx", "All Artists (By Initial) (slow!)", None
-    ALL_ARTISTS_UNSORTED = 222, "ll_nst", "All Artists", None
-    ALL_ALBUM_ARTISTS_UNSORTED = 223, "lllbmrtst_nst", "Album Artists", None
-    ALL_COMPOSERS_UNSORTED = 224, "cmpsrs_nst", "Composers", None
-    ALL_CONDUCTORS_UNSORTED = 225, "cndctrs_nst", "Conductors", None
-    FAVORITE_ARTISTS = 230, "fav_rtsts", "Favorite Artists", "starred"
-    SONGS = 300, "gsngs", "Songs", None,
-    RANDOM_SONGS = 310, "rs", "Random Songs", None,
-    RANDOM_SONGS_LIST = 320, "rsl", "Random Songs (List)", None
-    FAVORITE_SONGS = 330, "fs", "Favorite Songs", None,
-    FAVORITE_SONGS_LIST = 340, "fsl", "Favorite Songs (List)", None,
-    GENRES = 400, "g", "Genres", None
-    PLAYLISTS = 500, "pl", "Playlists", None
-    INTERNET_RADIOS = 600, "ir", "Internet Radios", None
+    ALBUMS = _TagTypeData("Albums", None)
+    RECENTLY_ADDED_ALBUMS = _TagTypeData("Recently Added Albums", query_type="newest")
+    RECENTLY_PLAYED_ALBUMS = _TagTypeData("Recently Played Albums", query_type="recent")
+    HIGHEST_RATED_ALBUMS = _TagTypeData("Highest Rated Albums", query_type="highest")
+    FAVORITE_ALBUMS = _TagTypeData("Favorite Albums", query_type="starred")
+    MOST_PLAYED_ALBUMS = _TagTypeData("Most Played Albums", query_type="frequent")
+    NEWEST_ALBUMS = _TagTypeData("Newest Albums", query_type="byYear")
+    OLDEST_ALBUMS = _TagTypeData("Oldest Albums", query_type="byYear")
+    ALPHABETICAL_BY_NAME_ALBUMS = _TagTypeData("Alphabetical By Name", query_type="alphabeticalByName")
+    ALPHABETICAL_BY_ARTIST_ALBUMS = _TagTypeData("Alphabetical By Artist", query_type="alphabeticalByArtist")
+    RANDOM = _TagTypeData("Random Albums", query_type="random")
+    ALBUMS_WITHOUT_MUSICBRAINZ = _TagTypeData("Albums without MusicBrainz")
+    ALBUMS_WITHOUT_COVER = _TagTypeData("Albums without CoverArt")
+    ALBUMS_WITHOUT_GENRE = _TagTypeData("Albums without Genre")
+    ARTISTS = _TagTypeData("Artists")
+    ALL_ARTISTS = _TagTypeData("All Artists (Sorted) (slow!)")
+    ALL_ARTISTS_INDEXED = _TagTypeData("All Artists (By Initial) (slow!)")
+    ALL_ARTISTS_UNSORTED = _TagTypeData("All Artists")
+    ALL_ALBUM_ARTISTS_UNSORTED = _TagTypeData("Album Artists")
+    ALL_COMPOSERS_UNSORTED = _TagTypeData("Composers")
+    ALL_CONDUCTORS_UNSORTED = _TagTypeData("Conductors")
+    FAVORITE_ARTISTS = _TagTypeData("Favorite Artists", "starred")
+    SONGS = _TagTypeData("Songs")
+    RANDOM_SONGS = _TagTypeData("Random Songs")
+    RANDOM_SONGS_LIST = _TagTypeData("Random Songs (List)")
+    FAVORITE_SONGS = _TagTypeData("Favorite Songs")
+    FAVORITE_SONGS_LIST = _TagTypeData("Favorite Songs (List)")
+    GENRES = _TagTypeData("Genres")
+    PLAYLISTS = _TagTypeData("Playlists")
+    INTERNET_RADIOS = _TagTypeData("Internet Radios")
 
-    def __init__(
-            self,
-            num: int,
-            tag_name: str,
-            tag_title: str,
-            query_type: str):
-        self.num: int = num
-        self.tag_name: str = tag_name
-        self.tag_title: str = tag_title
-        self.query_type: str = query_type
+    @property
+    def tag_name(self) -> str:
+        return self.value.tag_name
 
-    def getTagName(self) -> str:
-        return self.tag_name
+    @property
+    def tag_title(self) -> str:
+        return self.value.tag_title
 
-    def getTagTitle(self) -> str:
-        return self.tag_title
-
-    def getQueryType(self) -> str:
-        return self.query_type
+    @property
+    def query_type(self) -> str:
+        return self.value.query_type
 
 
 def get_tag_type_by_name(tag_name: str) -> TagType:
-    for _, member in TagType.__members__.items():
-        if tag_name == member.getTagName():
-            return member
+    tag: TagType
+    for tag in TagType:
+        if tag_name == tag.tag_name:
+            return tag
     raise Exception(f"get_tag_type_by_name with {tag_name} NOT found")
-
-
-# duplicate check
-name_checker_set: set[str] = set()
-id_checker_set: set[int] = set()
-for v in TagType:
-    if v.getTagName() in name_checker_set:
-        raise Exception(f"Duplicated name [{v.getTagName()}]")
-    if v.value[0] in id_checker_set:
-        raise Exception(f"Duplicated id [{v.value[0]}]")
-    name_checker_set.add(v.getTagName())
-    id_checker_set.add(v.value[0])

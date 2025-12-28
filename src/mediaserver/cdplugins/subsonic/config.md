@@ -84,3 +84,5 @@ logwithtimestamp|Adds a timestamp to log entries|True
 maxrandomsonglistsize|Max number of random songs to display|250
 setalbumartistrolealbumartist|Enable set the role 'albumartist' in album|False
 allowsongdidlalbumartist|Allow to add DIDL fragment for album artist in song|False
+skipintermediateurl|Avoid to create URLs that will be redirected to the trackuri method|False
+skiprandomid|Generate a random id on each identifier entry, might be useful with Linn Kazoo|True

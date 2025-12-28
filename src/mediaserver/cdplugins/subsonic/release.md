@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.28
+
+- Avoid to set bitRate to 0
+- Move configuration variable `skipintermediateurl` to ConfigParam
+- Create configuration `skiprandomid`, if disabled, the length of IDs is reduced
+- Reduced length of many ElementType
+- ElementType names are now auto-generated, as short as possible
+- TagType names are now auto-generated, as short as possible
+- General code cleanup, fixes and optimizations
+
 ## Release 0.8.27
 
 - Avoid to set bitDepth to 0 (lossy streams)

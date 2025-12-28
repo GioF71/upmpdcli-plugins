@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.27"
+    PLUGIN_RELEASE = "0.8.28"
     PLUGIN_NAME = "subsonic"
 
 
@@ -427,6 +427,17 @@ class ConfigParam(Enum):
         "allowsongdidlalbumartist",
         default_value=False,
         description="Allow to add DIDL fragment for album artist in song")
+
+    SKIP_INTERMEDIATE_URL = _ConfigParamData(
+        key="skipintermediateurl",
+        default_value=False,
+        description="Avoid to create URLs that will be redirected to the trackuri method")
+
+    ENABLE_RANDOM_ID = _ConfigParamData(
+        key="skiprandomid",
+        default_value=True,
+        description=("Generate a random id on each identifier entry, "
+                     "might be useful with Linn Kazoo"))
 
     @property
     def key(self) -> str:

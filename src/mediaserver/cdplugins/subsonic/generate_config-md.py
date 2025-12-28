@@ -37,18 +37,20 @@ header: list[str] = [
 
 
 def generate():
-    print("generating ...")
+    cnt: int = 0
+    print("Generating ...")
     script_dir = Path(__file__).parent.absolute()
     file_path = script_dir / "config.md"
     with open(file_path, "w", encoding="utf-8") as f:
         curr: str
         for curr in header:
-            # print(curr)
             f.write(f"{curr}\n")
     with open(file_path, "a", encoding="utf-8") as f:
         config_param: constants.ConfigParam
         for config_param in constants.ConfigParam:
             f.write(f"{config_param.key}|{config_param.description}|{config_param.default_value}\n")
+            cnt += 1
+    print(f"Generation complete [{cnt} entries])")
 
 
 if __name__ == "__main__":
