@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.28"
+    PLUGIN_RELEASE = "0.8.29"
     PLUGIN_NAME = "subsonic"
 
 
@@ -434,10 +434,11 @@ class ConfigParam(Enum):
         description="Avoid to create URLs that will be redirected to the trackuri method")
 
     ENABLE_RANDOM_ID = _ConfigParamData(
-        key="skiprandomid",
-        default_value=True,
+        key="enablerandomid",
+        default_value=False,
         description=("Generate a random id on each identifier entry, "
-                     "might be useful with Linn Kazoo"))
+                     "might be useful with Linn Kazoo as this will "
+                     "defeat its excessive caching"))
 
     @property
     def key(self) -> str:

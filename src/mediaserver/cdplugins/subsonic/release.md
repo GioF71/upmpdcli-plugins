@@ -1,10 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.8.29
+
+- ENABLE_RANDOM_ID is disabled by default, also variable is renamed to `enabledrandomid`
+
 ## Release 0.8.28
 
 - Avoid to set bitRate to 0
 - Move configuration variable `skipintermediateurl` to ConfigParam
-- Create configuration `skiprandomid`, if disabled, the length of IDs is reduced
+- Create configuration ENABLE_RANDOM_ID (`skiprandomid`), if disabled, the length of IDs is reduced
 - Reduced length of many ElementType
 - ElementType names are now auto-generated, as short as possible
 - TagType names are now auto-generated, as short as possible
