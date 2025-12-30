@@ -43,9 +43,7 @@ def get_cached_request_timeout_sec() -> int:
 whitelist_codecs: list[str] = str(get_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
 allow_blacklisted_codec_in_song: int = int(get_option_value("allowblacklistedcodecinsong", "1"))
 tag_initial_page_enabled_prefix: str = get_plugin_config_variable_name("taginitialpageenabled")
-autostart: int = int(get_option_value("autostart", "0"))
 log_intermediate_url: bool = get_option_value("logintermediateurl", "0") == "1"
-skip_intermediate_url: bool = get_option_value("skipintermediateurl", "0") == "1"
 server_side_scrobbling: bool = get_option_value("serversidescrobbling", "0") == "1"
 prepend_number_in_album_list: bool = get_option_value("prependnumberinalbumlist", "0") == "1"
 

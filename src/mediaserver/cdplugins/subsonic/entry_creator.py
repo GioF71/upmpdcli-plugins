@@ -21,6 +21,7 @@ from subsonic_connector.artist import Artist
 from subsonic_connector.playlist import Playlist
 from subsonic_connector.response import Response
 from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist_entry import PlaylistEntry
 
 from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
@@ -66,7 +67,7 @@ import persistence
 def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
     msgproc.log(f"artist_entry_for_album creating artist entry for album with album_id: [{album.getId()}]")
     artist_identifier: ItemIdentifier = ItemIdentifier(
-        name=ElementType.ARTIST.getName(),
+        name=ElementType.ARTIST.element_name,
         value=album.getArtistId())
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -168,7 +169,7 @@ def genre_artist_to_entry(
         album_cover_art: str = None) -> dict[str, any]:
     msgproc.log(f"genre_artist_to_entry genre:[{genre}] artist_id:[{artist_id}] artist_name:[{artist_name}]")
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.GENRE_ARTIST.getName(),
+        ElementType.GENRE_ARTIST.element_name,
         artist_id)
     identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     id: str = identifier_util.create_objid(
@@ -227,7 +228,7 @@ def album_to_navigable_entry(
     if prepend_number:
         title = f"[{prepend_number:02}] {title}"
     artist: str = subsonic_util.get_album_display_artist(album=album)
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.getName(), album.getId())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.NAVIGABLE_ALBUM.element_name, album.getId())
     # ask to skip artist?
     skip_artist_id: str = get_option(options=options, option_key=OptionKey.SKIP_ARTIST_ID)
     if skip_artist_id:
@@ -309,6 +310,8 @@ def album_to_navigable_entry(
     upnp_util.set_album_id(album.getId(), entry)
     if config.get_config_param_as_bool(constants.ConfigParam.SET_CLASS_TO_ALBUM_FOR_NAVIGABLE_ALBUM):
         upnp_util.set_class_album(entry)
+    else:
+        upnp_util.set_class(upnp_class="object.container", target=entry)
     cache_actions.on_album(album=album)
     # update artist id by display_artist
     cache_actions.store_artist_id_list_by_artist_name(album=album)
@@ -369,7 +372,7 @@ def genre_to_entry(
                     value=genre_art))
                 genre_art_url = subsonic_util.build_cover_art_url(item_id=genre_art)
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.GENRE.getName(),
+        ElementType.GENRE.element_name,
         current_genre.getName())
     id: str = identifier_util.create_objid(
         objid,
@@ -423,7 +426,7 @@ def artist_to_entry_raw(
         options: dict[str, any] = {}) -> dict[str, any]:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.ARTIST.getName(),
+        ElementType.ARTIST.element_name,
         artist_id)
     k: ItemIdentifierKey
     for k, v in additional_identifier_properties.items() if additional_identifier_properties else {}.items():
@@ -486,7 +489,7 @@ def artist_initial_to_entry(
         options: dict[str, any] = dict()) -> dict[str, any]:
     encoded_artist_initial: str = codec.encode(artist_initial)
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.ARTIST_BY_INITIAL.getName(),
+        ElementType.ARTIST_BY_INITIAL.element_name,
         encoded_artist_initial)
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -496,12 +499,13 @@ def artist_initial_to_entry(
 
 
 def build_intermediate_url(track_id: str, suffix: str) -> str:
-    msgproc.log(f"build_intermediate_url skip_intermediate_url [{config.skip_intermediate_url}] "
+    skip_intermediate_url: bool = config.get_config_param_as_bool(constants.ConfigParam.SKIP_INTERMEDIATE_URL)
+    msgproc.log(f"build_intermediate_url skip_intermediate_url [{skip_intermediate_url}] "
                 f"track_id [{track_id}] "
                 f"suffix [{suffix}] "
                 f"transcode_format [{config.get_transcode_codec()}] "
                 f"transcode max bitrate [{config.get_transcode_max_bitrate()}]")
-    if not config.skip_intermediate_url:
+    if not skip_intermediate_url:
         http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
         url = (f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}"
                f"/track/version/1/trackId/{track_id}")
@@ -523,7 +527,7 @@ def build_intermediate_url(track_id: str, suffix: str) -> str:
             max_bitrate=tr_bitrate)
 
 
-def set_song_quality_flags(song: Song, entry: dict[str, any]):
+def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, any]):
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     # declaring channel count, bit depth, sample rate and bit rate
     cc: int = 2
@@ -571,6 +575,8 @@ def set_song_quality_flags(song: Song, entry: dict[str, any]):
         # mime type from song itself
         mimetype = song.getContentType()
         upnp_util.set_mimetype(mimetype, entry)
+        # size is known
+        upnp_util.set_size(subsonic_util.get_size(obj=song), entry)
 
 
 def song_to_entry(
@@ -580,7 +586,7 @@ def song_to_entry(
         options: dict[str, any] = {}) -> dict:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     entry = {}
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song.getId())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.element_name, song.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
@@ -631,7 +637,7 @@ def playlist_to_entry(
         objid,
         playlist: Playlist) -> dict[str, any]:
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.PLAYLIST.getName(),
+        ElementType.PLAYLIST.element_name,
         playlist.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -766,7 +772,7 @@ def album_to_entry(
             title = f"{title} [{album_mbid}]"
     artist = subsonic_util.get_album_display_artist(album=album)
     cache_actions.on_album(album=album)
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), album.getId())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.element_name, album.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
@@ -806,7 +812,7 @@ def album_id_to_album_focus(
         objid,
         album: Album) -> dict[str, any]:
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.ALBUM_FOCUS.getName(),
+        ElementType.ALBUM_FOCUS.element_name,
         album.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -821,7 +827,7 @@ def artist_id_to_artist_focus(
         objid,
         artist_id: str) -> dict[str, any]:
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.ARTIST_FOCUS.getName(),
+        ElementType.ARTIST_FOCUS.element_name,
         artist_id)
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -836,7 +842,7 @@ def album_version_to_entry(
         version_number: int,
         album_version_path: str,
         codec_set: set[str]) -> dict[str, any]:
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.getName(), current_album.getId())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM.element_name, current_album.getId())
     avp_encoded: str = codec.encode(album_version_path)
     identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_encoded)
     id: str = identifier_util.create_objid(
