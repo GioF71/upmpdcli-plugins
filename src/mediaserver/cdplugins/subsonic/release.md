@@ -2,29 +2,20 @@
 
 ## Release 0.8.29
 
-- ENABLE_RANDOM_ID is disabled by default, also variable is renamed to `enabledrandomid`
-
-## Release 0.8.28
-
+- Create configuration ENABLE_RANDOM_ID (`enabledrandomid`), disabled by default (increases the length of IDs if enabled, but it is useful with Linn Kazoo)
 - Avoid to set bitRate to 0
 - Move configuration variable `skipintermediateurl` to ConfigParam
 - Create configuration ENABLE_RANDOM_ID (`skiprandomid`), if disabled, the length of IDs is reduced
 - Reduced length of many ElementType
 - ElementType names are now auto-generated, as short as possible
 - TagType names are now auto-generated, as short as possible
-- General code cleanup, fixes and optimizations
-
-## Release 0.8.27
-
 - Avoid to set bitDepth to 0 (lossy streams)
 - Updated config.md to reflect default value changes for `allowsongdidlalbumartist`
-
-## Release 0.8.26
-
 - ALLOW_SONG_DIDL_ALBUMARTIST (subsonicallowsongdidlalbumartist) to default to 0, as it breaks scrobblers
 - Add support for GetAlbumList2 with type alphabeticalByName and alphabeticalByArtist
 - Correct res entry from kbs to res:bitrate in streaming information
 - Add support for size in streaming information, but only when there is no transcoding for now
+- General code cleanup, fixes and optimizations
 
 ## Release 0.8.25
 
