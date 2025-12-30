@@ -421,7 +421,7 @@ def playlists_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> R
 def execute_art_retriever(
         tag: TagType,
         context: TagToEntryContext = None) -> RetrievedArt:
-    tagname: str = tag.getTagName()
+    tagname: str = tag.tag_name
     if tagname in __tag_art_retriever_dict:
         try:
             return __tag_art_retriever_dict[tagname](context)
@@ -430,28 +430,30 @@ def execute_art_retriever(
 
 
 __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
-    TagType.ALBUMS.getTagName(): group_albums_art_retriever,
-    TagType.ARTISTS.getTagName(): group_artists_art_retriever,
-    TagType.SONGS.getTagName(): group_songs_art_retriever,
-    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): recently_added_albums_art_retriever,
-    TagType.NEWEST_ALBUMS.getTagName(): newest_albums_art_retriever,
-    TagType.OLDEST_ALBUMS.getTagName(): random_albums_art_retriever,
-    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): recently_played_albums_art_retriever,
-    TagType.HIGHEST_RATED_ALBUMS.getTagName(): highest_rated_albums_art_retriever,
-    TagType.FAVORITE_ALBUMS.getTagName(): favourite_albums_art_retriever,
-    TagType.MOST_PLAYED_ALBUMS.getTagName(): most_played_albums_art_retriever,
-    TagType.RANDOM.getTagName(): random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_COVER.getTagName(): random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_GENRE.getTagName(): random_albums_art_retriever,
-    TagType.RANDOM_SONGS.getTagName(): random_albums_art_retriever,
-    TagType.RANDOM_SONGS_LIST.getTagName(): random_albums_art_retriever,
-    TagType.GENRES.getTagName(): random_albums_art_retriever,
-    TagType.ALL_ARTISTS.getTagName(): random_albums_art_retriever,
-    TagType.ALL_ARTISTS_UNSORTED.getTagName(): random_albums_art_retriever,
-    TagType.ALL_ARTISTS_INDEXED.getTagName(): random_albums_art_retriever,
-    TagType.FAVORITE_ARTISTS.getTagName(): favourite_artist_art_retriever,
-    TagType.PLAYLISTS.getTagName(): playlists_art_retriever,
-    TagType.FAVORITE_SONGS.getTagName(): favourite_song_retriever,
-    TagType.FAVORITE_SONGS_LIST.getTagName(): favourite_song_retriever
+    TagType.ALBUMS.tag_name: group_albums_art_retriever,
+    TagType.ARTISTS.tag_name: group_artists_art_retriever,
+    TagType.SONGS.tag_name: group_songs_art_retriever,
+    TagType.RECENTLY_ADDED_ALBUMS.tag_name: recently_added_albums_art_retriever,
+    TagType.ALPHABETICAL_BY_NAME_ALBUMS.tag_name: random_albums_art_retriever,
+    TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.tag_name: random_albums_art_retriever,
+    TagType.NEWEST_ALBUMS.tag_name: newest_albums_art_retriever,
+    TagType.OLDEST_ALBUMS.tag_name: random_albums_art_retriever,
+    TagType.RECENTLY_PLAYED_ALBUMS.tag_name: recently_played_albums_art_retriever,
+    TagType.HIGHEST_RATED_ALBUMS.tag_name: highest_rated_albums_art_retriever,
+    TagType.FAVORITE_ALBUMS.tag_name: favourite_albums_art_retriever,
+    TagType.MOST_PLAYED_ALBUMS.tag_name: most_played_albums_art_retriever,
+    TagType.RANDOM.tag_name: random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_COVER.tag_name: random_albums_art_retriever,
+    TagType.ALBUMS_WITHOUT_GENRE.tag_name: random_albums_art_retriever,
+    TagType.RANDOM_SONGS.tag_name: random_albums_art_retriever,
+    TagType.RANDOM_SONGS_LIST.tag_name: random_albums_art_retriever,
+    TagType.GENRES.tag_name: random_albums_art_retriever,
+    TagType.ALL_ARTISTS.tag_name: random_albums_art_retriever,
+    TagType.ALL_ARTISTS_UNSORTED.tag_name: random_albums_art_retriever,
+    TagType.ALL_ARTISTS_INDEXED.tag_name: random_albums_art_retriever,
+    TagType.FAVORITE_ARTISTS.tag_name: favourite_artist_art_retriever,
+    TagType.PLAYLISTS.tag_name: playlists_art_retriever,
+    TagType.FAVORITE_SONGS.tag_name: favourite_song_retriever,
+    TagType.FAVORITE_SONGS_LIST.tag_name: favourite_song_retriever
 }
