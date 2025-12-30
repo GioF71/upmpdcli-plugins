@@ -48,11 +48,11 @@ def set_class_playlist_container(target: dict):
 
 
 def set_track_number(track_number: str, target: dict):
-    target['upnp:originalTrackNumber'] = track_number
+    target["upnp:originalTrackNumber"] = track_number
 
 
 def get_album_art_uri(entry: dict):
-    return entry['upnp:albumArtURI'] if 'upnp:albumArtURI' in entry else None
+    return entry["upnp:albumArtURI"] if "upnp:albumArtURI" in entry else None
 
 
 def set_album_art_from_uri(album_art_uri: str, target: dict):
@@ -64,7 +64,7 @@ def set_track_title(track_title: str, target: dict):
 
 
 def set_album_id(album_id: str, target: dict):
-    target['album_id'] = album_id
+    target["album_id"] = album_id
 
 
 def set_artist(artist: str, target: dict):
@@ -89,48 +89,35 @@ def get_as_int(entry_key: str, entry: dict) -> int:
     return int(v) if v else None
 
 
-def get_bit_depth(entry: dict) -> int:
-    return get_as_int(entry_key="res:bitsPerSample", entry=entry)
-
-
 def set_bit_depth(bit_depth: int, target: dict):
-    if bit_depth:
+    # we avoid to set bitDepth to 0
+    if bit_depth is not None and bit_depth != 0:
         target["res:bitsPerSample"] = str(bit_depth)
-
-
-def get_channel_count(entry: dict) -> int:
-    return get_as_int(entry_key="res:channels", entry=entry)
 
 
 def set_channel_count(channel_count: int, target: dict):
     if channel_count:
-        target['res:channels'] = str(channel_count)
-
-
-def get_sample_reate(entry: dict) -> int:
-    return get_as_int(entry_key="res:samplefreq", entry=entry)
+        target["res:channels"] = str(channel_count)
 
 
 def set_sample_rate(sample_rate: int, target: dict):
     if sample_rate:
-        target['res:samplefreq'] = str(sample_rate)
-
-
-def get_bit_rate(entry: dict) -> int:
-    return get_as_int(entry_key="kbs", entry=entry)
+        target["res:samplefreq"] = str(sample_rate)
 
 
 def set_bit_rate(bit_rate: int, target: dict):
-    if bit_rate:
-        target['kbs'] = str(bit_rate)
+    if bit_rate is not None and bit_rate != 0:
+        target["res:bitrate"] = str(bit_rate)
 
 
-def get_mimetype(entry: dict[str, any]) -> str:
-    return entry["res:mime"] if "res:mime" in entry else None
+def set_size(size: int, target: dict):
+    if size:
+        target["res:size"] = size
+
 
 def set_mimetype(mimetype: str, target: dict):
     if mimetype:
-        target['res:mime'] = mimetype
+        target["res:mime"] = mimetype
 
 
 def build_didlfrag(key: str, role: str, value: str):

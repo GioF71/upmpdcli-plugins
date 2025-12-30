@@ -105,29 +105,31 @@ _g_myprefix = f"0${constants.PluginConstant.PLUGIN_NAME.value}$"
 upmplgutils.setidprefix(constants.PluginConstant.PLUGIN_NAME.value)
 
 __tag_initial_page_enabled_default: dict[str, bool] = {
-    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): False,
-    TagType.NEWEST_ALBUMS.getTagName(): False,
-    TagType.OLDEST_ALBUMS.getTagName(): False,
-    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): False,
-    TagType.HIGHEST_RATED_ALBUMS.getTagName(): False,
-    TagType.MOST_PLAYED_ALBUMS.getTagName(): False,
-    TagType.RANDOM.getTagName(): False,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): False,
-    TagType.ALBUMS_WITHOUT_COVER.getTagName(): False,
-    TagType.ALBUMS_WITHOUT_GENRE.getTagName(): False,
-    TagType.FAVORITE_ALBUMS.getTagName(): False,
-    TagType.ALL_ARTISTS.getTagName(): False,
-    TagType.ALL_ARTISTS_INDEXED.getTagName(): False,
-    TagType.ALL_ARTISTS_UNSORTED.getTagName(): False,
-    TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): False,
-    TagType.ALL_COMPOSERS_UNSORTED.getTagName(): False,
-    TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): False,
-    TagType.FAVORITE_ARTISTS.getTagName(): False,
-    TagType.RANDOM_SONGS.getTagName(): False,
-    TagType.RANDOM_SONGS_LIST.getTagName(): False,
-    TagType.FAVORITE_SONGS.getTagName(): False,
-    TagType.FAVORITE_SONGS_LIST.getTagName(): False,
-    TagType.INTERNET_RADIOS.getTagName(): False
+    TagType.RECENTLY_ADDED_ALBUMS.tag_name: False,
+    TagType.NEWEST_ALBUMS.tag_name: False,
+    TagType.OLDEST_ALBUMS.tag_name: False,
+    TagType.RECENTLY_PLAYED_ALBUMS.tag_name: False,
+    TagType.HIGHEST_RATED_ALBUMS.tag_name: False,
+    TagType.MOST_PLAYED_ALBUMS.tag_name: False,
+    TagType.ALPHABETICAL_BY_NAME_ALBUMS.tag_name: False,
+    TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.tag_name: False,
+    TagType.RANDOM.tag_name: False,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: False,
+    TagType.ALBUMS_WITHOUT_COVER.tag_name: False,
+    TagType.ALBUMS_WITHOUT_GENRE.tag_name: False,
+    TagType.FAVORITE_ALBUMS.tag_name: False,
+    TagType.ALL_ARTISTS.tag_name: False,
+    TagType.ALL_ARTISTS_INDEXED.tag_name: False,
+    TagType.ALL_ARTISTS_UNSORTED.tag_name: False,
+    TagType.ALL_ALBUM_ARTISTS_UNSORTED.tag_name: False,
+    TagType.ALL_COMPOSERS_UNSORTED.tag_name: False,
+    TagType.ALL_CONDUCTORS_UNSORTED.tag_name: False,
+    TagType.FAVORITE_ARTISTS.tag_name: False,
+    TagType.RANDOM_SONGS.tag_name: False,
+    TagType.RANDOM_SONGS_LIST.tag_name: False,
+    TagType.FAVORITE_SONGS.tag_name: False,
+    TagType.FAVORITE_SONGS_LIST.tag_name: False,
+    TagType.INTERNET_RADIOS.tag_name: False
 }
 
 
@@ -141,16 +143,16 @@ def __tag_playlists_precondition() -> bool:
 
 
 __tag_show_precondition: dict[str, Callable[[], bool]] = {
-    TagType.PLAYLISTS.getTagName(): __tag_playlists_precondition
+    TagType.PLAYLISTS.tag_name: __tag_playlists_precondition
 }
 
 
 def tag_enabled_in_initial_page(tag_type: TagType) -> bool:
-    enabled_default: bool = (__tag_initial_page_enabled_default[tag_type.getTagName()]
-                             if tag_type.getTagName() in __tag_initial_page_enabled_default
+    enabled_default: bool = (__tag_initial_page_enabled_default[tag_type.tag_name]
+                             if tag_type.tag_name in __tag_initial_page_enabled_default
                              else True)
     enabled_int: int = (int(upmplgutils.getOptionValue(
-        f"{config.tag_initial_page_enabled_prefix}{tag_type.getTagName()}",
+        f"{config.tag_initial_page_enabled_prefix}{tag_type.tag_name}",
         "1" if enabled_default else "0")))
     return enabled_int == 1
 
@@ -257,7 +259,7 @@ def _station_to_entry(
         station: InternetRadioStation) -> upmplgutils.direntry:
     stream_url: str = station.getStreamUrl()
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.INTERNET_RADIO.getName(),
+        ElementType.INTERNET_RADIO.element_name,
         station.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -339,7 +341,7 @@ def present_album_version(
             disc_title: str = disc_title_dict[dn] if dn in disc_title_dict else ""
             entry_name: str = f"Disc {dn}/{len(discnumber_list)}{': ' + disc_title if disc_title else ''}"
             # create disc entry.
-            disc_identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_DISC.getName(), album_id)
+            disc_identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_DISC.element_name, album_id)
             if avp_enc:
                 disc_identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_enc)
             disc_identifier.set(ItemIdentifierKey.ALBUM_DISC_NUMBERS, str(dn))
@@ -440,7 +442,7 @@ def _load_albums_by_type(
     request_size: int = size + 1 if use_last_for_next else size
     req_start: float = time.time()
     albumList: list[Album] = subsonic_util.get_albums(
-        tag_type.getQueryType(),
+        tag_type.query_type,
         size=request_size,
         offset=str(offset),
         fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
@@ -467,7 +469,7 @@ def _load_albums_by_type(
         if tag_type and (not tag_cached) and (offset == 0):
             cache_manager_provider.get().cache_element_value(
                 ElementType.TAG,
-                tag_type.getTagName(),
+                tag_type.tag_name,
                 current_album.getId())
             tag_cached = True
         current_caching_elapsed: float = time.time() - current_caching_start
@@ -499,11 +501,11 @@ def _load_albums_by_type(
     roundtrip_elapsed: float = time.time() - roundtrip_start
     msgproc.log(f"_load_albums_by_type roundtrip [{roundtrip_elapsed:.3f}] "
                 f"api [{req_elapsed:.3f}] "
-                f"proc total: (cnt [{len(total_elapsed_list)}] "
+                f"proc total [{sum(total_elapsed_list):.3f}] (cnt [{len(total_elapsed_list)}] "
                 f"avg [{statistics.fmean(total_elapsed_list):.3f}] "
                 f"min [{min(total_elapsed_list):.3f}] "
                 f"max [{max(total_elapsed_list):.3f}]) "
-                f"proc caching: (cnt [{len(caching_elapsed_list)}] "
+                f"proc caching (portion of proc) [{sum(caching_elapsed_list):.3f}] (cnt [{len(caching_elapsed_list)}] "
                 f"avg [{statistics.fmean(caching_elapsed_list):.3f}] "
                 f"min [{min(caching_elapsed_list):.3f}] "
                 f"max [{max(caching_elapsed_list):.3f}])")
@@ -603,7 +605,7 @@ def __load_artists_by_initial(
                 break
     if broke_out:
         next_identifier: ItemIdentifier = ItemIdentifier(
-            element_type.getName(),
+            element_type.element_name,
             codec.encode(artist_initial))
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
@@ -704,7 +706,7 @@ def _playlist_entry_to_entry(
         objid,
         playlist_entry: PlaylistEntry) -> dict:
     entry = {}
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), playlist_entry.getId())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.element_name, playlist_entry.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
@@ -728,14 +730,7 @@ def _playlist_entry_to_entry(
         target=entry)
     entry['duration'] = str(playlist_entry.getDuration())
     # add track quality information
-    cc = playlist_entry.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value)
-    upnp_util.set_channel_count(cc, entry)
-    bd: int = playlist_entry.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-    upnp_util.set_bit_depth(bd, entry)
-    sr = playlist_entry.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-    upnp_util.set_sample_rate(sr, entry)
-    br = playlist_entry.getBitRate()
-    upnp_util.set_bit_rate(br, entry)
+    entry_creator.set_song_quality_flags(song=playlist_entry, entry=entry)
     return entry
 
 
@@ -805,7 +800,7 @@ def _create_tag_next_entry(
         objid,
         tag: TagType,
         offset: int) -> dict:
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tag.getTagName())
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.element_name, tag.tag_name)
     identifier.set(ItemIdentifierKey.OFFSET, offset)
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -842,7 +837,7 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
             options=options)
         return entries
     except Exception as ex:
-        msgproc.log(f"Cannot handle tag [{tag_type.getTagName()}] [{type(ex)}] [{ex}]")
+        msgproc.log(f"Cannot handle tag [{tag_type.tag_name}] [{type(ex)}] [{ex}]")
         return list()
 
 
@@ -945,6 +940,14 @@ def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, en
 
 def handler_tag_newest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     return __handler_tag_album_listype(objid, item_identifier, TagType.NEWEST_ALBUMS, entries)
+
+
+def handler_tag_alphabetical_by_name_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.ALPHABETICAL_BY_NAME_ALBUMS, entries)
+
+
+def handler_tag_alphabetical_by_artist_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    return __handler_tag_album_listype(objid, item_identifier, TagType.ALPHABETICAL_BY_ARTIST_ALBUMS, entries)
 
 
 def handler_tag_oldest_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1164,7 +1167,7 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
         ElementType.SONG_ENTRY_NAVIGABLE if song_as_entry else
         ElementType.SONG_ENTRY_THE_SONG)
     identifier: ItemIdentifier = ItemIdentifier(
-        select_element.getName(),
+        select_element.element_name,
         song.getId())
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -1187,7 +1190,7 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
     song_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     msgproc.log(f"handler_element_song_entry start song_id {song_id}")
     song: Song = connector_provider.get().getSong(song_id).getObj()
-    song_identifier: ItemIdentifier = ItemIdentifier(ElementType.SONG_ENTRY_THE_SONG.getName(), song_id)
+    song_identifier: ItemIdentifier = ItemIdentifier(ElementType.SONG_ENTRY_THE_SONG.element_name, song_id)
     song_entry_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(song_identifier))
@@ -1241,8 +1244,8 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
         entries.append(entry)
     if need_next:
         next_identifier: ItemIdentifier = ItemIdentifier(
-            ElementType.TAG.getName(),
-            TagType.FAVORITE_SONGS_LIST.getTagName())
+            ElementType.TAG.element_name,
+            TagType.FAVORITE_SONGS_LIST.tag_name)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1276,7 +1279,7 @@ def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> 
         entries.append(song_entry)
     if next_song:
         # no offset, so we always add next
-        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.getName(), "some_random_song")
+        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.element_name, "some_random_song")
         next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1299,7 +1302,7 @@ def handler_tag_genres(objid, item_identifier: ItemIdentifier, entries: list) ->
 def _genre_add_artists_node(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     genre: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     msgproc.log(f"_genre_add_artists_node genre {genre}")
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.getName(), genre)
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.element_name, genre)
     identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     id: str = identifier_util.create_objid(
         objid=objid,
@@ -1323,7 +1326,7 @@ def _genre_add_albums_node(
     genre: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     msgproc.log(f"_genre_add_albums_node genre {genre}")
     identifier: ItemIdentifier = ItemIdentifier(
-        ElementType.GENRE_ALBUM_LIST.getName(),
+        ElementType.GENRE_ALBUM_LIST.element_name,
         genre)
     # identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     identifier.set(ItemIdentifierKey.OFFSET, offset)
@@ -1405,7 +1408,7 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
         next_offset: int = offset + config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE)
         msgproc.log(f"handler_element_genre_artists for [{genre}] next offset is [{next_offset}] ...")
         # add the next button
-        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.getName(), genre)
+        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.element_name, genre)
         next_identifier.set(ItemIdentifierKey.OFFSET, next_offset)
         next_identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
         next_id: str = identifier_util.create_objid(
@@ -1453,7 +1456,7 @@ def handler_element_genre_artist_albums(objid, item_identifier: ItemIdentifier, 
             options=options)
         entries.append(entry)
     if need_next:
-        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
+        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.element_name, artist_id)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_identifier.set(ItemIdentifierKey.GENRE_NAME, genre_name)
         next_id: str = identifier_util.create_objid(
@@ -1506,7 +1509,7 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
     if len(album_list) == (config.get_items_per_page() + 1):
         # create next button
         next_album: Album = album_list[config.get_items_per_page()]
-        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ALBUM_LIST.getName(), genre)
+        next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ALBUM_LIST.element_name, genre)
         # next_identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
@@ -1582,8 +1585,8 @@ def handle_tag_all_artists_unsorted_by_role(
             msgproc.log("handle_tag_all_artists_unsorted_by_role creating entry for "
                         f"next page using artist_id [{next_artist.getId()}] ...")
         next_identifier: ItemIdentifier = ItemIdentifier(
-            ElementType.TAG.getName(),
-            tag_type.getTagName())
+            ElementType.TAG.element_name,
+            tag_type.tag_name)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset)
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1675,8 +1678,8 @@ def handler_tag_favourite_artists(objid, item_identifier: ItemIdentifier, entrie
     if need_next:
         next_artist: Artist = artist_list[offset + config.get_items_per_page()]
         next_identifier: ItemIdentifier = ItemIdentifier(
-            ElementType.TAG.getName(),
-            TagType.FAVORITE_ARTISTS.getTagName())
+            ElementType.TAG.element_name,
+            TagType.FAVORITE_ARTISTS.tag_name)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1769,7 +1772,7 @@ def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entrie
         if config.debug_artist_albums:
             msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
         if next_needed:
-            next_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.getName(), artist_id)
+            next_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_ALBUMS.element_name, artist_id)
             next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
             next_id: str = identifier_util.create_objid(
                 objid,
@@ -1820,7 +1823,7 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
         if config.debug_artist_albums:
             msgproc.log(f"Found {len(entries)} albums for artist_id {artist_id}")
         if next_needed:
-            next_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_APPEARANCES.getName(), artist_id)
+            next_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_APPEARANCES.element_name, artist_id)
             next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
             next_id: str = identifier_util.create_objid(
                 objid,
@@ -1854,7 +1857,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         msgproc.log(f"Artist entry created with reference to album_id [{ref_album_id}]")
         # create entry for album song selection
         songsel_identifier: ItemIdentifier = ItemIdentifier(
-            name=ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.getName(),
+            name=ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.element_name,
             value=artist_id)
         songsel_identifier.set(ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST, ref_album_id)
         songsel_id: str = identifier_util.create_objid(
@@ -2057,7 +2060,7 @@ def create_artist_albums_entry(
                 f"release_types [{release_types.key if release_types else None}] "
                 f"album_entry_name [{album_entry_name}]")
     item_identifier: ItemIdentifier = ItemIdentifier(
-        name=ElementType.ARTIST_ALBUMS.getName(),
+        name=ElementType.ARTIST_ALBUMS.element_name,
         value=artist_id)
     if release_types:
         item_identifier.set(ItemIdentifierKey.ALBUM_RELEASE_TYPE, release_types.key)
@@ -2081,7 +2084,7 @@ def create_artist_albums_entry_for_appearances(
         album_entry_name: str) -> dict[str, any]:
     msgproc.log(f"create_artist_albums_entry_for_appearances for [{artist_id}]")
     item_identifier: ItemIdentifier = ItemIdentifier(
-        name=ElementType.ARTIST_APPEARANCES.getName(),
+        name=ElementType.ARTIST_APPEARANCES.element_name,
         value=artist_id)
     artist_album_id: str = identifier_util.create_objid(
         objid=objid,
@@ -2145,7 +2148,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
         target=artist_entry)
     entries.append(artist_entry)
     # entry for albums from artist within genre
-    album_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.getName(), artist_id)
+    album_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_ALBUMS.element_name, artist_id)
     album_list_identifier.set(ItemIdentifierKey.GENRE_NAME, genre)
     album_list_id: str = identifier_util.create_objid(
         objid,
@@ -2351,7 +2354,7 @@ def handler_element_navigable_album(
         # create dedicated entry for additional album artists
         msgproc.log(f"handler_element_navigable_album creating entry for {len(additional)} additional artists ...")
         additional_album_artists_identifier: ItemIdentifier = ItemIdentifier(
-            name=ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(),
+            name=ElementType.ADDITIONAL_ALBUM_ARTISTS.element_name,
             value=album_id)
         additional_album_artists_identifier_id: str = identifier_util.create_objid(
                 objid=objid,
@@ -2427,7 +2430,7 @@ def handler_additional_album_artists(
                     "for offset "
                     f"[{next_offset}] ...")
         next_identifier: ItemIdentifier = ItemIdentifier(
-            name=ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(),
+            name=ElementType.ADDITIONAL_ALBUM_ARTISTS.element_name,
             value=album_id)
         next_identifier.set(
             key=ItemIdentifierKey.OFFSET,
@@ -2499,7 +2502,7 @@ def create_entries_for_album_additional_artists(
 
 def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, any]]:
     msgproc.log(f"create_artist_radio_entry for {iid} [{radio_entry_type}]")
-    radio_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO.getName(), iid)
+    radio_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO.element_name, iid)
     radio_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(radio_identifier))
@@ -2507,7 +2510,7 @@ def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType)
         radio_id,
         objid,
         title="Radio")
-    radio_song_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.getName(), iid)
+    radio_song_list_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO_SONG_LIST.element_name, iid)
     radio_song_list_id: str = identifier_util.create_objid(
         objid,
         identifier_util.create_id_from_identifier(radio_song_list_identifier))
@@ -2546,7 +2549,7 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
     similar_artists: list[SimilarArtist] = res_artist_info.getObj().getSimilarArtists()
     if len(similar_artists if similar_artists else []) > 0:
         # ok to add similar artists entry
-        similar_artist_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_SIMILAR.getName(), artist_id)
+        similar_artist_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_SIMILAR.element_name, artist_id)
         similar_artist_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(similar_artist_identifier))
@@ -2579,7 +2582,7 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
         raise Exception(f"Cannot load top songs for artist {artist_name}")
     if len(res_top_songs.getObj().getSongs()) > 0:
         # ok to create top songs entry, else None
-        top_songs_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS.getName(), artist_id)
+        top_songs_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS.element_name, artist_id)
         top_songs_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(top_songs_identifier))
@@ -2595,7 +2598,7 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
             target=top_songs_entry)
         result.append(top_songs_entry)
         top_songs_list_identifier: ItemIdentifier = ItemIdentifier(
-            ElementType.ARTIST_TOP_SONGS_LIST.getName(),
+            ElementType.ARTIST_TOP_SONGS_LIST.element_name,
             artist_id)
         top_songs_list_id: str = identifier_util.create_objid(
             objid,
@@ -2743,7 +2746,7 @@ def handler_element_track(objid, item_identifier: ItemIdentifier, entries: list)
     song_response: Response[Song] = connector_provider.get().getSong(song_id)
     if not song_response.isOk():
         raise Exception(f"Cannot find song with id {song_id}")
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.getName(), song_id)
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TRACK.element_name, song_id)
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
@@ -2760,6 +2763,8 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
         TagType.RECENTLY_PLAYED_ALBUMS,
         TagType.HIGHEST_RATED_ALBUMS,
         TagType.MOST_PLAYED_ALBUMS,
+        TagType.ALPHABETICAL_BY_NAME_ALBUMS,
+        TagType.ALPHABETICAL_BY_ARTIST_ALBUMS,
         TagType.RANDOM]
     add_fav: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
     if not add_fav:
@@ -2790,7 +2795,7 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
                     context=context)
                 entries.append(entry)
             except Exception as ex:
-                msgproc.log(f"Cannot create entry for tag [{current.getTagName()}] "
+                msgproc.log(f"Cannot create entry for tag [{current.tag_name}] "
                             f"[{type(ex)}] [{ex}]")
         else:
             msgproc.log(f"handler_tag_group_albums skipping unsupported [{current}]")
@@ -2829,7 +2834,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
             unique_cover_art_set.add(album.getCoverArt())
     current_tag: TagType
     for current_tag in tag_list:
-        msgproc.log(f"handler_tag_group_artists current_tag [{current_tag.getTagName()}] ...")
+        msgproc.log(f"handler_tag_group_artists current_tag [{current_tag.tag_name}] ...")
         entry: dict[str, any] = create_entry_for_tag(objid, current_tag)
         in_set: bool = len(unique_cover_art_set) > 0
         select_cover_art: str = unique_cover_art_set.pop() if in_set else None
@@ -2895,64 +2900,66 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
 
 
 __tag_action_dict: dict = {
-    TagType.ALBUMS.getTagName(): handler_tag_group_albums,
-    TagType.ARTISTS.getTagName(): handler_tag_group_artists,
-    TagType.SONGS.getTagName(): handler_tag_group_songs,
-    TagType.RECENTLY_ADDED_ALBUMS.getTagName(): handler_tag_recently_added_albums,
-    TagType.NEWEST_ALBUMS.getTagName(): handler_tag_newest_albums,
-    TagType.OLDEST_ALBUMS.getTagName(): handler_tag_oldest_albums,
-    TagType.RECENTLY_PLAYED_ALBUMS.getTagName(): handler_tag_recently_played,
-    TagType.HIGHEST_RATED_ALBUMS.getTagName(): handler_tag_highest_rated,
-    TagType.MOST_PLAYED_ALBUMS.getTagName(): handler_tag_most_played,
-    TagType.FAVORITE_ALBUMS.getTagName(): handler_tag_favourite_albums,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.getTagName(): handler_tag_albums_without_musicbrainz,
-    TagType.ALBUMS_WITHOUT_COVER.getTagName(): handler_tag_albums_without_cover,
-    TagType.ALBUMS_WITHOUT_GENRE.getTagName(): handler_tag_albums_without_genre,
-    TagType.RANDOM.getTagName(): handler_tag_random,
-    TagType.GENRES.getTagName(): handler_tag_genres,
-    TagType.ALL_ARTISTS.getTagName(): handler_tag_all_artists,
-    TagType.ALL_ARTISTS_INDEXED.getTagName(): handler_tag_all_artists_indexed,
-    TagType.ALL_ARTISTS_UNSORTED.getTagName(): handler_tag_all_artists_unsorted,
-    TagType.ALL_ALBUM_ARTISTS_UNSORTED.getTagName(): handler_tag_all_album_artists_unsorted,
-    TagType.ALL_COMPOSERS_UNSORTED.getTagName(): handler_tag_all_composers_unsorted,
-    TagType.ALL_CONDUCTORS_UNSORTED.getTagName(): handler_tag_all_conductors_unsorted,
-    TagType.FAVORITE_ARTISTS.getTagName(): handler_tag_favourite_artists,
-    TagType.PLAYLISTS.getTagName(): handler_tag_playlists,
-    TagType.INTERNET_RADIOS.getTagName(): handler_tag_internet_radios,
-    TagType.RANDOM_SONGS.getTagName(): handler_tag_random_songs,
-    TagType.RANDOM_SONGS_LIST.getTagName(): handler_tag_random_songs_list,
-    TagType.FAVORITE_SONGS.getTagName(): handler_tag_favourite_songs,
-    TagType.FAVORITE_SONGS_LIST.getTagName(): handler_tag_favourite_songs_list,
+    TagType.ALBUMS.tag_name: handler_tag_group_albums,
+    TagType.ARTISTS.tag_name: handler_tag_group_artists,
+    TagType.SONGS.tag_name: handler_tag_group_songs,
+    TagType.RECENTLY_ADDED_ALBUMS.tag_name: handler_tag_recently_added_albums,
+    TagType.NEWEST_ALBUMS.tag_name: handler_tag_newest_albums,
+    TagType.ALPHABETICAL_BY_NAME_ALBUMS.tag_name: handler_tag_alphabetical_by_name_albums,
+    TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.tag_name: handler_tag_alphabetical_by_artist_albums,
+    TagType.OLDEST_ALBUMS.tag_name: handler_tag_oldest_albums,
+    TagType.RECENTLY_PLAYED_ALBUMS.tag_name: handler_tag_recently_played,
+    TagType.HIGHEST_RATED_ALBUMS.tag_name: handler_tag_highest_rated,
+    TagType.MOST_PLAYED_ALBUMS.tag_name: handler_tag_most_played,
+    TagType.FAVORITE_ALBUMS.tag_name: handler_tag_favourite_albums,
+    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: handler_tag_albums_without_musicbrainz,
+    TagType.ALBUMS_WITHOUT_COVER.tag_name: handler_tag_albums_without_cover,
+    TagType.ALBUMS_WITHOUT_GENRE.tag_name: handler_tag_albums_without_genre,
+    TagType.RANDOM.tag_name: handler_tag_random,
+    TagType.GENRES.tag_name: handler_tag_genres,
+    TagType.ALL_ARTISTS.tag_name: handler_tag_all_artists,
+    TagType.ALL_ARTISTS_INDEXED.tag_name: handler_tag_all_artists_indexed,
+    TagType.ALL_ARTISTS_UNSORTED.tag_name: handler_tag_all_artists_unsorted,
+    TagType.ALL_ALBUM_ARTISTS_UNSORTED.tag_name: handler_tag_all_album_artists_unsorted,
+    TagType.ALL_COMPOSERS_UNSORTED.tag_name: handler_tag_all_composers_unsorted,
+    TagType.ALL_CONDUCTORS_UNSORTED.tag_name: handler_tag_all_conductors_unsorted,
+    TagType.FAVORITE_ARTISTS.tag_name: handler_tag_favourite_artists,
+    TagType.PLAYLISTS.tag_name: handler_tag_playlists,
+    TagType.INTERNET_RADIOS.tag_name: handler_tag_internet_radios,
+    TagType.RANDOM_SONGS.tag_name: handler_tag_random_songs,
+    TagType.RANDOM_SONGS_LIST.tag_name: handler_tag_random_songs_list,
+    TagType.FAVORITE_SONGS.tag_name: handler_tag_favourite_songs,
+    TagType.FAVORITE_SONGS_LIST.tag_name: handler_tag_favourite_songs_list,
 }
 
 __elem_action_dict: dict = {
-    ElementType.GENRE.getName(): handler_element_genre,
-    ElementType.ARTIST_BY_INITIAL.getName(): handler_element_artists_by_initial,
-    ElementType.ARTIST.getName(): handler_element_artist,
-    ElementType.ARTIST_FOCUS.getName(): handler_element_artist_focus,
-    ElementType.GENRE_ARTIST.getName(): handler_element_genre_artist,
-    ElementType.ALBUM.getName(): handler_element_album,
-    ElementType.ALBUM_DISC.getName(): handler_element_album_disc,
-    ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.getName(): handler_album_song_selection_by_artist,
-    ElementType.NAVIGABLE_ALBUM.getName(): handler_element_navigable_album,
-    ElementType.ADDITIONAL_ALBUM_ARTISTS.getName(): handler_additional_album_artists,
-    ElementType.ALBUM_FOCUS.getName(): handler_element_album_focus,
-    ElementType.GENRE_ARTIST_LIST.getName(): handler_element_genre_artists,
-    ElementType.GENRE_ALBUM_LIST.getName(): handler_element_genre_album_list,
-    ElementType.GENRE_ARTIST_ALBUMS.getName(): handler_element_genre_artist_albums,
-    ElementType.PLAYLIST.getName(): handler_element_playlist,
-    ElementType.TRACK.getName(): handler_element_track,
-    ElementType.SONG_ENTRY_NAVIGABLE.getName(): handler_element_song_entry,
-    ElementType.SONG_ENTRY_THE_SONG.getName(): handler_element_song_entry_song,
-    ElementType.NEXT_RANDOM_SONGS.getName(): handler_element_next_random_songs,
-    ElementType.INTERNET_RADIO.getName(): handler_element_radio_station,
-    ElementType.ARTIST_TOP_SONGS.getName(): handler_element_artist_top_songs_navigable,
-    ElementType.ARTIST_TOP_SONGS_LIST.getName(): handler_element_artist_top_songs_song_list,
-    ElementType.ARTIST_SIMILAR.getName(): handler_element_similar_artists,
-    ElementType.ARTIST_ALBUMS.getName(): handler_element_artist_albums,
-    ElementType.ARTIST_APPEARANCES.getName(): handler_artist_appearances,
-    ElementType.RADIO.getName(): handler_radio,
-    ElementType.RADIO_SONG_LIST.getName(): handler_radio_song_list
+    ElementType.GENRE.element_name: handler_element_genre,
+    ElementType.ARTIST_BY_INITIAL.element_name: handler_element_artists_by_initial,
+    ElementType.ARTIST.element_name: handler_element_artist,
+    ElementType.ARTIST_FOCUS.element_name: handler_element_artist_focus,
+    ElementType.GENRE_ARTIST.element_name: handler_element_genre_artist,
+    ElementType.ALBUM.element_name: handler_element_album,
+    ElementType.ALBUM_DISC.element_name: handler_element_album_disc,
+    ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.element_name: handler_album_song_selection_by_artist,
+    ElementType.NAVIGABLE_ALBUM.element_name: handler_element_navigable_album,
+    ElementType.ADDITIONAL_ALBUM_ARTISTS.element_name: handler_additional_album_artists,
+    ElementType.ALBUM_FOCUS.element_name: handler_element_album_focus,
+    ElementType.GENRE_ARTIST_LIST.element_name: handler_element_genre_artists,
+    ElementType.GENRE_ALBUM_LIST.element_name: handler_element_genre_album_list,
+    ElementType.GENRE_ARTIST_ALBUMS.element_name: handler_element_genre_artist_albums,
+    ElementType.PLAYLIST.element_name: handler_element_playlist,
+    ElementType.TRACK.element_name: handler_element_track,
+    ElementType.SONG_ENTRY_NAVIGABLE.element_name: handler_element_song_entry,
+    ElementType.SONG_ENTRY_THE_SONG.element_name: handler_element_song_entry_song,
+    ElementType.NEXT_RANDOM_SONGS.element_name: handler_element_next_random_songs,
+    ElementType.INTERNET_RADIO.element_name: handler_element_radio_station,
+    ElementType.ARTIST_TOP_SONGS.element_name: handler_element_artist_top_songs_navigable,
+    ElementType.ARTIST_TOP_SONGS_LIST.element_name: handler_element_artist_top_songs_song_list,
+    ElementType.ARTIST_SIMILAR.element_name: handler_element_similar_artists,
+    ElementType.ARTIST_ALBUMS.element_name: handler_element_artist_albums,
+    ElementType.ARTIST_APPEARANCES.element_name: handler_artist_appearances,
+    ElementType.RADIO.element_name: handler_radio,
+    ElementType.RADIO_SONG_LIST.element_name: handler_radio_song_list
 }
 
 
@@ -2972,15 +2979,15 @@ def tag_list_to_entries(
 
 
 def create_entry_for_tag(objid, tag: TagType) -> dict[str, any]:
-    tagname: str = tag.getTagName()
-    identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
+    tagname: str = tag.tag_name
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.element_name, tagname)
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
     entry: dict[str, any] = upmplgutils.direntry(
         id=id,
         pid=objid,
-        title=get_tag_type_by_name(tag.getTagName()).getTagTitle())
+        title=get_tag_type_by_name(tag.tag_name).tag_title)
     return entry
 
 
@@ -3011,8 +3018,8 @@ def show_tag_entries(objid, entries: list) -> list:
                 start_time: float = time.time()
                 # is there a precondition?
                 precondition: Callable[[], bool] = (
-                    __tag_show_precondition[tag.getTagName()]
-                    if tag.getTagName() in __tag_show_precondition
+                    __tag_show_precondition[tag.tag_name]
+                    if tag.tag_name in __tag_show_precondition
                     else None)
                 do_show: bool = not precondition or precondition()
                 if do_show:
@@ -3071,33 +3078,34 @@ def browse(a):
         item_identifier: ItemIdentifier = ItemIdentifier.from_dict(item_dict)
         thing_name: str = item_identifier.get(ItemIdentifierKey.THING_NAME)
         thing_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-        msgproc.log(f"browse: item_identifier name: --{thing_name}-- value: --{thing_value}--")
-        if ElementType.TAG.getName() == thing_name:
-            msgproc.log(f"browse: should serve tag: --{thing_value}--")
+        msgproc.log(f"browse: item_identifier name: [{thing_name}] value: [{thing_value}]")
+        if ElementType.TAG.element_name == thing_name:
+            msgproc.log(f"browse: should serve tag: [{thing_value}]")
             tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
             if tag_handler:
-                msgproc.log(f"browse: found tag handler for: --{get_tag_type_by_name(thing_value)}--")
+                current_tag: TagType = get_tag_type_by_name(thing_value)
+                msgproc.log(f"browse: found tag handler for [{thing_value}]: [{current_tag}]")
                 entries = tag_handler(objid, item_identifier, entries)
-                msgproc.log(f"browse executed (tag [{thing_value}]) "
+                msgproc.log(f"browse executed (tag [{current_tag}]) "
                             f"collecting [{len(entries) if entries else 0}] entries "
                             f"in [{(time.time() - start):.3f}]")
                 return _returnentries(entries)
             else:
-                msgproc.log(f"browse: tag handler for: --{thing_value}-- not found")
+                msgproc.log(f"browse: tag handler for [{thing_value}] not found")
                 return _returnentries(entries)
         else:  # it's an element
-            msgproc.log(f"browse: should serve element: --{thing_name}-- [{thing_value}]")
+            msgproc.log(f"browse: should serve element: [{thing_name}] [{thing_value}]")
             elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
             if elem_handler:
-                msgproc.log(f"browse: found elem handler for: --{get_element_type_by_name(thing_name)}--")
+                curr_element: ElementType = get_element_type_by_name(thing_name)
+                msgproc.log(f"browse: found elem handler for [{thing_name}]: [{curr_element}]")
                 entries = elem_handler(objid, item_identifier, entries)
-                msgproc.log(f"browse executed (element [{thing_name}]) "
+                msgproc.log(f"browse executed (element [{curr_element}]) "
                             f"collecting [{len(entries) if entries else 0}] entries "
                             f"in [{(time.time() - start):.3f}]")
                 return _returnentries(entries)
-
             else:
-                msgproc.log(f"browse: element handler for: --{thing_name}-- not found")
+                msgproc.log(f"browse: element handler for [{thing_name}] not found")
                 return _returnentries(entries)
 
 

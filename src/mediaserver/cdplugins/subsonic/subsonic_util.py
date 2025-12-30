@@ -457,44 +457,54 @@ def get_albums(
         toYear=None) -> list[Album]:
     connector: Connector = connector_provider.get()
     albumListResponse: Response[AlbumList]
-    if TagType.RECENTLY_ADDED_ALBUMS.getQueryType() == query_type:
+    if TagType.RECENTLY_ADDED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getNewestAlbumList(
             size=size,
             offset=offset)
-    elif TagType.NEWEST_ALBUMS.getQueryType() == query_type:
+    elif TagType.NEWEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
             toYear=toYear)
-    elif TagType.OLDEST_ALBUMS.getQueryType() == query_type:
+    elif TagType.OLDEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
             toYear=toYear)
-    elif TagType.RANDOM.getQueryType() == query_type:
+    elif TagType.RANDOM.query_type == query_type:
         albumListResponse = request_cache.get_random_album_list(
             size=size,
             offset=offset)
-    elif TagType.RECENTLY_PLAYED_ALBUMS.getQueryType() == query_type:
+    elif TagType.RECENTLY_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.RECENT,
             size=size,
             offset=offset)
-    elif TagType.MOST_PLAYED_ALBUMS.getQueryType() == query_type:
+    elif TagType.MOST_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.FREQUENT,
             size=size,
             offset=offset)
-    elif TagType.HIGHEST_RATED_ALBUMS.getQueryType() == query_type:
+    elif TagType.HIGHEST_RATED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.HIGHEST,
             size=size,
             offset=offset)
-    elif TagType.FAVORITE_ALBUMS.getQueryType() == query_type:
+    elif TagType.ALPHABETICAL_BY_NAME_ALBUMS.query_type == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.ALPHABETICAL_BY_NAME,
+            size=size,
+            offset=offset)
+    elif TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.query_type == query_type:
+        albumListResponse = connector.getAlbumList(
+            ltype=ListType.ALPHABETICAL_BY_ARTIST,
+            size=size,
+            offset=offset)
+    elif TagType.FAVORITE_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.STARRED,
             size=size,
@@ -921,6 +931,10 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
         return True
     else:
         return False
+
+
+def get_size(obj: Song) -> str:
+    return obj.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
 
 
 def get_explicit_status(album: Album) -> str:

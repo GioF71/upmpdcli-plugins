@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.25"
+    PLUGIN_RELEASE = "0.8.29"
     PLUGIN_NAME = "subsonic"
 
 
@@ -52,6 +52,7 @@ class ItemKey(Enum):
     SONG_DISPLAY_ARTIST = "displayArtist"
     SONG_DISPLAY_ALBUM_ARTIST = "displayAlbumArtist"
     PLAYLIST_ENTRY_DISPLAY_ARTIST = "displayArtist"
+    ITEM_SIZE = "size"
 
 
 class DictKey(Enum):
@@ -424,8 +425,20 @@ class ConfigParam(Enum):
 
     ALLOW_SONG_DIDL_ALBUMARTIST = _ConfigParamData(
         "allowsongdidlalbumartist",
-        default_value=True,
+        default_value=False,
         description="Allow to add DIDL fragment for album artist in song")
+
+    SKIP_INTERMEDIATE_URL = _ConfigParamData(
+        key="skipintermediateurl",
+        default_value=False,
+        description="Avoid to create URLs that will be redirected to the trackuri method")
+
+    ENABLE_RANDOM_ID = _ConfigParamData(
+        key="enablerandomid",
+        default_value=False,
+        description=("Generate a random id on each identifier entry, "
+                     "might be useful with Linn Kazoo as this will "
+                     "defeat its excessive caching"))
 
     @property
     def key(self) -> str:

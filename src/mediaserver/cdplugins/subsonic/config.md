@@ -83,4 +83,6 @@ defeatcoverarturl|Allows to entirely defeat loading of cover art|False
 logwithtimestamp|Adds a timestamp to log entries|True
 maxrandomsonglistsize|Max number of random songs to display|250
 setalbumartistrolealbumartist|Enable set the role 'albumartist' in album|False
-allowsongdidlalbumartist|Allow to add DIDL fragment for album artist in song|True
+allowsongdidlalbumartist|Allow to add DIDL fragment for album artist in song|False
+skipintermediateurl|Avoid to create URLs that will be redirected to the trackuri method|False
+enablerandomid|Generate a random id on each identifier entry, might be useful with Linn Kazoo as this will defeat its excessive caching|False

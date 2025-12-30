@@ -17,6 +17,8 @@ from item_identifier_key import ItemIdentifierKey
 import copy
 import random
 import string
+import constants
+import config
 
 
 class ItemIdentifier:
@@ -48,8 +50,9 @@ class ItemIdentifier:
             raise Exception("value cannot be empty")
         self.set(ItemIdentifierKey.THING_NAME, name)
         self.set(ItemIdentifierKey.THING_VALUE, value)
-        random_value: str = self.randomword(6)
-        self.set(ItemIdentifierKey.RANDOM_VALUE, random_value)
+        if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_RANDOM_ID):
+            random_value: str = self.randomword(6)
+            self.set(ItemIdentifierKey.RANDOM_VALUE, random_value)
 
     def getDictionary(self):
         return copy.deepcopy(self.__dict)
