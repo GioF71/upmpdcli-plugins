@@ -288,22 +288,18 @@ class Folders(object):
             self._dirvec[0][d] = (len(self._dirvec) - 1, -1)
             self._dirvec[-1][".."] = (0, -1)
 
-        # Walk the doc list and update the directory tree according to the
-        # url: create intermediary directories if needed, create leaf
-        # entry.
+        # Walk the doc list and update the directory tree according to the url: create intermediary
+        # directories if needed, create leaf entry.
         #
-        # Binary path issue: at the moment the python rclconfig can't
-        # handle binary (the underlying conftree.py can, we'd need a
-        # binary stringToStrings). So the topdirs entries have to be
-        # strings, and so we decode the binurl too. This probably
-        # could be changed we wanted to support binary, (non utf-8)
-        # paths. For now, for python3 all dir/file names in the tree
-        # are str
+        # Binary path issue: at the moment the python rclconfig can't handle binary (the underlying
+        # conftree.py can, we'd need a binary stringToStrings). So the topdirs entries have to be
+        # strings, and so we decode the binurl too. This probably could be changed we wanted to
+        # support binary, (non utf-8) paths. For now, all dir/file names in the tree are str
         for docidx in range(len(self._rcldocs)):
             doc = self._rcldocs[docidx]
 
-            # Only include selected mtypes: tracks, playlists,
-            # directories etc.
+            # Only include selected mtypes: mostly, audio/video and playlists.
+            # Directories are excluded at the moment by indexallfilenames=0
             if doc["mtype"] not in audiomtypes:
                 continue
 
@@ -459,37 +455,42 @@ class Folders(object):
         else:
             return self._moredocs[docidx - len(self._rcldocs)]
 
-    # Look all non-directory docs inside directory, and return the
-    # cover art we find.
+    # Look all non-directory docs inside directory, and return the cover art we find.
+    # 
+    # TBD:
+    # - In the case where this is a Group directory, we'd need to go look into the file system for a
+    #   group.xxx image.  As it is, things work if the tracks rely on the group pic (instead of
+    #   having an embedded pic or track pic)
+    # - playlists: need to look at the physical dir for a e.g. playlistname.jpg.
     #
-    # TBD In the case where this is a Group directory, we'd
-    # need to go look into the file system for a group.xxx image.  As
-    # it is, things work if the tracks rely on the group pic (instead
-    # of having an embedded pic or track pic) Also: playlists: need to
-    # look at the physical dir for a e.g. playlistname.jpg.  And also:
-    # currently, we won't look at possible art for a folder with no
-    # music (e.g. top folder of a multi-cd). We'd need to look at the
-    # fs directory, but we don't have the path at this point. We'd
-    # need a '.' entry with a doc record containing the
-    # path. Currently this works if one of the subdirs has an audio
-    # file with an external cover.
-    def _arturifordir(self, diridx):
-        for nm, ids in self._dirvec[diridx].items():
+    # We used to only look for art for direct children tracks, but we now also look at
+    # subdirs. This will yield an image from the first subdir which has an image file in
+    # it, so somewhat random, but nice anyway.
+    def _arturifordironedoc(self, diridx, docidx):
+        # Look for art for one object, track or directory.
+        # Directories only have doc entries if they are also albums. Else we fake a doc.
+        if docidx >= 0 and docidx < len(self._rcldocs):
+            doc = self._rcldocs[docidx]
+        else:
+            doc = {}
+            doc["mtype"] = "inode/directory"
+            doc["url"] = "file://" + self.dirpath("", diridx)
+            doc["group"] = None
+            doc["embdimg"] = None
+        return uprclutils.docarturi(doc, self._httphp, self._pprefix, preferfolder=True)
+    # Look for art for the directory itself, then its children.
+    def _arturifordir(self, thisdiridx, thisdocidx=-1):
+        # First look at the directory itself.
+        arturi = self._arturifordironedoc(thisdiridx, thisdocidx)
+        if arturi:
+            return arturi
+        # Then look at children.
+        for nm, ids in self._dirvec[thisdiridx].items():
+            diridx = ids[0]
             docidx = ids[1]
-            if docidx >= 0 and docidx < len(self._rcldocs):
-                doc = self._rcldocs[docidx]
-                # We used to only look for art for direct children
-                # tracks, but we now also look at subdirs. This will
-                # yield an image from the first subdir which has an
-                # image file in it, so somewhat random, but nice
-                # anyway. The condition is kept around to show how to
-                # change our minds or make it optional.
-                if True or doc["mtype"] != "inode/directory":
-                    arturi = uprclutils.docarturi(
-                        doc, self._httphp, self._pprefix, preferfolder=True
-                    )
-                    if arturi:
-                        return arturi
+            arturi = self._arturifordironedoc(diridx, docidx)
+            if arturi:
+                return arturi
 
     def _browsemeta(self, pid, isitem, idx):
         docidx = -1
@@ -552,7 +553,7 @@ class Folders(object):
                 # show one of the subdir's art and looks weird
                 showtopart = False
                 id = self._idprefix + "$d" + str(thisdiridx)
-                arturi = self._arturifordir(thisdiridx)
+                arturi = self._arturifordir(thisdiridx, thisdocidx)
                 entries.append(direntry(id, pid, os.path.basename(nm), arturi=arturi))
             else:
                 # Not a directory. docidx had better been set
@@ -570,7 +571,7 @@ class Folders(object):
             entries.sort(key=cmpentries)
 
         # Add "Browse subtree by tags" entry
-        if not self._notagview and pid != self._idprefix and self._enabletags:
+        if (not self._notagview) and pid != self._idprefix and self._enabletags:
             arturi = None
             if showtopart:
                 arturi = self._arturifordir(idx)
@@ -582,15 +583,15 @@ class Folders(object):
     # Return path for objid, which has to be a container.This is good old
     # pwd... It is called from the search module for generating a 'dir:'
     # recoll filtering directive.
-    def dirpath(self, objid):
-        # We may get called from search, on the top dir (above
-        # [folders]). Return empty in this case
-        try:
-            isitem, diridx, pthremain = self._objidtoidx(objid)
-        except:
-            return ""
-        if isitem:
-            raise Exception(f"uprclfolders:dirpath: called on item pid [{pid}]")
+    def dirpath(self, objid, diridx=None):
+        # We may get called from search, on the top dir (above [folders]). Return empty in this case
+        if not diridx:
+            try:
+                isitem, diridx, pthremain = self._objidtoidx(objid)
+            except:
+                return ""
+            if isitem:
+                raise Exception(f"uprclfolders:dirpath: called on item pid [{pid}]")
 
         if diridx == 0:
             return "/"
@@ -606,18 +607,10 @@ class Folders(object):
                     break
             # End for
             if not found:
-                uplog(
-                    "uprclfolders: pwd failed for %s \
-                (father not found), returning /"
-                    % objid
-                )
+                uplog(f"uprclfolders: pwd failed for {objid} (father not found), returning /")
                 return "/"
             if len(lpath) > 200:
-                uplog(
-                    "uprclfolders: pwd failed for %s \
-                (looping), returning /"
-                    % objid
-                )
+                uplog(f"uprclfolders: pwd failed for {objid} (looping), returning /")
                 return "/"
 
             diridx = fathidx
