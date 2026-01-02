@@ -141,6 +141,7 @@ src/mediaserver/cdplugins/pycommon/
 src/mediaserver/cdplugins/pycommon/cmdtalk.py
 src/mediaserver/cdplugins/pycommon/cmdtalkplugin.py
 src/mediaserver/cdplugins/pycommon/conftree.py
+src/mediaserver/cdplugins/pycommon/idgenerator.py
 src/mediaserver/cdplugins/pycommon/keyvaluecaching.py
 src/mediaserver/cdplugins/pycommon/musicbrainzutils.py
 src/mediaserver/cdplugins/pycommon/routing.py
