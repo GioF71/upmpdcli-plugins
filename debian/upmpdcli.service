@@ -1,6 +1,6 @@
 [Unit]
 Description=UPnP Renderer front-end to MPD
-After=network-online.target mpd.service
+After=network-online.target mpd.service systemd-remount-fs.service
 Wants=network-online.target
 
 [Service]
