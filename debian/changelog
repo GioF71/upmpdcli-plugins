@@ -1,3 +1,9 @@
+upmpdcli (1.9.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: Qobuz: improve search, make it usable
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 05 Jan 2026 11:33:00 +0100
+
 upmpdcli (1.9.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: uprcl: improve cover detection. Fix incompatibility with recoll.
