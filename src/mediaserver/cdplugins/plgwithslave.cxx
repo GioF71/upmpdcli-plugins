@@ -680,14 +680,23 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
                 objkind = "playlist";
             }
             classfilter = what;
-        } else if (!upnpproperty.compare("upnp:artist") || !upnpproperty.compare("dc:author")) {
+        } else if (!upnpproperty.compare("upnp:artist") ||
+                   !upnpproperty.compare("dc:author") || 
+                   !upnpproperty.compare("dc:creator")) {
             slavefield = "artist";
             value = vs[i+2];
         } else if (!upnpproperty.compare("upnp:album")) {
             slavefield = "album";
             value = vs[i+2];
         } else if (!upnpproperty.compare("dc:title")) {
+            // NOTE: this should be "title". Comes from a confusion between kind and field..
+            // for now keep as is, needs changes in plugins. Modules ready:
+            // - qobuz-app was prepared for change
+            // - uprcl does not use the pre-cooked search but directly the upnp search
+            // radio-browser, radio-paradise, upradios, hra, bbc: no search or ok
+            // ! Subsonic and Tidal need change !
             slavefield = "track";
+//            slavefield = "title";
             value = vs[i+2];
         }
     }
