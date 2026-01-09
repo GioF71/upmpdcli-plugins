@@ -1,3 +1,9 @@
+upmpdcli (1.9.9-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: uprcl: improve cover detection. Fix incompatibility with recoll.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Fri, 02 Jan 2026 19:20:00 +0100
+
 upmpdcli (1.9.8-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: Subsonic plugins updates

@@ -33,6 +33,7 @@ import errno
 import inspect
 import posixpath
 import re
+import unicodedata
 
 import conftree
 
@@ -321,3 +322,7 @@ def trackentries(httphp, pathprefix, objid, tracks, generate_track_nums=False):
 
         entries.append(li)
     return entries
+
+def strip_accents(s):
+   return ''.join(c for c in unicodedata.normalize('NFD', s)
+                  if unicodedata.category(c) != 'Mn')
