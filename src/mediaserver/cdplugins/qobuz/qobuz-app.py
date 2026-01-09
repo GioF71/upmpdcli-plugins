@@ -433,16 +433,19 @@ def search(a):
         msgproc.log("Unknown field '%s'" % field)
         field = "title"
     elif field == "track":
+        # plgwithslave.cpp bug: uses 'track' where it should use 'title'
+        # (field title is valid for all kinds of objects).
         field = "title"
 
-    if objkind and objkind not in ["artist", "album", "playlist", "track"]:
+    if objkind and objkind not in ["track", "artist", "album", "playlist"]:
         msgproc.log("Unknown objkind '%s'" % objkind)
         objkind = "track"
 
-    # type must be 'tracks', 'albums', 'artists' or 'playlists'
+    # Qobuz types are plural: 'tracks', 'albums', 'artists' or 'playlists'
     qkind = objkind + "s" if objkind else None
     searchresults = session.search(field, value, qkind)
 
+    # Display the requested results: maybe all kinds or one specific kind.
     if objkind is None or objkind == "artist":
         xbmcplugin.view(
             searchresults.artists,
@@ -455,13 +458,6 @@ def search(a):
             xbmcplugin.urls_from_id(album_view, searchresults.albums),
             end=False,
         )
-        # Kazoo and bubble only search for object.container.album, not
-        # playlists. So if we want these to be findable, need to send
-        # them with the albums
-        if objkind == "album":
-            searchresults = session.search(field, value, "playlists")
-            objkind = "playlist"
-            # Fallthrough to view playlists
     if objkind is None or objkind == "playlist":
         xbmcplugin.view(
             searchresults.playlists,

@@ -75,7 +75,7 @@ class Session(object):
                 uplog("loopget: exception while parsing: %s" % err)
                 break
             all.extend(ndata)
-            uplog("GOT %d more (slice %d)" % (len(ndata), slice))
+            #uplog("GOT %d more (slice %d)" % (len(ndata), slice))
             if len(ndata) < slice:
                 break
             offset += slice
@@ -169,19 +169,29 @@ class Session(object):
         elif tp == "artists":
             if field == "artist" or field == "title":
                 flt = _artist_filter_name
+        elif tp == "playlists":
+            if field == "artist":
+                return SearchResult(playlists=[])
+            else:
+                flt = _playlist_filter_name
 
-        limit = 200
-        slice = 200
         if tp == "artists":
             limit = 20
             slice = 20
         elif tp == "albums" or tp == "playlists":
             limit = 50
             slice = 50
+        else:
+            limit = 100
+            slice = 100
+            
         offset = 0
         all = []
-        while offset < limit or len(all) < limit / 2:
-            uplog("_search1: calling catalog_search, offset %d" % offset)
+        # The test on [(offset < x * limit) and ...] replaced a test on [offset < limit or...] to
+        # work around the problem that if qobuz returns results, but on the wrong field, we
+        # can be chasing our queue for very long
+        while offset < (3 * limit) and len(all) < limit / 2:
+            uplog(f"_search1: catsearch: tp {tp} q {query}, offset {offset} limit {slice}")
             data = self.api.catalog_search(query=query, type=tp, offset=offset, limit=slice)
             ncnt = 0
             ndata = []
@@ -201,6 +211,8 @@ class Session(object):
                     # uplog("PLAYLISTS: %s" % json.dumps(data, indent=4))
                     ncnt = len(data["playlists"]["items"])
                     ndata = [_parse_playlist(i) for i in data["playlists"]["items"]]
+                    if flt:
+                        ndata = [pl for pl in ndata if flt(pl, query)]
                 elif tp == "tracks":
                     ncnt = len(data["tracks"]["items"])
                     ndata = [_parse_track(self, i) for i in data["tracks"]["items"]]
@@ -242,11 +254,18 @@ class Session(object):
             return cplt
 
 
-# This is useful because qobuz returns partial word matches, which I don't think is a good idea
+# The \b thing is useful because qobuz returns partial word matches, which I don't think is a good
+# idea. Filter for full word matches instead.
+def _search_in_field(fieldvalue, words):
+    fieldvalue = strip_accents(fieldvalue)
+    for w in strip_accents(words).split():
+        if not re.search(r"\b" + w + r"\b", fieldvalue, re.IGNORECASE):
+            return False
+    return True
+
 def _artist_filter_name(art, value):
     # uplog(f"_artist_filter_name: value [{value}] name [{art.name}]")
-    return re.search(r"\b" + value + r"\b", art.name, re.IGNORECASE)
-
+    return _search_in_field(art.name, value)
 
 def _parse_artist(data):
     # uplog("_parse_artist: data %s" % data)
@@ -261,12 +280,12 @@ def _parse_genre(data):
 
 
 def _album_filter_title(alb, value):
-    # uplog(f"_album_filter_title: value [{value}] title [{alb.name}]")
-    return re.search(r"\b" + value + r"\b", alb.name, re.IGNORECASE)
-
+    #uplog(f"_album_filter_title: value [{value}] title [{alb.name}]")
+    return _search_in_field(alb.name, value)
 
 def _album_filter_artist(alb, value):
-    return re.search(r"\b" + value + r"\b", alb.artist.name, re.IGNORECASE)
+    #uplog(f"_album_filter_artist: value [{value}] title [{alb.name}]")
+    return _search_in_field(alb.artist.name, value)
 
 
 def _parse_album(json_obj, artist=None, artists=None):
@@ -327,6 +346,9 @@ def _parse_album(json_obj, artist=None, artists=None):
 
     return Album(**kwargs)
 
+def _playlist_filter_name(pl, value):
+    #uplog(f"_playlist_filter_name: value [{value}] name [{pl.name}]")
+    return _search_in_field(pl.name, value)
 
 def _parse_playlist(data, artist=None, artists=None):
     # uplog("_parse_playlist: data %s" % data)
@@ -347,16 +369,13 @@ def _parse_playlist(data, artist=None, artists=None):
 
 def _track_filter_title(track, value):
     # uplog(f"_track_filter_title: value [{value}] title [{track.name}]")
-    return re.search(r"\b" + value + r"\b", track.name, re.IGNORECASE)
-
+    return _search_in_field(track.name, value)
 
 def _track_filter_artist(track, value):
-    return re.search(r"\b" + value + r"\b", track.artist.name, re.IGNORECASE)
-
+    return _search_in_field(track.artist.name, value)
 
 def _track_filter_album(track, value):
-    return re.search(r"\b" + value + r"\b", track.album.name, re.IGNORECASE)
-
+    return _search_in_field(track.album.name, value)
 
 def _parse_track(sess, json_obj, albumarg=None):
     artist = Artist()
