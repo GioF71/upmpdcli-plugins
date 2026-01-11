@@ -50,7 +50,7 @@ def _readword(s, i):
     return j, w
 
 
-def _parsestring(s, i=0):
+def _parsestring(s, i):
     """Parse double-quoted string looking like ["hello \"one phrase\" world"]
     Called with the first quote already read.
     Upnp search term strings are double quoted, but we should not take them as recoll phrases.
@@ -202,6 +202,22 @@ _fieldaliases = {
 #
 # This is all quite approximative though, but simpler than a formal parser, and mostly works in
 # practise because we rely on recoll to deal with logical operators and parentheses.
+# UPnP search string grammar as from the standard:
+#    searchCrit ::= searchExp | asterisk
+#    searchExp  ::= relExp |
+#                   searchExp wChar+ logOp wChar+ searchExp |
+#                   '(' wChar* searchExp wChar* ')'
+#    logOp      ::= 'and' | 'or'
+#    relExp     ::= property wChar+ binOp wChar+ quotedVal |
+#                   property wChar+ existsOp wChar+ boolVal
+#    binOp      ::= relOp |stringOp
+#    relOp      ::= '=' | '!=' | '<' | '<=' | '>' | '>='
+#    stringOp   ::= 'contains' | 'doesNotContain' | 'derivedFrom'
+#    existsOp   ::= 'exists'
+#    boolVal    ::= 'true' | 'false'
+#    wChar      ::= space | hTab | lineFeed | vTab | formFeed | return
+#    property   ::= (* property name as defined in section 2.4 *)
+#    escapedQuote ::= (* double-quote escaped string as defined in section 2.3.1 *)
 def _upnpsearchtorecoll(s):
     uplog(f"_upnpsearchtorecoll:in: <{s}>")
 
@@ -240,8 +256,24 @@ def _upnpsearchtorecoll(s):
                 # Quoted strings are always values (3rd triplet elements) and values are always
                 # quoted. Read it, then generate and append one or several recoll search clauses,
                 # according to the already read 1st and 2nd triplet elements.
+
+                # We must have a field and an operator at this point.
+                if not field or not oper:
+                    uplog(f"Search: syntax error: [{s}]")
+                    return None
+
                 i, v = _parsestring(s, i)
+
+                # If the operator is "=" for a string field, we transform the search into an
+                # anchored phrase search.
+                if field != "mime" and oper == "=" :
+                    fs = "^" + " ".join(v) + "$"
+                    v = [fs]
+                    oper = ":"
+
                 _makeSearchExp(out, v, field, oper, neg)
+
+                # Reset everything and go on
                 field = ""
                 oper = ""
                 neg = False
