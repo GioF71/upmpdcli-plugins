@@ -144,9 +144,9 @@
 #msrootalias =
 # Hostname/IP address used in proxy URLs.
 #plgmicrohttphost =
-# IP port for the tidal/qobuz local HTTP service.
+# IP port for Subsonic, Tidal, or Qobuz local HTTP service.
 #plgmicrohttpport = 49149
-# Decide if we proxy (copy: fetch/serve), or redirect the streaming services streams.
+# Decide if we proxy (copy from the service to the renderer), or redirect the streaming services streams.
 #plgproxymethod = redirect
 # Path to the Media Server icon.
 #msiconpath = /usr/share/upmpdcli/icon.png
@@ -323,7 +323,7 @@ upradiostitle = Upmpdcli Radio List
 #subsonicenablemaintenancefeatures = 0
 # Show artist albums from newest to older if left empty or set to 1
 #subsonicartistalbumnewestfirst = 0
-# max number of songs in random song list
+# Number of songs in Random Songs (list)
 #subsonicmaxrandomsonglistsize = 250
 
 # Upmpdcli BBC Sounds plugin parameters
