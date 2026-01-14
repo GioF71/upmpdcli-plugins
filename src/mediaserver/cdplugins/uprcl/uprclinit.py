@@ -128,12 +128,14 @@ def _update_index(rebuild=False):
 
     try:
         start = timer()
-        uprclindex.runindexer(_g_rclconfdir, g_rcltopdirs, rebuild=rebuild)
-        # Wait for indexer
-        while not uprclindex.indexerdone():
-            time.sleep(0.5)
-        fin = timer()
-        uplog("Indexing took %.2f Seconds" % (fin - start))
+        noindexing = getOptionValue("uprclnoindexing")
+        if not noindexing:
+            uprclindex.runindexer(_g_rclconfdir, g_rcltopdirs, rebuild=rebuild)
+            # Wait for indexer
+            while not uprclindex.indexerdone():
+                time.sleep(0.5)
+            fin = timer()
+            uplog("Indexing took %.2f Seconds" % (fin - start))
 
         folders = Folders(_g_rclconfdir, _g_httphp, _g_pathprefix)
         untagged = Untagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
