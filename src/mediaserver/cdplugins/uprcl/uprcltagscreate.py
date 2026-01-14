@@ -440,7 +440,6 @@ def _albumstorecoll(conn, rcldb):
     for r in c:
         udi = "albid" + str(r[0])
         doc = rcldb.doc()
-        doc["album"] = r[2]
         doc["title"] = r[2]
         doc["mtype"] = "inode/directory"
         if r[5]:
