@@ -226,6 +226,8 @@ uprcltitle = Local Music
 #uprclminimconfig =
 # Suppress folder "Tag View" entries.
 #uprclnotagview=false
+# Do not run the indexer on startup.
+#uprclnoindexing=false
 
 # Upmpdcli Radios plugin parameters
 

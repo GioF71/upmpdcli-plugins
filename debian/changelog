@@ -1,3 +1,12 @@
+upmpdcli (1.9.11-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: uprcl: search: support "=" operator for properties.
+    (mostly motivated by upplay new "click on album title" feature).
+  * Media server: uprcl: add option to not run the indexer on startup.
+  * Media server: uprcl: don't add "album" tag on album entries.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Wed, 14 Jan 2026 14:11:00 +0100
+
 upmpdcli (1.9.10-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: Qobuz: improve search, make it usable

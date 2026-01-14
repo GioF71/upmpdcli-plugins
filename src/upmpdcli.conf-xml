@@ -609,6 +609,11 @@ uprcltitle = Local Music
 # </var>
 #uprclnotagview=false
 
+# <var name="uprclnoindexing" type="bool">
+# <brief>Do not run the indexer on startup.</brief>
+# <descr>Mostly for gaining time when restarting the server for debugging.</descr>
+# </var>
+#uprclnoindexing=false
 
 # <grouptitle>Upmpdcli Radios plugin parameters</grouptitle>
 

@@ -514,6 +514,9 @@ manual). Not set by default, and optional.
 uprclnotagview:: Suppress folder "Tag View" entries. The "Tag View" entry allow browsing a subdirectory by tags. It can be quite useful but also
 a problem with some Control Points, or kinds of usage.
 
+[[uprclnoindexing]]
+uprclnoindexing:: Do not run the indexer on startup. Mostly for gaining time when restarting the server for debugging.
+
 === Upmpdcli Radios plugin parameters 
 
 [[upradiosuser]]
