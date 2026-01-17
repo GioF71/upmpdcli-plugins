@@ -386,21 +386,25 @@ int main(int argc, char *argv[])
         opts.options |= UpMpd::upmpdNoSongcastSource;
     }
     opts.ohmetasleep = getIntOptionValue("ohmetasleep", 0);
-    getOptionValue("ohmanufacturername", ohProductDesc.manufacturer.name);
-    getOptionValue("ohmanufacturerinfo", ohProductDesc.manufacturer.info);
-    getOptionValue("ohmanufacturerurl", ohProductDesc.manufacturer.url);
-    getOptionValue("ohmanufacturerimageuri", ohProductDesc.manufacturer.imageUri);
-    getOptionValue("ohmodelname", ohProductDesc.model.name);
-    getOptionValue("ohmodelinfo", ohProductDesc.model.info);
-    getOptionValue("ohmodelurl", ohProductDesc.model.url);
+    getOptionValue("ohmanufacturername", ohProductDesc.manufacturer.name,
+                   ohProductDesc.manufacturer.name);
+    getOptionValue("ohmanufacturerinfo", ohProductDesc.manufacturer.info,
+        ohProductDesc.manufacturer.info);
+    getOptionValue("ohmanufacturerurl", ohProductDesc.manufacturer.url,
+        ohProductDesc.manufacturer.url);
+    getOptionValue("ohmanufacturerimageuri", ohProductDesc.manufacturer.imageUri,
+        ohProductDesc.manufacturer.imageUri);
+    getOptionValue("ohmodelname", ohProductDesc.model.name, ohProductDesc.model.name);
+    getOptionValue("ohmodelinfo", ohProductDesc.model.info, ohProductDesc.model.info);
+    getOptionValue("ohmodelurl", ohProductDesc.model.url, ohProductDesc.model.url);
     // imageUri was mistake, keep compat and override with imageuri if set
-    getOptionValue("ohmodelimageUri", ohProductDesc.model.imageUri);
-    getOptionValue("ohmodelimageuri", ohProductDesc.model.imageUri);
-    getOptionValue("ohproductname", ohProductDesc.product.name);
-    getOptionValue("ohproductinfo", ohProductDesc.product.info);
-    getOptionValue("ohproducturl", ohProductDesc.product.url);
-    getOptionValue("ohproductimageuri", ohProductDesc.product.imageUri);
-    getOptionValue("ohproductroom", ohProductDesc.room);
+    getOptionValue("ohmodelimageuri", ohProductDesc.model.imageUri, ohProductDesc.model.imageUri);
+    getOptionValue("ohproductname", ohProductDesc.product.name, ohProductDesc.product.name);
+    getOptionValue("ohproductinfo", ohProductDesc.product.info, ohProductDesc.product.info);
+    getOptionValue("ohproducturl", ohProductDesc.product.url, ohProductDesc.product.url);
+    getOptionValue("ohproductimageuri", ohProductDesc.product.imageUri,
+                   ohProductDesc.product.imageUri);
+    getOptionValue("ohproductroom", ohProductDesc.room, ohProductDesc.room);
     // ProductName is set to ModelName by default
     if (ohProductDesc.product.name.empty()) {
         ohProductDesc.product.name = ohProductDesc.model.name;
