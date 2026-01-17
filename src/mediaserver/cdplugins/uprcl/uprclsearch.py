@@ -128,11 +128,11 @@ def _searchClauses(out, neg, field, oper, words, phrases):
     return out
 
 
-def _makeSearchExp(out, v, field, oper, neg):
+def _makeSearchExp(out, v, fields, oper, neg):
     """Process data from an UPnP relExp triplet.
     Build a recoll search expression, given:
     v: terms or phrases out of _parseString.
-    field: which we may expand to multiple ORed values (e.g. title -> title or filename)
+    fields: one or several fields to be ORed (e.g. title -> title or filename)
     oper: :, = etc. "I" for ignore.
     neg: exclusion"""
 
@@ -157,10 +157,8 @@ def _makeSearchExp(out, v, field, oper, neg):
 
     # Special-case 'title' because we want to also match the file name. Possibly only for
     # directories, but there is no way to do inside a single query (see comment further).
-    if field == "title":
-        fields = (field, "filename")
-    else:
-        fields = (field,)
+    if isinstance(fields, str):
+        fields = (fields,)
 
     if len(fields) > 1:
         out.append(" (")
@@ -174,7 +172,7 @@ def _makeSearchExp(out, v, field, oper, neg):
         # anyway:
         # if i == 1: out.append(" AND mime:inode/directory")
         out.append(")")
-        if len(fields) == 2 and i == 0:
+        if len(fields) > 1 and i < len(fields) -1:
             if neg:
                 out.append(" AND ")
             else:
@@ -189,7 +187,11 @@ def _makeSearchExp(out, v, field, oper, neg):
 _fieldaliases = {
     "dc:creator": "upnp:artist",
 }
-
+# Some upnp fields need to be expanded to multiple recoll ones and result in an OR search
+_fieldexpansions = {
+    "upnp:artist": ("artist", "composer", "conductor", "author"),
+    "dc:title": ("title", "filename"),
+}
 
 # Upnp searches are made of relExps which are always (selector, operator, value), there are no unary
 # operators. The relExp-s can be joined with and/or and grouped with parentheses, but they are
@@ -313,7 +315,10 @@ def _upnpsearchtorecoll(s):
                     try:
                         if w in _fieldaliases:
                             w = _fieldaliases[w]
-                        field = uprclutils.upnp2rclfields[w]
+                        if w in _fieldexpansions:
+                            field = _fieldexpansions[w]
+                        else:
+                            field = uprclutils.upnp2rclfields[w]
                     except Exception as ex:
                         uplog(f"Field translation error for <{w}>: {ex}. Ignoring search.")
                         # Recoll would just ignore an unknown field spec and search the main
