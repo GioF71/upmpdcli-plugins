@@ -20,7 +20,6 @@ import time
 import re
 from recoll import recoll
 
-from timeit import default_timer as timer
 from uprclutils import audiomtypes, docfolder, uplog
 import uprclutils
 import uprclinit
@@ -231,6 +230,18 @@ def _prepareTags(conn):
         rclfld = _coltorclfield[tb] if tb in _coltorclfield else tb
         uplog(f"prepareTags: using rclfield [{rclfld}] for sql [{tb}]")
         tabtorclfield.append((tb, rclfld))
+        # Special case "artist" because we also want "composer" and "conductor" in there.  This is
+        # so that recoll doc records will be created by _artiststorecoll(), and search for artist by
+        # title will find them. This is a bit dubious because, if there are Composer or Conductor
+        # indexes, we are duplicating data, and the user probably does not want to find composers in
+        # the artist list. The other possible approach would (tbchecked?) be to use itemtags tables
+        # but this would need additional code in uprcltags.py to duplicate the direntryforartid()
+        # method and the code in uprclsearch which calls it + maybe some of the code which links
+        # artists to albums and tracks probably? may worth a try anyway, it would be nicer if not
+        # too complicated.
+        if tb == "artist":
+            tabtorclfield.append((tb, "composer"))
+            tabtorclfield.append((tb, "conductor"))
 
     for nm in itemtags:
         if nm not in _alltagtotable:
@@ -604,7 +615,7 @@ def parsedate(dt):
 # Create the db and fill it up with the values we need, taken out of
 # the recoll records list
 def recolltosql(conn, rcldocs):
-    start = timer()
+    start = time.time()
 
     _createsqdb(conn)
     tabtorclfield = _prepareTags(conn)
@@ -683,15 +694,15 @@ def recolltosql(conn, rcldocs):
         # Create the main record in the tracks table.
         stmt = "INSERT INTO tracks(" + ",".join(columns) + ") VALUES(" + ",".join(placehold) + ")"
         c.execute(stmt, values)
-
+    
     ## End Big doc loop
 
     _setalbumartists(conn)
     _setalbumcovers(conn, rcldocs)
     _createmergedalbums(conn)
     conn.commit()
-    end = timer()
     rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
     _albumstorecoll(conn, rcldb)
     _artiststorecoll(conn, rcldb)
+    end = time.time()
     uplog(f"recolltosql: processed {totcnt} docs in {end-start:.1f} Seconds")
