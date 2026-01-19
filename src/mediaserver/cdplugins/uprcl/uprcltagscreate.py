@@ -617,6 +617,7 @@ def parsedate(dt):
 def recolltosql(conn, rcldocs):
     start = time.time()
 
+    conn.execute("BEGIN")
     _createsqdb(conn)
     tabtorclfield = _prepareTags(conn)
     # uplog("Tagscreate: tabtorclfield: %s"%tabtorclfield)
@@ -631,6 +632,7 @@ def recolltosql(conn, rcldocs):
     global variousartistsid
     variousartistsid = _auxtableinsert(conn, "artist", "Various Artists")
 
+    allvalues = []
     for docidx in range(len(rcldocs)):
         doc = rcldocs[docidx]
         totcnt += 1
@@ -691,9 +693,12 @@ def recolltosql(conn, rcldocs):
                 c.execute(stmt, jvals)
             if tb == "artist" and rowids:
                 _updatealbartistlist(conn, album_id, rowids)
-        # Create the main record in the tracks table.
-        stmt = "INSERT INTO tracks(" + ",".join(columns) + ") VALUES(" + ",".join(placehold) + ")"
-        c.execute(stmt, values)
+
+        allvalues.append(values)
+        
+    # Create the main records in the tracks table in a single SQLite call
+    stmt = "INSERT INTO tracks(" + ",".join(columns) + ") VALUES(" + ",".join(placehold) + ")"
+    c.executemany(stmt, allvalues)
     
     ## End Big doc loop
 
