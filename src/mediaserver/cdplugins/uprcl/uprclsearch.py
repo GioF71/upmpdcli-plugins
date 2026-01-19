@@ -188,6 +188,8 @@ _fieldaliases = {
     "dc:creator": "upnp:artist",
 }
 # Some upnp fields need to be expanded to multiple recoll ones and result in an OR search
+# Note that upnp has no notion at all of "composer" or "conductor", only upnp:artist or dc:creator.
+# The "role" value is free text as far as I can see.
 _fieldexpansions = {
     "upnp:artist": ("artist", "composer", "conductor", "author"),
     "dc:title": ("title", "filename"),

@@ -20,59 +20,52 @@
 #
 # Data structure:
 #
-# The _rcldocs list has one entry for each document in the index (mime:* search)
+# The _rcldocs list has one entry for each document in the index (mime:* search), it is the result
+# of a 'mime:*' recoll query. Each entry is, or is similar to, a recoll.Doc(), a kind of dict.
 #
-# The _dirvec list has one entry for each directory. Directories are
-# created as needed by splitting the paths/urls from _rcldocs (and
-# possibly adding some for groupings defined by the Group
-# tag). Directories have no direct relation with the index objects,
-# they are identified by their _dirvec index
-#
-# Obect ids inside the section:
-#    Container: $d<diridx> where <diridx> indexes into _dirvec
-#    Item: $i<docidx> where <docidx> indexes into _rcldocs
-#
-# Note: this is very different from what Minim does. Minim uses actual
-#   objid paths as objids. E.g. 0$folders$f1589$f1593$f1604$*i11609
-#   Must make pwd and any walk up the tree much easier.
-#
-# Each _dirvec entry is a Python dict, mapping the directory entries'
-# names to a pair (diridx,docidx), where:
+# The _dirvec list has one entry for each directory. Each entry is a Python dict, mapping the
+# directory entries' names to a pair (diridx,docidx), where:
 #
 #  - diridx is an index into _dirvec if the name is a directory, else -1
 #  - docidx is an index into _rcldocs, or -1 if:
-#     - There is no _rcldocs entry, which could possibly happen if
-#       there is no result for an intermediary element in a path,
-#       because of some recoll issue, or because this is a synthetic
-#       'Group' entry.
-#     - Or, while we build the structure, temporarily, if the doc was
-#       not yet seen. The value will then be updated when we see it.
+#     - There is no _rcldocs entry, which happens if there is no corresponding recoll doc for an
+#       intermediary element in a path, or because this is a synthetic 'Group' entry.
+#     - Or, while we build the structure, temporarily, if the doc was not yet seen. The value will
+#       then be updated when we see it.
 #
-# Note: docidx is usually set in the pair for a directory, but I don't
-# think that it is ever used. The Recoll doc for a directory has
-# nothing very interesting in it.
+# Directories are created as needed by splitting the paths/urls from _rcldocs (and possibly adding
+# some for groupings defined by the Group tag). Directories have no direct relation to their
+# possible recoll index objects (if any), they are identified by their _dirvec index
 #
-# Note: We could probably use a single value, with a convention
-# saying, e.g., that > 0 is for docs and < -1 for folders. Check if
-# this saves a significant amount of memory.
+# Note: docidx is usually set in the pair for a directory, if there is a Doc entry, but I don't
+# think that it is ever used. The Recoll Doc for a directory has nothing very interesting in it.
 #
-# Each directory has a special ".." entry with a diridx pointing to
-# the parent directory. This allows building a path from a container
-# id (aka pwd).
+# Note: We could probably use a single value, with a convention saying, e.g., that > 0 is for docs
+# and < -1 for folders. Check if this saves a significant amount of memory.
+#
+# Each directory has a special ".." entry with a diridx pointing to the parent directory. This
+# allows building a path from a container id (aka pwd).
 #
 # Only playlists have a "." entry (needed during init)
 #
-# Entry 0 in _dirvec is special: it holds the 'topdirs' from the recoll
-# configuration. The entries are paths instead of simple names, and
-# the docidx is 0. The diridx points to a dirvec entry.
+# Entry 0 in _dirvec is special: it holds the 'topdirs' from the recoll configuration. The entries
+# are paths instead of simple names, and their docidx is 0. The diridx points to a regular dirvec
+# entry.
 #
-# We also build an _xid2idx xdocid->objidx map to allow a Recoll
-# item search result to be connected back to the folders tree.
-# I'm not sure that this is at all useful (bogus objids for items in
-# search results are quite probably ok). Also quite probably, this
-# could also be done using the URL, as it is what we use to build the
-# folders tree in the first place.
-# _xid2idx is currently desactivated (see comment)
+# Object ids inside the section:
+#    Container: $d<diridx> where <diridx> indexes into _dirvec
+#    Item: $i<docidx> where <docidx> indexes into _rcldocs
+# Note: this is very different from what Minim does. Minim uses actual objid paths as objids.
+# E.g. 0$folders$f1589$f1593$f1604$*i11609. Must make pwd and any walk up the tree much easier.
+# 
+# We used to build an _xid2idx xdocid->objidx map to allow a Recoll item search result to be
+# connected back to the folders tree, but this was not actually useful (bogus objids for items in
+# search results are quite probably ok). Also quite probably, this could also be done using the URL,
+# as it is what we use to build the folders tree in the first place. _xid2idx is currently
+# desactivated (see comment). See objidfordoc() in this file for how we compute objids for
+# search results which are actual directories (which need to be browsable).
+#
+#
 
 import os
 import shlex
@@ -135,7 +128,7 @@ class Folders(object):
         self._maxrclcnt = 0
         # Overflow storage for synthetic records created for playlists
         # url entries. Uses docidx values starting at len(_rcldocs),
-        # with actual index value - len(_rcldocs)
+        # with actual index (value - len(_rcldocs))
         self._moredocs = []
         self._fetchalldocs(confdir)
         self._rcl2folders(confdir)
@@ -375,7 +368,7 @@ class Folders(object):
             fields += _otherneededfields
             fields += uprclinit.allMinimTags()
             fields = list(set(fields))
-            # uplog("_fetchalldocs: store fields: %s" % fields)
+            #uplog(f"_fetchalldocs: store fields: {fields}")
             self._rcldocs = qresultstore.QResultStore()
             self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc=True)
         else:
@@ -387,8 +380,7 @@ class Folders(object):
                 if tagaliases:
                     for orig, target, rep in tagaliases:
                         val = doc[orig]
-                        # uplog("Rep %s doc[%s]=[%s] doc[%s]=[%s]"%
-                        #      (rep, orig, val, target, doc[target]))
+                        # uplog(f"Rep {rep} doc[{orig}]=[{val}] doc[{target}]=[{doc[target]}]")
                         if val and (rep or not doc[target]):
                             setattr(doc, target, val)
 
