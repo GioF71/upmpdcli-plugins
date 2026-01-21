@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.8.11
+
+- Bump to [tidalapi version 0.8.11](https://github.com/tamland/python-tidal/releases/tag/v0.8.11)
+
 ## 0.8.10
 
 - Add configuration parameter `tidalsearchresulttrackascontainer` (defaults to `1`), tracks are presented as containers if set to `1`
