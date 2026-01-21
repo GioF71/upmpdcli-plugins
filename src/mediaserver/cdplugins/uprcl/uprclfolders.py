@@ -73,20 +73,12 @@ import sys
 import time
 from timeit import default_timer as timer
 
+from recoll import recoll
+from recoll import qresultstore
+from recoll import rclconfig
 from upmplgutils import uplog, direntry, getOptionValue
 from uprclutils import audiomtypes, rcldoctoentry, cmpentries
 import uprclutils
-from recoll import recoll
-
-try:
-    from recoll import qresultstore
-
-    _has_resultstore = True
-except:
-    _has_resultstore = False
-uprclutils.sethasresultstore(_has_resultstore)
-
-from recoll import rclconfig
 import uprclinit
 
 # All Doc fields which we may want to access (reserve slots in the
@@ -165,10 +157,7 @@ class Folders(object):
         if not os.path.isabs(path):
             path = os.path.join(os.path.dirname(plpath), path)
         doc = rcldb.doc()
-        if _has_resultstore:
-            doc["url"] = b"file://" + path
-        else:
-            doc.setbinurl(bytearray(b"file://" + path))
+        doc["url"] = b"file://" + path
         fathidx, docidx = self._stat(doc)
         if docidx >= 0 and docidx < len(self._rcldocs):
             return docidx
@@ -224,12 +213,11 @@ class Folders(object):
     # split remainder of the path
     def _pathbeyondtopdirs(self, doc):
         url = uprclutils.docpath(doc).decode("utf-8", errors="replace")
-        # Determine the root entry (topdirs element). Special because
-        # its path is not a simple name. Fathidx is its index in _dirvec
+        # Determine the root entry (topdirs element). Special because its path is not a simple
+        # name. Fathidx is its index in _dirvec
         firstdiridx = -1
         for rtpath, idx in self._dirvec[0].items():
-            # uplog("type(url) %s type(rtpath) %s rtpath %s url %s" %
-            # (type(url),type(rtpath),rtpath, url))
+            #uplog(f"type(url) {type(url)} type(rtpath) {type(rtpath)} rtpath {rtpath} url {url}")
             if url.startswith(rtpath):
                 firstdiridx = idx[0]
                 break
@@ -296,10 +284,8 @@ class Folders(object):
             if doc["mtype"] not in audiomtypes:
                 continue
 
-            # For linking item search results to the main
-            # array. Deactivated for now as it does not seem to be
-            # needed (and we would need to add xdocid to the
-            # resultstore fields).
+            # For linking item search results to the main array. Deactivated for now as it does not
+            # seem to be needed (and we would need to add xdocid to the resultstore fields).
             # self._xid2idx[doc["xdocid"]] = docidx
 
             fathidx, path = self._pathbeyondtopdirs(doc)
@@ -343,51 +329,29 @@ class Folders(object):
         end = timer()
         uplog("_rcl2folders took %.2f Seconds" % (end - start))
 
-    # Fetch all the docs by querying Recoll with [mime:*], which is guaranteed to match every doc
-    # without overflowing the query size (because the number of mime types is limited). Something
-    # like title:* would overflow. This creates the main doc array, which is then used by all
-    # modules.
+    # Fetch all the docs by querying Recoll with an empty query (needs recoll 1.43.10, else use
+    # [mime:*]), which is guaranteed to match every doc.
+    # This creates the main doc array, which is then used by all modules.
     #
-    # Depending on the recoll version, we use a Python list of Recoll Docs or the more compact but
-    # immutable QResultStore
-    #
-    # When using the resultstore, the records are not modifyable and the aliastags processing is
-    # performed at indexing time by rclaudio. Cf. minimtagfixer.py
+    # Because we are using the resultstore, the records are not modifyable and the aliastags
+    # processing is performed at indexing time by rclaudio. Cf. minimtagfixer.py
     def _fetchalldocs(self, confdir):
         # uplog("_fetchalldocs: has_resultstore: %s" % _has_resultstore)
         start = timer()
 
         rcldb = recoll.connect(confdir=confdir)
         rclq = rcldb.query()
-        rclq.execute("mime:*", stemming=0)
+        rclq.execute("", stemming=0)
         # rclq.execute('album:a* OR album:b* OR album:c*', stemming=0)
         uplog("Estimated alldocs query results: %d" % (rclq.rowcount))
 
-        if _has_resultstore:
-            fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
-            fields += _otherneededfields
-            fields += uprclinit.allMinimTags()
-            fields = list(set(fields))
-            #uplog(f"_fetchalldocs: store fields: {fields}")
-            self._rcldocs = qresultstore.QResultStore()
-            self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc=True)
-        else:
-            tagaliases = None
-            if uprclinit.g_minimconfig:
-                tagaliases = uprclinit.g_minimconfig.getaliastags()
-            self._rcldocs = []
-            for doc in rclq:
-                if tagaliases:
-                    for orig, target, rep in tagaliases:
-                        val = doc[orig]
-                        # uplog(f"Rep {rep} doc[{orig}]=[{val}] doc[{target}]=[{doc[target]}]")
-                        if val and (rep or not doc[target]):
-                            setattr(doc, target, val)
-
-                self._rcldocs.append(doc)
-                if self._maxrclcnt > 0 and len(self._rcldocs) >= self._maxrclcnt:
-                    break
-                time.sleep(0)
+        fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
+        fields += _otherneededfields
+        fields += uprclinit.allMinimTags()
+        fields = list(set(fields))
+        #uplog(f"_fetchalldocs: store fields: {fields}")
+        self._rcldocs = qresultstore.QResultStore()
+        self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc=True)
 
         end = timer()
         uplog("Retrieved %d docs in %.2f Seconds" % (len(self._rcldocs), end - start))
@@ -629,18 +593,16 @@ class Folders(object):
     # its directory entry, and return the _dirvec and _rcldocs indices
     # it holds, either of which can be -1
     def _stat(self, doc):
-        # _pathbeyond... returns the _dirvec index of the root entry
-        # we start from (root is special), and the split rest of path.
-        # That is if the doc url has /av/mp3/classique/bach/ and the root entry is /av/mp3,
-        # we get the _dirvec entry index for /av/mp3 and [classique, bach]
+        # _pathbeyond... returns the _dirvec index of the topdirs entry in root that we start from
+        # and the split rest of path.  That is if the doc url has /av/mp3/classique/bach/ and the
+        # root entry is /av/mp3, we get the _dirvec entry index for /av/mp3 and [classique, bach]
         fathidx, pathl = self._pathbeyondtopdirs(doc)
         if not fathidx:
             return -1, -1
         docidx = -1
         for elt in pathl:
             if not elt in self._dirvec[fathidx]:
-                # uplog("_stat: element %s has no entry in %s" %
-                #      (elt, self._dirvec[fathidx]))
+                # uplog(f"_stat: element [{elt}] has no entry in [{self._dirvec[fathidx]}]")
                 return -1, -1
             fathidx, docidx = self._dirvec[fathidx][elt]
 

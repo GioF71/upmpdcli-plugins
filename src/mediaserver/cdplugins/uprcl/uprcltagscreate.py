@@ -651,10 +651,7 @@ def recolltosql(conn, rcldocs):
 
         trackno = _tracknofordoc(doc)
 
-        if doc["url"].find("file://") == 0:
-            path = doc["url"][7:]
-        else:
-            path = ""
+        path = uprclutils.docpath(doc).decode("UTF-8", errors = "replace")
 
         # Misc tag values:
         # Set base values for column names, values list, placeholders. Done this way because we used

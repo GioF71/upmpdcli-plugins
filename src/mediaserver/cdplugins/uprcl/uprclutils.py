@@ -30,13 +30,7 @@ import xml.sax.saxutils
 from recoll import recoll
 from upmplgutils import uplog
 
-_has_resultstore = False
-
-
-def sethasresultstore(v):
-    global _has_resultstore
-    _has_resultstore = v
-
+_g_fse = sys.getfilesystemencoding()
 
 audiomtypes = frozenset(
     [
@@ -62,9 +56,8 @@ audiomtypes = frozenset(
     ]
 )
 
-# Correspondance between Recoll field names (on the right), defined by
-# rclaudio and the Recoll configuration 'fields' file, and what
-# plgwithslave.cxx expects, which is less than consistent.
+# Correspondance between Recoll field names (on the right), defined by rclaudio and the Recoll
+# configuration 'fields' file, and what plgwithslave.cxx expects, which is less than consistent.
 # Some tags have no predefined fields in upmpdcli (e.g. composer, conductor), and we output them as
 # a didl fragment (see below). They are still listed here because the data is also used to define
 # the fields actually extracted in the results of the initial recoll listing (resultstore)
@@ -228,24 +221,10 @@ def basename(path):
 
 # Compute binary fs path for URL. All Recoll URLs are like file://xx
 def docpath(doc):
-    # Versions of recoll with the resultstore urlencode the url
-    # field if it's not utf-8 (and we actually store it in the resultstore, not in
-    # an rcl::doc), we decode it to binary if needed. For older
-    # versions, we need to call doc.getbinurl() In any case, we
-    # take a lot of care to preserve non-decodable (e.g. iso88859
-    # in an utf-8 locale) paths, but bottle currently can't stream
-    # them. For reference, minim does not process them at all. At
-    # least we're almost there...
-    # Cf beethovem/p-s-g/vol1/cd3 path('e)tique
-    if _has_resultstore:
-        p = doc["url"][7:]
-        if os.path.exists(p):
-            bpath = p.encode("utf-8")
-        else:
-            bpath = urlunquotetobytes(p)
-    else:
-        bpath = doc.getbinurl()[7:]
-    return bpath
+    # Versions of recoll from 1.43.11 decode the binary URL to UTF-8 with the surrogateescape error
+    # handler. We don't support older version any more. Not sure how we do with non-utf-8 paths
+    # (TBD) For reference, minim does not process them at all.
+    return doc["url"][7:].encode(_g_fse, "surrogateescape")
 
 
 def docfolder(doc):

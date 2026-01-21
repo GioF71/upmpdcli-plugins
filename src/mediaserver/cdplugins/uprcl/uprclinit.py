@@ -128,7 +128,7 @@ def _update_index(rebuild=False):
 
     try:
         start = timer()
-        noindexing = getOptionValue("uprclnoindexing")
+        noindexing = conftree.valToBool(getOptionValue("uprclnoindexing"))
         if not noindexing:
             uprclindex.runindexer(_g_rclconfdir, g_rcltopdirs, rebuild=rebuild)
             # Wait for indexer

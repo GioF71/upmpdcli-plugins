@@ -74,7 +74,10 @@ class Tagged(object):
         # we just disable the same_thread checking on :memory:
         if self._conn is None:
             self._conn = sqlite3.connect(":memory:", check_same_thread=False)
-
+            # Note: it would seem a good thing to disable autocommits, but this actually makes
+            # db create performance very slightly worse.
+            # self._conn.execute("BEGIN TRANSACTION")
+            
     # Create our top-level directories, with fixed entries, and stuff
     # from the tags tables. This may be called (indirectly) from the folders
     # hierarchy, with a path restriction

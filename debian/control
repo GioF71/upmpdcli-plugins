@@ -133,7 +133,7 @@ Description: upmpdcli radio list export plugin
 Package: upmpdcli-uprcl
 Architecture: all
 Section: sound
-Depends: upmpdcli, python3 (>= 3.5), recollcmd, python3-requests,
+Depends: upmpdcli, recollcmd (>= 1.43.11), python3 (>= 3.5), python3-requests,
  python3-recoll, python3-waitress, python3-mutagen, ${misc:Depends}
 Description: upmpdcli local Media Server plugin
  upmpdcli-uprcl implement a Media Server for local audio files. It indexes
