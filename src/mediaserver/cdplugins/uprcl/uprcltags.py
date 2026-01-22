@@ -52,7 +52,7 @@ class Tagged(object):
     # items list, so the cache can actually never have more than 1 element...)
     _stmt_cnt_cachesize = 20
 
-    def __init__(self, rcldocs, httphp, pathprefix):
+    def __init__(self, folders, httphp, pathprefix):
         self._httphp = httphp
         self._pprefix = pathprefix
         self._conn = None
@@ -60,7 +60,7 @@ class Tagged(object):
         self._stmt_cnt_cache = {}
         self._stmt_cnt_cachequeue = []
         self.hidden = []
-        recolltosql(self._conn, rcldocs)
+        recolltosql(self._conn, folders)
 
     def _init_sqconn(self):
         # We use a separate thread for building the db to ensure

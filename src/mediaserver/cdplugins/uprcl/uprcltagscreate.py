@@ -294,7 +294,7 @@ _folderdnumexp = re.compile(_folderdnumre, flags=re.IGNORECASE)
 # The albums table is special, can't use auxtableinsert()
 def _maybecreatealbum(conn, doc):
     c = conn.cursor()
-    folder = docfolder(doc).decode("utf-8", errors="replace")
+    folder = docfolder(doc)
 
     album = doc["album"]
     if not album:
@@ -381,7 +381,8 @@ def _updatealbartistlist(conn, album_id, rowids):
 # Setting album covers needs to wait until we have scanned all tracks so that we can select
 # a consistant embedded art (first track in path order), as recoll scanning is in unsorted
 # directory order.
-def _setalbumcovers(conn, rcldocs):
+def _setalbumcovers(conn, folders):
+    rcldocs = folders.rcldocs()
     c = conn.cursor()
     c.execute("""SELECT album_id,albtitle FROM albums""")
     for r in c:
@@ -393,10 +394,8 @@ def _setalbumcovers(conn, rcldocs):
         for r1 in c1:
             docidx = r1[0]
             doc = rcldocs[docidx]
-            arturi = uprclutils.docarturi(
+            arturi = folders.docarturi(
                 doc,
-                uprclinit.getHttphp(),
-                uprclinit.getPathPrefix(),
                 preferfolder=True,
                 albtitle=albtitle,
             )
@@ -457,7 +456,7 @@ def _albumstorecoll(conn, rcldb):
             doc["albumartist"] = r[5]
             doc["artist"] = r[5]
         doc["url"] = "file://" + r[1]
-        # uplog(f"_albumstorecoll: indexing album {doc['album']}")
+        # uplog(f"_albumstorecoll: indexing album {doc['title']}")
         rcldb.addOrUpdate(udi, doc)
 
 
@@ -614,7 +613,8 @@ def parsedate(dt):
 
 # Create the db and fill it up with the values we need, taken out of
 # the recoll records list
-def recolltosql(conn, rcldocs):
+def recolltosql(conn, folders):
+    rcldocs = folders.rcldocs()
     start = time.time()
 
     _createsqdb(conn)
@@ -651,7 +651,7 @@ def recolltosql(conn, rcldocs):
 
         trackno = _tracknofordoc(doc)
 
-        path = uprclutils.docpath(doc).decode("UTF-8", errors = "replace")
+        path = uprclutils.docpath(doc)
 
         # Misc tag values:
         # Set base values for column names, values list, placeholders. Done this way because we used
@@ -697,7 +697,7 @@ def recolltosql(conn, rcldocs):
     #t1 = time.time()
     #uplog(f"recolltosql: docwalk: {t1-start:.1f} Seconds")
     _setalbumartists(conn)
-    _setalbumcovers(conn, rcldocs)
+    _setalbumcovers(conn, folders)
     #t2 = time.time()
     #uplog(f"recolltosql: setalbumxx: {t2-t1:.1f} Seconds")
     _createmergedalbums(conn)

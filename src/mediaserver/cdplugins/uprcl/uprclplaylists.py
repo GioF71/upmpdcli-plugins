@@ -125,29 +125,32 @@ class Playlists(object):
         pldoc = self._rcldocs[self._pldocsidx[idx]]
         plpath = uprclutils.docpath(pldoc)
         folders = uprclinit.getTree("folders")
-        # uplog("playlists: plpath %s" % plpath)
+        uplog(f"playlists: tp(plpath) {type(plpath)} plpath {plpath}")
         entries = []
         try:
             m3u = uprclutils.M3u(plpath)
         except Exception as ex:
-            uplog("M3u open failed: %s %s" % (plpath, ex))
+            uplog(f"M3u open failed: [{plpath}] : {ex}")
             return entries
-        cnt = 1
-        for url in m3u:
-            if m3u.urlRE.match(url):
+        for urlorpath in m3u:
+            if m3u.urlRE.match(urlorpath):
                 # Actual URL (usually http). Create bogus doc
-                doc = folders.docforurl(rcldb, url)
+                doc = uprclutils.docforurl(rcldb, urlorpath)
             else:
-                docidx = folders.statpath(rcldb, plpath, url)
-                if not docidx:
+                # Url is a path
+                if not os.path.isabs(urlorpath):
+                    urlorpath = os.path.join(os.path.dirname(plpath), urlorpath)
+                docidx = folders.statpath(urlorpath)
+                if docidx < 0:
+                    uplog(f"No track found for playlist [{plpath}] entry [{urlorpath}]")
                     continue
                 doc = self._rcldocs[docidx]
-
             pid = self._idprefix + "$p" + str(idx)
             id = pid + "$e" + str(len(entries))
             e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
             if e:
                 entries.append(e)
+
         # uplog(f"playlistatidx: idx {idx} -> {entries}")
         return entries
 

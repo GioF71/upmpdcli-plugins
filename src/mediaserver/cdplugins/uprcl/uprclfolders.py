@@ -71,7 +71,6 @@ import os
 import shlex
 import sys
 import time
-from timeit import default_timer as timer
 
 from recoll import recoll
 from recoll import qresultstore
@@ -107,6 +106,18 @@ _otherneededfields = [
     "orchestra",
     "performer",
 ]
+
+
+# All standard cover art file names:
+_artexts = (".jpg", ".png")
+def _artnamegen(base):
+    for ext in _artexts:
+        yield base + ext
+_folderartbases = ("cover", "folder")
+_folderartnames = []
+for base in _folderartbases:
+    for path in _artnamegen(base):
+        _folderartnames.append(path)
 
 
 class Folders(object):
@@ -151,30 +162,18 @@ class Folders(object):
         self._playlists.append(myidx)
         return myidx
 
+
     # Find the doc index for a filesystem path.
     # We use a temporary doc to call _stat()
-    def statpath(self, rcldb, plpath, path):
-        if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(plpath), path)
-        doc = rcldb.doc()
-        doc["url"] = b"file://" + path
-        fathidx, docidx = self._stat(doc)
+    def statpath(self, path, verbose=False):
+        doc = dict();
+        doc["group"] = None
+        doc["url"] = "file://" + path
+        fathidx, docidx = self._stat(doc, verbose)
         if docidx >= 0 and docidx < len(self._rcldocs):
             return docidx
-        uplog("No track found for playlist %s entry %s" % (plpath, path))
-        return None
+        return -1
 
-    # Create bogus doc for external (http) url. This is for playlists.
-    def docforurl(self, rcldb, url):
-        doc = rcldb.doc()
-        doc.url = url
-        elt = os.path.split(url)[1]
-        tt = elt.decode("utf-8", errors="ignore")
-        doc.title = tt
-        # Temp workaround for recoll 1.28.2 not setting values in meta
-        doc.text = tt
-        doc.mtype = "audio/mpeg"
-        return doc
 
     # Initialize all playlists after the tree is otherwise complete
     def _initplaylists(self, confdir):
@@ -187,61 +186,69 @@ class Folders(object):
             try:
                 m3u = uprclutils.M3u(plpath)
             except Exception as ex:
-                uplog("M3u open failed: %s %s" % (plpath, ex))
+                uplog(f"M3u open failed: plpath [{plpath}] : {ex}")
                 continue
-            for url in m3u:
-                if m3u.urlRE.match(url):
+            for urlorpath in m3u:
+                if m3u.urlRE.match(urlorpath):
                     # Actual URL (usually http). Create bogus doc
-                    doc = self.docforurl(rcldb, url)
+                    doc = uprclutils.docforurl(rcldb, urlorpath)
                     self._moredocs.append(doc)
                     docidx = len(self._rcldocs) + len(self._moredocs) - 1
                     tt = doc["title"]
-                    if not tt:
-                        # Temp workaround for recoll 1.28.2 not
-                        # setting values in meta
-                        tt = doc["text"]
                     self._dirvec[diridx][tt] = (-1, docidx)
                 else:
-                    docidx = self.statpath(rcldb, plpath, url)
-                    if docidx:
-                        elt = os.path.split(url)[1]
+                    if not os.path.isabs(urlorpath):
+                        urlorpath = os.path.join(os.path.dirname(plpath), urlorpath)
+                    docidx = self.statpath(urlorpath)
+                    if docidx >= 0:
+                        #uplog(f"Track OK for playlist [{plpath}] entry [{urlorpath}]")
+                        elt = os.path.split(urlorpath)[1]
                         self._dirvec[diridx][elt] = (-1, docidx)
+                    else:
+                        uplog(f"No track for playlist [{plpath}] entry [{urlorpath}]")
+                        #self.statpath(urlorpath, verbose=True)
 
+    # Compute and return the index in root of the topdir we're a child and the rest of the path
+    # split as a list.
     # The root entry (diridx 0) is special because its keys are the
     # topdirs paths, not simple names. We look with what topdir path
     # this doc belongs to, then return the appropriate diridx and the
     # split remainder of the path
     def _pathbeyondtopdirs(self, doc):
-        url = uprclutils.docpath(doc).decode("utf-8", errors="replace")
+        path = doc["url"][7:].rstrip("/")
+
         # Determine the root entry (topdirs element). Special because its path is not a simple
         # name. Fathidx is its index in _dirvec
         firstdiridx = -1
         for rtpath, idx in self._dirvec[0].items():
-            #uplog(f"type(url) {type(url)} type(rtpath) {type(rtpath)} rtpath {rtpath} url {url}")
-            if url.startswith(rtpath):
+            if path.startswith(rtpath):
                 firstdiridx = idx[0]
                 break
         if firstdiridx == -1:
-            # uplog("No parent in topdirs: %s" % url)
+            #uplog("No parent in topdirs: %s" % path)
             return None, None
 
         # Compute rest of path. If there is none, we're not interested.
-        url1 = url[len(rtpath) :]
-        if len(url1) == 0:
+        path1 = path[len(rtpath) :]
+        if len(path1) == 0:
             return None, None
 
         # If there is a Group field, just add it as a virtual
         # directory in the path. This only affects the visible tree,
-        # not the 'real' URLs of course.
-        if doc["group"]:
-            a = os.path.dirname(url1)
-            b = os.path.basename(url1)
-            url1 = os.path.join(a, doc["group"], b)
+        # not the 'real' PATHs of course.
+        try:
+            if doc["group"]:
+                a = os.path.dirname(path1)
+                b = os.path.basename(path1)
+                path1 = os.path.join(a, doc["group"], b)
+        except:
+            pass
 
         # Split path. The caller will walk the list (possibly creating
         # directory entries as needed, or doing something else).
-        path = url1.split("/")[1:]
+        path = path1.split("/")[1:]
         return firstdiridx, path
+
 
     # Main folders build method: walk the recoll docs array and split
     # the URLs paths to build the [folders] data structure
@@ -253,7 +260,7 @@ class Folders(object):
         # complete.
         self._playlists = []
 
-        start = timer()
+        start = time.time()
 
         rclconf = rclconfig.RclConfig(confdir)
         topdirs = [os.path.expanduser(d) for d in shlex.split(rclconf.getConfParam("topdirs"))]
@@ -278,11 +285,6 @@ class Folders(object):
         # support binary, (non utf-8) paths. For now, all dir/file names in the tree are str
         for docidx in range(len(self._rcldocs)):
             doc = self._rcldocs[docidx]
-
-            # Only include selected mtypes: mostly, audio/video and playlists.
-            # Directories are excluded at the moment by indexallfilenames=0
-            if doc["mtype"] not in audiomtypes:
-                continue
 
             # For linking item search results to the main array. Deactivated for now as it does not
             # seem to be needed (and we would need to add xdocid to the resultstore fields).
@@ -326,7 +328,7 @@ class Folders(object):
 
         self._initplaylists(confdir)
 
-        end = timer()
+        end = time.time()
         uplog("_rcl2folders took %.2f Seconds" % (end - start))
 
     # Fetch all the docs by querying Recoll with an empty query (needs recoll 1.43.10, else use
@@ -337,7 +339,7 @@ class Folders(object):
     # processing is performed at indexing time by rclaudio. Cf. minimtagfixer.py
     def _fetchalldocs(self, confdir):
         # uplog("_fetchalldocs: has_resultstore: %s" % _has_resultstore)
-        start = timer()
+        start = time.time()
 
         rcldb = recoll.connect(confdir=confdir)
         rclq = rcldb.query()
@@ -353,17 +355,17 @@ class Folders(object):
         self._rcldocs = qresultstore.QResultStore()
         self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc=True)
 
-        end = timer()
+        end = time.time()
         uplog("Retrieved %d docs in %.2f Seconds" % (len(self._rcldocs), end - start))
+
 
     ##############
     # Browsing the initialized [folders] hierarchy
 
-    # Extract diridx and further path (leading to tags) from objid,
-    # according to the way we generate them.
+    # Extract diridx and further path (leading to tags) from objid.
     def _objidtoidx(self, pid):
         if not pid.startswith(self._idprefix):
-            raise Exception("folders.browse: bad pid %s" % pid)
+            raise Exception(f"folders.browse: bad pid [{pid}]")
 
         if len(self._rcldocs) == 0:
             raise Exception("folders:browse: no docs")
@@ -399,17 +401,20 @@ class Folders(object):
 
         return (isitem, idx, pathremain)
 
+
     # Tell the top module what entries we define in the root
     def rootentries(self, pid):
         return [
             direntry(pid + "folders", pid, "[folders]"),
         ]
 
+
     def _docforidx(self, docidx):
         if docidx < len(self._rcldocs):
             return self._rcldocs[docidx]
         else:
             return self._moredocs[docidx - len(self._rcldocs)]
+
 
     # Look all non-directory docs inside directory, and return the cover art we find.
     # 
@@ -433,7 +438,7 @@ class Folders(object):
             doc["url"] = "file://" + self.dirpath("", diridx)
             doc["group"] = None
             doc["embdimg"] = None
-        return uprclutils.docarturi(doc, self._httphp, self._pprefix, preferfolder=True)
+        return self.docarturi(doc, preferfolder=True)
 
     # Look for art for the directory itself, then its children.
     def _arturifordir(self, thisdiridx, thisdocidx=-1):
@@ -448,6 +453,7 @@ class Folders(object):
             arturi = self._arturifordironedoc(diridx, docidx)
             if arturi:
                 return arturi
+
 
     def _browsemeta(self, pid, isitem, idx):
         docidx = -1
@@ -467,9 +473,10 @@ class Folders(object):
                 e,
             ]
 
+
     # Folder hierarchy browse method.
-    # objid is like folders$index
-    # flag is meta or children.
+    # @param pid objid is like folders$index
+    # @param flag: "meta" or "children".
     def browse(self, pid, flag, offset, count):
 
         isitem, idx, pthremain = self._objidtoidx(pid)
@@ -481,9 +488,8 @@ class Folders(object):
                 raise Exception(f"uprclfolders:browse: pid [{pid}]. bad pthremain")
             return uprclinit.getTree("tags").browseFolder(pid, flag, pthremain, self.dirpath(pid))
 
-        # If there is only one entry in root, skip it. This means that 0
-        # and 1 point to the same dir, but this does not seem to be an
-        # issue
+        # If there is only one entry in root, skip it. This means that 0 and 1 point to the same
+        # dir, but this does not seem to be an issue
         if not isitem and idx == 0 and len(self._dirvec[0]) == 2:
             idx = 1
 
@@ -497,6 +503,7 @@ class Folders(object):
         showtopart = True
         # The basename call is just for diridx==0 (topdirs). Remove it if
         # this proves a performance issue
+        
         for nm, ids in self._dirvec[idx].items():
             if nm == ".." or nm == ".":
                 continue
@@ -536,6 +543,7 @@ class Folders(object):
             entries.insert(0, direntry(id, pid, ">> Tag View", arturi=arturi))
 
         return entries
+
 
     # Return path for objid, which has to be a container.This is good old
     # pwd... It is called from the search module for generating a 'dir:'
@@ -583,6 +591,7 @@ class Folders(object):
 
         return path
 
+
     # Compute object id for doc out of recoll search. Not used at the
     # moment, and _xid2idx is not built.
     def _objidforxdocid(self, doc):
@@ -590,29 +599,37 @@ class Folders(object):
             return None
         return self._idprefix + "$i" + str(self._xid2idx[doc["xdocid"]])
 
-    # Given a doc, we walk its url down from the part in root to find
-    # its directory entry, and return the _dirvec and _rcldocs indices
-    # it holds, either of which can be -1
-    def _stat(self, doc):
+
+    # Given a doc, we walk its url down from the part in root to find its directory entry, and
+    # return the _dirvec and _rcldocs indices it holds, either of which can be -1
+    def _stat(self, doc, verbose=False):
         # _pathbeyond... returns the _dirvec index of the topdirs entry in root that we start from
         # and the split rest of path.  That is if the doc url has /av/mp3/classique/bach/ and the
         # root entry is /av/mp3, we get the _dirvec entry index for /av/mp3 and [classique, bach]
         fathidx, pathl = self._pathbeyondtopdirs(doc)
+        if verbose:
+            uplog(f"_stat: pbtd returns fathidx {fathidx} pathl {pathl}")
         if not fathidx:
             return -1, -1
         docidx = -1
         for elt in pathl:
             if not elt in self._dirvec[fathidx]:
-                # uplog(f"_stat: element [{elt}] has no entry in [{self._dirvec[fathidx]}]")
+                if verbose:
+                    uplog(f"_stat: element [{elt}] has no entry in {fathidx} "
+                          "[{self._dirvec[fathidx]}.keys()]")
                 return -1, -1
+            if verbose:
+                uplog(f"_stat: element [{elt}] entry in {fathidx} [{self._dirvec[fathidx][elt]}]")
             fathidx, docidx = self._dirvec[fathidx][elt]
 
         return fathidx, docidx
+
 
     # Only works for directories but we do not check. Caller beware.
     def _objidforpath(self, doc):
         fathidx, docidx = self._stat(doc)
         return self._idprefix + "$d" + str(fathidx)
+
 
     def objidfordoc(self, doc):
         id = None
@@ -626,3 +643,95 @@ class Folders(object):
             id = self._idprefix + "$xdocid" + doc.xdocid
         # uplog(f"objidfordoc: returning {id}")
         return id
+
+    ##########################
+    # Find cover art for doc
+    #
+    # We return a special uri if the file has embedded image data, else an
+    # uri for for the directory cover art (if any).
+
+    # Track-specific art.
+    def _trackarturi(self, doc, objpath):
+        # Check for an image specific to the track file
+        base, ext = os.path.splitext(objpath)
+        for artpath in _artnamegen(base):
+            #uplog(f"_trackarturi: checking existence:[{artpath}]")
+            artdoc = dict();
+            artdoc["url"] = "file://" + artpath
+            artdoc["group"] = None
+            fathidx,docidx = self._stat(artdoc)
+            if docidx > 0:
+                return uprclutils.httpurl(self._httphp, os.path.join(self._pprefix, artpath))
+
+        # Else try to use an embedded img
+        if doc["embdimg"]:
+            arturi = uprclutils.embdimgurl(doc, self._httphp, self._pprefix)
+            if arturi:
+                # uplog("docarturi: embedded: %s"%printable(arturi))
+                return arturi
+        return None
+
+
+    # Return folder-level art uri (e.g. /path/to/folder.jpg) if it exists
+    def _folderart(self, doc, albtitle=None):
+        # If doc is a directory, this returns it own path, else the father path
+        folderpath = uprclutils.docfolder(doc)
+        dirdoc = {}
+        dirdoc["url"] = "file://" + folderpath
+        dirdoc["group"] = None
+        folderidx,_ = self._stat(dirdoc)
+        if folderidx < 0:
+            uplog(f"_folderart: folder not found: {folderpath}")
+            return None
+        foldercontents = self._dirvec[folderidx].keys()
+        #uplog(f"_folderart: path [{folderpath}] idx {folderidx} contents [{foldercontents}]")
+
+        # If albtitle is set check for an image of the same name
+        if albtitle:
+            for fsimple in _artnamegen(albtitle):
+                if fsimple in foldercontents:
+                    return uprclutils.httpurl(self._httphp, os.path.join(folderpath, fsimple))
+
+        # Look for an appropriate image in the file folder. Generating the charcase combinations
+        # would be complicated so we list the folder and look for a case-insensitive match. 
+        arturi = None
+        for f in foldercontents:
+            flowersimple = f.lower()
+            if flowersimple in _folderartnames:
+                path = os.path.join(self._pprefix, folderpath, f)
+                arturi = uprclutils.httpurl(self._httphp, path)
+                break
+
+        #uplog(f"folderart: returning {arturi}")
+        return arturi
+
+
+    def docarturi(self, doc, preferfolder=False, albtitle=None):
+        objpath = doc["url"][7:]
+        #uplog(f"docarturi: preferfolder {preferfolder} docpath {objpath}")
+        
+        if not preferfolder:
+            arturi = self._trackarturi(doc, objpath)
+            if arturi:
+                return arturi
+        
+        # won't work for the virtual group directory itself: it has no doc
+        if doc["group"]:
+            base = os.path.join(os.path.dirname(objpath), uprclutils.tag2fn(doc["group"]))
+            for artpath in _artnamegen(base):
+                #uplog(f"docarturi:calling os.path.exist({artpath})")
+                if os.path.exists(artpath):
+                    return uprclutils.httpurl(self._httphp, os.path.join(self._pprefix, artpath))
+        
+        # TBD Here minimserver would look for album disc before album art (which is taken care of by
+        # _folderart() with albtitle set)
+        # Look for folder level image file (e.g. cover.jpg)
+        arturi = self._folderart(doc, albtitle)
+        if arturi:
+            return arturi
+        
+        # If preferfolder is set, we did not look at the track-specific art, do it last.
+        if preferfolder:
+            arturi = self._trackarturi(doc, objpath)
+        
+        return arturi

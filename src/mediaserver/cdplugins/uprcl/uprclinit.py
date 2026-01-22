@@ -32,6 +32,7 @@ import uprclsearch
 import uprclindex
 from uprclhttp import runbottle
 import minimconfig
+import uprclutils
 
 from upmplgutils import uplog, getcachedir, getOptionValue
 from conftree import stringToStrings
@@ -138,9 +139,10 @@ def _update_index(rebuild=False):
             uplog("Indexing took %.2f Seconds" % (fin - start))
 
         folders = Folders(_g_rclconfdir, _g_httphp, _g_pathprefix)
+        uprclutils.importfolders(folders)
         untagged = Untagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
         playlists = Playlists(_g_rclconfdir, folders.rcldocs(), _g_httphp, _g_pathprefix)
-        tagged = Tagged(folders.rcldocs(), _g_httphp, _g_pathprefix)
+        tagged = Tagged(folders, _g_httphp, _g_pathprefix)
         newtrees = {}
         newtrees["folders"] = folders
         newtrees["untagged"] = untagged
