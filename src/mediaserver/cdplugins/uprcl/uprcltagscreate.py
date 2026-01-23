@@ -694,10 +694,18 @@ def recolltosql(conn, rcldocs):
     
     ## End Big doc loop
 
+    #t1 = time.time()
+    #uplog(f"recolltosql: docwalk: {t1-start:.1f} Seconds")
     _setalbumartists(conn)
     _setalbumcovers(conn, rcldocs)
+    #t2 = time.time()
+    #uplog(f"recolltosql: setalbumxx: {t2-t1:.1f} Seconds")
     _createmergedalbums(conn)
+    #t1 = time.time()
+    #uplog(f"recolltosql: createmergedalbums: {t1-t2:.1f} Seconds")
     conn.commit()
+    #t2 = time.time()
+    #uplog(f"recolltosql: commit: {t2-t1:.1f} Seconds")
     rcldb = recoll.connect(confdir=uprclinit.getRclConfdir(), writable=True)
     _albumstorecoll(conn, rcldb)
     _artiststorecoll(conn, rcldb)
