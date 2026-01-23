@@ -1,3 +1,10 @@
+upmpdcli (1.9.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: uprcl: speed up initialisation by using stored recoll
+    data instead of accessing the file system.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Fri, 23 Jan 2026 14:11:00 +0100
+
 upmpdcli (1.9.11-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: uprcl: search: support "=" operator for properties.
