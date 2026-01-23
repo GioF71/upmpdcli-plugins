@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.8.11
+
+- Bump to [tidalapi version 0.8.11](https://github.com/tamland/python-tidal/releases/tag/v0.8.11)
+
 ## 0.8.10
 
 - Add configuration parameter `tidalsearchresulttrackascontainer` (defaults to `1`), tracks are presented as containers if set to `1`
@@ -7,7 +11,7 @@
 - In track_to_track_container, add option to set upnp track class type if OptionKey.TRACK_CONTAINER_SET_CLASS is set to True
 - More work on static images, will need major cleanup (to remove old code)
 - Misc code corrections, cleanup and refactoring
-- Support for new [tidalapi version 0.8.8](https://github.com/tamland/python-tidal/releases/tag/v0.8.8)
+- Support for new [tidalapi version 0.8.11](https://github.com/tamland/python-tidal/releases/tag/v0.8.11)
 - With image caching enabled, avoid to use url if the required file is not available anymore
 - Handle error conditions more gracefully
 - Avoid expensive page navigations by default at least
