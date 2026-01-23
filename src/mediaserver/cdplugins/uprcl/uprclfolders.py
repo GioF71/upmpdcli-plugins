@@ -434,6 +434,7 @@ class Folders(object):
             doc["group"] = None
             doc["embdimg"] = None
         return uprclutils.docarturi(doc, self._httphp, self._pprefix, preferfolder=True)
+
     # Look for art for the directory itself, then its children.
     def _arturifordir(self, thisdiridx, thisdocidx=-1):
         # First look at the directory itself.

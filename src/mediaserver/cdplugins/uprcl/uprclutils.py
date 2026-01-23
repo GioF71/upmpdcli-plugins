@@ -303,11 +303,13 @@ for base in _folderartbases:
         _folderartnames.append(path)
 
 
-# track-specific art. Sometimes we prefer the folder's
+# Track-specific art. This is sometimes called for multiple files in the same directory.
+# Tried to read/cache the directory contents on first access: not faster.
 def _trackarturi(doc, objpath, httphp, bpp):
     # Check for an image specific to the track file
     base, ext = os.path.splitext(objpath)
     for artpath in _artnamegen(base):
+        #uplog(f"_trackarturi: Calling os.path.exist({artpath})")
         if os.path.exists(artpath):
             return _httpurl(httphp, os.path.join(bpp, artpath))
 
@@ -321,7 +323,7 @@ def _trackarturi(doc, objpath, httphp, bpp):
 
 
 # Return folder-level art uri (e.g. /path/to/folder.jpg) if it exists
-def folderart(doc, httphp, bpp, albtitle=None):
+def _folderart(doc, httphp, bpp, albtitle=None):
     global _foldercache
 
     # If doc is a directory, this returns itself, else the father dir.
@@ -332,6 +334,7 @@ def folderart(doc, httphp, bpp, albtitle=None):
         albtitle = albtitle.encode("UTF-8")
         for fsimple in _artnamegen(albtitle):
             path = os.path.join(folder, fsimple)
+            #uplog(f"_folderart: calling os.path.exist({path})")
             if os.path.exists(path):
                 return _httpurl(httphp, path)
 
@@ -341,7 +344,7 @@ def folderart(doc, httphp, bpp, albtitle=None):
     # TBD: if we support dynamic updates at some point, the caching will have to look at the folder
     # mtime, or to be reset at each update.
     if folder not in _foldercache:
-        # uplog(f"folderart: looking at {folder}")
+        # uplog(f"_folderart: looking at {folder}")
         _foldercache[folder] = None
         artnm = None
         try:
@@ -373,7 +376,7 @@ def folderart(doc, httphp, bpp, albtitle=None):
 def docarturi(doc, httphp, pathprefix, preferfolder=False, albtitle=None):
     bpp = pathprefix.encode("utf-8")
     objpath = docpath(doc)
-    # uplog("docarturi, looking for cover for %s" % objpath)
+    #uplog(f"docarturi: preferfolder {preferfolder} docpath {objpath}")
 
     if not preferfolder:
         arturi = _trackarturi(doc, objpath, httphp, bpp)
@@ -384,14 +387,14 @@ def docarturi(doc, httphp, pathprefix, preferfolder=False, albtitle=None):
     if doc["group"]:
         base = os.path.join(os.path.dirname(objpath), tag2fn(doc["group"]))
         for artpath in _artnamegen(base):
-            # uplog("docarturi: testing %s" % artpath)
+            #uplog(f"docarturi:calling os.path.exist({artpath})")
             if os.path.exists(artpath):
                 return _httpurl(httphp, os.path.join(bpp, artpath))
 
     # TBD Here minimserver would look for album disc before album art (which is taken care of by
-    # folderart() with albtitle set)
+    # _folderart() with albtitle set)
     # Look for folder level image file (e.g. cover.jpg)
-    arturi = folderart(doc, httphp, bpp, albtitle)
+    arturi = _folderart(doc, httphp, bpp, albtitle)
     if arturi:
         return arturi
 
