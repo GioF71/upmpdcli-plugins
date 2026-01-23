@@ -178,7 +178,8 @@ def _createTagTables(cursor, tgnm):
         cursor.execute("DROP TABLE " + _junctb(tgnm))
     except:
         pass
-    stmt = "CREATE TABLE " + _junctb(tgnm) + " (docidx INT, " + _clid(tgnm) + " INT)"
+    stmt = f"CREATE TABLE {_junctb(tgnm)} (docidx INT, {_clid(tgnm)} INT, " \
+        f"UNIQUE(docidx, {_clid(tgnm)}))"
     cursor.execute(stmt)
 
 
@@ -257,7 +258,7 @@ def _prepareTags(conn):
 
 # Insert new value if not existing, return rowid of new or existing row
 def _auxtableinsert(conn, tb, value):
-    # uplog("_auxtableinsert [%s] -> [%s]" % (tb, value))
+    # uplog(f"_auxtableinsert {tb} -> {value}")
     c = conn.cursor()
     stmt = f"SELECT {_clid(tb)} FROM  {tb} WHERE value = ?"
     c.execute(stmt, (value,))
@@ -675,14 +676,14 @@ def recolltosql(conn, folders):
             if not value:
                 continue
             # rclaudio.py concatenates multiple values, using " | " as separator.
-            valuelist = value.split(" | ")
+            valuelist = set(value.split(" | "))
             rowids = set()
             for value in valuelist:
                 # Possibly insert in appropriate table (if value not already there), and
                 # insert record in junction table for the corresponding field.
                 rowid = _auxtableinsert(conn, tb, value)
                 rowids.add(rowid)
-                stmt = f"INSERT INTO {_junctb(tb)}(docidx, {_clid(tb)}) VALUES (?, ?)"
+                stmt = f"INSERT OR IGNORE INTO {_junctb(tb)}(docidx, {_clid(tb)}) VALUES (?, ?)"
                 jvals = [docidx, rowid]
                 # uplog(f"EXECUTING {stmt} values {jvals}")
                 c.execute(stmt, jvals)

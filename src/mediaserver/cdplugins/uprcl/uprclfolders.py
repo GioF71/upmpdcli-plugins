@@ -660,7 +660,7 @@ class Folders(object):
             artdoc["url"] = "file://" + artpath
             artdoc["group"] = None
             fathidx,docidx = self._stat(artdoc)
-            if docidx > 0:
+            if docidx >= 0:
                 return uprclutils.httpurl(self._httphp, os.path.join(self._pprefix, artpath))
 
         # Else try to use an embedded img
