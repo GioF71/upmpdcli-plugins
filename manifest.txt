@@ -271,6 +271,7 @@ src/mediaserver/cdplugins/uprcl/rwlock.py
 src/mediaserver/cdplugins/uprcl/testrunuprcl.sh
 src/mediaserver/cdplugins/uprcl/uprcl-app.py
 src/mediaserver/cdplugins/uprcl/uprclfolders.py
+src/mediaserver/cdplugins/uprcl/uprclfolderscreate.py
 src/mediaserver/cdplugins/uprcl/uprclhttp.py
 src/mediaserver/cdplugins/uprcl/uprclindex.py
 src/mediaserver/cdplugins/uprcl/uprclinit.py

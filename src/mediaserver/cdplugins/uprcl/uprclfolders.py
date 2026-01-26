@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017 J.F.Dockes
+# Copyright (C) 2017-2026 J.F.Dockes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Manage the [folders] section of the tree.
+# [folders] section of the tree. This is the first part constructed and it is in charge of the
+# initial fetching of data from recoll.
 #
 # Object Id prefix: 0$uprcl$folders
 #
@@ -65,47 +66,17 @@
 # desactivated (see comment). See objidfordoc() in this file for how we compute objids for
 # search results which are actual directories (which need to be browsable).
 #
-#
+
 
 import os
-import shlex
 import sys
 import time
 
-from recoll import recoll
-from recoll import qresultstore
-from recoll import rclconfig
 from upmplgutils import uplog, direntry, getOptionValue
 from uprclutils import audiomtypes, rcldoctoentry, cmpentries
 import uprclutils
 import uprclinit
-
-# All Doc fields which we may want to access (reserve slots in the
-# resultstore). We use an inclusion list, and end up with a smaller
-# store than by using an exclusion list, but it's a bit more difficult
-# to manage.
-#
-# +  possibly 'xdocid' and/or 'rcludi' if/when needed?
-#
-_otherneededfields = [
-    "albumartist",
-    "allartists",
-    "comment",
-    "composer",
-    "conductor",
-    "contentgroup",
-    "date",
-    "dmtime",
-    "discnumber",
-    "embdimg",
-    "filename",
-    "genre",
-    "group",
-    "label",
-    "lyricist",
-    "orchestra",
-    "performer",
-]
+import uprclfolderscreate
 
 
 # All standard cover art file names:
@@ -120,6 +91,14 @@ for base in _folderartbases:
         _folderartnames.append(path)
 
 
+# Create bogus "doc" for a path
+def _docforpath(path, isdir=False):
+    doc = {"url" : "file://" + path, "group": None, "embdimg" : None}
+    if isdir:
+        doc["mtype"] = "inode/directory"
+    return doc
+
+
 class Folders(object):
 
     # Initialize (read recoll data and build tree).
@@ -127,240 +106,66 @@ class Folders(object):
         self._idprefix = "0$uprcl$folders"
         self._httphp = httphp
         self._pprefix = pathprefix
-        # Debug : limit processed recoll entries for speed
-        self._maxrclcnt = 0
-        # Overflow storage for synthetic records created for playlists
-        # url entries. Uses docidx values starting at len(_rcldocs),
-        # with actual index (value - len(_rcldocs))
-        self._moredocs = []
-        self._fetchalldocs(confdir)
-        self._rcl2folders(confdir)
+        self._rcldocs = uprclfolderscreate._fetchalldocs(confdir)
+        # _playlists is used to store the diridx for the playlists during the initial walk, for
+        # initialization when the tree is complete.
+        self._dirvec, self._playlists = uprclfolderscreate._rcl2folders(confdir, self._rcldocs)
+        # _moredocs is overflow storage for synthetic records created for playlists url
+        # entries. Uses docidx values starting at len(_rcldocs), with index into moredocs
+        # (value - len(_rcldocs))
+        self._moredocs = uprclfolderscreate._initplaylists(self, 
+            confdir, self._rcldocs, self._dirvec, self._playlists)
         self._enabletags = uprclinit.g_minimconfig.getboolvalue("showExtras", True)
         self._notagview = getOptionValue("uprclnotagview", False)
+
 
     def rcldocs(self):
         return self._rcldocs
 
-    # Create new directory entry: insert in father and append dirvec slot
-    # (with ".." entry)
-    def _createdir(self, fathidx, docidx, nm):
-        self._dirvec.append({})
-        thisidx = len(self._dirvec) - 1
-        self._dirvec[fathidx][nm] = (thisidx, docidx)
-        self._dirvec[-1][".."] = (fathidx, -1)
-        self._dirvec[-1]["."] = (thisidx, docidx)
-        return len(self._dirvec) - 1
 
-    # Create directory for playlist. Create + populate. The docs which
-    # are pointed by the playlist entries may not be in the tree yet,
-    # so we don't know how to find them (can't walk the tree yet).
-    # Just store the diridx and populate all playlists at the end
-    def _createpldir(self, fathidx, docidx, doc, nm):
-        myidx = self._createdir(fathidx, docidx, nm)
-        # We need a "." entry
-        self._dirvec[myidx]["."] = (myidx, docidx)
-        self._playlists.append(myidx)
-        return myidx
+    # Tell the top module what entries we define in the root
+    def rootentries(self, pid):
+        return [
+            direntry(pid + "folders", pid, "[folders]"),
+        ]
+
+
+    # Given a doc, walk its url down from the part in root to find its directory entry, and
+    # return the entry's_dirvec and _rcldocs indices, either of which can be -1
+    def _stat(self, doc, verbose=False):
+        # _splitpath returns the _dirvec index of the topdirs entry in root that we start from and
+        # the split rest of path.  That is if the doc url has /av/mp3/classique/bach/ and the root
+        # entry is /av/mp3, we get the _dirvec entry index for /av/mp3 and [classique, bach]
+        # _splitpath is in the creation module because it is used before our _dirvec variable is
+        # set.
+        fathidx, pathl = uprclfolderscreate._splitpath(self._dirvec, doc)
+        if verbose:
+            uplog(f"_stat: pbtd returns fathidx {fathidx} pathl {pathl}")
+        if not fathidx:
+            return -1, -1
+        docidx = -1
+        for elt in pathl:
+            if not elt in self._dirvec[fathidx]:
+                if verbose:
+                    uplog(f"_stat: element [{elt}] has no entry in {fathidx} "
+                          "[{self._dirvec[fathidx]}.keys()]")
+                return -1, -1
+            if verbose:
+                uplog(f"_stat: element [{elt}] entry in {fathidx} [{self._dirvec[fathidx][elt]}]")
+            fathidx, docidx = self._dirvec[fathidx][elt]
+
+        return fathidx, docidx
 
 
     # Find the doc index for a filesystem path.
     # We use a temporary doc to call _stat()
     def statpath(self, path, verbose=False):
-        doc = dict();
-        doc["group"] = None
-        doc["url"] = "file://" + path
+        doc = _docforpath(path)
         fathidx, docidx = self._stat(doc, verbose)
         if docidx >= 0 and docidx < len(self._rcldocs):
             return docidx
         return -1
 
-
-    # Initialize all playlists after the tree is otherwise complete
-    def _initplaylists(self, confdir):
-        # We use a recoll db connection for creating bogus rcl docs
-        rcldb = recoll.connect(confdir=confdir)
-        for diridx in self._playlists:
-            pldocidx = self._dirvec[diridx]["."][1]
-            pldoc = self._rcldocs[pldocidx]
-            plpath = uprclutils.docpath(pldoc)
-            try:
-                m3u = uprclutils.M3u(plpath)
-            except Exception as ex:
-                uplog(f"M3u open failed: plpath [{plpath}] : {ex}")
-                continue
-            for urlorpath in m3u:
-                if m3u.urlRE.match(urlorpath):
-                    # Actual URL (usually http). Create bogus doc
-                    doc = uprclutils.docforurl(rcldb, urlorpath)
-                    self._moredocs.append(doc)
-                    docidx = len(self._rcldocs) + len(self._moredocs) - 1
-                    tt = doc["title"]
-                    self._dirvec[diridx][tt] = (-1, docidx)
-                else:
-                    if not os.path.isabs(urlorpath):
-                        urlorpath = os.path.join(os.path.dirname(plpath), urlorpath)
-                    docidx = self.statpath(urlorpath)
-                    if docidx >= 0:
-                        #uplog(f"Track OK for playlist [{plpath}] entry [{urlorpath}]")
-                        elt = os.path.split(urlorpath)[1]
-                        self._dirvec[diridx][elt] = (-1, docidx)
-                    else:
-                        uplog(f"No track for playlist [{plpath}] entry [{urlorpath}]")
-                        #self.statpath(urlorpath, verbose=True)
-
-    # Compute and return the index in root of the topdir we're a child and the rest of the path
-    # split as a list.
-    # The root entry (diridx 0) is special because its keys are the
-    # topdirs paths, not simple names. We look with what topdir path
-    # this doc belongs to, then return the appropriate diridx and the
-    # split remainder of the path
-    def _pathbeyondtopdirs(self, doc):
-        path = doc["url"][7:].rstrip("/")
-
-        # Determine the root entry (topdirs element). Special because its path is not a simple
-        # name. Fathidx is its index in _dirvec
-        firstdiridx = -1
-        for rtpath, idx in self._dirvec[0].items():
-            if path.startswith(rtpath):
-                firstdiridx = idx[0]
-                break
-        if firstdiridx == -1:
-            #uplog("No parent in topdirs: %s" % path)
-            return None, None
-
-        # Compute rest of path. If there is none, we're not interested.
-        path1 = path[len(rtpath) :]
-        if len(path1) == 0:
-            return None, None
-
-        # If there is a Group field, just add it as a virtual
-        # directory in the path. This only affects the visible tree,
-        # not the 'real' PATHs of course.
-        try:
-            if doc["group"]:
-                a = os.path.dirname(path1)
-                b = os.path.basename(path1)
-                path1 = os.path.join(a, doc["group"], b)
-        except:
-            pass
-
-        # Split path. The caller will walk the list (possibly creating
-        # directory entries as needed, or doing something else).
-        path = path1.split("/")[1:]
-        return firstdiridx, path
-
-
-    # Main folders build method: walk the recoll docs array and split
-    # the URLs paths to build the [folders] data structure
-    def _rcl2folders(self, confdir):
-        self._dirvec = []
-        self._xid2idx = {}
-        # This is used to store the diridx for the playlists during
-        # the initial walk, for initialization when the tree is
-        # complete.
-        self._playlists = []
-
-        start = time.time()
-
-        rclconf = rclconfig.RclConfig(confdir)
-        topdirs = [os.path.expanduser(d) for d in shlex.split(rclconf.getConfParam("topdirs"))]
-        topdirs = [d.rstrip("/") for d in topdirs]
-
-        # Create the 1st entry. This is special because it holds the
-        # recoll topdirs, which are paths instead of simple names. There
-        # does not seem any need to build the tree between a topdir and /
-        self._dirvec.append({})
-        self._dirvec[0][".."] = (0, -1)
-        for d in topdirs:
-            self._dirvec.append({})
-            self._dirvec[0][d] = (len(self._dirvec) - 1, -1)
-            self._dirvec[-1][".."] = (0, -1)
-
-        # Walk the doc list and update the directory tree according to the url: create intermediary
-        # directories if needed, create leaf entry.
-        #
-        # Binary path issue: at the moment the python rclconfig can't handle binary (the underlying
-        # conftree.py can, we'd need a binary stringToStrings). So the topdirs entries have to be
-        # strings, and so we decode the binurl too. This probably could be changed we wanted to
-        # support binary, (non utf-8) paths. For now, all dir/file names in the tree are str
-        for docidx in range(len(self._rcldocs)):
-            doc = self._rcldocs[docidx]
-
-            # For linking item search results to the main array. Deactivated for now as it does not
-            # seem to be needed (and we would need to add xdocid to the resultstore fields).
-            # self._xid2idx[doc["xdocid"]] = docidx
-
-            fathidx, path = self._pathbeyondtopdirs(doc)
-            if not fathidx:
-                continue
-
-            # uplog("%s"%path, file=sys.stderr)
-            for idx in range(len(path)):
-                elt = path[idx]
-                if elt in self._dirvec[fathidx]:
-                    # This path element was already seen
-                    # If this is the last entry in the path, maybe update
-                    # the doc idx (previous entries were created for
-                    # intermediate elements without a Doc).
-                    if idx == len(path) - 1:
-                        self._dirvec[fathidx][elt] = (self._dirvec[fathidx][elt][0], docidx)
-                    # Update fathidx for next iteration
-                    fathidx = self._dirvec[fathidx][elt][0]
-                else:
-                    # Element has no entry in father directory (hence no
-                    # self._dirvec entry either).
-                    if idx != len(path) - 1:
-                        # This is an intermediate element. Create a
-                        # Doc-less directory
-                        fathidx = self._createdir(fathidx, -1, elt)
-                    else:
-                        # Last element. If directory, needs a self._dirvec entry
-                        if doc["mtype"] == "inode/directory":
-                            fathidx = self._createdir(fathidx, docidx, elt)
-                        elif doc["mtype"] == "audio/x-mpegurl":
-                            fathidx = self._createpldir(fathidx, docidx, doc, elt)
-                        else:
-                            self._dirvec[fathidx][elt] = (-1, docidx)
-
-        if False:
-            for ent in self._dirvec:
-                uplog("%s" % ent)
-
-        self._initplaylists(confdir)
-
-        end = time.time()
-        uplog("_rcl2folders took %.2f Seconds" % (end - start))
-
-    # Fetch all the docs by querying Recoll with an empty query (needs recoll 1.43.10, else use
-    # [mime:*]), which is guaranteed to match every doc.
-    # This creates the main doc array, which is then used by all modules.
-    #
-    # Because we are using the resultstore, the records are not modifyable and the aliastags
-    # processing is performed at indexing time by rclaudio. Cf. minimtagfixer.py
-    def _fetchalldocs(self, confdir):
-        # uplog("_fetchalldocs: has_resultstore: %s" % _has_resultstore)
-        start = time.time()
-
-        rcldb = recoll.connect(confdir=confdir)
-        rclq = rcldb.query()
-        rclq.execute("", stemming=0)
-        # rclq.execute('album:a* OR album:b* OR album:c*', stemming=0)
-        uplog("Estimated alldocs query results: %d" % (rclq.rowcount))
-
-        fields = [r[1] for r in uprclutils.upnp2rclfields.items()]
-        fields += _otherneededfields
-        fields += uprclinit.allMinimTags()
-        fields = list(set(fields))
-        #uplog(f"_fetchalldocs: store fields: {fields}")
-        self._rcldocs = qresultstore.QResultStore()
-        self._rcldocs.storeQuery(rclq, fieldspec=fields, isinc=True)
-
-        end = time.time()
-        uplog("Retrieved %d docs in %.2f Seconds" % (len(self._rcldocs), end - start))
-
-
-    ##############
-    # Browsing the initialized [folders] hierarchy
 
     # Extract diridx and further path (leading to tags) from objid.
     def _objidtoidx(self, pid):
@@ -402,18 +207,14 @@ class Folders(object):
         return (isitem, idx, pathremain)
 
 
-    # Tell the top module what entries we define in the root
-    def rootentries(self, pid):
-        return [
-            direntry(pid + "folders", pid, "[folders]"),
-        ]
-
-
     def _docforidx(self, docidx):
         if docidx < len(self._rcldocs):
             return self._rcldocs[docidx]
         else:
-            return self._moredocs[docidx - len(self._rcldocs)]
+            idx = docidx - len(self._rcldocs)
+            if idx < len(self._moredocs):
+                return self._moredocs[idx]
+        return None
 
 
     # Look all non-directory docs inside directory, and return the cover art we find.
@@ -433,11 +234,7 @@ class Folders(object):
         if docidx >= 0 and docidx < len(self._rcldocs):
             doc = self._rcldocs[docidx]
         else:
-            doc = {}
-            doc["mtype"] = "inode/directory"
-            doc["url"] = "file://" + self.dirpath("", diridx)
-            doc["group"] = None
-            doc["embdimg"] = None
+            doc = _docforpath(self.dirpath("", diridx), True)
         return self.docarturi(doc, preferfolder=True)
 
     # Look for art for the directory itself, then its children.
@@ -469,12 +266,11 @@ class Folders(object):
             doc = self._docforidx(docidx)
             id = self._idprefix + "$i" + str(docidx)
             e = rcldoctoentry(id, pid, self._httphp, self._pprefix, doc)
-            return [
-                e,
-            ]
+            return [e,]
 
 
-    # Folder hierarchy browse method.
+    ##############
+    # Browsing the initialized [folders] hierarchy
     # @param pid objid is like folders$index
     # @param flag: "meta" or "children".
     def browse(self, pid, flag, offset, count):
@@ -592,74 +388,29 @@ class Folders(object):
         return path
 
 
-    # Compute object id for doc out of recoll search. Not used at the
-    # moment, and _xid2idx is not built.
-    def _objidforxdocid(self, doc):
-        if doc["xdocid"] not in self._xid2idx:
-            return None
-        return self._idprefix + "$i" + str(self._xid2idx[doc["xdocid"]])
-
-
-    # Given a doc, we walk its url down from the part in root to find its directory entry, and
-    # return the _dirvec and _rcldocs indices it holds, either of which can be -1
-    def _stat(self, doc, verbose=False):
-        # _pathbeyond... returns the _dirvec index of the topdirs entry in root that we start from
-        # and the split rest of path.  That is if the doc url has /av/mp3/classique/bach/ and the
-        # root entry is /av/mp3, we get the _dirvec entry index for /av/mp3 and [classique, bach]
-        fathidx, pathl = self._pathbeyondtopdirs(doc)
-        if verbose:
-            uplog(f"_stat: pbtd returns fathidx {fathidx} pathl {pathl}")
-        if not fathidx:
-            return -1, -1
-        docidx = -1
-        for elt in pathl:
-            if not elt in self._dirvec[fathidx]:
-                if verbose:
-                    uplog(f"_stat: element [{elt}] has no entry in {fathidx} "
-                          "[{self._dirvec[fathidx]}.keys()]")
-                return -1, -1
-            if verbose:
-                uplog(f"_stat: element [{elt}] entry in {fathidx} [{self._dirvec[fathidx][elt]}]")
-            fathidx, docidx = self._dirvec[fathidx][elt]
-
-        return fathidx, docidx
-
-
-    # Only works for directories but we do not check. Caller beware.
-    def _objidforpath(self, doc):
-        fathidx, docidx = self._stat(doc)
-        return self._idprefix + "$d" + str(fathidx)
-
-
+    # Compute an UPnP object ID for a document produced by a recoll search
     def objidfordoc(self, doc):
         id = None
         if doc["mtype"] == "inode/directory":
-            id = self._objidforpath(doc)
+            fathidx, docidx = self._stat(doc)
+            return self._idprefix + "$d" + str(fathidx)
         else:
-            # Note: we should have something like objidforxdocid (above) for using consistent
-            # objids, but it's not currently doing anything, see method comments. Use unique but
-            # different id instead for now.
-            # id = self._objidforxdocid(doc)
+            # Note: we thought we should have something like objidforxdocid for using consistent
+            # objids, but it does not seem to be actually necessary. Use a unique but different id
+            # instead.
             id = self._idprefix + "$xdocid" + doc.xdocid
         # uplog(f"objidfordoc: returning {id}")
         return id
 
-    ##########################
-    # Find cover art for doc
-    #
-    # We return a special uri if the file has embedded image data, else an
-    # uri for for the directory cover art (if any).
 
-    # Track-specific art.
+    # Track-specific cover art. Based on either the file name or embedded data
     def _trackarturi(self, doc, objpath):
         # Check for an image specific to the track file
         base, ext = os.path.splitext(objpath)
         for artpath in _artnamegen(base):
             #uplog(f"_trackarturi: checking existence:[{artpath}]")
-            artdoc = dict();
-            artdoc["url"] = "file://" + artpath
-            artdoc["group"] = None
-            fathidx,docidx = self._stat(artdoc)
+            artdoc = _docforpath(artpath)
+            fathidx, docidx = self._stat(artdoc)
             if docidx >= 0:
                 return uprclutils.httpurl(self._httphp, os.path.join(self._pprefix, artpath))
 
@@ -676,13 +427,12 @@ class Folders(object):
     def _folderart(self, doc, albtitle=None):
         # If doc is a directory, this returns it own path, else the father path
         folderpath = uprclutils.docfolder(doc)
-        dirdoc = {}
-        dirdoc["url"] = "file://" + folderpath
-        dirdoc["group"] = None
-        folderidx,_ = self._stat(dirdoc)
+        dirdoc = _docforpath(folderpath, True)
+        folderidx, _ = self._stat(dirdoc)
         if folderidx < 0:
             uplog(f"_folderart: folder not found: {folderpath}")
             return None
+
         foldercontents = self._dirvec[folderidx].keys()
         #uplog(f"_folderart: path [{folderpath}] idx {folderidx} contents [{foldercontents}]")
 
@@ -692,8 +442,8 @@ class Folders(object):
                 if fsimple in foldercontents:
                     return uprclutils.httpurl(self._httphp, os.path.join(folderpath, fsimple))
 
-        # Look for an appropriate image in the file folder. Generating the charcase combinations
-        # would be complicated so we list the folder and look for a case-insensitive match. 
+        # Look for an appropriate image in the file folder. We list the folder and look for a
+        # case-insensitive match for all the possible cover art conventional names
         arturi = None
         for f in foldercontents:
             flowersimple = f.lower()
@@ -706,6 +456,10 @@ class Folders(object):
         return arturi
 
 
+    # Find cover art for doc which may be a folder or track. We can look for both a
+    # track-specific image or a folder-level one
+    #
+    # We return a special uri if the file has embedded image data
     def docarturi(self, doc, preferfolder=False, albtitle=None):
         objpath = doc["url"][7:]
         #uplog(f"docarturi: preferfolder {preferfolder} docpath {objpath}")
