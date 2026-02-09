@@ -41,8 +41,10 @@ public:
     // These are used by other services (ohreceiver etc.)
     bool cacheFind(const std::string& uri, std::string& meta);
     bool urlMap(std::unordered_map<int, std::string>& umap);
-    int iStop();
-    // When changing sources
+
+    // This is called from ohproduct when switching source. When one of our actions which
+    // necessitate it is called, if we are not active we call the Product setSourceIndex action,
+    // which in turn calls setActive.
     void setActive(bool onoff);
 
 protected:
@@ -76,8 +78,8 @@ private:
 
     bool cacheSet(const std::string& uri, const std::string& meta);
 
-    // Private internal non-soap versions of some of the interface +
-    // utility methods
+    // Private internal non-soap versions of some of the interface + utility methods
+    int iStop();
     bool makeIdArray(std::string&);
     bool insertUri(int afterid, const std::string& uri, 
                    const std::string& metadata, int *newid, bool nocheck);
