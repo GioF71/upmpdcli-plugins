@@ -115,6 +115,8 @@ ConfTabsW *xmlToConfGUI(const std::string& xml, std::string& toptext,
                     paramtype = ConfTabsW::CFPT_INT;
                 } else if (m_curvartp == "string") {
                     paramtype = ConfTabsW::CFPT_STR;
+                } else if (m_curvartp == "str") {
+                    paramtype = ConfTabsW::CFPT_STR;
                 } else if (m_curvartp == "cstr") {
                     paramtype = ConfTabsW::CFPT_CSTR;
                 } else if (m_curvartp == "cstrl") {
