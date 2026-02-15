@@ -368,7 +368,13 @@ def _maybecreatealbum(conn, doc):
 
 
 # Add a track's artists set to the album auxiliary "artists" column, used in the end to determine an
-# album artist if none was explicitely set
+# album artist if none was explicitely set.
+# The contents of the column is a string made of string representations of Python sets of
+# ints. E.g. "|{1234, 12345}|{99}|{23, 24}"
+# At the end (all tracks seen), we reconstruct the sets and intersect them. If the intersection is
+# not empty, we make a random element inside it the album artist. See _setalbumartists()
+# It seems that we could accomplish the same thing by querying the db for each of the album tracks
+# artists at the end ? I can't see the reason for this approach any more, but maybe there is one...
 def _updatealbartistlist(conn, album_id, rowids):
     if not rowids:
         return
