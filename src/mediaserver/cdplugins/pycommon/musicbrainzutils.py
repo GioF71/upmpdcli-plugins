@@ -160,7 +160,10 @@ def extract_release_types(value_list: list[str], type_matcher: Callable[[str], b
 def sanitize_release_types(
         value_list: list[str],
         fallback_primary: PrimaryReleaseType = PrimaryReleaseType.ALBUM,
-        print_function: Callable[[str], None] = None) -> list[str]:
+        print_function: Callable[[str], None] = None,
+        album_id: str = None,
+        album_title: str = None,
+        album_artist: str = None) -> list[str]:
     # correct some common errors.
     primaries: list[PrimaryReleaseType] = []
     secondaries: list[SecondaryReleaseType] = []
@@ -190,7 +193,11 @@ def sanitize_release_types(
         res.append(secondaries[0].reference_value)
         res.extend(others)
         if print_function:
-            print_function(f"sanitize_release_types values [{value_list}] -> [{res}] (missing primary)")
+            print_function(f"sanitize_release_types for album_id [{album_id}] "
+                           f"title [{album_title}] "
+                           f"by [{album_artist}] "
+                           f"values [{value_list}] -> "
+                           f"[{res}] (missing primary)")
     elif len(primaries) == 0 and len(secondaries) == 0 and len(others) == 0:
         if fallback_primary:
             res.append(fallback_primary.reference_value)
@@ -216,17 +223,17 @@ album_extract: list[str] = extract_release_types(
 if not PrimaryReleaseType.ALBUM == match_primary_release_type(album_extract):
     raise Exception("Album should be extract as album regardless of the position")
 # sanitize cases
-sanitized_1: list[str] = sanitize_release_types(["compilation"])
+sanitized_1: list[str] = sanitize_release_types(value_list=["compilation"])
 if not ["album", "compilation"] == sanitized_1:
     raise Exception("Sanitization case #1 failed")
-sanitized_2: list[str] = sanitize_release_types(["album", "live"])
+sanitized_2: list[str] = sanitize_release_types(value_list=["album", "live"])
 if not ["album", "live"] == sanitized_2:
     raise Exception("Sanitization case #2 failed")
-sanitized_3: list[str] = sanitize_release_types(["compilation", "some_other"])
+sanitized_3: list[str] = sanitize_release_types(value_list=["compilation", "some_other"])
 if not ["album", "compilation", "some_other"] == sanitized_3:
     raise Exception("Sanitization case #3 failed")
 wrong_4: list[str] = ["DeMo", "album"]
-sanitized_4: list[str] = sanitize_release_types(wrong_4)
+sanitized_4: list[str] = sanitize_release_types(value_list=wrong_4)
 if not ["album", "demo"] == sanitized_4:
     raise Exception("Sanitization case #4 failed")
 # secondary with separator

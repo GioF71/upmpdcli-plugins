@@ -26,29 +26,16 @@ def get_plugin_config_variable_name(name: str) -> str:
     return f"{constants.PluginConstant.PLUGIN_NAME.value}{name}"
 
 
-def get_option_value_as_bool(nm: str, default_value: int) -> bool:
-    return get_option_value(nm, default_value) == 1
-
-
-def get_option_value(nm, dflt: any = None):
+def _get_option_value(nm, dflt: any = None):
     return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
-def get_cached_request_timeout_sec() -> int:
-    return get_option_value(
-        "cachedrequesttimeoutsec",
-        constants.Defaults.CACHED_REQUEST_TIMEOUT_SEC.value)
+def _get_option_value_as_bool(nm: str, default_value: int) -> bool:
+    return _get_option_value(nm, default_value) == 1
 
 
-whitelist_codecs: list[str] = str(get_option_value("whitelistcodecs", "alac,wav,flac,dsf")).split(",")
-allow_blacklisted_codec_in_song: int = int(get_option_value("allowblacklistedcodecinsong", "1"))
-tag_initial_page_enabled_prefix: str = get_plugin_config_variable_name("taginitialpageenabled")
-log_intermediate_url: bool = get_option_value("logintermediateurl", "0") == "1"
-server_side_scrobbling: bool = get_option_value("serversidescrobbling", "0") == "1"
-prepend_number_in_album_list: bool = get_option_value("prependnumberinalbumlist", "0") == "1"
-
-debug_badge_mngmt: bool = get_option_value_as_bool("debugbadgemanagement", constants.default_debug_badge_mngmt)
-debug_artist_albums: bool = get_option_value_as_bool("debugartistalbums", constants.default_debug_artist_albums)
+def get_whitelist_codecs() -> list[str]:
+    return str(get_config_param_as_str(constants.ConfigParam.WHITELIST_CODECS)).split(",")
 
 
 # supported unless initializer understands it is not
@@ -98,7 +85,7 @@ def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> s
     dv: str | None = configuration_parameter.default_value
     if dv is not None and not isinstance(dv, str):
         raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = get_option_value(configuration_parameter.key, dv)
+    v: any = _get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -112,7 +99,7 @@ def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> s
     dv: int | None = configuration_parameter.default_value
     if dv is not None and not isinstance(dv, int):
         raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = get_option_value(configuration_parameter.key, dv)
+    v: any = _get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -129,7 +116,7 @@ def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> 
         default_value_as_int = 1 if dv == 1 else 0
     elif isinstance(dv, bool):
         default_value_as_int = 1 if dv else 0
-    return get_option_value_as_bool(
+    return _get_option_value_as_bool(
         configuration_parameter.key,
         default_value_as_int)
 
@@ -160,18 +147,18 @@ def get_webserver_path_images_cache() -> list[str]:
 
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
 
-    def getBaseUrl(self) -> str: return get_option_value("baseurl")
+    def getBaseUrl(self) -> str: return _get_option_value("baseurl")
 
-    def getPort(self) -> int: return get_option_value("port")
+    def getPort(self) -> int: return _get_option_value("port")
 
-    def getServerPath(self) -> int: return get_option_value("serverpath")
+    def getServerPath(self) -> int: return _get_option_value("serverpath")
 
-    def getUserName(self) -> str: return get_option_value("user")
+    def getUserName(self) -> str: return _get_option_value("user")
 
-    def getPassword(self) -> str: return get_option_value("password")
+    def getPassword(self) -> str: return _get_option_value("password")
 
     def getLegacyAuth(self) -> bool:
-        legacy_auth_enabled_str: str = get_option_value("legacyauth", "false")
+        legacy_auth_enabled_str: str = _get_option_value("legacyauth", "false")
         if not legacy_auth_enabled_str.lower() in ["true", "false", "1", "0"]:
             raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
         return legacy_auth_enabled_str in ["true", "1"]

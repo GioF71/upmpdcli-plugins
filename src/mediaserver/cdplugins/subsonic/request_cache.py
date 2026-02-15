@@ -82,7 +82,9 @@ def __cached_response_is_expired(cached: CachedResponse, delta_sec: int) -> bool
 
 def get_playlists() -> Response[Artists]:
     global cached_playlists
-    if __cached_response_is_expired(cached_playlists, config.get_cached_request_timeout_sec()):
+    if __cached_response_is_expired(
+            cached=cached_playlists,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
         msgproc.log("subsonic_util.get_playlists loading playlists ...")
         # actually request starred
         res: Response[Playlists] = connector_provider.get().getPlaylists()
@@ -98,7 +100,9 @@ def get_playlists() -> Response[Artists]:
 def get_starred() -> Response[Starred]:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     global cached_starred
-    if __cached_response_is_expired(cached_starred, config.get_cached_request_timeout_sec()):
+    if __cached_response_is_expired(
+            cached=cached_starred,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
         msgproc.log("subsonic_util.get_starred loading starred ...")
         # actually request starred
         start: float = time.time()
@@ -156,7 +160,9 @@ def _load_all_artists() -> list[Artist]:
 
 def get_artists() -> Response[Artists]:
     global cached_response_artists
-    if __cached_response_is_expired(cached_response_artists, config.get_cached_request_timeout_sec()):
+    if __cached_response_is_expired(
+            cached=cached_response_artists,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
         msgproc.log("subsonic_util.get_artists loading artists ...")
         # actually request artists
         res: Response[Artists] = connector_provider.get().getArtists()
@@ -201,7 +207,9 @@ def get_random_album_list(
             musicFolderId=musicFolderId)
     else:
         global cached_response_random_firstpage
-        if __cached_response_is_expired(cached_response_random_firstpage, config.get_cached_request_timeout_sec()):
+        if __cached_response_is_expired(
+                cached=cached_response_random_firstpage,
+                delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
             msgproc.log(f"subsonic_util.get_random_album_list loading first [{config.get_items_per_page()}] random albums ...")
             # actually request first random albums
             res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
@@ -217,7 +225,9 @@ def get_random_album_list(
 
 def get_genres() -> Response[Genres]:
     global cached_response_genres
-    if __cached_response_is_expired(cached_response_genres, config.get_cached_request_timeout_sec()):
+    if __cached_response_is_expired(
+            cached=cached_response_genres,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
         msgproc.log("subsonic_util.get_genres loading ...")
         # actually request genres
         res: Response[Genres] = connector_provider.get().getGenres()
@@ -233,7 +243,9 @@ def get_genres() -> Response[Genres]:
 
 def get_first_newest_album_list() -> list[AlbumList]:
     global cached_response_newest
-    if __cached_response_is_expired(cached_response_newest, config.get_cached_request_timeout_sec()):
+    if __cached_response_is_expired(
+            cached=cached_response_newest,
+            delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
         msgproc.log("subsonic_util.get_first_newest_album_list loading ...")
         # actually request genres
         res: Response[AlbumList] = connector_provider.get().getAlbumList(

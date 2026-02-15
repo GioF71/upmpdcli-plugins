@@ -15,6 +15,9 @@
 
 from enum import Enum
 import idgenerator
+import constants
+import config
+
 
 base_chars: str = "abcdefghijklmnopqrtuvwxyz0123456789"
 current_id: int = None
@@ -61,6 +64,7 @@ class TagType(Enum):
     ALBUMS_WITHOUT_MUSICBRAINZ = _TagTypeData("Albums without MusicBrainz")
     ALBUMS_WITHOUT_COVER = _TagTypeData("Albums without CoverArt")
     ALBUMS_WITHOUT_GENRE = _TagTypeData("Albums without Genre")
+    ARTIST_ROLES = _TagTypeData("Artist Roles")
     ARTISTS = _TagTypeData("Artists")
     ALL_ARTISTS = _TagTypeData("All Artists (Sorted) (slow!)")
     ALL_ARTISTS_INDEXED = _TagTypeData("All Artists (By Initial) (slow!)")
@@ -77,10 +81,14 @@ class TagType(Enum):
     GENRES = _TagTypeData("Genres")
     PLAYLISTS = _TagTypeData("Playlists")
     INTERNET_RADIOS = _TagTypeData("Internet Radios")
+    ALBUM_BROWSER = _TagTypeData("Album Browser")
 
     @property
     def tag_name(self) -> str:
-        return self.value.tag_name
+        if config.get_config_param_as_bool(constants.ConfigParam.MINIMIZE_IDENTIFIER_LENGTH):
+            return self.name
+        else:
+            return self.value.tag_name
 
     @property
     def tag_title(self) -> str:

@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ from subsonic_connector.artist import Artist
 from subsonic_connector.album import Album
 from subsonic_connector.song import Song
 
+from persistence_tuple import ArtistAlbumCoverArt
 from tag_type import TagType
 from retrieved_art import RetrievedArt
 
@@ -46,10 +47,10 @@ def _get_cover_art_from_res_album_list(response: Response[AlbumList], random: bo
     if not response.isOk() or len(response.getObj().getAlbums()) == 0:
         return None
     album_list: list[Album] = response.getObj().getAlbums()
-    return _get_cover_art_from_album_list(album_list=album_list, random=random)
+    return __get_cover_art_from_album_list(album_list=album_list, random=random)
 
 
-def _get_cover_art_from_album_list(album_list: list[Album], random: bool = False) -> RetrievedArt:
+def __get_cover_art_from_album_list(album_list: list[Album], random: bool = False) -> RetrievedArt:
     album_list = _filter_album_without_cover_art(album_list=album_list)
     if not album_list or len(album_list) == 0:
         return None
@@ -171,7 +172,7 @@ def most_played_albums_art_retriever(tag_to_entry_context: TagToEntryContext = N
     return _get_cover_art_from_res_album_list(response=response)
 
 
-def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> str:
+def get_album_cover_art_uri_by_artist(artist: Artist, force_save: bool = False) -> str:
     # best option, the artist has its coverArt
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=artist)
     if artist_cover_art:
@@ -179,7 +180,7 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
     # maybe look at the albums if available
     album_list: list[Album] = artist.getAlbumList()
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"get_album_art_uri_for_artist [{artist.getId()}] [{artist.getName()}] "
+        msgproc.log(f"get_album_cover_art_uri_by_artist [{artist.getId()}] [{artist.getName()}] "
                     f"album_list len is [{len(album_list)}]")
     if not album_list:
         album_list = []
@@ -194,55 +195,68 @@ def get_album_art_uri_for_artist(artist: Artist, force_save: bool = False) -> st
     if len(non_appearances) > 0:
         subsonic_util.sort_albums_by_date(album_list=non_appearances)
         # take first with a coverArt
-        first_cover_art: str = get_first_cover_art_from_album_list(album_list=non_appearances)
+        first_cover_art: str = __get_first_cover_art_from_album_list(album_list=non_appearances)
         if first_cover_art:
             return subsonic_util.build_cover_art_url(item_id=first_cover_art)
     # fallback into appearances
     if len(appearances) > 0:
         subsonic_util.sort_albums_by_date(album_list=appearances)
         # take first with a coverArt
-        first_cover_art: str = get_first_cover_art_from_album_list(album_list=appearances)
+        first_cover_art: str = __get_first_cover_art_from_album_list(album_list=appearances)
         if first_cover_art:
             return subsonic_util.build_cover_art_url(item_id=first_cover_art)
     # otherwise we fallback to other options
-    return get_album_art_uri_for_artist_id(artist_id=artist.getId())
+    return get_album_cover_art_url_by_artist_id(artist_id=artist.getId())
 
 
-def get_album_art_uri_for_artist_id(artist_id: str) -> str:
+def get_album_cover_art_by_artist_id(artist_id: str, skip_artist_metadata_cache: bool = False) -> str:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=artist_id)
+    if verbose:
+        msgproc.log(f"get_album_cover_art_by_artist_id for [{artist_id}] "
+                    f"skip_artist_metadata_cache [{skip_artist_metadata_cache}]")
+    artist_metadata: persistence.ArtistMetadata = (persistence.get_artist_metadata(artist_id=artist_id)
+                                                   if not skip_artist_metadata_cache
+                                                   else None)
     if artist_metadata and artist_metadata.artist_cover_art:
         # found in cache.
         if verbose:
-            msgproc.log(f"get_album_art_uri_for_artist_id metadata cache hit for [{artist_id}] -> "
+            msgproc.log(f"get_album_cover_art_by_artist_id metadata cache hit for [{artist_id}] -> "
                         f"[{'yes' if artist_metadata else 'no'}]")
-        return subsonic_util.build_cover_art_url(item_id=artist_metadata.artist_cover_art)
-    # fallback to in-memory cache.
-    art_album_id: str = cache_actions.get_album_id_by_artist_id(artist_id=artist_id)
-    if art_album_id:
+        return artist_metadata.artist_cover_art
+    # second option is album cover art by artist id table
+    album_cover_art_list: list[ArtistAlbumCoverArt] = persistence.get_cover_art_list_by_artist_id(artist_id=artist_id)
+    # filter by cover art set
+    album_cover_art_list_with_cover: list[ArtistAlbumCoverArt] = list(filter(
+        lambda x: x.cover_art,
+        album_cover_art_list))
+    if len(album_cover_art_list_with_cover) > 0:
         if verbose:
-            msgproc.log(f"get_album_art_uri_for_artist_id cache hit for [{artist_id}] -> [{art_album_id}]")
-        art_album: Album = subsonic_util.try_get_album(art_album_id)
-        if not art_album:
-            # delete offending album from cache
-            msgproc.log(f"Album [{art_album_id}] does not exist (anymore)!")
-            cache_actions.delete_album_by_artist_id(artist_id)
-            persistence.delete_album_metadata(art_album_id)
-        elif art_album.getCoverArt():
-            art_album_cover_art_uri: str = (subsonic_util.build_cover_art_url(item_id=art_album.getCoverArt())
-                                            if art_album
-                                            else None)
-            return art_album_cover_art_uri
-    if verbose:
-        msgproc.log(f"get_album_art_uri_for_artist_id loading artist by id [{artist_id}] ...")
+            msgproc.log(f"get_album_cover_art_by_artist_id for [{artist_id}] "
+                        f"skip_artist_metadata_cache [{skip_artist_metadata_cache}] "
+                        f"found [{len(album_cover_art_list)}] "
+                        "using get_cover_art_list_by_artist_id")
+        return secrets.choice(album_cover_art_list_with_cover).cover_art
+    album_cover_art_list_without_cover: list[ArtistAlbumCoverArt] = list(filter(
+            lambda x: x.cover_art is None,
+            album_cover_art_list))
+    if len(album_cover_art_list_without_cover) > 0:
+        # at least we have album id, let's see if we have cover art
+        # choose one randomly
+        sel_album_without: ArtistAlbumCoverArt = secrets.choice(album_cover_art_list_without_cover)
+        return sel_album_without.cover_art
+    # if there is precaching, we are finished here.
+    if config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_SONGS):
+        return None
     # load artist
+    if verbose:
+        msgproc.log(f"get_album_cover_art_by_artist_id loading artist by id [{artist_id}] ...")
     artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
     artist_cover_art: str = subsonic_util.get_artist_cover_art(artist=artist) if artist else None
     if artist_cover_art:
         # use this!
         if verbose:
-            msgproc.log(f"get_album_art_uri_for_artist_id using artist coverArt for artist_id [{artist_id}]")
-        return subsonic_util.build_cover_art_url(item_id=artist_cover_art)
+            msgproc.log(f"get_album_cover_art_by_artist_id using artist coverArt for artist_id [{artist_id}]")
+        return artist_cover_art
     album_list: list[Album] = artist.getAlbumList() if artist else []
     select_album_list: list[Album] = album_list
     # try to avoid "appearances" first
@@ -251,82 +265,57 @@ def get_album_art_uri_for_artist_id(artist_id: str) -> str:
         album_list=album_list,
         opposite=True)
     if verbose:
-        msgproc.log(f"get_album_art_uri_for_artist_id select_album_list for [{artist_id}] "
+        msgproc.log(f"get_album_cover_art_by_artist_id select_album_list for [{artist_id}] "
                     f"[{artist.getName() if artist else None}] "
                     f"full length [{len(album_list) if album_list else 0}] "
                     f"as main artist only [{len(as_main_artist_album_list)}]")
     if len(as_main_artist_album_list) > 0:
         select_album_list = as_main_artist_album_list
     subsonic_util.sort_albums_by_date(select_album_list)
-    select_album: Album = get_first_album_with_cover_art_from_album_list(select_album_list)
+    select_album: Album = __get_first_album_with_cover_art_from_album_list(select_album_list)
+    if verbose:
+        msgproc.log(f"get_album_cover_art_by_artist_id for artist_id [{artist_id}] "
+                    f"select_album [{select_album.getId() if select_album else 'None'}]")
     if select_album:
-        cache_actions.on_album_for_artist_id(artist_id=artist_id, album=select_album)
         cache_actions.on_album(album=select_album)
-    album_art_uri: str = (subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt())
-                          if select_album
-                          else None)
-    return album_art_uri
+    return select_album.getCoverArt() if select_album else None
 
 
-def get_artist_art_url_using_albums_by_artist_id(artist_id: str) -> str:
-    artist: Artist = subsonic_util.try_get_artist(artist_id)
-    msgproc.log(f"get_artist_art_url_using_albums_by_artist_id found artist for id [{artist_id}] -> "
-                f"[{'yes' if artist else 'no'}]")
-    return get_artist_art_url_using_albums_by_artist(artist=artist) if artist else None
-
-
-def get_artist_art_url_using_albums_by_artist(artist: Artist) -> str:
-    # get an album cover for the artist entry
-    artist_id: str = artist.getId()
-    album_list: list[Album] = artist.getAlbumList() if artist else list()
-    select_album_list: list[Album] = album_list
-    as_main_artist_album_list: list[Album] = subsonic_util.get_artist_albums_as_appears_on(
+def get_album_cover_art_url_by_artist_id(artist_id: str, skip_artist_metadata_cache: bool = False) -> str:
+    cover_art: str = get_album_cover_art_by_artist_id(
         artist_id=artist_id,
-        album_list=album_list,
-        opposite=True)
-    msgproc.log(f"get_artist_art_url_using_albums_by_artist select_album_list for [{artist_id}] "
-                f"[{artist.getName() if artist else None}] "
-                f"full length [{len(album_list) if album_list else 0}] "
-                f"as main artist only [{len(as_main_artist_album_list)}]")
-    if len(as_main_artist_album_list) > 0:
-        select_album_list = as_main_artist_album_list
-    msgproc.log(f"artist_entry_for_album select_album_list len is [{len(select_album_list)}]")
-    select_album: Album = secrets.choice(select_album_list) if len(select_album_list) > 0 else None
-    # load album
-    msgproc.log(f"artist_entry_for_album selected album: [{select_album.getId() if select_album else None}]")
-    loaded_album: Album = subsonic_util.try_get_album(album_id=select_album.getId()) if select_album else None
-    select_cover: str = loaded_album.getCoverArt() if loaded_album else None
-    return subsonic_util.build_cover_art_url(item_id=select_cover) if select_cover else None
+        skip_artist_metadata_cache=skip_artist_metadata_cache)
+    return subsonic_util.build_cover_art_url(item_id=cover_art) if cover_art else None
 
 
-def get_first_album_with_cover_art_from_album_list(album_list: list[Album]) -> str:
+def __get_first_album_with_cover_art_from_album_list(album_list: list[Album]) -> str:
     album: Album
     for album in album_list if album_list else []:
         if album.getCoverArt():
             if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-                msgproc.log(f"get_first_album_with_cover_art_from_album_list using album [{album.getId()}] "
+                msgproc.log(f"__get_first_album_with_cover_art_from_album_list using album [{album.getId()}] "
                             f"coverArt [{album.getCoverArt()}]")
             return album
     # none found
     return None
 
 
-def get_first_cover_art_from_album_list(album_list: list[Album]) -> str:
-    album: Album = get_first_album_with_cover_art_from_album_list(album_list=album_list)
+def __get_first_cover_art_from_album_list(album_list: list[Album]) -> str:
+    album: Album = __get_first_album_with_cover_art_from_album_list(album_list=album_list)
     return album.getCoverArt() if album else None
 
 
 def favourite_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
-    fav: RetrievedArt = _favourite_albums_art_retriever()
+    fav: RetrievedArt = __favourite_albums_art_retriever()
     return fav if fav else random_albums_art_retriever()
 
 
-def _favourite_albums_art_retriever() -> RetrievedArt:
+def __favourite_albums_art_retriever() -> RetrievedArt:
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
         return None
     album_list: list[Album] = response.getObj().getAlbums()
-    return _get_cover_art_from_album_list(album_list=album_list, random=True)
+    return __get_cover_art_from_album_list(album_list=album_list, random=True)
 
 
 def favourite_artist_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
@@ -372,7 +361,7 @@ def _favourite_artist_art_retriever() -> RetrievedArt:
     # last chance, load artist, get albums, then select one
     msgproc.log(f"_favourite_artist_art_retriever [{select_artist.getId()}] [{select_artist.getName()}] "
                 f"loading artist, worst option")
-    art_url = get_artist_art_url_using_albums_by_artist_id(artist_id=select_artist.getId())
+    art_url = get_album_cover_art_url_by_artist_id(artist_id=select_artist.getId())
     return RetrievedArt(art_url=art_url)
 
 
@@ -431,6 +420,7 @@ def execute_art_retriever(
 
 __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.ALBUMS.tag_name: group_albums_art_retriever,
+    TagType.ARTIST_ROLES.tag_name: group_artists_art_retriever,
     TagType.ARTISTS.tag_name: group_artists_art_retriever,
     TagType.SONGS.tag_name: group_songs_art_retriever,
     TagType.RECENTLY_ADDED_ALBUMS.tag_name: recently_added_albums_art_retriever,
@@ -443,6 +433,7 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.FAVORITE_ALBUMS.tag_name: favourite_albums_art_retriever,
     TagType.MOST_PLAYED_ALBUMS.tag_name: most_played_albums_art_retriever,
     TagType.RANDOM.tag_name: random_albums_art_retriever,
+    TagType.ALBUM_BROWSER.tag_name: random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_COVER.tag_name: random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_GENRE.tag_name: random_albums_art_retriever,

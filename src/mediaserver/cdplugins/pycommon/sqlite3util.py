@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Giovanni Fulco
+# Copyright (C) 2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,13 +23,15 @@ def __sqlite3_execute_update(
         sql: str,
         data: tuple,
         cursor=None,
-        do_commit: bool = True):
-    the_cursor = cursor if cursor else connection.cursor()
+        do_commit: bool = True) -> int:
+    the_cursor = cursor if cursor is not None else connection.cursor()
     the_cursor.execute(sql, data)
-    if not cursor:
+    row_count: int = the_cursor.rowcount
+    if cursor is None:
         the_cursor.close()
     if do_commit:
         connection.commit()
+    return row_count
 
 
 def __sqlite3_select(
