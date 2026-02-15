@@ -166,6 +166,52 @@ inline ssize_t sys_write(int fd, const void* buf, size_t cnt)
     return static_cast<ssize_t>(::write(fd, buf, static_cast<int>(cnt)));
 }
 
+
+// Helper to convert FILETIME to time_t (seconds since Unix Epoch)
+static time_t FileTimeToUnixTime(const FILETIME *ft)
+{
+    unsigned __int64 windowsTime = ((unsigned __int64)ft->dwHighDateTime << 32) | ft->dwLowDateTime;
+    // 2. Adjust for epoch difference (1601 to 1970 in 100-ns intervals)
+    windowsTime -= 116444736000000000ULL;
+    // 3. Convert 100-ns intervals to seconds
+    return (time_t)(windowsTime / 10000000ULL);
+}
+
+// Populate our close-to-POSIX PathStat struct from Windows FIND_DATA, as returned from
+// e.g. Find(First/Next)FileW()
+void MapWinFindDataToStat(const WIN32_FIND_DATA *fd, struct PathStat *pstp)
+{
+    memset(pstp, 0, sizeof(struct PathStat));
+    pstp->pst_size = ((unsigned __int64)fd->nFileSizeHigh << 32) | fd->nFileSizeLow;
+    // Note that we don't use pst_mode anywhere at the moment
+    pstp->pst_mode = 0;
+    enum PstType {PST_REGULAR, PST_SYMLINK, PST_DIR, PST_OTHER, PST_INVALID};
+    pstp->pst_type = PathStat::PST_INVALID;
+    if (fd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        pstp->pst_type = PathStat::PST_DIR;
+        pstp->pst_mode |= S_IFDIR | 0755; 
+    } else if (fd->dwFileAttributes & FILE_ATTRIBUTE_DEVICE) {
+        pstp->pst_type = PathStat::PST_OTHER;
+    } else if (fd->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+        pstp->pst_type = PathStat::PST_SYMLINK;
+        pstp->pst_mode |= S_IFLNK | 0444;
+    } else {
+        pstp->pst_type = PathStat::PST_REGULAR;
+        pstp->pst_mode |= S_IFREG | 0644; 
+    }
+    pstp->pst_mtime = FileTimeToUnixTime(&fd->ftLastWriteTime);
+    pstp->pst_btime = pstp->pst_ctime = FileTimeToUnixTime(&fd->ftCreationTime);
+    // Read-only check
+    if (fd->dwFileAttributes & FILE_ATTRIBUTE_READONLY) {
+        pstp->pst_mode &= ~0222; // Remove write permissions
+    }
+    // None of these are used by us on Windows
+    // uint64_t pst_ino;
+    // uint64_t pst_dev;
+    // uint64_t pst_blocks;
+    // uint64_t pst_blksize;
+}
+
 #else /* !_WIN32 -> */
 
 #include <unistd.h>
@@ -1253,7 +1299,11 @@ bool path_samefile(const std::string& p1, const std::string& p2)
 #endif
 }
 
-#if defined(STATX_TYPE)
+// The statx section was supplied by the developpers who needed to use file birth times for recoll.
+// It causes problems with containers builds built with statx support but running on older kernels
+// so it is now disabled by default. Set the ENABLE_STATX flag if needed (only recoll does it at the
+// moment).
+#if defined(STATX_TYPE) && defined(ENABLE_STATX)
 
 #include <sys/syscall.h>
 
@@ -1478,19 +1528,51 @@ const struct PathDirContents::Entry* PathDirContents::readdir()
         return nullptr;
     }
 #ifdef _WIN32
-    std::string sdname;
-    if (!wchartoutf8(ent->d_name, sdname)) {
+    if (!wchartoutf8(ent->d_name, m->entry.d_name)) {
         LOGERR("wchartoutf8 failed for " << ent->d_name << "\n");
         return nullptr;
     }
-    const char *dname = sdname.c_str();
 #else
-    const char *dname = ent->d_name;
+    m->entry.d_name = ent->d_name;
 #endif
-    m->entry.d_name = dname;
     return &m->entry;
 }
 
+// Run stat on the last read entry, using the dirfd and a relative path. On Linux, with everything
+// in the cache (no real I/O), this yields fstreewalk around 20% sys cpu time improvement compared
+// to a stat() on the absolute path. On Windows, it's free because the dir reading op also yields
+// the attributes.
+int PathDirContents::filepropsat(struct PathStat *stp, bool follow)
+{
+    if (nullptr == stp) {
+        return -1;
+    }
+
+#ifdef _WIN32
+    int ret = -1;
+    if (nullptr != m->dirhdl) {
+        MapWinFindDataToStat(&m->dirhdl->data, stp);
+        ret = 0;
+    }
+#else
+    std::string& dname = m->entry.d_name;
+    SYSPATH(dname, syspath);
+    struct STATXSTRUCT mst;
+#if defined(STATX_TYPE) && defined(ENABLE_STATX)
+    int ret = statx(dirfd(m->dirhdl), syspath, follow ? 0 : AT_SYMLINK_NOFOLLOW,
+                    STATX_BASIC_STATS | STATX_BTIME, &mst);
+    copystat(stp, mst);
+#else // No statx ->
+    int ret = fstatat(dirfd(m->dirhdl), syspath, &mst, follow ? 0 : AT_SYMLINK_NOFOLLOW);
+    copystat(stp, mst);
+#endif // !STATX
+#endif // ! WIN
+                
+    if (ret < 0) {
+        *stp = PathStat{PathStat::PST_INVALID,0,0,0,0,0,0,0,0,0};
+    }
+    return ret;
+}
 
 bool listdir(const std::string& dir, std::string& reason, std::set<std::string>& entries)
 {
