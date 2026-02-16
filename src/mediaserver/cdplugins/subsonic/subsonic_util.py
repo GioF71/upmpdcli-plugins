@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,16 @@ from subsonic_connector.playlist_entry import PlaylistEntry
 import cache_actions
 from tag_type import TagType
 from element_type import ElementType
+from artist_from_album import ArtistFromAlbum
 from typing import Optional
+from album_metadata import AlbumMetadata
+from song_data_structures import SongArtist
+from song_data_structures import SongContributor
+from song_data_structures import SongArtistType
+from common_data_structures import ArtistIdNameCoverArt
+from album_property_key import AlbumPropertyKey
+from metadata_model import AlbumMetadataModel
+import audio_codec
 
 import request_cache
 import connector_provider
@@ -37,10 +46,8 @@ import cache_manager_provider
 import album_util
 import upnp_util
 import config
-from keyvaluecaching import KeyValueItem
 import persistence
 import persistence_constants
-import cache_type
 import upmpdmeta
 
 import secrets
@@ -51,38 +58,148 @@ import glob
 import copy
 import os
 import time
+import datetime
+
 import musicbrainzutils
 
 from functools import cmp_to_key
 from typing import Callable
+from typing import Any
 from enum import Enum
-from track_info import TrackInfo
+from song_info import SongInfo
+from disc_title import DiscTitle
 from msgproc_provider import msgproc
 
-# additional lossy extensions listed here
-additional_lossy_prefix_set: set[str] = {"m4a", "mp3"}
 
-
-class DictKey(Enum):
+class __StreamingDictKey(Enum):
     DICT_KEY_BITDEPTH = "BIT_DEPTH"
     DICT_KEY_SAMPLERATE = "SAMPLE_RATE"
     DICT_KEY_SUFFIX = "SUFFIX"
     DICT_KEY_BITRATE = "BITRATE"
 
 
-def get_track_list_badge(track_list: list[Song], list_identifier: str = None) -> str:
-    prop_dict: dict[str, list[int]] = _get_track_list_streaming_properties(track_list)
-    track_info_list: list[TrackInfo] = get_track_info_list(track_list)
-    if not track_info_list or len(track_info_list) == 0:
-        msgproc.log(f"get_track_list_badge for [{list_identifier}] no tracks were processed")
+def convert_album_properties(album_properties: dict[str, list[Any]]) -> dict[AlbumMetadataModel, Any]:
+    upd_dict: dict[AlbumMetadataModel, Any] = {}
+    if AlbumPropertyKey.LOSSLESS_STATUS.property_key in album_properties:
+        v: str = album_properties[AlbumPropertyKey.LOSSLESS_STATUS.property_key][0]
+        lossless_status: audio_codec.LosslessStatus = audio_codec.get_lossless_status_by_value(v=v)
+        if lossless_status:
+            upd_dict[AlbumMetadataModel.ALBUM_LOSSLESS_STATUS] = lossless_status.value
+    quality_badge: str = (album_properties[AlbumPropertyKey.QUALITY_BADGE.property_key][0]
+                          if AlbumPropertyKey.QUALITY_BADGE.property_key in album_properties else None)
+    if quality_badge:
+        upd_dict[AlbumMetadataModel.QUALITY_BADGE] = quality_badge
+    return upd_dict
+
+
+def build_album_properties(album: Album) -> dict[str, list[Any]]:
+    res: dict[str, list[str]] = {}
+    genres: list[str] = album.getGenres()
+    res[AlbumPropertyKey.GENRE.property_key] = list(set(genres))
+    year: int = album.getYear()
+    res[AlbumPropertyKey.MOOD.property_key] = list(set(get_album_moods(album=album)))
+    if year:
+        res[AlbumPropertyKey.YEAR.property_key] = [str(year)]
+        res[AlbumPropertyKey.DECADE.property_key] = [__get_decade(year)]
+    # artists
+    artist_list: list[ArtistFromAlbum] = get_artists_from_album(
+        album=album,
+        item_key=constants.ItemKey.ALBUM_ARTISTS)
+    artist_list.extend(get_artists_from_album(
+        album=album,
+        item_key=constants.ItemKey.ARTISTS))
+    artist_name_list: list[str] = list(set([x.artist_name for x in artist_list]))
+    # get artists from songs (both types)
+    song_artist_list: list[SongArtist]
+    for song_artist_list in ([
+            get_song_artists_by_type(
+                song=s,
+                song_artist_type=SongArtistType.SONG_ALBUM_ARTIST) + get_song_artists_by_type(
+                    song=s,
+                    song_artist_type=SongArtistType.SONG_ARTIST)
+            for s in album.getSongs()]):
+        curr_song_artist: SongArtist
+        for curr_song_artist in song_artist_list:
+            if curr_song_artist.artist_name not in artist_name_list:
+                artist_name_list.append(curr_song_artist.artist_name)
+    if len(artist_name_list) > 0:
+        res[AlbumPropertyKey.ARTIST.property_key] = artist_name_list
+    # contributors
+    contributor_name_list: list[str] = []
+    song_contributor_list: list[SongContributor]
+    for song_contributor_list in ([get_song_contributors(song=s) for s in album.getSongs()]):
+        curr_song_contributor: SongContributor
+        for curr_song_contributor in song_contributor_list:
+            if curr_song_contributor.artist_name not in song_contributor_list:
+                contributor_name_list.append(curr_song_contributor.artist_name)
+    if len(contributor_name_list) > 0:
+        res[AlbumPropertyKey.CONTRIBUTOR.property_key] = contributor_name_list
+        # pass
+    # all artists
+    all_artist_names: list[str] = list(set(contributor_name_list + artist_name_list))
+    if len(all_artist_names) > 0:
+        res[AlbumPropertyKey.ALL_ARTISTS.property_key] = all_artist_names
+        # pass
+    # release type
+    release_types: list[str] = get_album_release_types(album=album).types
+    if len(release_types) > 0:
+        res[AlbumPropertyKey.RELEASE_TYPE.property_key] = release_types
+    # suffixes and lossless status
+    song_list: list[Song] = album.getSongs()
+    if len(song_list if song_list else []) > 0:
+        # we prefer provided list of songs
+        song_properties: dict[str, any] = build_album_properties_from_songs(song_list=song_list)
+        # contribute to main dictionary
+        res.update(song_properties)
+    return res
+
+
+def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[Any]]:
+    res: dict[str, list[str]] = {}
+    # suffixes and lossless status
+    suffixes: list[str] = list(set(list(dict.fromkeys(list(map(
+        lambda x: x.getSuffix().lower() if x.getSuffix() else None,
+        song_list))))))
+    lossless_statuses: list[audio_codec.LosslessStatus] = list(map(
+        lambda x: audio_codec.get_lossless_status(x),
+        suffixes))
+    if len(lossless_statuses) == 1:
+        res[AlbumPropertyKey.LOSSLESS_STATUS.property_key] = [lossless_statuses[0].value]
+    elif len(lossless_statuses) == 2:
+        res[AlbumPropertyKey.LOSSLESS_STATUS.property_key] = [audio_codec.LosslessStatus.MIXED.value]
+    # quality badge?
+    quality_badge: str = calc_song_list_quality_badge(song_list=song_list)
+    if quality_badge:
+        res[AlbumPropertyKey.QUALITY_BADGE.property_key] = [quality_badge]
+    bit_depth_list: list[str] = list(set([str(get_song_bit_depth(x)) for x in song_list]))
+    if bit_depth_list:
+        res[AlbumPropertyKey.BIT_DEPTH.property_key] = bit_depth_list
+    sampling_rate_list: list[str] = list(set([str(get_song_sampling_rate(x)) for x in song_list]))
+    if sampling_rate_list:
+        res[AlbumPropertyKey.SAMPLING_RATE.property_key] = sampling_rate_list
+    channel_count_list: list[str] = list(set([str(get_song_channel_count(x)) for x in song_list]))
+    if channel_count_list:
+        res[AlbumPropertyKey.CHANNEL_COUNT.property_key] = channel_count_list
+    return res
+
+
+def __get_decade(year: int) -> str:
+    return f"{(year // 10) * 10}s"
+
+
+def calc_song_list_quality_badge(song_list: list[Song], list_identifier: str = None) -> str:
+    prop_dict: dict[str, list[int]] = _get_track_list_streaming_properties(song_list=song_list)
+    song_info_list: list[SongInfo] = get_song_info_list(song_list=song_list)
+    if not song_info_list or len(song_info_list) == 0:
+        # msgproc.log(f"calc_song_list_quality_badge for [{list_identifier}] no tracks were processed")
         return None
-    if (DictKey.DICT_KEY_BITDEPTH.value not in prop_dict or
-            DictKey.DICT_KEY_SAMPLERATE.value not in prop_dict):
+    if (__StreamingDictKey.DICT_KEY_BITDEPTH.value not in prop_dict or
+            __StreamingDictKey.DICT_KEY_SAMPLERATE.value not in prop_dict):
         msgproc.log(f"No streaming information available in [{list_identifier}]")
         return None
     # information are available, go on ...
     # are they all lossy?
-    all_lossy: bool = __all_lossy(track_info_list)
+    all_lossy: bool = __all_lossy(song_info_list)
     # do they all have the same bitrate?
     unique_bitrate: int = _get_unique_bitrate(prop_dict)
     # do they all have the same suffix?
@@ -92,25 +209,17 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
     readable_unique_sampling_rate: str = __get_readable_sampling_rate(unique_sampling_rate)
     if all_lossy:
         # we always return from this branch
-        if unique_bitrate and unique_suffix and unique_sampling_rate:
-            return f"{unique_suffix}@{unique_bitrate}/{readable_unique_sampling_rate}"
+        if (unique_suffix is not None) and (unique_sampling_rate is not None):
+            return f"{unique_suffix}/{readable_unique_sampling_rate}"
         else:
-            avg_bitrate: int = _get_avg_bitrate_int(track_info_list)
-            if (unique_suffix and unique_sampling_rate and
-                    (avg_bitrate and avg_bitrate > 0)):
-                # use avg bitrate rate
-                return f"{unique_suffix}@{avg_bitrate}/{readable_unique_sampling_rate}"
-            elif unique_suffix and unique_sampling_rate:
-                # no avg bitrate
-                return f"{unique_suffix}/{readable_unique_sampling_rate}"
-            elif unique_suffix:
+            if unique_suffix:
                 return unique_suffix
             else:
                 # fallback
                 return "lossy"
-    bit_depth_list: list[int] = prop_dict[DictKey.DICT_KEY_BITDEPTH.value]
+    bit_depth_list: list[int] = prop_dict[__StreamingDictKey.DICT_KEY_BITDEPTH.value]
     bit_depth_list.sort(reverse=True)
-    sampling_rate_list: list[int] = prop_dict[DictKey.DICT_KEY_SAMPLERATE.value]
+    sampling_rate_list: list[int] = prop_dict[__StreamingDictKey.DICT_KEY_SAMPLERATE.value]
     sampling_rate_list.sort(reverse=True)
     if len(bit_depth_list) == 0 or len(sampling_rate_list) == 0:
         msgproc.log("Empty streaming info in [{list_identifier}]")
@@ -141,8 +250,8 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
         sr: str = __get_readable_sampling_rate(best_sampling_rate)
         if best_bit_depth == 0:
             # lossy
-            suffix_list: list[str] = (prop_dict[DictKey.DICT_KEY_SUFFIX.value]
-                                      if DictKey.DICT_KEY_SUFFIX.value in prop_dict
+            suffix_list: list[str] = (prop_dict[__StreamingDictKey.DICT_KEY_SUFFIX.value]
+                                      if __StreamingDictKey.DICT_KEY_SUFFIX.value in prop_dict
                                       else list())
             display_codec: str = (suffix_list[0]
                                   if len(suffix_list) == 1
@@ -150,7 +259,7 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
             if unique_bitrate:
                 display_codec = f"{display_codec}@{unique_bitrate}"
             return f"{display_codec}/{sr}"
-        if unique_suffix and unique_suffix.lower() in config.whitelist_codecs:
+        if unique_suffix and unique_suffix.lower() in config.get_whitelist_codecs():
             if best_bit_depth == 1:
                 return f"DSD {sr}"
             else:
@@ -169,38 +278,37 @@ def get_track_list_badge(track_list: list[Song], list_identifier: str = None) ->
                 return f"~{best_bit_depth}/{sr}"
 
 
-def _get_avg_bitrate(track_info_list: list[TrackInfo]) -> float:
-    sum: float = 0.0
-    current: TrackInfo
-    for current in track_info_list:
-        sum += float(current.bitrate) if current.bitrate else 0.0
-    return sum / float(len(track_info_list))
+def _get_avg_bitrate(song_info_list: list[SongInfo]) -> float:
+    sum_v: float = 0.0
+    current: SongInfo
+    for current in song_info_list:
+        if not current.bitrate or not current.duration:
+            # we just skip it
+            continue
+        sum_v += float(current.bitrate) * float(current.duration)
+    duration_sum: float = sum([x.duration for x in song_info_list])
+    return sum_v / float(duration_sum)
 
 
-def _get_avg_bitrate_int(track_info_list: list[TrackInfo]):
-    return int(_get_avg_bitrate(track_info_list))
+def _get_avg_bitrate_int(song_info_list: list[SongInfo]):
+    return int(_get_avg_bitrate(song_info_list))
 
 
-def get_track_info_list(track_list: list[Song]) -> list[TrackInfo]:
-    result: list[TrackInfo] = list()
-    song: Song
-    for song in track_list:
-        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        suffix: str = song.getSuffix()
-        bitrate: int = song.getBitRate()
-        current: TrackInfo = TrackInfo()
-        current.bit_depth = bit_depth
-        current.sampling_rate = sampling_rate
-        current.suffix = suffix
-        current.bitrate = bitrate
-        result.append(current)
-    return result
+def get_song_info_list(song_list: list[Song]) -> list[SongInfo]:
+    return list(map(
+        lambda song: SongInfo(
+            song_id=song.getId(),
+            bit_depth=get_song_bit_depth(song=song),
+            bitrate=song.getBitRate(),
+            sampling_rate=get_song_sampling_rate(song=song),
+            duration=song.getDuration(),
+            suffix=song.getSuffix()),
+        song_list))
 
 
 def __get_unique_sampling_rate(prop_dict: dict[str, list[int]]) -> int:
-    sampling_rate_list: list[int] = (prop_dict[DictKey.DICT_KEY_SAMPLERATE.value]
-                                     if DictKey.DICT_KEY_SAMPLERATE.value in prop_dict
+    sampling_rate_list: list[int] = (prop_dict[__StreamingDictKey.DICT_KEY_SAMPLERATE.value]
+                                     if __StreamingDictKey.DICT_KEY_SAMPLERATE.value in prop_dict
                                      else list())
     if len(sampling_rate_list) == 1:
         return sampling_rate_list[0]
@@ -208,8 +316,8 @@ def __get_unique_sampling_rate(prop_dict: dict[str, list[int]]) -> int:
 
 
 def _get_unique_bitrate(prop_dict: dict[str, list[int]]) -> int:
-    bitrate_list: list[int] = (prop_dict[DictKey.DICT_KEY_BITRATE.value]
-                               if DictKey.DICT_KEY_BITRATE.value in prop_dict
+    bitrate_list: list[int] = (prop_dict[__StreamingDictKey.DICT_KEY_BITRATE.value]
+                               if __StreamingDictKey.DICT_KEY_BITRATE.value in prop_dict
                                else list())
     if len(bitrate_list) == 1:
         return bitrate_list[0]
@@ -217,46 +325,68 @@ def _get_unique_bitrate(prop_dict: dict[str, list[int]]) -> int:
 
 
 def _get_unique_suffix(prop_dict: dict[str, list[int]]) -> str:
-    suffix_list: list[str] = (prop_dict[DictKey.DICT_KEY_SUFFIX.value]
-                              if DictKey.DICT_KEY_SUFFIX.value in prop_dict
-                              else list())
+    suffix_list: list[str] = list(set(list(map(
+        lambda x: x.lower(),
+        (prop_dict[__StreamingDictKey.DICT_KEY_SUFFIX.value]
+            if __StreamingDictKey.DICT_KEY_SUFFIX.value in prop_dict
+            else list())))))
     if len(suffix_list) == 1:
         return suffix_list[0]
     return None
 
 
-def _get_track_list_streaming_properties(track_list: list[Song]) -> dict[str, list[int]]:
+def _get_track_list_streaming_properties(song_list: list[Song]) -> dict[str, list[int]]:
     result: dict[str, list[int]] = dict()
     song: Song
-    for song in track_list:
+    for song in song_list:
         # bit depth
-        bit_depth: int = song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value)
-        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_BITDEPTH.value, bit_depth)
+        bit_depth: int = get_song_bit_depth(song=song)
+        __maybe_append_to_dict_list(result, __StreamingDictKey.DICT_KEY_BITDEPTH.value, bit_depth)
         # sampling rate
-        sampling_rate: int = song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value)
-        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SAMPLERATE.value, sampling_rate)
+        sampling_rate: int = get_song_sampling_rate(song=song)
+        __maybe_append_to_dict_list(result, __StreamingDictKey.DICT_KEY_SAMPLERATE.value, sampling_rate)
         # suffix
         suffix: str = song.getSuffix().lower() if song.getSuffix() else None
-        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_SUFFIX.value, suffix)
+        __maybe_append_to_dict_list(result, __StreamingDictKey.DICT_KEY_SUFFIX.value, suffix)
         # bitrate
         bitrate: int = song.getBitRate()
-        __maybe_append_to_dict_list(result, DictKey.DICT_KEY_BITRATE.value, bitrate)
+        __maybe_append_to_dict_list(result, __StreamingDictKey.DICT_KEY_BITRATE.value, bitrate)
     return result
+
+
+def calc_lossless_status(song_info_list: list[SongInfo]) -> audio_codec.LosslessStatus:
+    if not song_info_list:
+        raise Exception("calc_lossless_status requires a valid list of songs")
+    lossy_count: int = 0
+    lossless_count: int = 0
+    curr: SongInfo
+    for curr in song_info_list:
+        if is_lossy(suffix=curr.suffix, bit_depth=curr.bit_depth):
+            lossy_count += 1
+        else:
+            lossless_count += 1
+    if lossy_count > 0 and lossless_count > 0:
+        return audio_codec.LosslessStatus.MIXED
+    elif lossless_count == 0:
+        return audio_codec.LosslessStatus.LOSSY
+    else:
+        return audio_codec.LosslessStatus.LOSSLESS
 
 
 def is_lossy(suffix: str, bit_depth: int) -> bool:
     if not bit_depth or bit_depth == 0:
         return True
     # also select suffix are lossy
-    if suffix:
-        return suffix in additional_lossy_prefix_set
+    if suffix is not None:
+        # return suffix in additional_lossy_prefix_set
+        return audio_codec.is_lossy(suffix)
     return False
 
 
-def __all_lossy(track_info_list: list[TrackInfo]) -> bool:
-    current: TrackInfo
-    for current in track_info_list if track_info_list else list():
-        if not current.is_lossy():
+def __all_lossy(song_info_list: list[SongInfo]) -> bool:
+    current: SongInfo
+    for current in song_info_list if song_info_list else []:
+        if not is_lossy(suffix=current.suffix, bit_depth=current.bit_depth):
             return False
     return True
 
@@ -312,41 +442,6 @@ def __get_readable_sampling_rate(sampling_rate: int) -> str:
     return sr
 
 
-class ArtistIdAndName:
-
-    def __init__(self, id: str, name: str, cover_art: str = None):
-        self.__id: str = id
-        self.__name: str = name
-        self.__cover_art: str = cover_art
-
-    @property
-    def id(self) -> str:
-        return self.__id
-
-    @property
-    def name(self) -> str:
-        return self.__name
-
-    @property
-    def cover_art(self) -> str:
-        return self.__cover_art
-
-
-class DiscTitle:
-
-    def __init__(self, disc_num: int, title: str):
-        self.__disc_num: str = disc_num
-        self.__title: str = title
-
-    @property
-    def disc_num(self) -> str:
-        return self.__disc_num
-
-    @property
-    def title(self) -> str:
-        return self.__title
-
-
 def get_random_art_by_genre(
         genre: str,
         max_items: int = 100) -> str:
@@ -365,8 +460,7 @@ def get_random_art_by_genre(
 
 def try_get_album(
         album_id: str,
-        propagate_fail: bool = False,
-        execute_cache_action: bool = False) -> Album:
+        propagate_fail: bool = False) -> Album:
     start: float = time.time()
     try:
         res: Response[Album] = connector_provider.get().getAlbum(album_id)
@@ -375,9 +469,6 @@ def try_get_album(
             elapsed: float = time.time() - start
             if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
                 msgproc.log(f"try_get_album loaded album for album_id [{album_id}] in [{elapsed:.3f}]")
-            # execute on_album from cache_actions (stores metadata)
-            if execute_cache_action:
-                cache_actions.on_album(album=album)
             return album
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
@@ -433,14 +524,13 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
         cache_actions.on_album(album=album)
     else:
         msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] ...")
-        return None, []
+        return None, None
     albumArtURI: str = build_cover_art_url(item_id=album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
     for current_song in sort_song_list_result.getSongList():
         result.append(current_song)
-    albumArtURI: str = build_cover_art_url(item_id=album.getCoverArt())
     return album, album_util.AlbumTracks(
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
@@ -516,8 +606,8 @@ def get_albums(
 
 
 # this can be slow with large libraries
-def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> list[ArtistIdAndName]:
-    artist_set: set[ArtistIdAndName] = set()
+def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> list[ArtistIdNameCoverArt]:
+    artist_set: set[ArtistIdNameCoverArt] = set()
     artist_id_set: set[str] = set()
     req_offset: int = 0
     loaded_album_count: int = 0
@@ -546,9 +636,9 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
                 msgproc.log(f"load_artists_by_genre skipping artist [{get_album_display_artist(album=album)}] (no artist_id)")
                 continue
             if artist_id not in artist_id_set:
-                artist_set.add(ArtistIdAndName(
-                    id=artist_id,
-                    name=get_album_display_artist(album=album),
+                artist_set.add(ArtistIdNameCoverArt(
+                    artist_id=artist_id,
+                    artist_name=get_album_display_artist(album=album),
                     cover_art=album.getCoverArt()))
                 artist_id_set.add(artist_id)
                 if not cached:
@@ -563,7 +653,7 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
     # publishing how many artists in the set
     msgproc.log(f"load_artists_by_genre for [{genre}] from artist_offset [{artist_offset}] "
                 f"total artists found [{len(artist_set)}], providing offsetted list ...")
-    artist_id_list: list[ArtistIdAndName] = list()
+    artist_id_list: list[ArtistIdNameCoverArt] = list()
     # store set to a list
     for artist in artist_set:
         artist_id_list.append(artist)
@@ -603,11 +693,11 @@ class ArtistsOccurrence:
         self.__name = name
 
     @property
-    def id(self) -> str:
+    def artist_id(self) -> str:
         return self.__id
 
     @property
-    def name(self) -> str:
+    def artist_name(self) -> str:
         return self.__name
 
 
@@ -634,7 +724,11 @@ def get_album_artist_id_list_from_album(album: Album) -> list[str]:
     return list(map(lambda x: x[constants.DictKey.ID.value], get_album_artists_from_album(album=album)))
 
 
-def get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurrence]:
+def get_album_artist_name_list_from_album(album: Album) -> list[str]:
+    return list(map(lambda x: x[constants.DictKey.NAME.value], get_album_artists_from_album(album=album)))
+
+
+def __get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurrence]:
     contributor_list: list[dict[str, str]] = obj.getItem().getListByName(constants.ItemKey.CONTRIBUTORS.value)
     result: list[Contributor] = []
     current: dict[str, str]
@@ -659,7 +753,13 @@ def get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurren
     return result
 
 
-def get_artists_in_song_or_album(obj: Song | Album, item_key: constants.ItemKey) -> list[ArtistsOccurrence]:
+def get_artists_in_song_or_album_by_artist_type(obj: Song | Album, item_key: constants.ItemKey) -> list[ArtistsOccurrence]:
+    valid_object_types: list[type] = [Song, Album]
+    if not obj or type(obj) not in valid_object_types:
+        raise Exception(f"obj must be in [{valid_object_types}]")
+    valid_types: list[constants.ItemKey] = [constants.ItemKey.ARTISTS, constants.ItemKey.ALBUM_ARTISTS]
+    if not item_key or item_key not in [constants.ItemKey.ARTISTS, constants.ItemKey.ALBUM_ARTISTS]:
+        raise Exception(f"item_key must be in [{valid_types}]")
     artist_list: list[dict[str, str]] = obj.getItem().getListByName(item_key.value)
     result: list[ArtistsOccurrence] = []
     current: dict[str, str]
@@ -695,62 +795,75 @@ def get_all_artists_in_album(album: Album, in_songs: bool = True) -> list[Artist
         song: Song
         for song in song_list:
             song_artist_list: list[ArtistsOccurrence] = []
-            album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(song, constants.ItemKey.ALBUM_ARTISTS)
-            artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(song, constants.ItemKey.ARTISTS)
+            album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album_by_artist_type(
+                obj=song,
+                item_key=constants.ItemKey.ALBUM_ARTISTS)
+            artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album_by_artist_type(
+                obj=song,
+                item_key=constants.ItemKey.ARTISTS)
             if album_artist_list:
                 song_artist_list.extend(album_artist_list)
             if artist_list:
                 song_artist_list.extend(artist_list)
             song_dict: ArtistsOccurrence
             for song_dict in song_artist_list:
-                if song_dict.id not in artist_id_set:
+                if song_dict.artist_id not in artist_id_set:
                     occ_list.append(song_dict)
-                    artist_id_set.add(song_dict.id)
+                    artist_id_set.add(song_dict.artist_id)
     return occ_list
 
 
 def is_artist_id_in_artist_occurrence_list(artist_id: str, lst: list[ArtistsOccurrence]) -> bool:
     curr: ArtistsOccurrence
     for curr in lst:
-        if curr.id == artist_id:
+        if curr.artist_id == artist_id:
             return True
     return False
 
 
-def is_artist_id_in_contributor_list(artist_id: str, lst: list[Contributor], with_role: str = None) -> bool:
+def __is_artist_id_in_contributor_list(artist_id: str, lst: list[Contributor], with_role: str = None) -> bool:
     curr: Contributor
     for curr in lst:
         if with_role and not curr.role == with_role:
             # does not match role
             continue
-        if curr.artist_reference.id == artist_id:
+        if curr.artist_reference.artist_id == artist_id:
             return True
     return False
 
 
-def is_authored_or_contributed_by_artist_id(obj: Song | Album, artist_id: str, with_role: str = None) -> bool:
-    album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(obj, constants.ItemKey.ALBUM_ARTISTS)
+def __is_authored_or_contributed_by_artist_id(obj: Song | Album, artist_id: str, with_role: str = None) -> bool:
+    album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album_by_artist_type(obj, constants.ItemKey.ALBUM_ARTISTS)
     if is_artist_id_in_artist_occurrence_list(artist_id, album_artist_list):
         return True
-    artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album(obj, constants.ItemKey.ARTISTS)
+    artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album_by_artist_type(obj, constants.ItemKey.ARTISTS)
     if is_artist_id_in_artist_occurrence_list(artist_id, artist_list):
         return True
     # look in contributors
-    contributor_list: list[Contributor] = get_contributors_in_song_or_album(obj)
-    return is_artist_id_in_contributor_list(artist_id, contributor_list, with_role=with_role)
+    contributor_list: list[Contributor] = __get_contributors_in_song_or_album(obj)
+    return __is_artist_id_in_contributor_list(artist_id, contributor_list, with_role=with_role)
+
+
+def get_authored_or_contributed_songs(album: Album, artist_id: str) -> list[Song]:
+    result: list[Song] = []
+    song: Song
+    for song in album.getSongs():
+        if song.getArtistId() == artist_id or __is_authored_or_contributed_by_artist_id(song, artist_id):
+            result.append(song)
+    return result
 
 
 def filter_out_artist_id(artist_list: list[ArtistsOccurrence], artist_id: str) -> list[ArtistsOccurrence]:
     result: list[ArtistsOccurrence] = []
     occ: ArtistsOccurrence
     for occ in artist_list:
-        if not occ.id == artist_id:
+        if not occ.artist_id == artist_id:
             result.append(occ)
     return result
 
 
 def get_album_date_for_sorting(album: Album) -> str:
-    result: str = album_util.get_album_original_release_date(album)
+    result: str = album_util.get_formatted_album_original_release_date(album)
     if not result:
         # fallback to date.
         y: int = album.getYear()
@@ -784,12 +897,12 @@ def get_artist_albums_as_main_artist(artist_id: str, album_list: list[Album]) ->
 def artist_id_among_main_artists(artist_id: str, album: Album) -> bool:
     if artist_id == album.getArtistId():
         return True
-    artists: list[str] = list(map(lambda x: x.id, get_artists_in_song_or_album(
+    artists: list[str] = list(map(lambda x: x.artist_id, get_artists_in_song_or_album_by_artist_type(
         obj=album,
         item_key=constants.ItemKey.ARTISTS)))
     if artist_id in artists:
         return True
-    album_artists: list[str] = list(map(lambda x: x.id, get_artists_in_song_or_album(
+    album_artists: list[str] = list(map(lambda x: x.artist_id, get_artists_in_song_or_album_by_artist_type(
         obj=album,
         item_key=constants.ItemKey.ALBUM_ARTISTS)))
     if artist_id in album_artists:
@@ -917,7 +1030,10 @@ def get_album_release_types(album: Album) -> AlbumReleaseTypes:
     return AlbumReleaseTypes(
         types=musicbrainzutils.sanitize_release_types(
             value_list=album_release_types,
-            print_function=lambda x: msgproc.log(x)))
+            print_function=lambda x: msgproc.log(x),
+            album_id=album.getId(),
+            album_title=album.getTitle(),
+            album_artist=album.getArtist()))
 
 
 def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
@@ -933,12 +1049,12 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
         return False
 
 
-def get_size(obj: Song) -> str:
-    return obj.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
+def get_song_size(song: Song) -> str:
+    return song.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
 
 
-def get_explicit_status(album: Album) -> str:
-    return album.getItem().getByName(constants.ItemKey.EXPLICIT_STATUS.value)
+def get_explicit_status(obj: Album | Song) -> str:
+    return obj.getItem().getByName(constants.ItemKey.EXPLICIT_STATUS.value)
 
 
 def get_explicit_status_display_value(
@@ -1038,17 +1154,6 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
     return current_albumtitle
 
 
-def append_number_of_discs_to_album_title(
-        current_albumtitle: str,
-        album: Album,
-        config_getter: Callable[[], bool]) -> str:
-    result: str = current_albumtitle
-    disc_titles: list[DiscTitle] = get_disc_titles_from_album(album)
-    if config_getter() and len(disc_titles) > 1:
-        result = f"{result} [{len(disc_titles)}]"
-    return result
-
-
 def append_number_of_tracks_to_album_title(
         current_albumtitle: str,
         album: Album,
@@ -1060,6 +1165,19 @@ def append_number_of_tracks_to_album_title(
     return result
 
 
+def get_genres_from_album(album: Album) -> list[str]:
+    lst: list[str] = []
+    data_list: list[dict[str, any]] = album.getItem().getByName(
+        constants.ItemKey.ALBUM_GENRES.value,
+        [])
+    itm: dict[str, any]
+    for itm in data_list:
+        genre: str = itm[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in itm else None
+        if genre and len(genre) > 0:
+            lst.append(genre)
+    return lst
+
+
 def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
     lst: list[DiscTitle] = []
     disc_title_list: list[dict[str, any]] = album.getItem().getByName(
@@ -1067,8 +1185,8 @@ def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
         [])
     dt: dict[str, any]
     for dt in disc_title_list:
-        disc_n: int = dt[constants.ItemKey.DISC_TITLES_DISC.value]
-        disc_t: int = dt[constants.ItemKey.DISC_TITLES_TITLE.value]
+        disc_n: int = dt[constants.DictKey.DISC.value] if constants.DictKey.DISC.value in dt else len(lst) + 1
+        disc_t: int = dt[constants.DictKey.TITLE.value] if constants.DictKey.TITLE.value in dt else f"Disc {disc_n}"
         disc_title: DiscTitle = DiscTitle(disc_n, disc_t)
         lst.append(disc_title)
     return lst
@@ -1136,8 +1254,86 @@ def sort_albums_by_date(album_list: list[Album]):
         album_list.sort(key=cmp_to_key(mycmp=__compare_album_by_date), reverse=reverse)
 
 
+def get_album_song_count(album: Album) -> int | None:
+    return album.getItem().getByName(constants.ItemKey.ALBUM_SONG_COUNT.value) if album else None
+
+
+def get_album_play_count(album: Album) -> int | None:
+    return album.getItem().getByName(constants.ItemKey.ALBUM_PLAY_COUNT.value) if album else None
+
+
+def get_song_play_count(song: Song) -> int | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_PLAY_COUNT.value) if song else None
+
+
+def get_album_is_compilation(album: Album) -> bool | None:
+    return album.getItem().getByName(constants.ItemKey.IS_COMPILATION.value) if album else False
+
+
+def get_song_musicbrainz_id(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value) if song else None
+
+
 def get_album_musicbrainz_id(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.MUSICBRAINZ_ID.value) if album else None
+
+
+def __parse_flexible(ts_str: str) -> datetime.datetime:
+    if not ts_str:
+        return None
+    # Clean up whitespace and handle bytes if necessary
+    if isinstance(ts_str, bytes):
+        ts_str = ts_str.decode('utf-8')
+    ts_str = ts_str.strip().replace('Z', '+00:00')
+    # Strategy 1: The Smart Way (Handles variable precision)
+    try:
+        # We replace ' ' with 'T' here because older fromisoformat
+        # versions (3.7-3.10) require the 'T' separator
+        return datetime.datetime.fromisoformat(ts_str.replace(' ', 'T'))
+    except (ValueError, TypeError):
+        pass
+    # Strategy 2: Strict Microseconds (2025-09-18 20:30:14.199000+00:00)
+    try:
+        return datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S.%f%z")
+    except ValueError:
+        pass
+    # Strategy 3: Strict Seconds (2025-09-23 14:59:45+00:00)
+    try:
+        return datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S%z")
+    except ValueError:
+        # Final fallback: Try without the timezone if it's missing
+        return datetime.datetime.strptime(ts_str.split('+')[0], "%Y-%m-%d %H:%M:%S")
+
+
+def get_album_created(album: Album) -> datetime.datetime | None:
+    return get_item_created(
+        obj=album,
+        item_key=constants.ItemKey.ALBUM_CREATED,
+        item_id_extractor=lambda x: x.getId())
+
+
+def get_song_created(song: Song) -> datetime.datetime | None:
+    return get_item_created(
+        obj=song,
+        item_key=constants.ItemKey.SONG_CREATED,
+        item_id_extractor=lambda x: x.getId())
+
+
+def get_item_created(
+        obj: Album | Song,
+        item_key: constants.ItemKey,
+        item_id_extractor: Callable[[any], str]) -> datetime.datetime | None:
+    try:
+        v: any = obj.getItem().getByName(item_key.value) if obj else None
+        as_str = v.decode('utf-8') if isinstance(v, bytes) else v
+        return __parse_flexible(as_str) if as_str else None
+    except Exception as ex:
+        msgproc.log(f"get_item_created for item [{item_id_extractor(obj)}] [{v}] "
+                    f"could not be converted due to [{type(ex)}] [{ex}]")
+
+
+def get_album_user_rating(album: Album) -> int | None:
+    return album.getItem().getByName(constants.ItemKey.ALBUM_USER_RATING.value) if album else None
 
 
 def get_artist_musicbrainz_id(artist: Artist) -> str | None:
@@ -1152,11 +1348,27 @@ def get_artist_cover_art(artist: Artist) -> str | None:
 
 
 def get_album_version(album: Album) -> str | None:
-    return album.getItem().getByName(constants.ItemKey.VERSION.value) if album else None
+    return album.getItem().getByName(constants.ItemKey.ALBUM_VERSION.value) if album else None
 
 
-def get_album_last_played(album: Album) -> str | None:
-    return album.getItem().getByName(constants.ItemKey.LAST_PLAYED.value) if album else None
+def get_song_type(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_TYPE.value) if song else None
+
+
+def get_song_display_composer(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_DISPLAY_COMPOSER.value) if song else None
+
+
+def get_song_sort_name(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_SORT_NAME.value) if song else None
+
+
+def get_song_year(song: Song) -> int | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_YEAR.value) if song else None
+
+
+def get_album_played(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.ALBUM_PLAYED.value) if album else None
 
 
 def get_playlist_entry_display_artist(playlist_entry: PlaylistEntry) -> str:
@@ -1177,6 +1389,26 @@ def get_song_display_artist(song: Song) -> str:
     return display_artist
 
 
+def get_song_bit_depth(song: Song) -> int:
+    return song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value) if song else None
+
+
+def get_song_sampling_rate(song: Song) -> int:
+    return song.getItem().getByName(constants.ItemKey.SAMPLING_RATE.value) if song else None
+
+
+def get_song_channel_count(song: Song) -> int:
+    return song.getItem().getByName(constants.ItemKey.CHANNEL_COUNT.value) if song else None
+
+
+def get_song_is_dir(song: Song) -> bool:
+    return song.getItem().getByName(constants.ItemKey.SONG_IS_DIR.value) if song else None
+
+
+def get_song_comment(song: Song) -> str:
+    return song.getItem().getByName(constants.ItemKey.SONG_COMMENT.value) if song else None
+
+
 def get_song_display_album_artist(song: Song) -> str:
     return song.getItem().getByName(constants.ItemKey.SONG_DISPLAY_ALBUM_ARTIST.value) if song else None
 
@@ -1189,16 +1421,20 @@ def get_album_display_artist(album: Album) -> str:
     return display_artist
 
 
-def get_song_last_played(song: Song) -> str | None:
-    return song.getItem().getByName(constants.ItemKey.LAST_PLAYED.value) if song else None
+def get_song_played(song: Song) -> str | None:
+    return song.getItem().getByName(constants.ItemKey.SONG_PLAYED.value) if song else None
 
 
-def get_album_media_type(album: Album) -> str | None:
-    return album.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if album else None
+def get_media_type(obj: Song | Album | Artist) -> str | None:
+    return obj.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if obj else None
 
 
-def get_artist_media_type(artist: Artist) -> str | None:
-    return artist.getItem().getByName(constants.ItemKey.MEDIA_TYPE.value) if artist else None
+def get_artist_sort_name(artist: Artist) -> str | None:
+    return artist.getItem().getByName(constants.ItemKey.ARTIST_SORT_NAME.value) if artist else None
+
+
+def get_album_sort_name(album: Album) -> str | None:
+    return album.getItem().getByName(constants.ItemKey.ALBUM_SORT_NAME.value) if album else None
 
 
 def get_album_record_label_names(album: Album) -> list[str]:
@@ -1213,6 +1449,37 @@ def get_album_record_label_names(album: Album) -> list[str]:
 
 def get_artist_roles(artist: Artist) -> list[str]:
     return artist.getItem().getListByName(constants.ItemKey.ROLES.value) if artist else []
+
+
+def get_artists_from_album(
+        album: Album,
+        item_key: constants.ItemKey = constants.ItemKey.ARTISTS,
+        allow_duplicate_artist_id: bool = True) -> list[ArtistFromAlbum]:
+    lst: list[dict[str, str]] = album.getItem().getListByName(item_key.value) if album else []
+    # check for duplicates
+    res: list[ArtistFromAlbum] = []
+    d: dict[str, str]
+    id_set: set[str] = set()
+    for d in lst:
+        artist_id: str = d[constants.DictKey.ID.value] if constants.DictKey.ID.value in d else None
+        artist_name: str = d[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in d else None
+        if not artist_id or not artist_name:
+            raise Exception(f"get_artists_from_album album_id [{album.getId()}] "
+                            f"[{album.getTitle()}] by [{album.getArtist()}] "
+                            f"{item_key.value} keys "
+                            f"[{constants.DictKey.ID.value}, {constants.DictKey.NAME.value}] must be set")
+        if (artist_id in id_set) and not allow_duplicate_artist_id:
+            # skip, duplicate
+            msgproc.log(f"get_artists_from_album album_id [{album.getId()}] "
+                        f"[{album.getTitle()}] by [{album.getArtist()}] "
+                        f"duplicate artist_id [{artist_id}] "
+                        f"name from discarded entry [{artist_name}]")
+            continue
+        # keep track
+        id_set.add(artist_id)
+        # add to list
+        res.append(ArtistFromAlbum(album_id=album.getId(), artist_id=artist_id, artist_name=artist_name))
+    return res
 
 
 def get_album_moods(album: Album) -> list[str]:
@@ -1259,12 +1526,21 @@ def match_supported_image_type_by_content_type(content_type: str) -> constants.S
     return None
 
 
-def build_cover_art_url(item_id: str, force_save: bool = False) -> str:
+def build_cover_art_url(
+        item_id: str,
+        force_save: bool = False,
+        force_final_url: bool = False) -> str:
     start: float = time.time()
-    cover_art_url: str = __build_cover_art_url(item_id=item_id, force_save=force_save)
-    elapsed: float = time.time() - start
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"build_cover_art_url for item_id [{item_id}] total elapsed [{elapsed:.3f}]")
+    if force_final_url or not config.get_config_param_as_bool(constants.ConfigParam.ENABLE_COVER_ART_INTERMEDIATE_URL):
+        cover_art_url: str = __build_cover_art_url(item_id=item_id, force_save=force_save)
+        elapsed: float = time.time() - start
+        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            msgproc.log(f"build_cover_art_url for item_id [{item_id}] total elapsed [{elapsed:.3f}]")
+    else:
+        # build intermediate cover art URL
+        http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
+        cover_art_url = (f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}"
+                         f"/coverart/version/1/coverartId/{item_id}")
     return cover_art_url
 
 
@@ -1422,9 +1698,16 @@ def get_album_disc_and_track_counters(album: Album) -> str:
     disc_title_list: list[dict[str, any]] = album.getItem().getByName(
         constants.ItemKey.DISC_TITLES.value,
         [])
-    disc_count: int = len(disc_title_list) if len(disc_title_list) > 1 else 1
-    result: str = f"{disc_count} Disc{'s' if disc_count > 1 else ''}, "
-    result += f"{album.getSongCount()} Track{'s' if album.getSongCount() > 1 else ''}"
+    return get_album_disc_and_track_counters_raw(
+        disc_count=len(disc_title_list),
+        song_count=album.getSongCount())
+
+
+def get_album_disc_and_track_counters_raw(
+        disc_count: int,
+        song_count: int) -> str:
+    result: str = f"{disc_count if disc_count and disc_count > 1 else 1} Disc{'s' if (disc_count and disc_count > 1) else ''}, "
+    result += f"{song_count} Track{'s' if song_count > 1 else ''}"
     return result
 
 
@@ -1443,7 +1726,7 @@ def get_songs_by_album_disc_numbers(album: Album) -> dict[int, list[Song]]:
     return res
 
 
-def _get_name_list(song: Song, item_key: constants.ItemKey.SONG_ALBUM_ARTISTS) -> list[str]:
+def __get_name_list(song: Song, item_key: constants.ItemKey.SONG_ALBUM_ARTISTS) -> list[str]:
     result: list[str] = []
     rl: list[dict[str, str]] = song.getItem().getListByName(item_key.value) if song else None
     current: dict[str, str]
@@ -1453,12 +1736,56 @@ def _get_name_list(song: Song, item_key: constants.ItemKey.SONG_ALBUM_ARTISTS) -
     return result
 
 
-def get_song_album_artists(song: Song) -> list[str]:
-    return _get_name_list(song=song, item_key=constants.ItemKey.SONG_ALBUM_ARTISTS)
+def __get_song_album_artist_id_list(song: Song) -> list[str]:
+    return __get_name_list(song=song, item_key=constants.ItemKey.SONG_ALBUM_ARTISTS)
 
 
-def get_song_artists(song: Song) -> list[str]:
-    return _get_name_list(song=song, item_key=constants.ItemKey.SONG_ARTISTS)
+def get_song_artists_by_type(
+        song: Song,
+        song_artist_type: SongArtistType,
+        skip_duplicate_id: bool = True) -> list[SongArtist]:
+    if song_artist_type is None or song_artist_type not in SongArtistType:
+        raise Exception("get_song_artists_by_type requires a valid song_artist_type")
+    res: list[SongArtist] = []
+    item_key: constants.ItemKey = (constants.ItemKey.SONG_ALBUM_ARTISTS
+                                   if song_artist_type == SongArtistType.SONG_ALBUM_ARTIST
+                                   else constants.ItemKey.SONG_ARTISTS)
+    lst: list[dict[str, str]] = song.getItem().getListByName(item_key.value) if song else None
+    current: dict[str, str]
+    id_set: set[str] = set()
+    for current in lst:
+        id: str = current[constants.DictKey.ID.value] if constants.DictKey.ID.value in current else None
+        name: str = current[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in current else None
+        if (not id or not name or id in id_set) and not skip_duplicate_id:
+            continue
+        id_set.add(id)
+        res.append(SongArtist(
+            song_id=song.getId(),
+            artist_id=id,
+            artist_name=name))
+    return res
+
+
+def get_song_contributors(song: Song) -> list[SongContributor]:
+    res: list[SongContributor] = []
+    lst: list[dict[str, str]] = song.getItem().getListByName(constants.ItemKey.CONTRIBUTORS.value) if song else None
+    current: dict[str, str]
+    for current in lst:
+        role: str = current[constants.DictKey.ROLE.value] if constants.DictKey.ROLE.value in current else None
+        sub_role: str = current[constants.DictKey.SUB_ROLE.value] if constants.DictKey.SUB_ROLE.value in current else None
+        artist: dict[str, str] = current[constants.DictKey.ARTIST.value] if constants.DictKey.ARTIST.value in current else None
+        artist_id: str = artist[constants.DictKey.ID.value] if artist and constants.DictKey.ID.value in artist else None
+        artist_name: str = artist[constants.DictKey.NAME.value] if artist and constants.DictKey.NAME.value in artist else None
+        if not role or not artist_id or not artist_name:
+            continue
+        # create structure
+        res.append(SongContributor(
+            song_id=song.getId(),
+            role=role,
+            sub_role=sub_role,
+            artist_id=artist_id,
+            artist_name=artist_name))
+    return res
 
 
 def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
@@ -1487,18 +1814,13 @@ def set_artist_metadata_by_artist_id(artist_id: str, target: dict):
             name_key_to_display(artist_metadata.artist_media_type),
             target)
     # genres?
-    genres_kv: KeyValueItem = persistence.get_kv_item(
-        partition=cache_type.CacheType.GENRES_FOR_ARTIST.value.cache_name,
-        key=artist_id)
-    if genres_kv and genres_kv.value:
-        # prepare for display
-        genre_list: list[str] = genres_kv.value.split(constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value)
-        genre_list.sort()
-        genres_display_value: str = join_with_comma(genre_list)
-        upnp_util.set_upnp_meta(
-            metadata_name=constants.UpnpMeta.GENRE,
-            metadata_value=genres_display_value,
-            target=target)
+    genre_list: list[str] = persistence.get_genre_list_by_artist_id(artist_id=artist_id)
+    genre_list.sort()
+    genres_display_value: str = join_with_comma(genre_list)
+    upnp_util.set_upnp_meta(
+        metadata_name=constants.UpnpMeta.GENRE,
+        metadata_value=genres_display_value,
+        target=target)
 
 
 def name_key_to_display(name_key: str) -> str:
@@ -1531,7 +1853,7 @@ def set_artist_metadata(artist: Artist, target: dict):
         target)
     upnp_util.set_upmpd_meta(
         upmpdmeta.UpMpdMeta.ARTIST_MEDIA_TYPE,
-        name_key_to_display(get_artist_media_type(artist)),
+        name_key_to_display(get_media_type(artist)),
         target)
     artist_roles: list[str] = get_artist_roles(artist=artist)
     artist_roles = list(map(name_key_to_display, artist_roles))
@@ -1545,26 +1867,125 @@ def join_with_comma(str_list: list[str]) -> str:
     return ", ".join(str_list if str_list else [])
 
 
-def set_song_metadata(song: Song, target: dict):
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, join_with_comma(get_song_album_artists(song)), target)
+def set_song_metadata(
+        song: Song,
+        target: dict,
+        album_metadata: AlbumMetadata = None):
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, join_with_comma(__get_song_album_artist_id_list(song)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, song.getAlbum(), target)
     joined_genres: str = join_with_comma(song.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_DURATION, get_song_duration_display(song), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.DISC_NUMBER, song.getDiscNumber(), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_NUMBER, song.getTrack(), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_LAST_PLAYED, get_song_last_played(song), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_LAST_PLAYED, get_song_played(song), target)
     # album quality if available
     album_id: str = song.getAlbumId()
-    album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
+    album_metadata = (persistence.get_album_metadata(album_id=album_id)
+                      if album_metadata is None
+                      else album_metadata)
     if album_metadata:
         upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
     # single track quality badge
-    track_quality_bade: str = get_track_list_badge([song])
+    track_quality_bade: str = calc_song_list_quality_badge(song_list=[song])
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_QUALITY, track_quality_bade, target)
 
 
-def set_album_metadata(album: Album, target: dict):
+def set_album_metadata_by_metadata_only(
+        album_metadata: AlbumMetadata,
+        target: dict):
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album_metadata.album_display_artist, target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album_metadata.album_name, target)
+    # year
+    album_year: str = str(album_metadata.album_year) if album_metadata.album_year else None
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_YEAR, album_year, target)
+    # release date
+    upnp_util.set_upmpd_meta(
+        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_RELEASE_DATE,
+        metadata_value=album_util.get_formatted_album_date_from_metadata(
+            album_metadata=album_metadata,
+            release_date_type=album_util.AlbumReleaseDateType.RELEASE_DATE),
+        target=target)
+    # original release date
+    upnp_util.set_upmpd_meta(
+        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE,
+        metadata_value=album_util.get_formatted_album_date_from_metadata(
+            album_metadata=album_metadata,
+            release_date_type=album_util.AlbumReleaseDateType.ORIGINAL_RELEASE_DATE),
+        target=target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, album_metadata.album_version, target)
+    played: datetime.datetime = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
+    if played:
+        formatted_played = played.strftime("%Y-%m-%d %H:%M:%S")
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
+            formatted_played,
+            target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album_metadata.album_id, target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, album_metadata.album_musicbrainz_id, target)
+    explicit_status: str = get_explicit_status_display_value(
+        explicit_status=album_metadata.album_explicit_status,
+        display_mode=constants.ExplicitDiplayMode.LONG)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_EXPLICIT_STATUS, explicit_status, target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_DURATION,
+        upmpdmeta.get_duration_display_from_sec(album_metadata.album_duration) if album_metadata.album_duration else None,
+        target)
+    is_compilation: str = "yes" if album_metadata.get_value(AlbumMetadataModel.ALBUM_IS_COMPILATION) == 1 else "no"
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.IS_COMPILATION, is_compilation, target)
+    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
+        # album path.
+        path_str: str = album_metadata.album_path
+        # don't show more than ...
+        if path_str and len(path_str) > constants.MetadataMaxLength.ALBUM_PATH.value:
+            msgproc.log(f"set_album_metadata album_id: [{album_metadata.album_id}] Path: [{path_str}]")
+            path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
+        upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_PATH, path_str, target)
+    album_genre_list: str = album_metadata.album_genre_list
+    if album_genre_list:
+        upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, album_metadata.album_genre_list, target)
+    else:
+        upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, album_metadata.album_genre, target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.MOOD,
+        album_metadata.album_mood_list,
+        target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_QUALITY_OF_TRACKS,
+        album_metadata.album_track_quality_summary,
+        target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_COMPRESSION_TYPE,
+        album_metadata.album_lossless_status,
+        target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_AVERAGE_BITRATE,
+        album_metadata.album_average_bitrate,
+        target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_RECORD_LABELS,
+        album_metadata.album_record_label_list,
+        target)
+    release_type_list: str = album_metadata.album_release_type_list
+    if release_type_list:
+        rtl_list: list[str] = release_type_list.split(", ")
+        art: AlbumReleaseTypes = AlbumReleaseTypes(rtl_list)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.RELEASE_TYPES,
+            art.display_name,
+            target)
+    disc_count: int = album_metadata.album_disc_count if album_metadata.album_disc_count else 1
+    disc_track_counters: str = get_album_disc_and_track_counters_raw(
+        disc_count=disc_count,
+        song_count=album_metadata.album_song_count)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_DISC_AND_TRACK_COUNTERS, disc_track_counters, target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, album_metadata.album_media_type, target)
+
+
+def set_album_metadata(
+        album: Album,
+        target: dict,
+        album_metadata: AlbumMetadata = None):
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, get_album_display_artist(album=album), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
     # year
@@ -1573,15 +1994,15 @@ def set_album_metadata(album: Album, target: dict):
     # release date
     upnp_util.set_upmpd_meta(
         metadata_name=upmpdmeta.UpMpdMeta.ALBUM_RELEASE_DATE,
-        metadata_value=album_util.get_album_release_date(album=album),
+        metadata_value=album_util.get_formatted_album_release_date(album=album),
         target=target)
     # original release date
     upnp_util.set_upmpd_meta(
         metadata_name=upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE,
-        metadata_value=album_util.get_album_original_release_date(album=album),
+        metadata_value=album_util.get_formatted_album_original_release_date(album=album),
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, get_album_last_played(album), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, get_album_played(album), target)
     joined_genres: str = join_with_comma(album.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album.getId(), target)
@@ -1601,7 +2022,7 @@ def set_album_metadata(album: Album, target: dict):
     album_release_types: AlbumReleaseTypes = get_album_release_types(album)
     album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, name_key_to_display(get_album_media_type(album)), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, name_key_to_display(get_media_type(album)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, join_with_comma(get_album_moods(album)), target)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
         # album path.
@@ -1609,7 +2030,6 @@ def set_album_metadata(album: Album, target: dict):
         if len(path_list) == 0:
             # album does not have the required information. Might be from an album list
             # we try and see if we have the cached information
-            album_metadata: persistence.AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
             if album_metadata and album_metadata.album_path and len(album_metadata.album_path) > 0:
                 path_list = album_metadata.album_path.split(persistence_constants.Separator.PATH.value)
         path_str: str = f"[{'], ['.join(path_list)}]" if len(path_list) > 0 else None
@@ -1618,18 +2038,22 @@ def set_album_metadata(album: Album, target: dict):
             msgproc.log(f"set_album_metadata album_id: [{album.getId()}] Path: [{path_str}]")
             path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
         upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_PATH, path_str, target)
-    track_detailed_qualities: str = get_tracks_detailed_quality(album)
+    track_detailed_qualities: str = album_metadata.album_track_quality_summary if album_metadata else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY_OF_TRACKS, track_detailed_qualities, target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_COMPRESSION_TYPE,
+        album_metadata.get_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS),
+        target)
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_AVERAGE_BITRATE,
+        album_metadata.get_value(AlbumMetadataModel.ALBUM_AVERAGE_BITRATE),
+        target)
 
 
-def get_tracks_detailed_quality(album: Album) -> str:
-    song_list: list[Song] = album.getSongs()
-    if not song_list or len(song_list) == 0:
-        # is the value cached?
-        kv_item: KeyValueItem = persistence.get_kv_item(
-            partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
-            key=album.getId())
-        return kv_item.value if kv_item else None
+def calc_song_quality_summary(song_list: list[Song]) -> str:
+    if song_list is None or len(song_list) == 0:
+        # nothing to do as we don't have tracks available
+        return None
     # go on!
     q_dict: dict[str, int] = {}
     display_result: str = None
@@ -1640,12 +2064,14 @@ def get_tracks_detailed_quality(album: Album) -> str:
     song: Song
     for song in song_list:
         # get song quality badge
-        song_is_lossy: bool = is_lossy(song.getSuffix(), song.getItem().getByName(constants.ItemKey.BIT_DEPTH.value))
+        song_is_lossy: bool = is_lossy(
+            suffix=song.getSuffix(),
+            bit_depth=get_song_bit_depth(song=song))
         if song_is_lossy:
             lossy_count += 1
         else:
             lossless_count += 1
-        song_quality_badge: str = get_track_list_badge([song])
+        song_quality_badge: str = calc_song_list_quality_badge(song_list=[song])
         if song_quality_badge:
             # get current count, 0 if still not in dict
             count: int = q_dict[song_quality_badge] if song_quality_badge in q_dict else 0
@@ -1659,38 +2085,37 @@ def get_tracks_detailed_quality(album: Album) -> str:
             q_dict[song_quality_badge] = count + 1
     if lossy_count > 0 and lossless_count > 0:
         # mixed, return a constant string
-        display_result = mixed_lossless_lossy(
+        display_result = __mixed_lossless_lossy(
             lossless_count=lossless_count,
             lossy_count=lossy_count)
     # not too many lossy/lossless types allowed
     if lossy_key_count > 3 or lossless_key_count > 3:
-        display_result = mixed_lossless_lossy(
+        display_result = __mixed_lossless_lossy(
             lossless_count=lossless_count,
             lossy_count=lossy_count)
     if not display_result:
-        to_display: list[str] = []
-        k: str
-        v: int
-        for k, v in q_dict.items():
-            to_display.append(f"{k} ({v} {'songs' if v > 1 else 'song'})")
-        display_result: str = join_with_comma(to_display)
-    # cache the value
-    persistence.save_kv_item(
-        key_value_item=persistence.KeyValueItem(
-            partition=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
-            key=album.getId(),
-            value=display_result))
+        if len(q_dict) > 1:
+            to_display: list[str] = []
+            k: str
+            v: int
+            for k, v in q_dict.items():
+                to_display.append(f"{k} ({v} {'songs' if v > 1 else 'song'})")
+            display_result: str = join_with_comma(to_display)
+        else:
+            # use the unique value
+            display_result = list(q_dict.keys())[0]
     return display_result
 
 
-def mixed_lossless_lossy(lossless_count: int, lossy_count: int) -> str:
+def __mixed_lossless_lossy(lossless_count: int, lossy_count: int) -> str:
     if lossy_count == 0 and lossless_count == 0:
         return None
     if lossless_count == 0:
-        return f"lossy ({lossy_count})"
+        return f"lossy ({lossy_count} {'songs' if lossy_count > 1 else 'song'})"
     if lossy_count == 0:
         return f"lossless ({lossless_count})"
-    return f"lossless ({lossless_count}), lossy ({lossy_count})"
+    return (f"lossless ({lossless_count} {'songs' if lossless_count > 1 else 'song'}), "
+            f"lossy ({lossy_count} {'songs' if lossy_count > 1 else 'song'})")
 
 
 def get_cached_image_subdir_list() -> list[str]:

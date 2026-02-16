@@ -38,9 +38,9 @@ class ItemIdentifier:
         return id
 
     def __check_mandatory(id_dict: dict[str, any], id_key: ItemIdentifierKey) -> any:
-        if not id_key.getName() in id_dict:
-            raise Exception("Mandatory [{id_key.getName()}] missing")
-        return id_dict[id_key.getName()]
+        if id_key.identifier_name not in id_dict:
+            raise Exception("Mandatory [{id_key.identifier_name}] missing")
+        return id_dict[id_key.identifier_name]
 
     def __init__(self, name: str, value: any):
         self.__dict: dict[str, any] = {}
@@ -58,21 +58,21 @@ class ItemIdentifier:
         return copy.deepcopy(self.__dict)
 
     def has(self, key: ItemIdentifierKey):
-        return self.__has_name(key.getName())
+        return self.__has_name(key.identifier_name)
 
     def __has_name(self, name: str):
         return name in self.__dict
 
     def get(self, key: ItemIdentifierKey, defaultValue: any = None):
-        return self.__get(key.getName(), defaultValue)
+        return self.__get(key.identifier_name, defaultValue)
 
     def __get(self, key_name: str, defaultValue: any = None):
         return self.__dict[key_name] if key_name in self.__dict else defaultValue
 
     def set(self, key: ItemIdentifierKey, value):
         if not self.__valid_key(key):
-            raise Exception(f"Key {key.getName() if key else None} already set")
-        self.__set(key.getName(), value)
+            raise Exception(f"Key {key.identifier_name if key else None} already set")
+        self.__set(key.identifier_name, value)
 
     def __set(self, key_name: str, value):
         if not self.__valid_key_name(key_name):
@@ -80,7 +80,7 @@ class ItemIdentifier:
         self.__dict[key_name] = value
 
     def __valid_key(self, key: ItemIdentifierKey) -> bool:
-        return key and self.__valid_key_name(key.getName())
+        return key and self.__valid_key_name(key.identifier_name)
 
     def __valid_key_name(self, key_name: str) -> bool:
         return key_name and key_name not in self.__dict

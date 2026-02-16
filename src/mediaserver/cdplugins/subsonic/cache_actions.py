@@ -1,4 +1,4 @@
-# Copyright (C) 2024,2025 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,78 +13,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import subsonic_connector.album
 import cache_type
-import subsonic_connector
 import cache_manager_provider
-from caching import CacheManager
 import subsonic_util
 import config
 import constants
 import persistence
 import album_util
-from subsonic_connector.album import Album
-from keyvaluecaching import KeyValueItem
-from msgproc_provider import msgproc
 import time
-
-
-def get_album_track_qualities_by_album_id(album_id: str) -> str:
-    return cache_manager_provider.get().get_cached_element(
-        cache_name=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
-        key=album_id)
-
-
-def save_album_track_qualities(album_id: str, qualities: str):
-    cache_manager_provider.get().cache_element_value(
-        cache_name=cache_type.CacheType.ALBUM_TRACK_QUALITIES.getName(),
-        key=album_id,
-        value=qualities)
-
-
-def get_album_id_by_artist_id(artist_id: str) -> str:
-    return cache_manager_provider.get().get_cached_element(
-        cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
-        key=artist_id)
-
-
-def delete_album_by_artist_id(artist_id: str) -> bool:
-    return delete_key(cache_type.CacheType.ALBUMS_BY_ARTIST, artist_id)
+import metadata_converter
+from subsonic_connector.album import Album
+from subsonic_connector.song import Song
+from artist_from_album import ArtistFromAlbum
+from song_data_structures import SongArtistType
+from song_data_structures import SongArtist
+from song_data_structures import SongContributor
+from table_name import TableName
+from metadata_model import SongMetadataModel
+from msgproc_provider import msgproc
+from typing import Any
 
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
-    return cache_manager_provider.get().delete_cached_element(cache_type.getName(), key)
+    return cache_manager_provider.get().delete_cached_element(cache_type.cache_name, key)
 
 
-def store_artist_genres(artist_id: str, album_list: list[Album]):
-    if not album_list:
-        return
-    album: Album
-    genre_list: list[str] = []
-    for album in album_list if album_list else []:
-        album_genres: list[str] = album.getGenres()
-        curr_genre: str
-        for curr_genre in album_genres if album_genres else []:
-            if curr_genre not in genre_list:
-                genre_list.append(curr_genre)
-    # genre list now available
-    genre_list_str: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
-    key_value_item: KeyValueItem = KeyValueItem(
-        partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
-        key=artist_id,
-        value=genre_list_str)
-    persistence.save_kv_item(key_value_item=key_value_item)
-
-
-def on_album_for_artist_id(artist_id: str, album: subsonic_connector.album.Album):
-    cache_manager: CacheManager = cache_manager_provider.get()
-    cache_manager.cache_element_value(
-        cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
-        key=artist_id,
-        value=album.getId())
-
-
-def on_album(album: subsonic_connector.album.Album):
+def on_album(album: Album):
     start: float = time.time()
     __on_album(album=album)
     elapsed: float = time.time() - start
@@ -92,95 +46,113 @@ def on_album(album: subsonic_connector.album.Album):
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
-def get_artist_id_list_by_display_name(artist_name: str):
-    artist_id_list_joined: str = cache_manager_provider.get().get_cached_element(
-        cache_name=cache_type.CacheType.ARTIST_ID_BY_DISPLAY_NAME.getName(),
-        key=artist_name)
-    return subsonic_util.id_list_split(artist_id_list_joined) if artist_id_list_joined else []
-
-
-def store_artist_id_list_by_artist_name(album: subsonic_connector.album.Album):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    # update artist id mapped by the artist_display_name
-    artist_display_name: str = subsonic_util.get_album_display_artist(album=album)
-    artist_id_list: list[str] = list(map(lambda x: x.id, subsonic_util.get_artists_in_song_or_album(
-        obj=album,
-        item_key=constants.ItemKey.ARTISTS)))
-    # actually cache
-    joined: str = subsonic_util.id_list_join(artist_id_list)
-    cache_manager_provider.get().cache_element_value(
-        cache_name=cache_type.CacheType.ARTIST_ID_BY_DISPLAY_NAME.getName(),
-        key=artist_display_name,
-        value=joined)
-    if verbose:
-        msgproc.log(f"store_artist_id_list_by_artist_name album_id [{album.getId()}] "
-                    f"artist_display_name [{artist_display_name}] -> "
-                    f"[{joined}]")
-
-
-def __on_album(album: subsonic_connector.album.Album):
+def __on_album(album: Album):
     if not album or not album.getId():
+        # nothing to do
         return
-    cache_manager: CacheManager = cache_manager_provider.get()
-    if album.getArtistId():
-        cache_manager.cache_element_value(
-            cache_name=cache_type.CacheType.ALBUMS_BY_ARTIST.getName(),
-            key=album.getArtistId(),
-            value=album.getId())
-    artist_id: str = album.getArtistId()
-    # update artist id by display_artist
-    store_artist_id_list_by_artist_name(album=album)
-    # musicbrainz album id
-    album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
-    album_path_joined: str = album_util.get_album_path_list_joined(album=album)
-    if album_mbid or album_path_joined:
-        if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
-            msgproc.log(f"Storing album_mbid for [{album.getId()}] -> [{album_mbid}]")
-        persistence.save_album_metadata(album_metadata=persistence.AlbumMetadata(
-            album_id=album.getId(),
-            album_musicbrainz_id=album_mbid,
-            album_artist_id=artist_id,
-            album_path=album_path_joined))
-    # update artist with cover art, if available
-    if album.getArtistId() and album.getCoverArt():
-        artist_metadata: persistence.ArtistMetadata = persistence.get_artist_metadata(artist_id=album.getArtistId())
-        if (not artist_metadata or
-            (not artist_metadata.artist_name or
-             not artist_metadata.artist_name == subsonic_util.get_album_display_artist(album=album)) or
-                (not artist_metadata.artist_cover_art or not artist_metadata.artist_cover_art == album.getCoverArt())):
-            # store this one as fallback
-            persistence.save_artist_metadata(artist_metadata=persistence.ArtistMetadata(
-                artist_id=album.getArtistId(),
-                artist_name=subsonic_util.get_album_display_artist(album=album),
-                artist_cover_art=album.getCoverArt()))
-    album_genre_list = album.getGenres()
-    # album per genre cache
-    if album_genre_list:
-        genre: str
-        for genre in album_genre_list:
-            persistence.save_kv_item(key_value_item=KeyValueItem(
-                partition=cache_type.CacheType.GENRE_ALBUM_ART.getName(),
-                key=genre,
-                value=album.getCoverArt()))
-    # genres for artist
-    if album_genre_list and album.getArtistId():
-        # load existing.
-        kv_item: KeyValueItem = persistence.get_kv_item(
-            partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
-            key=album.getArtistId())
-        existing_genre_list_str: str = kv_item.value if kv_item else None
-        # split by separator
-        genre_list: list[str] = (existing_genre_list_str.split(constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value)
-                                 if existing_genre_list_str
-                                 else [])
-        genre: str
-        for genre in album_genre_list:
-            if genre not in genre_list:
-                genre_list.append(genre)
-        # update cached value
-        new_genre_list: str = constants.Separator.GENRE_FOR_ARTIST_SEPARATOR.value.join(genre_list)
-        upd_kv_item: KeyValueItem = persistence.KeyValueItem(
-            partition=cache_type.CacheType.GENRES_FOR_ARTIST.cache_name,
-            key=album.getArtistId(),
-            value=new_genre_list)
-        persistence.save_kv_item(key_value_item=upd_kv_item)
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    album_quality_badge: str = None
+    track_quality_summary: str = None
+    album_path_joined: str = None
+    song_list: list[Song] = album.getSongs()
+    song_count: int = len(song_list) if song_list else 0
+    if len(song_list) if song_list else 0:
+        # we can calculate qualities and path
+        album_quality_badge = subsonic_util.calc_song_list_quality_badge(song_list=song_list)
+        track_quality_summary = subsonic_util.calc_song_quality_summary(song_list=song_list)
+        album_path_joined = album_util.get_album_path_list_joined(song_list=song_list)
+        if verbose:
+            msgproc.log(f"__on_album [{album.getId()}] -> "
+                        f"badge [{album_quality_badge}] "
+                        f"summary [{track_quality_summary}] "
+                        f"path [{album_path_joined}]")
+    # delete orphaned tracks
+    persistence.delete_song_list_not_in(
+        album_id=album.getId(),
+        song_list=list(map(lambda x: x.getId(), song_list)))
+    # save metadata
+    persistence.save_album_metadata(
+        album_metadata=metadata_converter.build_album_metadata(
+            album=album,
+            quality_badge=album_quality_badge,
+            song_quality_summary=track_quality_summary,
+            album_path=album_path_joined),
+        context="__on_album")
+    # save properties
+    album_properties: dict[str, list[Any]] = subsonic_util.build_album_properties(album=album)
+    persistence.save_album_properties(
+        album_id=album.getId(),
+        properties=album_properties)
+    # save other data
+    album_artists: list[ArtistFromAlbum] = subsonic_util.get_artists_from_album(album=album)
+    persistence.update_album_artists(
+        album_id=album.getId(),
+        album_artists=album_artists)
+    persistence.update_album_discs(
+        album_id=album.getId(),
+        album_discs=subsonic_util.get_disc_titles_from_album(album=album))
+    persistence.update_album_genres(
+        album_id=album.getId(),
+        album_genres=subsonic_util.get_genres_from_album(album=album))
+    persistence.update_album_record_labels(
+        album_id=album.getId(),
+        album_record_labels=subsonic_util.get_album_record_label_names(album=album))
+    persistence.update_album_moods(
+        album_id=album.getId(),
+        album_moods=subsonic_util.get_album_moods(album=album))
+    persistence.update_album_release_types(
+        album_id=album.getId(),
+        album_release_types=subsonic_util.get_album_release_types(album=album).types)
+    if verbose:
+        msgproc.log("__on_album saving songs ...")
+    song: Song
+    for song in song_list if song_list else []:
+        __on_album_song(album=album, song=song)
+    # purge removed songs
+    if song_count > 0:
+        persistence.delete_by_parent_id_and_id_in_list(
+            table_name=TableName.SONG_METADATA_V1,
+            parent_id_column_name=SongMetadataModel.SONG_ALBUM_ID.column_name,
+            parent_id=album.getId(),
+            id_column_name=SongMetadataModel.SONG_ID.column_name,
+            id_list=list(map(lambda x: x.getId(), song_list)),
+            in_mode=persistence.InMode.NOT_IN)
+
+
+def __on_album_song(
+        album: Album,
+        song: Song):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    if verbose:
+        msgproc.log(f"__on_album saving songs song [{song.getId()}] ...")
+    persistence.save_song_metadata(
+        song_metadata=metadata_converter.build_song_metadata(song=song),
+        context="__on_album_song")
+    # song album artists
+    song_album_artist_list: list[SongArtist] = subsonic_util.get_song_artists_by_type(
+        song=song,
+        song_artist_type=SongArtistType.SONG_ALBUM_ARTIST)
+    persistence.save_song_album_artist_list(
+        song_id=song.getId(),
+        album_id=album.getId(),
+        song_album_artist_list=song_album_artist_list)
+    if verbose:
+        msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] album_artists [{len(song_album_artist_list)}]")
+    # song artists
+    song_artist_list: list[SongArtist] = subsonic_util.get_song_artists_by_type(
+        song=song,
+        song_artist_type=SongArtistType.SONG_ARTIST)
+    persistence.save_song_artist_list(
+        song_id=song.getId(),
+        album_id=album.getId(),
+        song_artist_list=song_artist_list)
+    if verbose:
+        msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] artists [{len(song_artist_list)}]")
+    # contributors
+    song_contributor_list: list[SongContributor] = subsonic_util.get_song_contributors(song=song)
+    persistence.save_song_contributor_list(
+        song_id=song.getId(),
+        album_id=album.getId(),
+        song_contributor_list=song_contributor_list)
+    if verbose:
+        msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] contributors [{len(song_contributor_list)}]")

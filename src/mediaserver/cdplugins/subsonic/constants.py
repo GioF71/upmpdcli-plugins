@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.29"
+    PLUGIN_RELEASE = "0.9.2"
     PLUGIN_NAME = "subsonic"
 
 
@@ -37,22 +37,37 @@ class ItemKey(Enum):
     RELEASE_DATE = "releaseDate"
     EXPLICIT_STATUS = "explicitStatus"
     DISC_TITLES = "discTitles"
-    DISC_TITLES_DISC = "disc"
-    DISC_TITLES_TITLE = "title"
     COVER_ART = "coverArt"
-    VERSION = "version"
+    ALBUM_VERSION = "version"
     ALBUM_RECORD_LABELS = "recordLabels"
     IS_COMPILATION = "isCompilation"
     ROLES = "roles"
     MOODS = "moods"
-    SONG_ALBUM_ARTISTS = "albumartists"
+    SONG_ALBUM_ARTISTS = "albumArtists"
     SONG_ARTISTS = "artists"
-    LAST_PLAYED = "played"
+    ALBUM_PLAYED = "played"
     ALBUM_DISPLAY_ARTIST = "displayArtist"
     SONG_DISPLAY_ARTIST = "displayArtist"
     SONG_DISPLAY_ALBUM_ARTIST = "displayAlbumArtist"
     PLAYLIST_ENTRY_DISPLAY_ARTIST = "displayArtist"
     ITEM_SIZE = "size"
+    ARTIST_SORT_NAME = "sortName"
+    ALBUM_SONG_COUNT = "songCount"
+    ALBUM_CREATED = "created"
+    ALBUM_USER_RATING = "userRating"
+    ALBUM_IS_COMPILATION = "isCompilation"
+    ALBUM_PLAY_COUNT = "playCount"
+    ALBUM_SORT_NAME = "sortName"
+    ALBUM_GENRES = "genres"
+    SONG_COMMENT = "comment"
+    SONG_CREATED = "created"
+    SONG_IS_DIR = "isDir"
+    SONG_PLAY_COUNT = "playCount"
+    SONG_PLAYED = "played"
+    SONG_YEAR = "year"
+    SONG_TYPE = "type"
+    SONG_DISPLAY_COMPOSER = "displayComposer"
+    SONG_SORT_NAME = "sortName"
 
 
 class DictKey(Enum):
@@ -60,7 +75,13 @@ class DictKey(Enum):
     ID = "id"
     NAME = "name"
     ROLE = "role"
+    SUB_ROLE = "subRole"
     ARTIST = "artist"
+    DAY = "day"
+    MONTH = "month"
+    YEAR = "year"
+    DISC = "disc"
+    TITLE = "title"
 
 
 class AlbumEntryType(Enum):
@@ -120,32 +141,6 @@ class ConfigParam(Enum):
         "searchresultalbumascontainer",
         default_value=False,
         description="Show search results for albums as containers (breaks some control points, but not upplay)")
-
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_CONTAINER = _ConfigParamData(
-        "allowappenddisccountinalbumcontainer",
-        default_value=False,
-        description="Append disc count to album container")
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_VIEW = _ConfigParamData(
-        "allowappenddisccountinalbumview",
-        default_value=False,
-        description="Append disc count to album view")
-    ALLOW_APPEND_DISC_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData(
-        "allowappenddisccountinalbumsearchresult",
-        default_value=False,
-        description="Append disc count to album search result")
-
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_CONTAINER = _ConfigParamData(
-        "allowappendtrackcountinalbumcontainer",
-        default_value=False,
-        description="Append track number to album container")
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_VIEW = _ConfigParamData(
-        "allowappendtrackcountinalbumview",
-        default_value=False,
-        description="Append track number to album view")
-    ALLOW_APPEND_TRACK_CNT_IN_ALBUM_SEARCH_RESULT = _ConfigParamData(
-        "allowappendtrackcountinalbumsearchresult",
-        default_value=False,
-        description="Append track number to album search result")
 
     ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER = _ConfigParamData(
         "allowappendartistinalbumcontainer",
@@ -217,6 +212,11 @@ class ConfigParam(Enum):
         default_value=False,
         description="Show year in album search result")
 
+    PREPEND_NUMBER_IN_ALBUM_LIST = _ConfigParamData(
+        "prependnumberinalbumlist",
+        default_value=False,
+        description="Add number in album lists, mostly to defeat client sorting")
+
     SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER = _ConfigParamData(
         "showalbummbidinalbumcontainer",
         default_value=False,
@@ -244,6 +244,22 @@ class ConfigParam(Enum):
         "showartistmbidasplaceholder",
         default_value=True,
         description="Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for artist is enabled")
+
+    WHITELIST_CODECS = _ConfigParamData(
+        "whitelistcodecs",
+        default_value="alac,wav,flac,dsf",
+        description=("List of codecs in a whitelist "
+                     "because they are considered lossless, comma separated"))
+
+    ALLOW_BLACKLIST_CODEC_IN_SONG = _ConfigParamData(
+        "allowblacklistedcodecinsong",
+        default_value=True,
+        description="Show codecs that do not belong to whitelist in song lists")
+
+    SERVER_SIDE_SCROBBLING = _ConfigParamData(
+        "serversidescrobbling",
+        default_value=False,
+        description="Scrobble to the subsonic server when trackuri is invoked")
 
     DUMP_ACTION_ON_MB_ALBUM_CACHE = _ConfigParamData(
         "dumpactiononmbalbumcache",
@@ -290,7 +306,7 @@ class ConfigParam(Enum):
         description="Items per page")
     MAX_ADDITIONAL_ARTISTS = _ConfigParamData(
         "maxadditionalartists",
-        default_value=10,
+        default_value=25,
         description="Max additional artists shown without creating a dedicated entry")
     MAX_ARTISTS_PER_PAGE = _ConfigParamData(
         "maxartistsperpage",
@@ -428,10 +444,20 @@ class ConfigParam(Enum):
         default_value=False,
         description="Allow to add DIDL fragment for album artist in song")
 
-    SKIP_INTERMEDIATE_URL = _ConfigParamData(
-        key="skipintermediateurl",
+    LOG_INTERMEDIATE_URL = _ConfigParamData(
+        key="logintermediateurl",
         default_value=False,
-        description="Avoid to create URLs that will be redirected to the trackuri method")
+        description="Display the intermediate track urls")
+
+    ENABLE_TRACK_INTERMEDIATE_URL = _ConfigParamData(
+        key="enabletrackintermediateurl",
+        default_value=True,
+        description="Create intermediate track URLs that will be processed by the trackuri method")
+
+    ENABLE_COVER_ART_INTERMEDIATE_URL = _ConfigParamData(
+        key="enablecoverartintermediateurl",
+        default_value=True,
+        description="Create intermediate cover art URLs that will be processed by the trackuri method")
 
     ENABLE_RANDOM_ID = _ConfigParamData(
         key="enablerandomid",
@@ -439,6 +465,70 @@ class ConfigParam(Enum):
         description=("Generate a random id on each identifier entry, "
                      "might be useful with Linn Kazoo as this will "
                      "defeat its excessive caching"))
+
+    PRELOAD_MAX_DELTA_SEC = _ConfigParamData(
+        key="preloadmaxdeltasec",
+        default_value=3600,
+        description=("Preload data only if oldest update is before current time minus this delta"))
+
+    PRELOAD_VERBOSE_LOGGING = _ConfigParamData(
+        key="preloadverboselogging",
+        default_value=False,
+        description=("Verbose logging while preloading"))
+
+    PRELOAD_ARTISTS = _ConfigParamData(
+        key="preloadartists",
+        default_value=True,
+        description=("Preload artists at plugin startup time"))
+
+    PRELOAD_ALBUMS = _ConfigParamData(
+        key="preloadalbums",
+        default_value=True,
+        description=("Preload albums at plugin startup time, requires preloadartists"))
+
+    PRELOAD_SONGS = _ConfigParamData(
+        key="preloadsongs",
+        default_value=True,
+        description=("Preload songs at plugin startup time, requires preloadalbums"))
+
+    BROWSE_WITHOUT_CACHE = _ConfigParamData(
+        key="browsewithoutcache",
+        default_value=False,
+        description=("Set value of no_cache when browsing the library"))
+
+    SEARCH_WITHOUT_CACHE = _ConfigParamData(
+        key="searchwithoutcache",
+        default_value=True,
+        description=("Set value of no_cache when browsing search results"))
+
+    TRACE_PERSISTENCE_OPERATIONS = _ConfigParamData(
+        key="tracepersistenceoperations",
+        default_value=False,
+        description=("Trace persistence operations"))
+
+    MINIMIZE_IDENTIFIER_LENGTH = _ConfigParamData(
+        key="minimizeidentifierlength",
+        default_value=True,
+        description=("Set value to true/1 in order to minimize the length of identifiers, "
+                     "this might solve issues with some Denon AVR, "
+                     "but will create lots of database entries. "
+                     "If disabled, the identifier strings might be a lot longer but "
+                     "no dedicated entries will be created on the database"))
+
+    PURGE_IDENTIFIER_CACHE = _ConfigParamData(
+        key="purgeidentifiercache",
+        default_value=True,
+        description=("Purge the identifier cache records created by id caching"))
+
+    EXECUTE_VACUUM = _ConfigParamData(
+        key="executevacuum",
+        default_value=True,
+        description=("Execute VACUUM on startup (reduce db size)"))
+
+    CACHED_REQUEST_TIMEOUT_SEC = _ConfigParamData(
+        key="cachedrequesttimeoutsec",
+        default_value=Defaults.CACHED_REQUEST_TIMEOUT_SEC.value,
+        description=("Timeout for cached requests in seconds"))
 
     @property
     def key(self) -> str:
@@ -643,5 +733,5 @@ class SupportedImageType(Enum):
         return self.value.content_type_list
 
 
-default_debug_badge_mngmt: int = 0
-default_debug_artist_albums: int = 0
+class MaxLength(Enum):
+    ALBUM_PATH = 65535

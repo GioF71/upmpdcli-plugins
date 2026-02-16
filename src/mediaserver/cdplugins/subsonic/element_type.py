@@ -16,6 +16,8 @@
 
 from enum import Enum
 import idgenerator
+import config
+import constants
 
 base_chars: str = "abcdefghijklmnopqrtuvwxyz0123456789"
 current_id: int = None
@@ -39,13 +41,14 @@ class _ElementTypeData:
 class ElementType(Enum):
     TAG = _ElementTypeData()
     ALBUM = _ElementTypeData()
+    ALBUM_VERSION = _ElementTypeData()
     GENRE = _ElementTypeData()
     GENRE_ARTIST_LIST = _ElementTypeData()
     GENRE_ALBUM_LIST = _ElementTypeData()
     ARTIST = _ElementTypeData()
     GENRE_ARTIST = _ElementTypeData()
     ARTIST_BY_INITIAL = _ElementTypeData()
-    TRACK = _ElementTypeData()
+    SONG = _ElementTypeData()
     PLAYLIST = _ElementTypeData()
     INTERNET_RADIO = _ElementTypeData()
     SONG_ENTRY_NAVIGABLE = _ElementTypeData()
@@ -66,10 +69,18 @@ class ElementType(Enum):
     ARTIST_APPEARANCES = _ElementTypeData()
     ALBUM_SONG_SELECTION_BY_ARTIST = _ElementTypeData()
     ALBUM_DISC = _ElementTypeData()
+    ARTIST_ROLE = _ElementTypeData()
+    ARTIST_ROLE_INITIAL = _ElementTypeData()
+    ALBUM_BROWSE_FILTER_KEY = _ElementTypeData()
+    ALBUM_BROWSE_FILTER_VALUE = _ElementTypeData()
+    ALBUM_BROWSE_MATCHING_ALBUMS = _ElementTypeData()
 
     @property
     def element_name(self) -> str:
-        return self.value.element_name
+        if config.get_config_param_as_bool(constants.ConfigParam.MINIMIZE_IDENTIFIER_LENGTH):
+            return self.name
+        else:
+            return self.value.element_name
 
 
 def get_element_type_by_name(element_name: str) -> ElementType:
