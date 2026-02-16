@@ -1,5 +1,23 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.2
+
+- Album browser: performance improvements
+
+## Release 0.9.1
+
+- Implemented optional artist, album and song preloading (enabled by default)
+- New feature: Album browser (requires preloading to be active), offers filtering by various criteria
+- Add threshold for artist preloading (avoid reloading if oldest cached is not older than now - threshold)
+- Get rid of unnecessary in-memory caching on top of sqlite db
+- Configurability for no_cache when showing library or search results
+- Add support for some Denon AVR (see [this issue](https://github.com/GioF71/upmpdcli-docker/issues/608)) with new configuration variable MINIMIZE_IDENTIFIER_LENGTH (`minimizeidentifierlength`)
+- Add support intermediate url for cover art (Moode Audio now displays cover art beautifully!)
+- Remove obscure configuration variables for adding album/track count to album entries
+- Reduce verbosity when unnecessary
+- Avoid to load every artist when showing Additional Artists entries
+- General code cleanup, fixes and optimizations
+
 ## Release 0.8.29
 
 - Create configuration ENABLE_RANDOM_ID (`enabledrandomid`), disabled by default (increases the length of IDs if enabled, but it is useful with Linn Kazoo)

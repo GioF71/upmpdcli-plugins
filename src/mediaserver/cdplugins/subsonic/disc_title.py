@@ -1,4 +1,4 @@
-# Copyright (C) 2025,2026 Giovanni Fulco
+# Copyright (C) 2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,20 +14,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-def __number_to_base(n: int, b: int) -> list[int]:
-    if n == 0:
-        return [0]
-    digits = []
-    while n:
-        digits.append(int(n % b))
-        n //= b
-    return digits[::-1]
+class DiscTitle:
 
+    def __init__(self, disc_num: int, title: str):
+        self.__disc_num: str = disc_num
+        self.__title: str = title
 
-def number_to_base_decoded(n: int, base_chars: str) -> str:
-    result: str = ""
-    cnv: list[int] = __number_to_base(n=n, b=len(base_chars))
-    curr: int
-    for curr in cnv:
-        result += base_chars[curr]
-    return result
+    @property
+    def disc_num(self) -> str:
+        return self.__disc_num
+
+    @property
+    def title(self) -> str:
+        return self.__title
