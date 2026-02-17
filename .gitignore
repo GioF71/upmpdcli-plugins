@@ -25,3 +25,4 @@ web.tar.gz
 compile_commands.json
 .cache
 .cache
+src/mediaserver/cdplugins/minenv.env

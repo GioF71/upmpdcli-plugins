@@ -35,3 +35,4 @@ rpm
 setversion.sh
 subprojects
 
+src/mediaserver/cdplugins/minenv.env
