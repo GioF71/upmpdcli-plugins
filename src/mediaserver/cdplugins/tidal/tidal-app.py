@@ -1886,7 +1886,7 @@ def __handler_element_favorite_albums_common(
             tidal_session=tidal_session,
             album=current,
             options=options))
-    if len(items) >= max_items:
+    if next_album:
         next_button: dict[str, any] = create_next_button(
             objid=objid,
             element_type=element_type,

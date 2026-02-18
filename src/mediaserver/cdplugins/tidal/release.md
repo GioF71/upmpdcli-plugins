@@ -1,5 +1,10 @@
 # Tidal Plugin Release notes
 
+## 0.8.12
+
+- Add Kodi/21 to user agent whitelist
+- Fixed issue [#160](https://framagit.org/medoc92/upmpdcli/-/issues/160) next_album is None
+
 ## 0.8.11
 
 - Bump to [tidalapi version 0.8.11](https://github.com/tamland/python-tidal/releases/tag/v0.8.11)
