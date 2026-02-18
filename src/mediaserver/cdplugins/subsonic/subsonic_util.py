@@ -101,14 +101,18 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     if year:
         res[AlbumPropertyKey.YEAR.property_key] = [str(year)]
         res[AlbumPropertyKey.DECADE.property_key] = [__get_decade(year)]
+    # label
+    res[AlbumPropertyKey.LABEL.property_key] = get_album_record_label_names(album=album)
     # artists
-    artist_list: list[ArtistFromAlbum] = get_artists_from_album(
+    artist_list: list[str] = []
+    artist_list.append(get_album_display_artist(album=album))
+    artist_list.extend([x.artist_name for x in get_artists_from_album(
         album=album,
-        item_key=constants.ItemKey.ALBUM_ARTISTS)
-    artist_list.extend(get_artists_from_album(
+        item_key=constants.ItemKey.ALBUM_ARTISTS)])
+    artist_list.extend([x.artist_name for x in get_artists_from_album(
         album=album,
-        item_key=constants.ItemKey.ARTISTS))
-    artist_name_list: list[str] = list(set([x.artist_name for x in artist_list]))
+        item_key=constants.ItemKey.ARTISTS)])
+    artist_name_list: list[str] = list(set(artist_list))
     # get artists from songs (both types)
     song_artist_list: list[SongArtist]
     for song_artist_list in ([
@@ -138,7 +142,7 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # all artists
     all_artist_names: list[str] = list(set(contributor_name_list + artist_name_list))
     if len(all_artist_names) > 0:
-        res[AlbumPropertyKey.ALL_ARTISTS.property_key] = all_artist_names
+        res[AlbumPropertyKey.ARTIST_CONTRIBUTOR.property_key] = all_artist_names
         # pass
     # release type
     release_types: list[str] = get_album_release_types(album=album).types

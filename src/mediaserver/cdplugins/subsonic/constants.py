@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.2"
+    PLUGIN_RELEASE = "0.9.3"
     PLUGIN_NAME = "subsonic"
 
 
@@ -529,6 +529,22 @@ class ConfigParam(Enum):
         key="cachedrequesttimeoutsec",
         default_value=Defaults.CACHED_REQUEST_TIMEOUT_SEC.value,
         description=("Timeout for cached requests in seconds"))
+
+    MAX_FAVORITE_SONGS_PER_PAGE = _ConfigParamData(
+        key="maxfavoritesongsperpage",
+        default_value=250,
+        description=("Max favorite songs displayed as a list"))
+
+    MAX_FAVORITE_CONTAINERS_PER_PAGE = _ConfigParamData(
+        key="maxfavoritesongcontainersperpage",
+        default_value=100,
+        description=("Max favorite song containers per page"))
+
+    ENABLE_FAVORITE_SONGS_PAGINATED_VIEW = _ConfigParamData(
+        key="enablefavoritesongspaginatedview",
+        default_value=False,
+        description=("Enable legacy view to show a paginated view of favorite songs, "
+                     "this one has the advantage to give easier access to related artist(s)"))
 
     @property
     def key(self) -> str:

@@ -58,14 +58,14 @@ class AlbumPropertyDataset:
     def get_values(self, key: str) -> list[str]:
         return list(self.__values_by_key[key]) if key in self.__values_by_key else []
 
-    def get_album_id_set_by_key_value(self, key: str, value: str) -> list[str]:
+    def get_album_id_set_by_key_value(self, key: str, value: str) -> set[str]:
         return self.__album_id_by_key_value[(key, value)] if (key, value) in self.__album_id_by_key_value else set()
+
+    def get_album_id_list_by_key_value(self, key: str, value: str) -> list[str]:
+        return list(self.get_album_id_set_by_key_value(key=key, value=value))
 
     def get_album_id_count_by_key_value(self, key: str, value: str) -> int:
         return len(self.__album_id_by_key_value[(key, value)]) if (key, value) in self.__album_id_by_key_value else 0
-
-    def get_album_id_list_by_key_value(self, key: str, value: str) -> list[str]:
-        return list(self.__album_id_by_key_value[(key, value)]) if (key, value) in self.__album_id_by_key_value else []
 
     @property
     def album_id_count(self) -> int:
@@ -99,7 +99,7 @@ class AlbumPropertyDatasetProcessor:
             # filter with key or with None?
             if curr_filter.value is None:
                 # find matching.
-                matching_none: set[str] = self.__dataset.album_id_set - self.__dataset.get_album_id_set_for_key()
+                matching_none: set[str] = self.__dataset.album_id_set - self.__dataset.get_album_id_set_for_key(curr_filter.key)
                 # calculate intersection
                 matching_album_id_set = matching_album_id_set & matching_none
             else:
