@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2020 J.F.Dockes
+/* Copyright (C) 2014-2026 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -37,14 +37,13 @@ class OHRadio : public OHService {
 public:
     OHRadio(UpMpd *dev, UpMpdOpenHome *udev);
 
-    // We can only offer this if Python is available because of the
-    // stream uri fetching script. This is checked during construction.
+    // We can only offer this if Python is available because of the stream uri fetching script. This
+    // is checked during construction.
     bool ok() {return m_ok;}
     
-    int iStop();
-    int iPlay();
-
-    // Source active ?
+    // This is called from ohproduct when switching source. When one of our actions which
+    // necessitate it is called, if we are not active we call the Product setSourceIndex action,
+    // which in turn calls setActive.
     void setActive(bool onoff);
 
 protected:
@@ -68,6 +67,10 @@ private:
     int stop(const SoapIncoming& sc, SoapOutgoing& data);
     int transportState(const SoapIncoming& sc, SoapOutgoing& data);
 
+    int iStop();
+    int iPlay();
+    void maybeActivate();
+    
     std::string metaForId(unsigned int id);
     bool readRadios();
     int setPlaying();

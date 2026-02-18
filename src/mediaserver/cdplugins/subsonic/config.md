@@ -15,12 +15,6 @@ allowgenreinalbumview|Show genre in album view|False
 showemptyfavorites|Show the Favorites entry, even when there are none|False
 showemptyplaylists|Show the Playlists entry, even when there are none|False
 searchresultalbumascontainer|Show search results for albums as containers (breaks some control points, but not upplay)|False
-allowappenddisccountinalbumcontainer|Append disc count to album container|False
-allowappenddisccountinalbumview|Append disc count to album view|False
-allowappenddisccountinalbumsearchresult|Append disc count to album search result|False
-allowappendtrackcountinalbumcontainer|Append track number to album container|False
-allowappendtrackcountinalbumview|Append track number to album view|False
-allowappendtrackcountinalbumsearchresult|Append track number to album search result|False
 allowappendartistinalbumcontainer|Append artist to album container|True
 allowappendartistinalbumview|Append artist to album view|False
 allowappendartistinsearchresult|Append artist to album search result|False
@@ -37,12 +31,16 @@ showalbumidinalbumsearchresult|Show album id in album search result|False
 appendyeartoalbumcontainer|Show year in album container|True
 appendyeartoalbumview|Show year in album view|False
 appendyeartoalbumsearchresult|Show year in album search result|False
+prependnumberinalbumlist|Add number in album lists, mostly to defeat client sorting|False
 showalbummbidinalbumcontainer|Show album musicbrainz id in album container|False
 showalbummbidinalbumview|Show album musicbrainz id in album view|False
 showalbummbidinalbumsearchres|Show album musicbrainz id in album search result|False
 showalbummbidasplaceholder|Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for album is enabled|True
 showartistmbid|Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for artist is enabled|False
 showartistmbidasplaceholder|Show `mbid` as a placeholder for musicbrainz id, effective only if showing mb id for artist is enabled|True
+whitelistcodecs|List of codecs in a whitelist because they are considered lossless, comma separated|alac,wav,flac,dsf
+allowblacklistedcodecinsong|Show codecs that do not belong to whitelist in song lists|True
+serversidescrobbling|Scrobble to the subsonic server when trackuri is invoked|False
 dumpactiononmbalbumcache|Show actions on album cache in logs|False
 dumpalbumgenre|Show album genre in logs|False
 setclasstoalbumfornavigablealbum|Force the navigable album to have the album class|False
@@ -53,7 +51,7 @@ artistsearchlimit|Max artists to show when searching|50
 albumsearchlimit|Max albums to show when searching|50
 songsearchlimit|Max songs to show when searching|100
 itemsperpage|Items per page|20
-maxadditionalartists|Max additional artists shown without creating a dedicated entry|10
+maxadditionalartists|Max additional artists shown without creating a dedicated entry|25
 maxartistsperpage|Artists per page|20
 maxadditionalalbumartistsperpage|Max number of additional artists per page|10
 dumpstreamingproperties|Dump streaming properties to log|False
@@ -84,5 +82,19 @@ logwithtimestamp|Adds a timestamp to log entries|True
 maxrandomsonglistsize|Max number of random songs to display|250
 setalbumartistrolealbumartist|Enable set the role 'albumartist' in album|False
 allowsongdidlalbumartist|Allow to add DIDL fragment for album artist in song|False
-skipintermediateurl|Avoid to create URLs that will be redirected to the trackuri method|False
+logintermediateurl|Display the intermediate track urls|False
+enabletrackintermediateurl|Create intermediate track URLs that will be processed by the trackuri method|True
+enablecoverartintermediateurl|Create intermediate cover art URLs that will be processed by the trackuri method|True
 enablerandomid|Generate a random id on each identifier entry, might be useful with Linn Kazoo as this will defeat its excessive caching|False
+preloadmaxdeltasec|Preload data only if oldest update is before current time minus this delta|3600
+preloadverboselogging|Verbose logging while preloading|False
+preloadartists|Preload artists at plugin startup time|True
+preloadalbums|Preload albums at plugin startup time, requires preloadartists|True
+preloadsongs|Preload songs at plugin startup time, requires preloadalbums|True
+browsewithoutcache|Set value of no_cache when browsing the library|False
+searchwithoutcache|Set value of no_cache when browsing search results|True
+tracepersistenceoperations|Trace persistence operations|False
+minimizeidentifierlength|Set value to true/1 in order to minimize the length of identifiers, this might solve issues with some Denon AVR, but will create lots of database entries. If disabled, the identifier strings might be a lot longer but no dedicated entries will be created on the database|True
+purgeidentifiercache|Purge the identifier cache records created by id caching|True
+executevacuum|Execute VACUUM on startup (reduce db size)|True
+cachedrequesttimeoutsec|Timeout for cached requests in seconds|30

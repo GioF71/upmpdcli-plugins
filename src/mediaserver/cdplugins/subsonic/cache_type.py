@@ -28,32 +28,19 @@ class _CacheTypeData:
 
 class CacheType(Enum):
 
-    ALBUMS_BY_ARTIST = _CacheTypeData("lbm4rtst")
-    GENRE_ALBUM_ART = _CacheTypeData("genre_album_art")
-    ALBUM_TRACK_QUALITIES = _CacheTypeData("album_track_qualities")
-    GENRES_FOR_ARTIST = _CacheTypeData("genres_for_artist")
-    ARTIST_ID_BY_DISPLAY_NAME = _CacheTypeData("artist_id_by_display_name")
-
-    def getName(self) -> str:
-        return self.value.cache_name
+    GENERIC_KEY_VALUE = _CacheTypeData("generic_kv")
+    ITEM_IDENTIFIER_CODEC = _CacheTypeData("iid_codec")
 
     @property
     def cache_name(self) -> str:
         return self.value.cache_name
 
 
-def get_cache_type_by_name(cache_name: str) -> CacheType:
-    for _, member in CacheType.__members__.items():
-        if cache_name == member.getName():
-            return member
-    raise Exception(f"get_cache_type_by_name with {cache_name} NOT found")
-
-
 # duplicate check
 name_checker_set: set[str] = set()
 id_checker_set: set[int] = set()
 for v in CacheType:
-    if v.getName() in name_checker_set:
-        raise Exception(f"Duplicated name [{v.getName()}]")
-    name_checker_set.add(v.getName())
+    if v.cache_name in name_checker_set:
+        raise Exception(f"Duplicated name [{v.cache_name}]")
+    name_checker_set.add(v.cache_name)
     id_checker_set.add(v.cache_name)

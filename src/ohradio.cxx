@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2020 J.F.Dockes
+/* Copyright (C) 2014-2026 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -32,7 +32,6 @@
 #include "libupnpp/base64.hxx"
 #include "libupnpp/log.hxx"
 #include "libupnpp/soaphelp.hxx"
-#include "libupnpp/upnpavutils.hxx"
 
 #include "main.hxx"
 #include "mpdcli.hxx"
@@ -214,7 +213,7 @@ static void getRadiosFromConf(ConfSimple* conf)
                                              metaScript, preferScript));
                 LOGDEB1("OHRadio::readRadios:RADIO: [" << title << "] uri ["
                         << uri << "] artUri [" << artUri << "] metaScript [" <<
-                        metaScript << "] preferScript " << preferScript << endl);
+                        metaScript << "] preferScript " << preferScript << '\n');
             }
         }
     }
@@ -266,7 +265,7 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
 {
     if (time(0) < radio.nextMetaScriptExecTime) {
         LOGDEB0("OHRadio::maybeExecMetaScript: next in " <<
-                radio.nextMetaScriptExecTime - time(0) << endl);
+                radio.nextMetaScriptExecTime - time(0) << '\n');
         return;
     }
 
@@ -291,8 +290,7 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
         istringstream input(data);
         input >> decoded;
     } catch (std::exception& e) {
-        LOGERR("OHRadio::makestate: Json decode failed: " << e.what() <<
-               " for [" << data << "]\n");
+        LOGERR("OHRadio::makestate: Json decode failed: " << e.what() << " for [" << data << "]\n");
         radio.nextMetaScriptExecTime = time(0) + 10;
         return;
     }
@@ -325,15 +323,14 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
             UpSong song;
             song.album = radio.title;
             song.rsrc.uri = audioUri;
-            LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri <<
-                    endl);
+            LOGDEB0("ohRadio:execmetascript: inserting: " << song.rsrc.uri << '\n');
             m_dev->getmpdcli()->single(false);
             if (!keepconsume) {
                 m_dev->getmpdcli()->consume(true);
             }
             if (m_dev->getmpdcli()->insert(audioUri, -1, song) < 0) {
                 LOGERR("OHRadio::mkstate: mpd insert failed."<< " pos " <<
-                       mpds.songpos << " uri " << audioUri << endl);
+                       mpds.songpos << " uri " << audioUri << '\n');
                 return;
             }
         }
@@ -370,7 +367,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
     if (m_id < 0 || m_id >= o_radios.size()) {
         // ??
-        LOGERR("OHRadio::makestate: bad m_id " << m_id << endl);
+        LOGERR("OHRadio::makestate: bad m_id " << m_id << '\n');
         return true;
     }
         
@@ -392,8 +389,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
     // Some radios do not insert icy metadata in the stream, but rather
     // provide a script to retrieve it.
-    bool nompddata = mpds.currentsong.title.empty() &&
-        mpds.currentsong.artist.empty();
+    bool nompddata = mpds.currentsong.title.empty() && mpds.currentsong.artist.empty();
     if ((m_playpending || mpds.state == MpdStatus::MPDS_PLAY) &&
         (radio.preferScript || nompddata) && radio.metaScript.size()) {
         maybeExecMetaScript(radio, mpds);
@@ -414,8 +410,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
             radio.dynArtUri.clear();
             if (ExecCmd::backtick(radio.artScript, uri)) {
                 trimstring(uri, " \t\r\n");
-                LOGDEB0("OHRadio::makestate: artScript got: [" << uri <<
-                        "]\n");
+                LOGDEB0("OHRadio::makestate: artScript got: [" << uri << "]\n");
                 radio.dynArtUri = uri;
             }
         }
@@ -447,6 +442,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
 
 int OHRadio::setPlaying()
 {
+    maybeActivate();
     if (m_id >= o_radios.size()) {
         LOGERR("OHRadio::setPlaying: called with bad id (" << m_id << ")\n");
         return UPNP_E_INTERNAL_ERROR;
@@ -476,10 +472,9 @@ int OHRadio::setPlaying()
     ExecCmd cmd;
     vector<string> args;
     args.push_back(radio.uri);
-    LOGDEB("OHRadio::setPlaying: exec: " << cmdpath << " " << args[0] << endl);
+    LOGDEB("OHRadio::setPlaying: exec: " << cmdpath << " " << args[0] << '\n');
     if (cmd.startExec(cmdpath, args, false, true) < 0) {
-        LOGDEB("OHRadio::setPlaying: startExec failed for " <<
-               cmdpath << " " << args[0] << endl);
+        LOGDEB("OHRadio::setPlaying: startExec failed for " << cmdpath << " " << args[0] << '\n');
         return UPNP_E_INTERNAL_ERROR;
     }
 
@@ -514,7 +509,7 @@ int OHRadio::setPlaying()
 
 void OHRadio::setActive(bool onoff)
 {
-    LOGDEB0("OHRadio::setActive: " << onoff << endl);
+    LOGDEB0("OHRadio::setActive: " << onoff << '\n');
     m_active = onoff;
     if (m_active) {
         if (m_id) {
@@ -537,18 +532,23 @@ int OHRadio::iPlay()
     return ret;
 }
 
-int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
+void OHRadio::maybeActivate()
 {
-    LOGDEB("OHRadio::play" << endl);
     if (!m_active && m_udev->getohpr()) {
         m_udev->getohpr()->iSetSourceIndexByName(OHRadioSourceName);
     }
+}
+
+int OHRadio::play(const SoapIncoming& sc, SoapOutgoing& data)
+{
+    LOGDEB("OHRadio::play" << '\n');
+    maybeActivate();
     return iPlay();
 }
 
 int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::pause" << endl);
+    LOGDEB("OHRadio::pause" << '\n');
     bool ok = m_dev->getmpdcli()->pause(true);
     m_playpending = false;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -556,19 +556,21 @@ int OHRadio::pause(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::iStop()
 {
+    maybeActivate();
     bool ok = m_dev->getmpdcli()->clearQueue();
     m_playpending = false;
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
+
 int OHRadio::stop(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::stop" << endl);
+    LOGDEB("OHRadio::stop" << '\n');
     return iStop();
 }
 
 int OHRadio::channel(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::channel" << endl);
+    LOGDEB("OHRadio::channel" << '\n');
     data.addarg("Uri", m_state["Uri"]);
     data.addarg("Metadata", m_state["Metadata"]);
     return UPNP_E_SUCCESS;
@@ -576,7 +578,7 @@ int OHRadio::channel(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::setChannel(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::setChannel" << endl);
+    LOGDEB("OHRadio::setChannel" << '\n');
     string uri, metadata;
     bool ok = sc.get("Uri", &uri) && sc.get("Metadata", &metadata);
     if (ok) {
@@ -592,14 +594,14 @@ int OHRadio::setChannel(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::setId(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::setId" << endl);
+    LOGDEB("OHRadio::setId" << '\n');
     int id;
     if (!sc.get("Value", &id)) {
         LOGDEB("OHRadio::setId: no value ??\n");
         return UPNP_E_INTERNAL_ERROR;
     }
     if (id <= 0 || id > int(o_radios.size())) {
-        LOGDEB("OHRadio::setId: bad value " << id << endl);
+        LOGDEB("OHRadio::setId: bad value " << id << '\n');
         return UPNP_E_INTERNAL_ERROR;
     }
     iStop();
@@ -619,7 +621,7 @@ int OHRadio::setId(const SoapIncoming& sc, SoapOutgoing& data)
 // Return current channel Id. 
 int OHRadio::id(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::id" << endl);
+    LOGDEB("OHRadio::id" << '\n');
     data.addarg("Value", SoapHelp::i2s(m_id));
     return UPNP_E_SUCCESS;
 }
@@ -631,7 +633,7 @@ int OHRadio::id(const SoapIncoming& sc, SoapOutgoing& data)
 // service metatext variable
 string OHRadio::metaForId(unsigned int id)
 {
-    LOGDEB1("OHRadio::metaForId: id " << id << " m_id " << m_id << endl);
+    LOGDEB1("OHRadio::metaForId: id " << id << " m_id " << m_id << '\n');
     if (id  >= o_radios.size()) {
         return string();
     }
@@ -654,7 +656,7 @@ int OHRadio::ohread(const SoapIncoming& sc, SoapOutgoing& data)
     int id;
     bool ok = sc.get("Id", &id);
     if (ok) {
-        LOGDEB("OHRadio::read id " << id << endl);
+        LOGDEB("OHRadio::read id " << id << '\n');
         if (id >= 0 && id  < int(o_radios.size())) {
             string meta = metaForId(id);
             data.addarg("Metadata", meta);
@@ -681,7 +683,7 @@ int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
     string sids;
 
     bool ok = sc.get("IdList", &sids);
-    LOGDEB("OHRadio::readList: [" << sids << "]" << endl);
+    LOGDEB("OHRadio::readList: [" << sids << "]" << '\n');
 
     vector<string> ids;
     string out("<ChannelList>");
@@ -690,7 +692,7 @@ int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
         for (auto strid : ids) {
             int id = atoi(strid.c_str());
             if (id <= 0 || id >= int(o_radios.size())) {
-                LOGDEB("OHRadio::readlist: bad id " << id << endl);
+                LOGDEB("OHRadio::readlist: bad id " << id << '\n');
                 continue;
             }
             string meta = metaForId(id);
@@ -701,7 +703,7 @@ int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
             out += "</Metadata></Entry>";
         }
         out += "</ChannelList>";
-        LOGDEB0("OHRadio::readList: out: [" << out << "]" << endl);
+        LOGDEB0("OHRadio::readList: out: [" << out << "]" << '\n');
         data.addarg("ChannelList", out);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -711,7 +713,7 @@ int OHRadio::readList(const SoapIncoming& sc, SoapOutgoing& data)
 // base-64-encoded.
 int OHRadio::idArray(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::idArray" << endl);
+    LOGDEB("OHRadio::idArray" << '\n');
     string idarray;
     if (makeIdArray(idarray)) {
         data.addarg("Token", SoapHelp::i2s(1));
@@ -723,7 +725,7 @@ int OHRadio::idArray(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::seekSecondAbsolute" << endl);
+    LOGDEB("OHRadio::seekSecondAbsolute" << '\n');
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
@@ -734,7 +736,7 @@ int OHRadio::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::seekSecondRelative" << endl);
+    LOGDEB("OHRadio::seekSecondRelative" << '\n');
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
@@ -753,7 +755,7 @@ int OHRadio::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHRadio::transportState(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::transportState" << endl);
+    LOGDEB("OHRadio::transportState" << '\n');
     const MpdStatus& mpds = m_dev->getMpdStatus();
     string tstate;
     switch (mpds.state) {
@@ -774,21 +776,21 @@ int OHRadio::transportState(const SoapIncoming& sc, SoapOutgoing& data)
 // token). Our array never changes
 int OHRadio::idArrayChanged(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::idArrayChanged" << endl);
+    LOGDEB("OHRadio::idArrayChanged" << '\n');
     data.addarg("Value", SoapHelp::i2s(0));
     return UPNP_E_SUCCESS;
 }
 
 int OHRadio::channelsMax(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::channelsMax" << endl);
+    LOGDEB("OHRadio::channelsMax" << '\n');
     data.addarg("Value", SoapHelp::i2s(o_radios.size()));
     return UPNP_E_SUCCESS;
 }
 
 int OHRadio::protocolInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHRadio::protocolInfo" << endl);
+    LOGDEB("OHRadio::protocolInfo" << '\n');
     data.addarg("Value", Protocolinfo::the()->gettext());
     return UPNP_E_SUCCESS;
 }

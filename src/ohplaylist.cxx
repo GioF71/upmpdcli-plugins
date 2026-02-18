@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2020 J.F.Dockes
+/* Copyright (C) 2014-2026 J.F.Dockes
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation; either version 2.1 of the License, or
@@ -116,9 +116,9 @@ OHPlaylist::OHPlaylist(UpMpd *dev,  UpMpdOpenHome *udev, unsigned int cssleep)
     if ((dev->getopts().options & UpMpd::upmpdOhMetaPersist)) {
         dmcacheSetOpts(cssleep);
         if (!dmcacheRestore(dev->getMetaCacheFn(), m_metacache)) {
-            LOGERR("ohPlaylist: cache restore failed" << endl);
+            LOGERR("ohPlaylist: cache restore failed" << '\n');
         } else {
-            LOGDEB("ohPlaylist: cache restore done" << endl);
+            LOGDEB("ohPlaylist: cache restore done" << '\n');
         }
     }
     keepconsume = getBoolOptionValue("keepconsume", false);
@@ -158,7 +158,7 @@ static string translateIdArray(const vector<UpSong>& in)
 #endif
     }
 #ifdef TIA_SHOW_PLAIN_ARRAY
-    LOGINF("OHPlaylist::translateIdArray: current ids: " << sdeb << endl);
+    LOGINF("OHPlaylist::translateIdArray: current ids: " << sdeb << '\n');
 #endif
     return base64_encode(out1);
 }
@@ -189,7 +189,7 @@ bool OHPlaylist::makeIdArray(string& out)
                     // title change, we will emit the real idarray,
                     // and the CP will update.
                     LOGDEB2("OHPLaylist:makeIdArray: meta change-under. OLD\n"
-                            << it->second << "NEW\n" << nmeta << endl);
+                            << it->second << "NEW\n" << nmeta << '\n');
                     out = translateIdArray(vector<UpSong>());
                     it->second = nmeta;
                 }
@@ -204,7 +204,7 @@ bool OHPlaylist::makeIdArray(string& out)
     bool ok = m_dev->getmpdcli()->getQueueData(vdata);
     if (!ok) {
         LOGERR("OHPlaylist::makeIdArray: getQueueData failed." 
-               "metacache size " << m_metacache.size() << endl);
+               "metacache size " << m_metacache.size() << '\n');
         return false;
     }
 
@@ -251,20 +251,20 @@ bool OHPlaylist::makeIdArray(string& out)
                 nmeta[usong.rsrc.uri] = didlmake(usong);
                 m_cachedirty = true;
                 LOGDEB("OHPlaylist::makeIdArray: using mpd data for " << 
-                       usong.mpdid << " uri " << usong.rsrc.uri << endl);
+                       usong.mpdid << " uri " << usong.rsrc.uri << '\n');
             }
         }
     }
 
     for (const auto& entry : m_metacache) {
-        LOGDEB("OHPlaylist::makeIdArray: dropping uri " << entry.first << endl);
+        LOGDEB("OHPlaylist::makeIdArray: dropping uri " << entry.first << '\n');
     }
 
     // If we added entries or there are some stale entries, the new
     // map differs, save it to cache
     if ((m_dev->getopts().options & UpMpd::upmpdOhMetaPersist) &&
         (!m_metacache.empty() || m_cachedirty)) {
-        LOGDEB("OHPlaylist::makeIdArray: saving metacache" << endl);
+        LOGDEB("OHPlaylist::makeIdArray: saving metacache" << '\n');
         dmcacheSave(m_dev->getMetaCacheFn(), nmeta);
         m_cachedirty = false;
     }
@@ -276,26 +276,24 @@ bool OHPlaylist::makeIdArray(string& out)
 // (private)
 int OHPlaylist::idFromOldId(int oldid)
 {
-    string uri;
-    for (const auto& entry: m_mpdsavedstate.queue) {
-        if (entry.mpdid == oldid) {
-            uri = entry.rsrc.uri;
-            break;
-        }
-    }
-    if (uri.empty()) {
+    auto it = std::find_if(m_mpdsavedstate.queue.begin(), m_mpdsavedstate.queue.end(),
+                           [oldid] (const UpSong& entry) {return entry.mpdid == oldid;});
+    if (it == m_mpdsavedstate.queue.end()) {
         LOGERR("OHPlaylist::idFromOldId: " << oldid << " not found\n");
         return -1;
     }
+    std::string uri = it->rsrc.uri;
+
     vector<UpSong> vdata;
     if (!m_dev->getmpdcli()->getQueueData(vdata)) {
         LOGERR("OHPlaylist::idFromUri: getQueueData failed\n");
         return -1;
     }
-    for (const auto& entry: vdata) {
-        if (!entry.rsrc.uri.compare(uri)) {
-            return entry.mpdid;
-        }
+
+    auto it1 = std::find_if(vdata.begin(), vdata.end(),
+                            [uri] (const UpSong& entry) {return entry.rsrc.uri == uri;});
+    if (it1 != vdata.end()) {
+        return it1->mpdid;
     }
     LOGERR("OHPlaylist::idFromOldId: uri for " << oldid << " not found\n");
     return -1;
@@ -346,7 +344,7 @@ void OHPlaylist::setActive(bool onoff)
 
 int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::play" << endl);
+    LOGDEB("OHPlaylist::play" << '\n');
     if (!m_active && m_udev->getohpr()) {
         m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
@@ -360,7 +358,7 @@ int OHPlaylist::play(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHPlaylist::pause(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::pause" << endl);
+    LOGDEB("OHPlaylist::pause" << '\n');
     bool ok = m_dev->getmpdcli()->pause(true);
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -372,7 +370,7 @@ int OHPlaylist::iStop()
 }
 int OHPlaylist::stop(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::stop" << endl);
+    LOGDEB("OHPlaylist::stop" << '\n');
     return iStop();
 }
 
@@ -382,7 +380,7 @@ int OHPlaylist::next(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::next: not active\n");
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::next" << endl);
+    LOGDEB("OHPlaylist::next" << '\n');
     bool ok = m_dev->getmpdcli()->next();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -393,7 +391,7 @@ int OHPlaylist::previous(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::previous: not active\n");
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::previous" << endl);
+    LOGDEB("OHPlaylist::previous" << '\n');
     bool ok = m_dev->getmpdcli()->previous();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -404,7 +402,7 @@ int OHPlaylist::setRepeat(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::setRepeat: not active\n");
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::setRepeat" << endl);
+    LOGDEB("OHPlaylist::setRepeat" << '\n');
     bool onoff;
     bool ok = sc.get("Value", &onoff);
     if (ok) {
@@ -419,7 +417,7 @@ int OHPlaylist::repeat(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::repeat: not active\n");
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::repeat" << endl);
+    LOGDEB("OHPlaylist::repeat" << '\n');
     const MpdStatus &mpds =  m_dev->getMpdStatus();
     data.addarg("Value", mpds.rept? "1" : "0");
     return UPNP_E_SUCCESS;
@@ -431,7 +429,7 @@ int OHPlaylist::setShuffle(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::setShuffle: not active\n");
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::setShuffle" << endl);
+    LOGDEB("OHPlaylist::setShuffle" << '\n');
     bool onoff;
     bool ok = sc.get("Value", &onoff);
     if (ok) {
@@ -448,7 +446,7 @@ int OHPlaylist::shuffle(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::shuffle: not active\n");
         return UPNP_E_INTERNAL_ERROR;
     }
-    LOGDEB("OHPlaylist::shuffle" << endl);
+    LOGDEB("OHPlaylist::shuffle" << '\n');
     const MpdStatus &mpds =  m_dev->getMpdStatus();
     data.addarg("Value", mpds.random ? "1" : "0");
     return UPNP_E_SUCCESS;
@@ -460,7 +458,7 @@ int OHPlaylist::seekSecondAbsolute(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::seekSecond: not active\n");
         return UPNP_E_INTERNAL_ERROR;
     }
-    LOGDEB("OHPlaylist::seekSecondAbsolute" << endl);
+    LOGDEB("OHPlaylist::seekSecondAbsolute" << '\n');
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
@@ -475,7 +473,7 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::seekSecond: not active\n");
         return UPNP_E_INTERNAL_ERROR;
     }
-    LOGDEB("OHPlaylist::seekSecondRelative" << endl);
+    LOGDEB("OHPlaylist::seekSecondRelative" << '\n');
     int seconds;
     bool ok = sc.get("Value", &seconds);
     if (ok) {
@@ -494,7 +492,7 @@ int OHPlaylist::seekSecondRelative(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHPlaylist::transportState(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::transportState" << endl);
+    LOGDEB("OHPlaylist::transportState" << '\n');
     const MpdStatus &mpds = m_dev->getMpdStatus();
     string tstate;
     switch(mpds.state) {
@@ -519,7 +517,7 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::seekId: no Id\n");
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("OHPlaylist::seekId" << endl);
+    LOGDEB("OHPlaylist::seekId" << '\n');
     if (!m_active) {
         // If I'm not active, the ids in the playlist are those of
         // another service (e.g. radio). After activating myself and
@@ -528,6 +526,20 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
         id = idFromOldId(id);
         if (id < 0) {
             return UPNP_E_INTERNAL_ERROR;
+        }
+    } else {
+        // Check if the input id is a saved one. This can happen if the CP called setSourceIndex,
+        // e.g. switching from radio to us, and reuses a saved id, before it gets the idArray event.
+        auto it = std::find_if(m_mpdsavedstate.queue.begin(), m_mpdsavedstate.queue.end(),
+                            [id] (const UpSong& entry) {return entry.mpdid == id;});
+        if (it != m_mpdsavedstate.queue.end()) {
+            auto _id = id;
+            id = idFromOldId(id);
+            if (id < 0) {
+                LOGINF("OHPlaylist::seekId: input id " << _id << " found in saved state but no "
+                       " match in current queue ");
+                return UPNP_E_INVALID_PARAM;
+            }
         }
     }
     if (!keepconsume)
@@ -540,7 +552,7 @@ int OHPlaylist::seekId(const SoapIncoming& sc, SoapOutgoing& data)
 // Skip to track with specified index 
 int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::seekIndex" << endl);
+    LOGDEB("OHPlaylist::seekIndex" << '\n');
 
     // Unlike seekid, this should work as the indices are restored by
     // mpdcli restorestate
@@ -562,10 +574,10 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
 int OHPlaylist::id(const SoapIncoming& sc, SoapOutgoing& data)
 {
     if (!m_active) {
-        LOGERR("OHPlaylist::id: not active" << endl);
+        LOGERR("OHPlaylist::id: not active" << '\n');
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::id" << endl);
+    LOGDEB("OHPlaylist::id" << '\n');
 
     const MpdStatus &mpds = m_dev->getMpdStatus();
     data.addarg("Value", mpds.songid == -1 ? "0" : SoapHelp::i2s(mpds.songid));
@@ -604,12 +616,12 @@ int OHPlaylist::ohread(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::ohread: no Id in params\n");
         return UPNP_E_INVALID_PARAM;
     }
-    LOGDEB("OHPlaylist::ohread id " << id << endl);
+    LOGDEB("OHPlaylist::ohread id " << id << '\n');
     UpSong song;
     string metadata;
     if (m_active) {
         if (!m_dev->getmpdcli()->statSong(song, id, true)) {
-            LOGERR("OHPlaylist::ohread: statsong failed for " << id << endl);
+            LOGERR("OHPlaylist::ohread: statsong failed for " << id << '\n');
             return UPNP_E_INTERNAL_ERROR;
         }
         if (!cacheFind(song.rsrc.uri, metadata)) {
@@ -650,7 +662,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 {
     string sids;
     bool ok = sc.get("IdList", &sids);
-    LOGDEB("OHPlaylist::readList: [" << sids << "]" << endl);
+    LOGDEB("OHPlaylist::readList: [" << sids << "]" << '\n');
     vector<string> ids;
     string out("<TrackList>");
     if (ok) {
@@ -659,7 +671,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
             int id = atoi(it->c_str());
             if (id == -1) {
                 // Lumin does this??
-                LOGDEB("OHPlaylist::readlist: request for id -1" << endl);
+                LOGDEB("OHPlaylist::readlist: request for id -1" << '\n');
                 continue;
             }
             string metadata;
@@ -697,7 +709,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
             out += "</Metadata></Entry>";
         }
         out += "</TrackList>";
-        LOGDEB1("OHPlaylist::readList: out: [" << out << "]" << endl);
+        LOGDEB1("OHPlaylist::readList: out: [" << out << "]" << '\n');
         data.addarg("TrackList", out);
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
@@ -712,7 +724,7 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 // contains TracksMax tracks).
 int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::insert" << endl);
+    LOGDEB("OHPlaylist::insert" << '\n');
     int afterid;
     string uri, metadata;
     bool ok = sc.get("AfterId", &afterid);
@@ -730,7 +742,7 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
     // case (there is no valid protocolinfo in general).
     bool forcenocheck;
     if (!morphSpecialUrl(uri, forcenocheck, upnphost)) {
-        LOGERR("OHPlaylist::insert: bad uri: " << uri << endl);
+        LOGERR("OHPlaylist::insert: bad uri: " << uri << '\n');
         return UPNP_E_INVALID_PARAM;
     }
         
@@ -743,13 +755,13 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
     }
 
     LOGDEB("OHPlaylist::insert: afterid " << afterid << " Uri " <<
-           uri << " Metadata " << metadata << endl);
+           uri << " Metadata " << metadata << '\n');
 
     int newid;
     ok = insertUri(afterid, uri, metadata, &newid, forcenocheck);
     if (ok) {
         data.addarg("NewId", SoapHelp::i2s(newid));
-        LOGDEB("OHPlaylist::insert: new id: " << newid << endl);
+        LOGDEB("OHPlaylist::insert: new id: " << newid << '\n');
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -757,9 +769,9 @@ int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 bool OHPlaylist::insertUri(int afterid, const string& uri, 
                            const string& metadata, int *newid, bool nocheck)
 {
-    LOGDEB1("OHPlaylist::insertUri: " << uri << endl);
+    LOGDEB1("OHPlaylist::insertUri: " << uri << '\n');
     if (!m_active) {
-        LOGERR("OHPlaylist::insertUri: not active" << endl);
+        LOGERR("OHPlaylist::insertUri: not active" << '\n');
         m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
         return false;
     }
@@ -779,7 +791,7 @@ bool OHPlaylist::insertUri(int afterid, const string& uri,
             *newid = id;
         return true;
     } 
-    LOGERR("OHPlaylist::insertUri: mpd error" << endl);
+    LOGERR("OHPlaylist::insertUri: mpd error" << '\n');
     return false;
 }
 
@@ -798,7 +810,7 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
             return UPNP_E_INTERNAL_ERROR;
         }
     }
-    LOGDEB("OHPlaylist::deleteId: " << id << endl);
+    LOGDEB("OHPlaylist::deleteId: " << id << '\n');
     const MpdStatus &mpds = m_dev->getMpdStatus();
     if (mpds.songid == id) {
         // MPD skips to the next track if the current one is removed,
@@ -811,7 +823,7 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::deleteAll" << endl);
+    LOGDEB("OHPlaylist::deleteAll" << '\n');
     if (!m_active && m_udev->getohpr()) {
         m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
@@ -821,7 +833,7 @@ int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHPlaylist::tracksMax(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::tracksMax" << endl);
+    LOGDEB("OHPlaylist::tracksMax" << '\n');
     data.addarg("Value", SoapHelp::i2s(tracksmax));
     return UPNP_E_SUCCESS;
 }
@@ -829,14 +841,14 @@ int OHPlaylist::tracksMax(const SoapIncoming& sc, SoapOutgoing& data)
 // Call with state lock held
 bool OHPlaylist::iidArray(string& idarray, int *token)
 {
-    LOGDEB("OHPlaylist::idArray (internal)" << endl);
+    LOGDEB("OHPlaylist::idArray (internal)" << '\n');
     unordered_map<string, string> st;
     makestate(st);
     idarray = st["IdArray"];
     if (token) {
         if (m_active) {
             const MpdStatus &mpds = m_dev->getMpdStatus();
-            LOGDEB("OHPlaylist::idArray: qvers " << mpds.qvers << endl);
+            LOGDEB("OHPlaylist::idArray: qvers " << mpds.qvers << '\n');
             *token = mpds.qvers;
         } else {
             *token = 0;
@@ -850,7 +862,7 @@ bool OHPlaylist::iidArray(string& idarray, int *token)
 // base-64-encoded. 
 int OHPlaylist::idArray(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::idArray" << endl);
+    LOGDEB("OHPlaylist::idArray" << '\n');
     string idarray;
     int token;
     std::lock_guard<std::mutex> lock(m_statemutex);
@@ -867,7 +879,7 @@ bool OHPlaylist::ireadList(const vector<int>& ids, vector<UpSong>& songs)
     for (auto it = ids.begin(); it != ids.end(); it++) {
         UpSong song;
         if (!m_dev->getmpdcli()->statSong(song, *it, true)) {
-            LOGDEB("OHPlaylist::readList:stat failed for " << *it << endl);
+            LOGDEB("OHPlaylist::readList:stat failed for " << *it << '\n');
             continue;
         }
         songs.push_back(song);
@@ -898,13 +910,13 @@ bool OHPlaylist::urlMap(unordered_map<int, string>& umap)
 // Check if id array changed since last call (which returned a gen token)
 int OHPlaylist::idArrayChanged(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::idArrayChanged" << endl);
+    LOGDEB("OHPlaylist::idArrayChanged" << '\n');
     int qvers;
     bool ok = sc.get("Token", &qvers);
     const MpdStatus &mpds = m_dev->getMpdStatus();
     
     LOGDEB("OHPlaylist::idArrayChanged: query qvers " << qvers << 
-           " mpd qvers " << mpds.qvers << endl);
+           " mpd qvers " << mpds.qvers << '\n');
 
     // Bool indicating if array changed
     int val = mpds.qvers == qvers;
@@ -915,7 +927,7 @@ int OHPlaylist::idArrayChanged(const SoapIncoming& sc, SoapOutgoing& data)
 
 int OHPlaylist::protocolInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    LOGDEB("OHPlaylist::protocolInfo" << endl);
+    LOGDEB("OHPlaylist::protocolInfo" << '\n');
     data.addarg("Value", Protocolinfo::the()->gettext());
     return UPNP_E_SUCCESS;
 }

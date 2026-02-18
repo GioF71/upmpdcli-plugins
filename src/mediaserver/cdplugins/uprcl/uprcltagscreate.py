@@ -178,7 +178,8 @@ def _createTagTables(cursor, tgnm):
         cursor.execute("DROP TABLE " + _junctb(tgnm))
     except:
         pass
-    stmt = "CREATE TABLE " + _junctb(tgnm) + " (docidx INT, " + _clid(tgnm) + " INT)"
+    stmt = f"CREATE TABLE {_junctb(tgnm)} (docidx INT, {_clid(tgnm)} INT, " \
+        f"UNIQUE(docidx, {_clid(tgnm)}))"
     cursor.execute(stmt)
 
 
@@ -257,7 +258,7 @@ def _prepareTags(conn):
 
 # Insert new value if not existing, return rowid of new or existing row
 def _auxtableinsert(conn, tb, value):
-    # uplog("_auxtableinsert [%s] -> [%s]" % (tb, value))
+    # uplog(f"_auxtableinsert {tb} -> {value}")
     c = conn.cursor()
     stmt = f"SELECT {_clid(tb)} FROM  {tb} WHERE value = ?"
     c.execute(stmt, (value,))
@@ -294,7 +295,7 @@ _folderdnumexp = re.compile(_folderdnumre, flags=re.IGNORECASE)
 # The albums table is special, can't use auxtableinsert()
 def _maybecreatealbum(conn, doc):
     c = conn.cursor()
-    folder = docfolder(doc).decode("utf-8", errors="replace")
+    folder = docfolder(doc)
 
     album = doc["album"]
     if not album:
@@ -367,7 +368,13 @@ def _maybecreatealbum(conn, doc):
 
 
 # Add a track's artists set to the album auxiliary "artists" column, used in the end to determine an
-# album artist if none was explicitely set
+# album artist if none was explicitely set.
+# The contents of the column is a string made of string representations of Python sets of
+# ints. E.g. "|{1234, 12345}|{99}|{23, 24}"
+# At the end (all tracks seen), we reconstruct the sets and intersect them. If the intersection is
+# not empty, we make a random element inside it the album artist. See _setalbumartists()
+# It seems that we could accomplish the same thing by querying the db for each of the album tracks
+# artists at the end ? I can't see the reason for this approach any more, but maybe there is one...
 def _updatealbartistlist(conn, album_id, rowids):
     if not rowids:
         return
@@ -381,7 +388,8 @@ def _updatealbartistlist(conn, album_id, rowids):
 # Setting album covers needs to wait until we have scanned all tracks so that we can select
 # a consistant embedded art (first track in path order), as recoll scanning is in unsorted
 # directory order.
-def _setalbumcovers(conn, rcldocs):
+def _setalbumcovers(conn, folders):
+    rcldocs = folders.rcldocs()
     c = conn.cursor()
     c.execute("""SELECT album_id,albtitle FROM albums""")
     for r in c:
@@ -393,10 +401,8 @@ def _setalbumcovers(conn, rcldocs):
         for r1 in c1:
             docidx = r1[0]
             doc = rcldocs[docidx]
-            arturi = uprclutils.docarturi(
+            arturi = folders.docarturi(
                 doc,
-                uprclinit.getHttphp(),
-                uprclinit.getPathPrefix(),
                 preferfolder=True,
                 albtitle=albtitle,
             )
@@ -457,7 +463,7 @@ def _albumstorecoll(conn, rcldb):
             doc["albumartist"] = r[5]
             doc["artist"] = r[5]
         doc["url"] = "file://" + r[1]
-        # uplog(f"_albumstorecoll: indexing album {doc['album']}")
+        # uplog(f"_albumstorecoll: indexing album {doc['title']}")
         rcldb.addOrUpdate(udi, doc)
 
 
@@ -614,7 +620,8 @@ def parsedate(dt):
 
 # Create the db and fill it up with the values we need, taken out of
 # the recoll records list
-def recolltosql(conn, rcldocs):
+def recolltosql(conn, folders):
+    rcldocs = folders.rcldocs()
     start = time.time()
 
     _createsqdb(conn)
@@ -651,7 +658,7 @@ def recolltosql(conn, rcldocs):
 
         trackno = _tracknofordoc(doc)
 
-        path = uprclutils.docpath(doc).decode("UTF-8", errors = "replace")
+        path = uprclutils.docpath(doc)
 
         # Misc tag values:
         # Set base values for column names, values list, placeholders. Done this way because we used
@@ -675,14 +682,14 @@ def recolltosql(conn, rcldocs):
             if not value:
                 continue
             # rclaudio.py concatenates multiple values, using " | " as separator.
-            valuelist = value.split(" | ")
+            valuelist = set(value.split(" | "))
             rowids = set()
             for value in valuelist:
                 # Possibly insert in appropriate table (if value not already there), and
                 # insert record in junction table for the corresponding field.
                 rowid = _auxtableinsert(conn, tb, value)
                 rowids.add(rowid)
-                stmt = f"INSERT INTO {_junctb(tb)}(docidx, {_clid(tb)}) VALUES (?, ?)"
+                stmt = f"INSERT OR IGNORE INTO {_junctb(tb)}(docidx, {_clid(tb)}) VALUES (?, ?)"
                 jvals = [docidx, rowid]
                 # uplog(f"EXECUTING {stmt} values {jvals}")
                 c.execute(stmt, jvals)
@@ -697,7 +704,7 @@ def recolltosql(conn, rcldocs):
     #t1 = time.time()
     #uplog(f"recolltosql: docwalk: {t1-start:.1f} Seconds")
     _setalbumartists(conn)
-    _setalbumcovers(conn, rcldocs)
+    _setalbumcovers(conn, folders)
     #t2 = time.time()
     #uplog(f"recolltosql: setalbumxx: {t2-t1:.1f} Seconds")
     _createmergedalbums(conn)

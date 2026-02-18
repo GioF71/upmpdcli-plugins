@@ -23,10 +23,14 @@ import time
 from subsonic_connector.song import Song
 from subsonic_connector.album import Album
 
+from album_metadata import AlbumMetadata
+from metadata_model import AlbumMetadataModel
+
 from codec_delimiter_style import CodecDelimiterStyle
 import constants
 import config
 import persistence_constants
+from release_date import ReleaseDate
 from msgproc_provider import msgproc
 
 
@@ -156,25 +160,71 @@ class SortSongListResult:
         return self._multi_codec_album
 
 
-def get_album_release_date(album: Album) -> str:
-    return _get_album_release_date(album=album, item_key=constants.ItemKey.RELEASE_DATE)
-
-
-def get_album_original_release_date(album: Album) -> str:
-    return _get_album_release_date(album=album, item_key=constants.ItemKey.ORIGINAL_RELEASE_DATE)
-
-
-def _get_album_release_date(album: Album, item_key: constants.ItemKey) -> str:
-    ord_dict: dict[str, any] = album.getItem().getByName(item_key.value)
-    if ord_dict is None:
+def get_album_release_date(album: Album, item_key=constants.ItemKey.ORIGINAL_RELEASE_DATE) -> ReleaseDate:
+    # extract dict
+    rd_dict: dict[str, str] = album.getItem().getByName(item_key.value)
+    if not rd_dict:
         return None
-    # split and return
-    y: int = ord_dict["year"] if "year" in ord_dict else None
+    # validate
+    # year is mandatory
+    if constants.DictKey.YEAR.value not in rd_dict:
+        return None
+    # if day is present, we also need the month
+    if constants.DictKey.DAY.value in rd_dict and constants.DictKey.MONTH.value not in rd_dict:
+        return None
+    # all good, build ReleaseDate
+    return ReleaseDate(rd_dict)
+
+
+def get_formatted_album_release_date(album: Album) -> str:
+    return __get_formatted_album_date(album=album, item_key=constants.ItemKey.RELEASE_DATE)
+
+
+def get_formatted_album_original_release_date(album: Album) -> str:
+    return __get_formatted_album_date(album=album, item_key=constants.ItemKey.ORIGINAL_RELEASE_DATE)
+
+
+class AlbumReleaseDateType(Enum):
+    RELEASE_DATE = 1
+    ORIGINAL_RELEASE_DATE = 2
+
+
+def get_formatted_album_date_from_metadata(
+        album_metadata: AlbumMetadata,
+        release_date_type: AlbumReleaseDateType) -> str:
+    model_key_list: list[AlbumMetadataModel] = ([
+        AlbumMetadataModel.ALBUM_RELEASE_DATE_YEAR,
+        AlbumMetadataModel.ALBUM_RELEASE_DATE_MONTH,
+        AlbumMetadataModel.ALBUM_RELEASE_DATE_DAY]
+        if release_date_type == AlbumReleaseDateType.RELEASE_DATE
+        else [
+            AlbumMetadataModel.ALBUM_ORIGINAL_RELEASE_DATE_YEAR,
+            AlbumMetadataModel.ALBUM_ORIGINAL_RELEASE_DATE_MONTH,
+            AlbumMetadataModel.ALBUM_ORIGINAL_RELEASE_DATE_DAY])
+    y: int = album_metadata.get_value(model_key_list[0])
     if y is None:
         return None
-    m: int = ord_dict["month"] if "month" in ord_dict else None
-    d: int = ord_dict["day"] if "day" in ord_dict else None
+    m: int = album_metadata.get_value(model_key_list[1])
+    d: int = album_metadata.get_value(model_key_list[2])
     if (m is None or d is None):
+        # just use the year
+        return str(y)
+    # ok to combine
+    return f"{y:04}-{m:02}-{d:02}"
+
+
+def __get_formatted_album_date(album: Album, item_key: constants.ItemKey) -> str:
+    release_date: ReleaseDate = ReleaseDate(album.getItem().getByName(item_key.value))
+    if release_date is None:
+        return None
+    # split and return
+    y: int = release_date.year
+    if y is None:
+        return None
+    m: int = release_date.month
+    d: int = release_date.day
+    if (m is None or d is None):
+        # just use the year
         return str(y)
     # ok to combine
     return f"{y:04}-{m:02}-{d:02}"
@@ -218,25 +268,27 @@ def sort_song_list(song_list: list[Song]) -> SortSongListResult:
 
 
 def get_album_path_list(album: Album) -> list[str]:
+    return get_album_path_list_by_song_list(song_list=album.getSongs())
+
+
+def get_album_path_list_by_song_list(song_list: list[Song]) -> list[str]:
     song: Song
     path_set: set[str] = set()
-    for song in album.getSongs():
+    for song in song_list if song_list else []:
         curr_dir: str = get_dir_from_path(song.getPath())
         if curr_dir not in path_set:
             path_set.add(curr_dir)
     return list(path_set)
 
 
-def get_album_path_list_joined(album: Album) -> list[str]:
+def get_album_path_list_joined(song_list: list[Song]) -> str:
     # this will return None if the album does not have songs
     # so if the album comes from a album list, the result will always be None
     start: float = time.time()
-    result: str = persistence_constants.Separator.PATH.value.join(get_album_path_list(album=album))
+    result: str = persistence_constants.Separator.PATH.value.join(get_album_path_list_by_song_list(song_list=song_list))
     elapsed: float = time.time() - start
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"get_album_path_list_joined for album [{album.getId()}] "
-                    f"song_count [{album.getSongCount()}] "
-                    f"available_song_count [{len(album.getSongs())}] -> "
+        msgproc.log(f"get_album_path_list_joined song_count [{len(song_list) if song_list else 0}] -> "
                     f"[{result}] in [{elapsed:.3f}]")
     return result
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Giovanni Fulco
+# Copyright (C) 2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -115,12 +115,13 @@ class KeyValueItem:
 
 def insert_kv_item_v1(
         sql_executor: sqlhelper.SqlExecutor,
-        key_value: KeyValueItem,
-        creation_timestamp: datetime.datetime) -> None:
+        key_value_item: KeyValueItem,
+        creation_timestamp: datetime.datetime,
+        do_commit: bool = True) -> None:
     insert_values = (
-        key_value.partition,
-        key_value.key,
-        key_value.value,
+        key_value_item.partition,
+        key_value_item.key,
+        key_value_item.value,
         creation_timestamp,
         creation_timestamp)
     insert_sql: str = sqlhelper.create_simple_insert_sql(
@@ -134,7 +135,7 @@ def insert_kv_item_v1(
     sql_executor(
         sql=insert_sql,
         data=insert_values,
-        do_commit=True)
+        do_commit=do_commit)
 
 
 def update_kv_item_v1(
@@ -153,7 +154,7 @@ def update_kv_item_v1(
         set_column_list=[
             KeyValueCacheColumnName.ITEM_VALUE.value,
             KeyValueCacheColumnName.UPDATED_TIMESTAMP.value],
-        where_colum_list=[
+        where_column_list=[
             KeyValueCacheColumnName.ITEM_PARTITION.value,
             KeyValueCacheColumnName.ITEM_KEY.value])
     sql_executor(
@@ -173,7 +174,7 @@ def load_kv_item_v1(
             KeyValueCacheColumnName.CREATED_TIMESTAMP.value,
             KeyValueCacheColumnName.UPDATED_TIMESTAMP.value,
             KeyValueCacheColumnName.ITEM_VALUE.value],
-        where_colum_list=[
+        where_column_list=[
             KeyValueCacheColumnName.ITEM_PARTITION.value,
             KeyValueCacheColumnName.ITEM_KEY.value])
     rows = sql_selector(sql=q, parameters=t)
@@ -220,7 +221,8 @@ class KvItemUpdater(Protocol):
             partition: str,
             key: str,
             value: str,
-            update_timestamp: datetime.datetime) -> None:
+            update_timestamp: datetime.datetime,
+            do_commit: bool) -> None:
         ...
 
 
@@ -228,61 +230,43 @@ class KvItemCreator(Protocol):
     def __call__(
             self,
             key_value_item: KeyValueItem,
-            creation_timestamp: datetime.datetime) -> None:
+            creation_timestamp: datetime.datetime,
+            do_commit: bool) -> None:
         ...
 
 
 def get_key_value_item(
-        key_value_cache: dict[str, dict[str, KeyValueItem]],
         partition: str,
         key: str,
         kv_loader: KvItemLoader) -> KeyValueItem:
-    # try in cache first, otherwise load.
-    partition_dict: dict[str, KeyValueItem] = key_value_cache[partition] if partition in key_value_cache else None
-    kv_item: KeyValueItem = partition_dict[key] if partition_dict and key in partition_dict else None
-    # create partition if still not cached
-    if not partition_dict:
-        partition_dict = {}
-        key_value_cache[partition] = partition_dict
-    if not kv_item:
-        kv_item = kv_loader(partition=partition, key=key)
-        # add to cache if correctly loaded from db
-        if kv_item:
-            partition_dict[key] = kv_item
+    kv_item: KeyValueItem = kv_loader(partition=partition, key=key)
     return kv_item
 
 
 def put_key_value_item(
-        key_value_cache: dict[str, dict[str, KeyValueItem]],
         key_value_item: KeyValueItem,
         creator: KvItemCreator,
         updater: KvItemUpdater,
-        loader: KvItemLoader):
+        loader: KvItemLoader,
+        do_commit: bool = True):
     existing: KeyValueItem = get_key_value_item(
-        key_value_cache=key_value_cache,
         partition=key_value_item.partition,
         key=key_value_item.key,
         kv_loader=loader)
     if existing:
-        # update persistent date
+        # update persistent data
         now: datetime.datetime = datetime.datetime.now()
         updater(
             partition=key_value_item.partition,
             key=key_value_item.key,
             value=key_value_item.value,
-            update_timestamp=now)
+            update_timestamp=now,
+            do_commit=do_commit)
         # update cache
         existing.update(value=key_value_item.value)
     else:
         # insert
         creator(
-            key_value=key_value_item,
-            creation_timestamp=datetime.datetime.now())
-        # partition if empty
-        partition_dict: dict[str, any] = (key_value_cache[key_value_item.partition]
-                                          if key_value_item.partition in key_value_cache
-                                          else None)
-        if not partition_dict:
-            partition_dict = {}
-            key_value_cache[key_value_item.partition] = partition_dict
-        partition_dict[key_value_item.key] = key_value_item
+            key_value_item=key_value_item,
+            creation_timestamp=datetime.datetime.now(),
+            do_commit=do_commit)

@@ -90,7 +90,7 @@ def _initconfdir(confdir, topdirs):
     )
     f.write(b"indexallfilenames = 0\n")
     f.write(
-        b"noContentSuffixes+ = .png .jp2 .jpg .jpeg .gif .tiff .tif .xcf .bmp .xpm .svg .djvu\n"
+        b"noContentSuffixes+ = .tiff .tif .xcf .bmp .xpm .svg .djvu\n"
     )
     if exclpats:
         f.write(b"skippedNames+ = " + exclpats.encode("utf-8") + b"\n")

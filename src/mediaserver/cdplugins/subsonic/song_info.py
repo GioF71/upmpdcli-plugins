@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Giovanni Fulco
+# Copyright (C) 2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,59 +14,43 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import subsonic_util
+class SongInfo:
 
-
-class TrackInfo:
-
-    def __init__(self):
-        self.__trackId: str = None
-        self.__bitrate: int = None
-        self.__bit_depth: int = None
-        self.__sampling_rate: int = None
-        self.__suffix: str = None
+    def __init__(
+            self,
+            song_id: str,
+            bitrate: int,
+            bit_depth: int,
+            sampling_rate: int,
+            suffix: str,
+            duration: int):
+        self.__song_id: str = song_id
+        self.__bit_depth: int = bit_depth
+        self.__bitrate: int = bitrate
+        self.__sampling_rate: int = sampling_rate
+        self.__suffix: str = suffix
+        self.__duration: int = duration
 
     @property
-    def trackId(self) -> str:
-        return self.__trackId
-
-    @trackId.setter
-    def trackId(self, value: str):
-        self.__trackId = value
+    def song_id(self) -> str:
+        return self.__song_id
 
     @property
     def bitrate(self) -> int:
         return self.__bitrate
 
-    @bitrate.setter
-    def bitrate(self, value: int):
-        self.__bitrate = value
-
     @property
     def bit_depth(self) -> int:
         return self.__bit_depth
-
-    @bit_depth.setter
-    def bit_depth(self, value: int):
-        self.__bit_depth = value
 
     @property
     def sampling_rate(self) -> int:
         return self.__sampling_rate
 
-    @sampling_rate.setter
-    def sampling_rate(self, value: int):
-        self.__sampling_rate = value
-
     @property
     def suffix(self) -> str:
         return self.__suffix
 
-    @suffix.setter
-    def suffix(self, value: int):
-        self.__suffix = value
-
-    def is_lossy(self):
-        return subsonic_util.is_lossy(
-            suffix=self.__suffix,
-            bit_depth=self.__bit_depth)
+    @property
+    def duration(self) -> int:
+        return self.__duration
