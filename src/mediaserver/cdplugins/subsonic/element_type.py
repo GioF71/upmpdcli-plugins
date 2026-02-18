@@ -74,6 +74,8 @@ class ElementType(Enum):
     ALBUM_BROWSE_FILTER_KEY = _ElementTypeData()
     ALBUM_BROWSE_FILTER_VALUE = _ElementTypeData()
     ALBUM_BROWSE_MATCHING_ALBUMS = _ElementTypeData()
+    FAVORITE_SONGS_AS_CONTAINERS = _ElementTypeData()
+    FAVORITE_SONGS_CONTAINER = _ElementTypeData()
 
     @property
     def element_name(self) -> str:

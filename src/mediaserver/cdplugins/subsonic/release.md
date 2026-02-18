@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.3
+
+- Renamed album property key ALL_ARTISTS to ARTIST_CONTRIBUTOR (a reload will be required)
+- Add routine to purge old/removed album property keys
+- Avoid to hide keys with too many values (typically > 100): show in pages instead
+- Removed paginated Favorite Songs view by default (would overlap random songs)
+- Favorite Songs now displays up to 250 (by default) songs, otherwise will show containers to access subsets of favorite songs
+- Add support for record labels in album browser
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.2
 
 - Album browser: performance improvements
