@@ -34,7 +34,7 @@ class _ItemIdentifierKey:
 
     @property
     def identifier_name(self) -> str:
-        return self.__identifier_name
+        return self.__element_name
 
 
 class ItemIdentifierKey(Enum):
@@ -47,7 +47,7 @@ class ItemIdentifierKey(Enum):
     TAG_TYPE = _ItemIdentifierKey()
     ALBUM_VERSION_PATH_BASE64 = _ItemIdentifierKey()
     RADIO_NAME = _ItemIdentifierKey()
-    SONG_AS_ENTRY = _ItemIdentifierKey()
+    SONG_AS_NAVIGABLE_ENTRY = _ItemIdentifierKey()
     RANDOM_VALUE = _ItemIdentifierKey()
     SKIP_ARTIST_ID = _ItemIdentifierKey()
     ALBUM_RELEASE_TYPE = _ItemIdentifierKey()

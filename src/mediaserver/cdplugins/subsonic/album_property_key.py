@@ -51,11 +51,12 @@ class AlbumPropertyKey(Enum):
 
     GENRE = _AlbumPropertyKeyData(display_value="Genre")
     MOOD = _AlbumPropertyKeyData(display_value="Mood")
+    LABEL = _AlbumPropertyKeyData(display_value="Label")
     DECADE = _AlbumPropertyKeyData(display_value="Decade", unique_value=True)
     YEAR = _AlbumPropertyKeyData(display_value="Year", unique_value=True)
     ARTIST = _AlbumPropertyKeyData(display_value="Artist")
+    ARTIST_CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Artist/Contributor")
     CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Contributor")
-    ALL_ARTISTS = _AlbumPropertyKeyData(display_value="All Artists")
     RELEASE_TYPE = _AlbumPropertyKeyData(display_value="Release Type")
     LOSSLESS_STATUS = _AlbumPropertyKeyData(display_value="Compression Type", unique_value=True)
     QUALITY_BADGE = _AlbumPropertyKeyData(display_value="Quality Badge", unique_value=True)

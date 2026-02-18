@@ -142,7 +142,6 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.ALL_COMPOSERS_UNSORTED.tag_name: False,
     TagType.ALL_CONDUCTORS_UNSORTED.tag_name: False,
     TagType.FAVORITE_ARTISTS.tag_name: False,
-    TagType.RANDOM_SONGS.tag_name: False,
     TagType.RANDOM_SONGS_LIST.tag_name: False,
     TagType.FAVORITE_SONGS.tag_name: False,
     TagType.FAVORITE_SONGS_LIST.tag_name: False,
@@ -1043,11 +1042,6 @@ def handler_tag_random(objid, item_identifier: ItemIdentifier, entries: list) ->
     return __handler_tag_album_listype(objid, item_identifier, TagType.RANDOM, entries)
 
 
-def handler_tag_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, True)
-    return _get_random_songs(objid, item_identifier, entries)
-
-
 def handler_tag_random_songs_list(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     # just show plain songs here
     max_songs: int = min(
@@ -1080,12 +1074,16 @@ def handler_tag_random_songs_list(objid, item_identifier: ItemIdentifier, entrie
 
 
 def handler_tag_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    item_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, True)
-    return _get_favourite_songs(objid, item_identifier, entries)
+    item_identifier.set(ItemIdentifierKey.SONG_AS_NAVIGABLE_ENTRY, False)
+    return __handle_favourite_songs_paginated(
+        objid=objid,
+        item_identifier=item_identifier,
+        entries=entries)
 
 
-def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    # just show plain songs here
+def handler_element_favorite_songs_as_containers(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    msgproc.log(f"handler_element_favorite_songs_as_containers offset [{offset}]")
     res: Response[Starred]
     try:
         res = request_cache.get_starred()
@@ -1095,21 +1093,155 @@ def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, ent
     except Exception as ex:
         msgproc.log(f"Cannot load starred songs [{type(ex)}] [{ex}]")
         return entries
-    # good to go
-    song_options: dict[str, any] = dict()
+    # apply offset
+    favorite_song_list: list[Song] = res.getObj().getSongs()
+    if len(favorite_song_list) <= offset:
+        return entries
+    # reduce favorite_song_list using offset
+    favorite_song_list_at_offset: list[Song] = favorite_song_list[offset:]
+    msgproc.log(f"handler_element_favorite_songs_container [{len(favorite_song_list)}] available from offet [{offset}]")
+    max_fav_songs_per_page: int = config.get_config_param_as_int(constants.ConfigParam.MAX_FAVORITE_SONGS_PER_PAGE)
+    max_fav_song_containers_per_page: int = config.get_config_param_as_int(constants.ConfigParam.MAX_FAVORITE_CONTAINERS_PER_PAGE)
+    container_count: int = (int(len(favorite_song_list_at_offset) / max_fav_songs_per_page) +
+                            (1 if (len(favorite_song_list_at_offset) % max_fav_songs_per_page > 0) else 0))
+    msgproc.log(f"handler_element_favorite_songs_as_containers [{container_count}] to show "
+                f"before checking against max [{max_fav_song_containers_per_page}]")
+    container_count = min(container_count, max_fav_song_containers_per_page)
+    max_songs_in_displayed_containers: int = container_count * max_fav_song_containers_per_page
+    msgproc.log(f"handler_element_favorite_songs_as_containers [{container_count}] to show")
+    # ok, let's show them!
+    for i in range(0, container_count):
+        item_offset: int = offset + (i * max_fav_songs_per_page)
+        msgproc.log(f"handler_element_favorite_songs_as_containers showing container [{i + 1}] -> "
+                    f"offset [{item_offset}]")
+        identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.FAVORITE_SONGS_CONTAINER.element_name,
+            ElementType.FAVORITE_SONGS_CONTAINER.element_name)
+        identifier.set(ItemIdentifierKey.OFFSET, offset + (i * max_fav_songs_per_page))
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(identifier))
+        entry: dict[str, any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"Favorite songs [{item_offset + 1} to "
+                  f"{item_offset + min(len(favorite_song_list[item_offset:]), max_fav_songs_per_page)}]")
+        select_song: Song = favorite_song_list[item_offset]
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_song.getCoverArt()),
+            target=entry)
+        entries.append(entry)
+    # next?
+    if len(favorite_song_list_at_offset) > max_songs_in_displayed_containers:
+        msgproc.log("handler_element_favorite_songs_as_containers adding next ...")
+        next_identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name,
+            ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name)
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset + max_songs_in_displayed_containers)
+        next_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(next_identifier))
+        next_entry: dict[str, any] = upmplgutils.direntry(
+            id=next_id,
+            pid=objid,
+            title="Next")
+        next_song: Song = favorite_song_list_at_offset[max_songs_in_displayed_containers]
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=next_song.getCoverArt()),
+            target=next_entry)
+        entries.append(next_entry)
+    return entries
+
+
+def handler_element_favorite_songs_container(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    max_fav_songs_per_page: int = config.get_config_param_as_int(constants.ConfigParam.MAX_FAVORITE_SONGS_PER_PAGE)
+    msgproc.log(f"handler_element_favorite_songs_container offset [{offset}] max per page [{max_fav_songs_per_page}]")
+    res: Response[Starred]
+    try:
+        res = request_cache.get_starred()
+        if not res or not res.isOk():
+            msgproc.log("Cannot load starred")
+            return entries
+    except Exception as ex:
+        msgproc.log(f"Cannot load starred songs [{type(ex)}] [{ex}]")
+        return entries
+    song_list: list[Song] = res.getObj().getSongs()
+    if len(song_list) <= offset:
+        msgproc.log(f"handler_element_favorite_songs_container we only have [{len(song_list)}] songs")
+        return entries
+    # slice!
+    to_display: list[Song] = song_list[offset:offset + (min(len(song_list[offset:]), max_fav_songs_per_page))]
     song: Song
-    for song in res.getObj().getSongs():
-        option_util.set_option(
-            options=song_options,
-            option_key=OptionKey.FORCE_TRACK_NUMBER,
-            option_value=len(entries) + 1)
-        song_entry: dict[str, any] = entry_creator.song_to_entry(
+    for song in to_display:
+        song_entry: dict[str, any] = __create_favorite_song_entry(
             objid=objid,
             song=song,
-            options=song_options)
+            track_number=len(entries) + 1)
         if song_entry:
             entries.append(song_entry)
     return entries
+
+
+def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    # just show plain songs here, unless they are too many
+    res: Response[Starred]
+    try:
+        res = request_cache.get_starred()
+        if not res or not res.isOk():
+            msgproc.log("Cannot load starred")
+            return entries
+    except Exception as ex:
+        msgproc.log(f"Cannot load starred songs [{type(ex)}] [{ex}]")
+        return entries
+    favorite_song_list: list[Song] = res.getObj().getSongs()
+    max_fav_songs_per_page: int = config.get_config_param_as_int(constants.ConfigParam.MAX_FAVORITE_SONGS_PER_PAGE)
+    if len(favorite_song_list) > max_fav_songs_per_page:
+        msgproc.log(f"handler_tag_favourite_songs_list too many favorite songs [{len(favorite_song_list)}] "
+                    f"for a single page, max is [{max_fav_songs_per_page}]")
+        container_count: int = (int(len(favorite_song_list) / max_fav_songs_per_page) +
+                                (1 if (len(favorite_song_list) % max_fav_songs_per_page > 0) else 0))
+        msgproc.log(f"handler_tag_favourite_songs_list we will have to use [{container_count}] containers")
+        # we should show favorite song containers
+        identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name,
+            ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name)
+        return handler_element_favorite_songs_as_containers(
+            objid=objid,
+            item_identifier=identifier,
+            entries=entries)
+    # good to go with favorites shown directly
+    song: Song
+    for song in favorite_song_list:
+        # option_util.set_option(
+        #     options=song_options,
+        #     option_key=OptionKey.FORCE_TRACK_NUMBER,
+        #     option_value=len(entries) + 1)
+        # song_entry: dict[str, any] = entry_creator.song_to_entry(
+        #     objid=objid,
+        #     song=song,
+        #     options=song_options)
+        song_entry: dict[str, any] = __create_favorite_song_entry(
+            objid=objid,
+            song=song,
+            track_number=len(entries) + 1)
+        if song_entry:
+            entries.append(song_entry)
+    return entries
+
+
+def __create_favorite_song_entry(objid, song: Song, track_number: int = None) -> dict[str, any]:
+    song_options: dict[str, any] = {}
+    if track_number:
+        option_util.set_option(
+            options=song_options,
+            option_key=OptionKey.FORCE_TRACK_NUMBER,
+            option_value=track_number)
+    song_entry: dict[str, any] = entry_creator.song_to_entry(
+        objid=objid,
+        song=song,
+        options=song_options)
+    return song_entry
 
 
 def __get_album_property_dataset() -> AlbumPropertyDataset:
@@ -1141,10 +1273,6 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
             msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] skipped")
             continue
         value_count: int = len(dataset.get_values(key=curr.property_key))
-        if value_count > curr.max_items:
-            msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] "
-                        f"skipped (too many values [{value_count}], max is [{curr.max_items}])")
-            continue
         # none will show up?
         none_needed: bool = dataset.get_album_id_count_for_key(key=curr.property_key) < dataset.album_id_count
         if none_needed > 0:
@@ -1187,17 +1315,14 @@ def condition_list_to_dict(condition_list: list[AlbumPropertyKeyValue]) -> dict[
     return res
 
 
-def __condition_exists(condition_list: list[AlbumPropertyKeyValue], key: str, value: str) -> bool:
-    curr: AlbumPropertyKeyValue
-    for curr in condition_list if condition_list else []:
-        if curr.key == key and curr.value == value:
-            return True
-    return False
-
-
 def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     album_property_key: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    album_property_key_matched: AlbumPropertyKey = get_album_property_key(property_key=album_property_key)
+    if album_property_key_matched is None:
+        msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}]")
+        return []
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     current_selection_list: list[list[str]] = []
     current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST)
     if current_selection_list_str:
@@ -1232,15 +1357,35 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
         msgproc.log(f"dataset with size [{full_dataset.size}] -> "
                     f"filtered to [{dataset.size}] "
                     f"albums [{matching_album_count}]")
+    album_id_list_to_load: list[str] = []
     values: list[str] = sorted(dataset.get_values(key=album_property_key))
+    none_album_id_set: set[str] = dataset.album_id_set - dataset.get_album_id_set_for_key(key=album_property_key)
+    none_entry_size: int = len(none_album_id_set)
+    none_entry_needed: bool = none_entry_size > 0
+    msgproc.log(f"handler_album_browse_filter_key none_entry_needed [{none_entry_needed}]")
+    none_random_album_id: str = secrets.choice(list(none_album_id_set)) if len(none_album_id_set) > 0 else None
+    if none_random_album_id:
+        if verbose:
+            msgproc.log(f"random_matching_album_id_by_value appending [{none_random_album_id}] for None")
+        album_id_list_to_load.append(none_random_album_id)
+    values_to_show: list[str] = [None] + values if none_entry_needed else values
+    # at offset
+    at_offset: list[str] = values_to_show[offset:] if len(values_to_show) > offset else []
+    to_display: list[str] = ([] if len(at_offset) == 0
+                             else at_offset[0:min(len(at_offset), album_property_key_matched.max_items + 1)])
+    next_value: str = (at_offset[album_property_key_matched.max_items]
+                       if len(to_display) > album_property_key_matched.max_items
+                       else None)
+    to_show: list[str] = to_display[0:min(album_property_key_matched.max_items, len(to_display))] if len(to_display) > 0 else []
     curr_value: str
     random_matching_album_id_by_value: dict[str, str] = {}
     match_count_by_value: dict[str, int] = {}
-    album_id_list_to_load: list[str] = []
-    for curr_value in values:
+    for curr_value in to_display if to_display else []:
         value_matching_album_list: list[str] = dataset.get_album_id_list_by_key_value(key=album_property_key, value=curr_value)
+        if len(value_matching_album_list) == 0:
+            msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}] [{curr_value}]")
         match_count_by_value[curr_value] = len(value_matching_album_list)
-        random_album_id: str = secrets.choice(value_matching_album_list)
+        random_album_id: str = secrets.choice(value_matching_album_list) if len(value_matching_album_list) > 0 else None
         random_matching_album_id_by_value[curr_value] = random_album_id
         if verbose:
             msgproc.log(f"random_matching_album_id_by_value for [{curr_value}] -> {random_album_id}")
@@ -1249,31 +1394,18 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             msgproc.log(f"album_id_list_to_load appending [{random_album_id}] for [{curr_value}]")
             msgproc.log(f"handler_album_browse_filter_key pair [{album_property_key}]:[{curr_value}] "
                         f"matches [{len(value_matching_album_list)}] albums out of [{matching_album_count}]")
-    none_album_id_list: list[str] = list(dataset.album_id_set - dataset.get_album_id_set_for_key(key=album_property_key))
-    none_random_album_id: str = secrets.choice(none_album_id_list) if len(none_album_id_list) > 0 else None
-    if none_random_album_id:
-        if verbose:
-            msgproc.log(f"random_matching_album_id_by_value appending [{none_random_album_id}] for None")
-        album_id_list_to_load.append(none_random_album_id)
-    none_entry_size: int = len(none_album_id_list)
-    none_entry_needed: bool = none_entry_size > 0
     # find album matching None
     if verbose:
         msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] [none] "
-                    f"matches [{len(none_album_id_list)}] albums")
+                    f"matches [{len(none_album_id_set)}] albums")
     if verbose:
         msgproc.log(f"loading album with id list: [{album_id_list_to_load}]")
     random_album_metadata_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list_to_load)
     if verbose:
         msgproc.log(f"loaded album_id: [{list(random_album_metadata_dict.keys())}]")
-    values_to_show: list[str] = [None] + values if none_entry_needed else values
-    for curr_value in values_to_show:
+    for curr_value in to_show:
         if verbose:
             msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] appending value [{curr_value}]")
-        # avoid to re-add the same conditions
-        if __condition_exists(condition_list=condition_list, key=album_property_key, value=curr_value):
-            msgproc.log(f"handler_album_browse_filter_key skipping [{album_property_key}]:[{curr_value}], would be repeated")
-            continue
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_VALUE.element_name,
             encode_value_holder(value=curr_value))
@@ -1301,6 +1433,35 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
                 album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album_metadata.album_cover_art),
                 target=entry)
         entries.append(entry)
+    # next?
+    if next_value:
+        # add next button
+        next_identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
+            album_property_key)
+        next_identifier.set(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, current_selection_list_str)
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset + album_property_key_matched.max_items)
+        next_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(next_identifier))
+        next_entry: dict[str, any] = upmplgutils.direntry(
+            id=next_id,
+            pid=objid,
+            title="Next")
+        # get cover art, special case for None
+        next_album_id: str = (random_matching_album_id_by_value[next_value]
+                              if next_value in random_matching_album_id_by_value
+                              else None)
+        # do we have it loaded?
+        next_album_metadata: AlbumMetadata = (random_album_metadata_dict[next_album_id]
+                                              if next_album_id in random_album_metadata_dict
+                                              else None)
+        # set cover art
+        if next_album_metadata:
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=subsonic_util.build_cover_art_url(item_id=next_album_metadata.album_cover_art),
+                target=next_entry)
+        entries.append(next_entry)
     return entries
 
 
@@ -1375,10 +1536,6 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
             continue
         # get values for key
         values: list[str] = dataset.get_values(key=curr_key)
-        if len(values) > curr.max_items:
-            msgproc.log(f"handler_album_browse_filter_value property [{curr.display_value}] [{curr.property_key}] "
-                        f"skipped (too many values [{len(values)}], max is [{curr.max_items}])")
-            continue
         if verbose:
             msgproc.log(f"handler_album_browse_filter_value values for [{curr_key}] -> [{values}]")
         # is there only one value, and this matches all items?
@@ -1611,7 +1768,7 @@ def handler_radio(objid, item_identifier: ItemIdentifier, entries: list) -> list
         entries.append(_song_to_song_entry(
             objid=objid,
             song=song,
-            song_as_entry=True))
+            song_navigable=True))
     return entries
 
 
@@ -1689,11 +1846,11 @@ def _handler_element_artist_top_songs_common(
             entries.append(_song_to_song_entry(
                 objid=objid,
                 song=song,
-                song_as_entry=True))
+                song_navigable=True))
     return entries
 
 
-def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.direntry:
+def _song_to_song_entry(objid, song: Song, song_navigable: bool) -> upmplgutils.direntry:
     name: str = song.getTitle()
     song_artist: str = song.getArtist()
     if song_artist:
@@ -1706,7 +1863,7 @@ def _song_to_song_entry(objid, song: Song, song_as_entry: bool) -> upmplgutils.d
         name = f"{name} [{song_album}]"
     song_cover_art: str = song.getCoverArt()
     select_element: ElementType = (
-        ElementType.SONG_ENTRY_NAVIGABLE if song_as_entry else
+        ElementType.SONG_ENTRY_NAVIGABLE if song_navigable else
         ElementType.SONG_ENTRY_THE_SONG)
     identifier: ItemIdentifier = ItemIdentifier(
         select_element.element_name,
@@ -1775,8 +1932,11 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
     return entries
 
 
-def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    song_as_entry: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
+def __handle_favourite_songs_paginated(
+        objid,
+        item_identifier: ItemIdentifier,
+        entries: list) -> list:
+    song_as_navigable_entry: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_NAVIGABLE_ENTRY, True)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
@@ -1790,12 +1950,12 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
         entry: dict[str, any] = _song_to_song_entry(
             objid=objid,
             song=current_song,
-            song_as_entry=song_as_entry)
+            song_navigable=song_as_navigable_entry)
         entries.append(entry)
     if need_next:
         next_identifier: ItemIdentifier = ItemIdentifier(
             ElementType.TAG.element_name,
-            TagType.FAVORITE_SONGS_LIST.tag_name)
+            TagType.FAVORITE_SONGS.tag_name)
         next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
         next_id: str = identifier_util.create_objid(
             objid=objid,
@@ -1812,7 +1972,7 @@ def _get_favourite_songs(objid, item_identifier: ItemIdentifier, entries: list) 
 
 
 def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    song_as_entry: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_ENTRY, True)
+    song_navigable: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_NAVIGABLE_ENTRY, True)
     req_song_count: int = config.get_items_per_page() + 1
     response: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=req_song_count)
     if not response.isOk():
@@ -1825,12 +1985,12 @@ def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> 
         song_entry = _song_to_song_entry(
             objid=objid,
             song=song,
-            song_as_entry=song_as_entry)
+            song_navigable=song_navigable)
         entries.append(song_entry)
     if next_song:
         # no offset, so we always add next
         next_identifier: ItemIdentifier = ItemIdentifier(ElementType.NEXT_RANDOM_SONGS.element_name, "some_random_song")
-        next_identifier.set(ItemIdentifierKey.SONG_AS_ENTRY, song_as_entry)
+        next_identifier.set(ItemIdentifierKey.SONG_AS_NAVIGABLE_ENTRY, song_navigable)
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
@@ -3660,7 +3820,6 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
 
 def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     tag_list: list[TagType] = [
-        TagType.RANDOM_SONGS,
         TagType.RANDOM_SONGS_LIST]
     add_fav: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
     if not add_fav:
@@ -3671,9 +3830,9 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
                 # add fav tags
                 add_fav = True
     if add_fav:
-        tag_list.extend([
-            TagType.FAVORITE_SONGS,
-            TagType.FAVORITE_SONGS_LIST])
+        tag_list.append(TagType.FAVORITE_SONGS_LIST)
+        if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_FAVORITE_SONGS_PAGINATED_VIEW):
+            tag_list.append(TagType.FAVORITE_SONGS)
     entry_list: list[dict[str, any]] = tag_list_to_entries(
         objid,
         tag_list)
@@ -3709,7 +3868,6 @@ __tag_action_dict: dict = {
     TagType.FAVORITE_ARTISTS.tag_name: handler_tag_favourite_artists,
     TagType.PLAYLISTS.tag_name: handler_tag_playlists,
     TagType.INTERNET_RADIOS.tag_name: handler_tag_internet_radios,
-    TagType.RANDOM_SONGS.tag_name: handler_tag_random_songs,
     TagType.RANDOM_SONGS_LIST.tag_name: handler_tag_random_songs_list,
     TagType.FAVORITE_SONGS.tag_name: handler_tag_favourite_songs,
     TagType.FAVORITE_SONGS_LIST.tag_name: handler_tag_favourite_songs_list,
@@ -3749,7 +3907,9 @@ __elem_action_dict: dict = {
     ElementType.RADIO_SONG_LIST.element_name: handler_radio_song_list,
     ElementType.ALBUM_BROWSE_FILTER_KEY.element_name: handler_album_browse_filter_key,
     ElementType.ALBUM_BROWSE_FILTER_VALUE.element_name: handler_album_browse_filter_value,
-    ElementType.ALBUM_BROWSE_MATCHING_ALBUMS.element_name: handler_element_matching_albums
+    ElementType.ALBUM_BROWSE_MATCHING_ALBUMS.element_name: handler_element_matching_albums,
+    ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name: handler_element_favorite_songs_as_containers,
+    ElementType.FAVORITE_SONGS_CONTAINER.element_name: handler_element_favorite_songs_container
 }
 
 

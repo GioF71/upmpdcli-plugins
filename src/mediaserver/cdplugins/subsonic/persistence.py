@@ -437,7 +437,7 @@ def __get_sql_alter_table_add_column(table_name: TableName, column_name: ColumnN
 
 def create_index_on_columns(table_name: str, index_name: str, column_name_list: list[ColumnName]) -> str:
     return (f"CREATE INDEX idx_{table_name}_{index_name} "
-            f"ON {table_name}({", ".join(list(map(lambda x: x.value, column_name_list)))})")
+            f"ON {table_name}({', '.join(list(map(lambda x: x.value, column_name_list)))})")
 
 
 def create_index_on_single_column(table_name: str, column_name: str) -> str:
@@ -1206,7 +1206,7 @@ def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Con
     qmarks: str = __create_qmark_list(len(album_id_list))
     q: str = f"""
     SELECT
-        {", ".join([m.column_name.value for m in AlbumMetadataModel])}
+        {', '.join([m.column_name.value for m in AlbumMetadataModel])}
     FROM
         {TableName.ALBUM_METADATA_V1.value}
     WHERE
@@ -1624,7 +1624,7 @@ def save_album_properties(
     for k, v in properties.items():
         p: str
         # avoid duplications.
-        for p in list(set(v)):
+        for p in set(v):
             res += __execute_update(
                 sql=ins_sql,
                 data=tuple([album_id, k, p]),
@@ -2586,6 +2586,29 @@ def update_album_multivalue_table(
         if do_commit:
             commit(connection=connection)
     return ins_count
+
+
+def purge_unknown_album_properties(
+        valid_property_key_list: list[str],
+        connection: sqlite3.Connection = None,
+        do_commit: bool = True) -> int:
+    qmarks: str = __create_qmark_list(len(valid_property_key_list))
+    sql: str = f"""
+        DELETE FROM
+            {TableName.ALBUM_PROPERTY_V1.value}
+        WHERE
+            {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} NOT IN ({qmarks})
+    """
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    del_count: int = __get_sqlite3_executor(the_connection)(
+        sql=sql,
+        data=tuple(valid_property_key_list),
+        do_commit=False)
+    if do_commit or connection is None:
+        commit(connection=the_connection)
+    if connection is None:
+        the_connection.close()
+    return del_count
 
 
 def get_album_property_dataset(

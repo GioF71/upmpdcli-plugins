@@ -98,3 +98,6 @@ minimizeidentifierlength|Set value to true/1 in order to minimize the length of 
 purgeidentifiercache|Purge the identifier cache records created by id caching|True
 executevacuum|Execute VACUUM on startup (reduce db size)|True
 cachedrequesttimeoutsec|Timeout for cached requests in seconds|30
+maxfavoritesongsperpage|Max favorite songs displayed as a list|250
+maxfavoritesongcontainersperpage|Max favorite song containers per page|100
+enablefavoritesongspaginatedview|Enable legacy view to show a paginated view of favorite songs, this one has the advantage to give easier access to related artist(s)|False
