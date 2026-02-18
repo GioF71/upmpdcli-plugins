@@ -29,6 +29,7 @@ from song_data_structures import SongArtistType
 from table_name import TableName
 from album_metadata import AlbumMetadata
 from metadata_model import AlbumMetadataModel
+from album_property_key import AlbumPropertyKey
 from typing import Callable
 from typing import Any
 import subsonic_util
@@ -93,6 +94,9 @@ def subsonic_init():
         msgproc.log(f"DB version for [{constants.PluginConstant.PLUGIN_NAME.value}] is "
                     f"[{persistence.get_db_version()}]")
         persistence.purge_spurious_caches()
+        known_key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
+        del_unknown: int = persistence.purge_unknown_album_properties(valid_property_key_list=known_key_list)
+        msgproc.log(f"subsonic_init purge_unknown_album_properties deleted [{del_unknown}] records")
         purge_id_cache()
         initial_caching()
         check_supports()

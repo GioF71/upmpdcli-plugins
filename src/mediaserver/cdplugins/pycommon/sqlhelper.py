@@ -40,9 +40,9 @@ def create_simple_insert_sql(
     return f"""
         INSERT INTO
             {table_name}
-            ({", ".join(column_list)})
+            ({', '.join(column_list)})
         VALUES
-            ({", ".join('?' * len(column_list))})
+            ({', '.join('?' * len(column_list))})
     """
 
 
@@ -65,9 +65,9 @@ def create_simple_update_sql(
         UPDATE
             {table_name}
         SET
-            {", ".join(list(map(_append_question_mark, set_column_list)))}
+            {', '.join(list(map(_append_question_mark, set_column_list)))}
         WHERE
-            {" AND ".join(list(map(_append_question_mark, where_column_list)))}
+            {' AND '.join(list(map(_append_question_mark, where_column_list)))}
     """
 
 
@@ -77,7 +77,7 @@ def create_simple_select_sql(
         where_column_list: list[str] = None) -> str:
     sql: str = f"""
         SELECT
-            {", ".join(select_column_list)}
+            {', '.join(select_column_list)}
         FROM {table_name}
     """
     if where_column_list and len(where_column_list) > 0:

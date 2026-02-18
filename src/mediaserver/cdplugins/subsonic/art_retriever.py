@@ -437,7 +437,6 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_COVER.tag_name: random_albums_art_retriever,
     TagType.ALBUMS_WITHOUT_GENRE.tag_name: random_albums_art_retriever,
-    TagType.RANDOM_SONGS.tag_name: random_albums_art_retriever,
     TagType.RANDOM_SONGS_LIST.tag_name: random_albums_art_retriever,
     TagType.GENRES.tag_name: random_albums_art_retriever,
     TagType.ALL_ARTISTS.tag_name: random_albums_art_retriever,
