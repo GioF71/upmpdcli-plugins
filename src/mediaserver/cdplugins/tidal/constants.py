@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.11"
+    PLUGIN_RELEASE = "0.8.12"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
     STATIC_IMAGES_DIRECTORY = "static-images"
@@ -72,6 +72,10 @@ class UserAgentMatcherData:
 
 
 class UserAgentHiResWhitelist(Enum):
+    KODI_21 = UserAgentMatcherData(
+        "Kodi/21",
+        ["Kodi 21"],
+        UserAgentMatcher.STARTS_WITH.value)
     MUSIC_PLAYER_DAEMON = UserAgentMatcherData(
         "Music Player Daemon",
         ["Music Player Daemon"],
