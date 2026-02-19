@@ -157,6 +157,9 @@ def build_artist_metadata(
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
     updated_metadata.set_value(
+        artist_metadata_model=ArtistMetadataModel.ARTIST_STARRED,
+        value=subsonic_util.get_artist_starred(artist=artist))
+    updated_metadata.set_value(
         ArtistMetadataModel.CREATED_TIMESTAMP,
         created_timestamp if created_timestamp else datetime.datetime.now())
     updated_metadata.set_value(
@@ -197,7 +200,9 @@ def build_album_metadata(
     genre_list_str: str = ", ".join(genre_list)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_GENRE_LIST, genre_list_str)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MOOD_LIST, ", ".join(subsonic_util.get_album_moods(album)))
-    updated_metadata.set_value(AlbumMetadataModel.ALBUM_RECORD_LABEL_LIST, ", ".join(subsonic_util.get_album_record_label_names(album)))
+    updated_metadata.set_value(
+        album_metadata_model=AlbumMetadataModel.ALBUM_RECORD_LABEL_LIST,
+        value=", ".join(subsonic_util.get_album_record_label_names(album)))
     album_release_types: subsonic_util.AlbumReleaseTypes = subsonic_util.get_album_release_types(album=album)
     if album_release_types:
         updated_metadata.set_value(
@@ -267,6 +272,9 @@ def build_album_metadata(
         album_path: str = album_util.get_album_path_list_joined(song_list=song_list)
         if album_path and len(album_path) > 0:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, album_path)
+    updated_metadata.set_value(
+        album_metadata_model=AlbumMetadataModel.ALBUM_STARRED,
+        value=subsonic_util.get_album_starred(album=album))
     updated_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, created_timestamp)
     updated_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, updated_timestamp)
     return updated_metadata
@@ -311,6 +319,9 @@ def build_song_metadata(
     updated_metadata.set_value(
         song_metadata_model=SongMetadataModel.SONG_LOSSLESS_STATUS,
         value=audio_codec.get_lossless_status(suffix=song.getSuffix()).value)
+    updated_metadata.set_value(
+        song_metadata_model=SongMetadataModel.SONG_STARRED,
+        value=subsonic_util.get_song_starred(song=song))
     updated_metadata.set_value(SongMetadataModel.SONG_TYPE, subsonic_util.get_song_type(song=song))
     updated_metadata.set_value(
         SongMetadataModel.CREATED_TIMESTAMP,

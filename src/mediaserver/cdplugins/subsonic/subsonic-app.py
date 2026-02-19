@@ -252,6 +252,11 @@ def trackuri(a):
         result = cover_art_trackuri(cover_art_id)
     else:
         msgproc.log(f"Invalid path [{path}]")
+    custom_headers: dict[str, str] = config.get_custom_headers()
+    msgproc.log(f"trackuri custom_headers [{len(custom_headers)}]")
+    for k, v in custom_headers.items():
+        # msgproc.log(f"trackuri setting header [{k}] (redacted value)")
+        result[f"header:{k}"] = f"{v}"
     return result
 
 

@@ -20,6 +20,7 @@ import upmplgutils
 from subsonic_connector.connector import Constants as SubsonicConnectorConstants
 from subsonic_connector.configuration import ConfigurationInterface
 from tag_type import TagType
+from dotenv import dotenv_values
 
 
 def get_plugin_config_variable_name(name: str) -> str:
@@ -145,7 +146,20 @@ def get_webserver_path_images_cache() -> list[str]:
     return get_webserver_path_images() + ["cache"]
 
 
+def get_custom_headers() -> dict[str, str]:
+    custom_headers: dict[str, str] = {}
+    custom_headers_file_name: str = get_config_param_as_str(constants.ConfigParam.CUSTOM_HEADERS_FILE_NAME)
+    # msgproc.log(f"UpmpdcliSubsonicConfig custom_headers_file_name [{custom_headers_file_name}]")
+    if custom_headers_file_name:
+        loaded_custom_headers: dict[str, str] = dotenv_values(custom_headers_file_name)
+        custom_headers.update(loaded_custom_headers)
+    return custom_headers
+
+
 class UpmpdcliSubsonicConfig(ConfigurationInterface):
+
+    def __init__(self):
+        self.__custom_headers: dict[str, str] = get_custom_headers()
 
     def getBaseUrl(self) -> str: return _get_option_value("baseurl")
 
@@ -178,10 +192,9 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
             user_agent_str = constants.ConfigParam.USER_AGENT.default_value
         return user_agent_str
 
-    # def getApiVersion(self) -> str: return "1.16.1"
+    def getCustomHeaders(self) -> dict[str, str]:
+        return self.__custom_headers
 
-    # comment line before and then
-    # uncomment line below when py-sonic with useragent support is released
     def getApiVersion(self) -> str: return SubsonicConnectorConstants.API_VERSION.value
 
     def getAppName(self) -> str: return "upmpdcli-subsonic-plugin"

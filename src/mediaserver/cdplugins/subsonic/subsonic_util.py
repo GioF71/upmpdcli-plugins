@@ -1309,21 +1309,42 @@ def __parse_flexible(ts_str: str) -> datetime.datetime:
         return datetime.datetime.strptime(ts_str.split('+')[0], "%Y-%m-%d %H:%M:%S")
 
 
+def get_artist_starred(artist: Artist) -> datetime.datetime | None:
+    return get_item_timestamp(
+        obj=artist,
+        item_key=constants.ItemKey.ARTIST_STARRED,
+        item_id_extractor=lambda x: x.getId())
+
+
 def get_album_created(album: Album) -> datetime.datetime | None:
-    return get_item_created(
+    return get_item_timestamp(
         obj=album,
         item_key=constants.ItemKey.ALBUM_CREATED,
         item_id_extractor=lambda x: x.getId())
 
 
+def get_album_starred(album: Album) -> datetime.datetime | None:
+    return get_item_timestamp(
+        obj=album,
+        item_key=constants.ItemKey.ALBUM_STARRED,
+        item_id_extractor=lambda x: x.getId())
+
+
 def get_song_created(song: Song) -> datetime.datetime | None:
-    return get_item_created(
+    return get_item_timestamp(
         obj=song,
         item_key=constants.ItemKey.SONG_CREATED,
         item_id_extractor=lambda x: x.getId())
 
 
-def get_item_created(
+def get_song_starred(song: Song) -> datetime.datetime | None:
+    return get_item_timestamp(
+        obj=song,
+        item_key=constants.ItemKey.SONG_STARRED,
+        item_id_extractor=lambda x: x.getId())
+
+
+def get_item_timestamp(
         obj: Album | Song,
         item_key: constants.ItemKey,
         item_id_extractor: Callable[[any], str]) -> datetime.datetime | None:
@@ -1332,7 +1353,7 @@ def get_item_created(
         as_str = v.decode('utf-8') if isinstance(v, bytes) else v
         return __parse_flexible(as_str) if as_str else None
     except Exception as ex:
-        msgproc.log(f"get_item_created for item [{item_id_extractor(obj)}] [{v}] "
+        msgproc.log(f"get_item_timestamp for item [{item_id_extractor(obj)}] [{v}] "
                     f"could not be converted due to [{type(ex)}] [{ex}]")
 
 
