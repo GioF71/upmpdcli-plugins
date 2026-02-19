@@ -257,7 +257,7 @@ def trackuri(a):
     for k, v in custom_headers.items():
         msgproc.log(f"trackuri setting header [{k}] (redacted value)")
         result[f"header:{k}"] = f"{v}"
-    msgproc.log(f"trackuri returning with [{len(result)}] keys -> [{result}]")
+    msgproc.log(f"trackuri returning with [{len(result)}] keys")
     return result
 
 
