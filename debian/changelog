@@ -1,3 +1,11 @@
+upmpdcli (1.9.13-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Renderer: improve behaviour when switching between Radio and Playlist
+    OpenHome sources.
+  * Media server: subsonic update.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Tue, 17 Feb 2026 08:30:00 +0100
+
 upmpdcli (1.9.12-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: uprcl: speed up initialisation by using stored recoll

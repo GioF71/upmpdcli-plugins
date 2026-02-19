@@ -21,8 +21,8 @@
 #include <stdint.h>
 
 #include <string>
-#include <functional>
 #include <memory>
+#include <vector>
 
 #include "bufxchange.h"
 #include "abuffer.h"
@@ -43,7 +43,7 @@
 // All methods are supposedly thread-safe
 class CurlFetch : public NetFetch {
 public:
-    CurlFetch(const std::string& url);
+    CurlFetch(const std::string& url, const std::vector<std::string>& reqheaders = {});
     ~CurlFetch();
 
     /// Start the transfer to the output queue.

@@ -59,12 +59,15 @@ public:
     // Count of client threads waiting for headers (normally 0/1)
     int extWaitingThreads{0};
 
-    // Header values if we get them
+    // Request headers (our user sets them on construction).
+    std::vector<std::string> reqheaders;
+    
+    // Response headers
     bool headers_ok{false};
-    map<string, string> headers;
+    map<string, string> respheaders;
 
     // We pre-buffer the beginning of the stream so that the first block we actually release is
-    // always big enough for possible header forensics.
+    // always big enough for possible media headers forensics.
     ABuffer headbuf{1024};
     
     // Synchronization
@@ -72,10 +75,11 @@ public:
     mutex curlmutex;
 };
 
-CurlFetch::CurlFetch(const std::string& url)
+CurlFetch::CurlFetch(const std::string& url, const std::vector<std::string>& reqheaders)
     : NetFetch(url)
 {
     m = std::unique_ptr<Internal>(new Internal(this));
+    m->reqheaders = reqheaders;
 }
 
 CurlFetch::~CurlFetch()
@@ -230,8 +234,8 @@ bool CurlFetch::headerValue(const string& hname, string& val)
         LOGERR("CurlFetch::headerValue: called with headers_ok == false\n");
         return false;
     }
-    auto it = m->headers.find(hname);
-    if (it != m->headers.end()) {
+    auto it = m->respheaders.find(hname);
+    if (it != m->respheaders.end()) {
         val = it->second;
     } else {
         LOGDEB0("CurlFetch::headerValue: header " << hname << " not found\n");
@@ -268,7 +272,7 @@ CurlFetch::Internal::curlHeaderCB(void *contents, size_t size, size_t cnt)
             stringtolower(hname);
             string val = header.substr(colon+1);
             trimstring(val);
-            headers[hname] = val;
+            respheaders[hname] = val;
         }
     }
     return bcnt;
@@ -392,7 +396,13 @@ void CurlFetch::Internal::curlWorkerFunc()
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_cb);
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-
+        if (!reqheaders.empty()) {
+            struct curl_slist *list = nullptr;
+            for (const auto& h : reqheaders) {
+                list = curl_slist_append(list, h.c_str());
+            }
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+        }
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
         // Speedlimit is in bytes/S. 32Kbits/S
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 4L);

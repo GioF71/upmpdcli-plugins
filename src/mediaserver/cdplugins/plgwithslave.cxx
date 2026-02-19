@@ -39,6 +39,7 @@
 #include "streamproxy.h"
 #include "netfetch.h"
 #include "curlfetch.h"
+#include "smallut.h"
 
 #ifdef ENABLE_SPOTIFY
 #include "spotify/spotiproxy.h"
@@ -159,9 +160,10 @@ StreamProxy::UrlTransReturn translateurl(
         return StreamProxy::Error;
     }
 
-    string path(url);
+    std::string path(url);
+    std::unordered_map<std::string, std::string> response;
     // Translate to Tidal/Qobuz etc real temporary URL
-    url = realplg->get_media_url(path, useragent);
+    url = realplg->get_media_url(path, useragent, response);
     if (url.empty()) {
         LOGERR("answer_to_connection: no media_uri for: " << url << "\n");
         return StreamProxy::Error;
@@ -177,7 +179,13 @@ StreamProxy::UrlTransReturn translateurl(
             return StreamProxy::Error;
 #endif
         } else {
-            fetcher = std::unique_ptr<NetFetch>(new CurlFetch(url));
+            std::vector<std::string> headers;
+            for (const auto& [k, v] :  response) {
+                if (startswith(k, "header:")) {
+                    headers.push_back(k.substr(7) + ": " + v);
+                }
+            }
+            fetcher = std::make_unique<CurlFetch>(url, headers);
         }
     }
     return method;
@@ -296,32 +304,28 @@ bool PlgWithSlave::startInit()
     return m && m->maybeStartCmd();
 }
 
-// Translate the slave-generated HTTP URL (based on the trackid), to
-// an actual temporary service (e.g. tidal one), which will be an HTTP
-// URL pointing to either an AAC or a FLAC stream.
-// Older versions of this module handled AAC FLV transported over
-// RTMP, apparently because of the use of a different API key. Look up
-// the git history if you need this again.
-// The Python code calls the service to translate the trackid to a temp
-// URL. We cache the result for a few seconds to avoid multiple calls
-// to tidal.
-string PlgWithSlave::get_media_url(const string& path, const std::string& useragent)
+// Translate the slave-generated HTTP URL (based on the trackid), to an actual temporary service
+// (e.g. tidal one), which will be an HTTP URL pointing to either an AAC or a FLAC stream.
+// Older versions of this module handled AAC FLV transported over RTMP, apparently because of the
+// use of a different API key. Look up the git history if you need this again.
+// The Python code calls the service to translate the trackid to a temp URL. We cache the result for
+// a few seconds to avoid multiple calls to tidal.
+std::string PlgWithSlave::get_media_url(const std::string& path, const std::string& useragent,
+                                        std::unordered_map<std::string, std::string>& response)
 {
     LOGDEB0("PlgWithSlave::get_media_url: " << path << "\n");
     if (!m->maybeStartCmd()) {
         return string();
     }
     time_t now = time(0);
-    if (m->laststream.path.compare(path) ||
-        (now - m->laststream.opentime > 10)) {
-        unordered_map<string, string> res;
-        if (!m->cmd.callproc("trackuri", {{"path", path}, {"user-agent", useragent}}, res)) {
+    if (m->laststream.path.compare(path) || (now - m->laststream.opentime > 10)) {
+        if (!m->cmd.callproc("trackuri", {{"path", path}, {"user-agent", useragent}}, response)) {
             LOGERR("PlgWithSlave::get_media_url: slave failure\n");
             return string();
         }
 
-        auto it = res.find("media_url");
-        if (it == res.end()) {
+        auto it = response.find("media_url");
+        if (it == response.end()) {
             LOGERR("PlgWithSlave::get_media_url: no media url in result\n");
             return string();
         }
