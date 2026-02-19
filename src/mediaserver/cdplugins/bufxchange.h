@@ -24,6 +24,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <chrono>
+#include <functional>
 
 #ifdef MDU_INCLUDE_LOG
 #include MDU_INCLUDE_LOG
