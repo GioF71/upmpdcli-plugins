@@ -65,6 +65,7 @@ class ArtistMetadataModel(Enum):
     ARTIST_COVER_ART = MetadataModelData(column_name=ColumnName.ARTIST_COVER_ART)
     ARTIST_MEDIA_TYPE = MetadataModelData(column_name=ColumnName.ARTIST_MEDIA_TYPE)
     ARTIST_SORT_NAME = MetadataModelData(column_name=ColumnName.ARTIST_SORT_NAME)
+    ARTIST_STARRED = MetadataModelData(column_name=ColumnName.ARTIST_STARRED)
     CREATED_TIMESTAMP = MetadataModelData(
         column_name=ColumnName.CREATED_TIMESTAMP,
         is_created_timestamp=True)
@@ -141,6 +142,7 @@ class AlbumMetadataModel(Enum):
     ALBUM_RECORD_LABEL_LIST = MetadataModelData(column_name=ColumnName.ALBUM_RECORD_LABEL_LIST)
     ALBUM_RELEASE_TYPE_LIST = MetadataModelData(column_name=ColumnName.ALBUM_RELEASE_TYPE_LIST)
     ALBUM_MEDIA_TYPE = MetadataModelData(column_name=ColumnName.ALBUM_MEDIA_TYPE)
+    ALBUM_STARRED = MetadataModelData(column_name=ColumnName.ALBUM_STARRED)
     CREATED_TIMESTAMP = MetadataModelData(
         column_name=ColumnName.CREATED_TIMESTAMP,
         is_created_timestamp=True)
@@ -204,6 +206,7 @@ class SongMetadataModel(Enum):
     SONG_DISPLAY_COMPOSER = MetadataModelData(column_name=ColumnName.SONG_DISPLAY_COMPOSER)
     SONG_SORT_NAME = MetadataModelData(column_name=ColumnName.SONG_SORT_NAME)
     SONG_LOSSLESS_STATUS = MetadataModelData(column_name=ColumnName.SONG_LOSSLESS_STATUS)
+    SONG_STARRED = MetadataModelData(column_name=ColumnName.SONG_STARRED)
     CREATED_TIMESTAMP = MetadataModelData(
         column_name=ColumnName.CREATED_TIMESTAMP,
         is_created_timestamp=True)

@@ -2891,6 +2891,33 @@ def __store_db_version(version: str):
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
+def do_migration_69():
+    __do_create_table(
+        table_name=TableName.ARTIST_METADATA_V1.value,
+        sql=__get_sql_alter_table_add_column(
+            table_name=TableName.ARTIST_METADATA_V1,
+            column_name=ArtistMetadataModel.ARTIST_STARRED.column_name,
+            column_type="TIMESTAMP"))
+
+
+def do_migration_68():
+    __do_create_table(
+        table_name=TableName.ALBUM_METADATA_V1.value,
+        sql=__get_sql_alter_table_add_column(
+            table_name=TableName.ALBUM_METADATA_V1,
+            column_name=AlbumMetadataModel.ALBUM_STARRED.column_name,
+            column_type="TIMESTAMP"))
+
+
+def do_migration_67():
+    __do_create_table(
+        table_name=TableName.SONG_METADATA_V1.value,
+        sql=__get_sql_alter_table_add_column(
+            table_name=TableName.SONG_METADATA_V1,
+            column_name=SongMetadataModel.SONG_STARRED.column_name,
+            column_type="TIMESTAMP"))
+
+
 def do_migration_66():
     __do_create_table(
         table_name=TableName.ALBUM_METADATA_V1.value,
@@ -3916,7 +3943,22 @@ def __init():
             applies_on=66,
             migration_name=(f"Altering table {TableName.ALBUM_METADATA_V1.value} "
                             f"adding {AlbumMetadataModel.ALBUM_MEDIA_TYPE.column_name.value}"),
-            migration_function=do_migration_66)]
+            migration_function=do_migration_66),
+        __create_migration(
+            applies_on=67,
+            migration_name=(f"Altering table {TableName.SONG_METADATA_V1.value} "
+                            f"adding {SongMetadataModel.SONG_STARRED.column_name.value}"),
+            migration_function=do_migration_67),
+        __create_migration(
+            applies_on=68,
+            migration_name=(f"Altering table {TableName.ALBUM_METADATA_V1.value} "
+                            f"adding {AlbumMetadataModel.ALBUM_STARRED.column_name.value}"),
+            migration_function=do_migration_68),
+        __create_migration(
+            applies_on=69,
+            migration_name=(f"Altering table {TableName.ARTIST_METADATA_V1.value} "
+                            f"adding {ArtistMetadataModel.ARTIST_STARRED.column_name.value}"),
+            migration_function=do_migration_69)]
     current_migration: Migration
     migration_counter: int = 0
     for current_migration in migrations:

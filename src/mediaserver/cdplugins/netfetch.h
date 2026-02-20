@@ -65,6 +65,8 @@ public:
     enum FetchStatus {FETCH_OK=0, FETCH_RETRYABLE, FETCH_FATAL};
     virtual bool fetchDone(FetchStatus *code, int *http_code) = 0;
 
+    virtual void startabort() {}
+    
     /// Reset after transfer done, for retrying for exemple.
     virtual bool reset() = 0;
 
