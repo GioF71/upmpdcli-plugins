@@ -14,7 +14,7 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-
+// #define LOGGER_LOCAL_LOGINC 4
 #include "streamproxy.h"
 #include "netfetch.h"
 #ifdef MDU_INCLUDE_LOG
@@ -60,6 +60,13 @@ public:
         // !! Note !! have to delete the fetcher before returning, else
         // the notify_all in the bufxchange setTerminate() will
         // block. Looks like a libc bug to me ? but easy workaround.
+        if (fetcher) {
+            fetcher->startabort();
+            while (!fetcher->fetchDone(nullptr, nullptr)) {
+                millisleep(100);
+            }
+        }
+            
         fetcher = std::unique_ptr<NetFetch>();
     }
     ssize_t contentRead(uint64_t pos, char *buf, size_t max);
@@ -347,7 +354,7 @@ MHD_Result StreamProxy::Internal::answerConn(
         }
 
         // Create/Start the fetch transaction.
-        LOGDEB0("StreamProxy::answerConn: starting fetch for " << url << "\n");
+        LOGDEB0("StreamProxy::answerConn: fetch at offset: " << offset << " url " << url << "\n");
         auto reader = new ContentReader(std::move(fetcher), cfd);
         if (killafterms > 0) {
             reader->killafterms = killafterms;
