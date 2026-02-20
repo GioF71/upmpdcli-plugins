@@ -115,6 +115,11 @@ CurlFetch::Internal::~Internal()
     LOGDEB0("CurlFetch::CurlFetch::~Internal: done\n");
 }
 
+void CurlFetch::startabort()
+{
+    m->aborting = true;
+}
+
 bool CurlFetch::start(BufXChange<ABuffer*> *queue, uint64_t offset)
 {
     LOGDEB0("CurlFetch::start: offset: " << offset << " 0x" << std::hex <<
@@ -257,7 +262,7 @@ CurlFetch::Internal::curlHeaderCB(void *contents, size_t size, size_t cnt)
     size_t bcnt = size * cnt;
     string header((char *)contents, bcnt);
     trimstring(header, " \t\r\n");
-    LOGDEB1("CurlFetch::curlHeaderCB: header: [" << header << "]\n");
+    LOGDEB1("CurlFetch::curlHeaderCB: response header: [" << header << "]\n");
     unique_lock<mutex> lock(curlmutex);
     if (header.empty()) {
         // End of headers
@@ -265,7 +270,6 @@ CurlFetch::Internal::curlHeaderCB(void *contents, size_t size, size_t cnt)
         headers_ok = true;
         curlcv.notify_all();
     } else {
-        LOGDEB1("curlHeaderCB: got " << header << endl);
         string::size_type colon = header.find(":");
         if (string::npos != colon) {
             string hname = header.substr(0, colon);
@@ -400,6 +404,7 @@ void CurlFetch::Internal::curlWorkerFunc()
             struct curl_slist *list = nullptr;
             for (const auto& h : reqheaders) {
                 list = curl_slist_append(list, h.c_str());
+                LOGDEB1("curlfetch: setting request header [" << h << "]\n")
             }
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
         }

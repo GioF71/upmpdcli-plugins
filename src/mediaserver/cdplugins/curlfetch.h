@@ -62,7 +62,8 @@ public:
 
     /// Reset after transfer done, for retrying for exemple.
     bool reset() override;
-
+    void startabort();
+    
     class Internal;
 private:
     std::unique_ptr<Internal> m;
