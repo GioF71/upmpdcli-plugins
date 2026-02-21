@@ -4369,7 +4369,7 @@ def search(a):
                             album=current_album,
                             options=album_entry_options))
                     resultset_length += 1
-            elif SearchType.TRACK.getName() == field:
+            elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
                 found_album_id_set: set[str] = set()
                 # we need to find albums by tracks
                 album_list: list[Album] = search_albums_by_song_title(song_title=value, found_album_id_set=found_album_id_set)
@@ -4402,7 +4402,7 @@ def search(a):
                         objid=objid,
                         song=current_song))
                     resultset_length += 1
-            elif SearchType.TRACK.getName() == field:
+            elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
                 # looking for track by tracks
                 song_list: list[Song] = search_songs_by_song_title(song_title=value)
                 for current_song in song_list:
@@ -4413,7 +4413,7 @@ def search(a):
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
         elif objkind == KindType.ARTIST:
-            if SearchType.TRACK.getName() == field:
+            if SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
                 # we search artists by any title
                 artist_list: list[Artist] = search_artist_by_title(title=value)
                 artist: Artist
@@ -4452,7 +4452,7 @@ def search(a):
                         album=current_album,
                         options=album_entry_options))
                 resultset_length += 1
-        elif SearchType.TRACK.getName() == field:
+        elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
             # search tracks by specified value
             search_result: SearchResult = connector_provider.get().search(
                 query=value,
@@ -4531,7 +4531,7 @@ def search(a):
                         album=current_album,
                         options=album_entry_options))
                 resultset_length += 1
-        elif SearchType.TRACK.getName() == objkind:
+        elif SearchType.TRACK.getName() == objkind or SearchType.TITLE.getName() == objkind:
             # search tracks by specified value
             search_result: SearchResult = connector_provider.get().search(
                 query=value,
