@@ -27,6 +27,7 @@ class SearchType(Enum):
     ALBUM = 0, "album"
     ARTIST = 1, "artist"
     TRACK = 2, "track"
+    TITLE = 3, "title"
 
     def __init__(
             self,
