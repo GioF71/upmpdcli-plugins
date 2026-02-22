@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.4
+
+- Store "starred" to Artist, Album and Song metadata table
+
 ## Release 0.9.3
 
 - Renamed album property key ALL_ARTISTS to ARTIST_CONTRIBUTOR (a reload will be required)

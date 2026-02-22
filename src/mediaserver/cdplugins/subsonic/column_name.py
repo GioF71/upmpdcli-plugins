@@ -111,3 +111,6 @@ class ColumnName(Enum):
     ALBUM_RELEASE_TYPE_LIST = "album_release_type_list"
     ALBUM_DISC_COUNT = "album_disc_count"
     ALBUM_MEDIA_TYPE = "album_media_type"
+    SONG_STARRED = "song_starred"
+    ALBUM_STARRED = "album_starred"
+    ARTIST_STARRED = "artist_starred"

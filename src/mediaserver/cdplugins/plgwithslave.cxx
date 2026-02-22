@@ -710,8 +710,7 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
             // - uprcl does not use the pre-cooked search but directly the upnp search
             // radio-browser, radio-paradise, upradios, hra, bbc: no search or ok
             // ! Subsonic and Tidal need change !
-            slavefield = "track";
-//            slavefield = "title";
+            slavefield = "title";
             value = vs[i+2];
         }
     }

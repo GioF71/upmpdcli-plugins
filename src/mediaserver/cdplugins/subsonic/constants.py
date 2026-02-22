@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.3"
+    PLUGIN_RELEASE = "0.9.4"
     PLUGIN_NAME = "subsonic"
 
 
@@ -68,6 +68,9 @@ class ItemKey(Enum):
     SONG_TYPE = "type"
     SONG_DISPLAY_COMPOSER = "displayComposer"
     SONG_SORT_NAME = "sortName"
+    SONG_STARRED = "starred"
+    ALBUM_STARRED = "starred"
+    ARTIST_STARRED = "starred"
 
 
 class DictKey(Enum):
@@ -545,6 +548,11 @@ class ConfigParam(Enum):
         default_value=False,
         description=("Enable legacy view to show a paginated view of favorite songs, "
                      "this one has the advantage to give easier access to related artist(s)"))
+
+    CUSTOM_HEADERS_FILE_NAME = _ConfigParamData(
+        key="customheadersfilename",
+        default_value="",
+        description=("Location of a file with custom headers. Format should be same as an ENV file"))
 
     @property
     def key(self) -> str:
