@@ -101,3 +101,7 @@ cachedrequesttimeoutsec|Timeout for cached requests in seconds|30
 maxfavoritesongsperpage|Max favorite songs displayed as a list|250
 maxfavoritesongcontainersperpage|Max favorite song containers per page|100
 enablefavoritesongspaginatedview|Enable legacy view to show a paginated view of favorite songs, this one has the advantage to give easier access to related artist(s)|False
+customheadersfilename|Location of a file with custom headers. Format should be same as an ENV file|
+redactcustomheaders|Redact custom headers if enabled|True
+recentlyplayedsongsmaxsongs|Maximum number of recently played songs to show|100
+recentlyplayedsongsmaxalbums|Maximum number of albums to be loaded in order to retrieve recently played songs|10

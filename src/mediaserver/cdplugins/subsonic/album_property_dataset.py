@@ -24,7 +24,6 @@ class AlbumPropertyDataset:
     def __init__(self, dataset: list[AlbumPropertyMetadata]):
         self.__dataset_size: int = len(dataset)
         self.__dataset: dict[str, list[AlbumPropertyMetadata]] = defaultdict(list)
-        self.__key_set: set[str] = set()
         self.__album_id_set: set[str] = set()
         self.__values_by_key: dict[str, set[str]] = defaultdict(set)
         self.__album_id_with_key: dict[str, set[str]] = defaultdict(set)
@@ -35,7 +34,6 @@ class AlbumPropertyDataset:
             self.__dataset[curr.album_property_key].append(curr)
             self.__album_id_set.add(curr.album_id)
             self.__album_id_with_key[curr.album_property_key].add(curr.album_id)
-            self.__key_set.add(curr.album_property_key)
             self.__values_by_key[curr.album_property_key].add(curr.album_property_value)
             self.__album_id_by_key_value[(curr.album_property_key, curr.album_property_value)].add(curr.album_id)
             self.__metadata_by_album_id[curr.album_id].append(curr)
@@ -45,8 +43,8 @@ class AlbumPropertyDataset:
         return self.__dataset_size
 
     @property
-    def keys(self) -> list[str]:
-        return list(self.__key_set)
+    def keys(self) -> set[str]:
+        return self.__values_by_key.keys()
 
     def get_album_id_set_for_key(self, key: str) -> set[str]:
         album_id_set_by_key: set[str] = self.__album_id_with_key[key] if key in self.__album_id_with_key else set()
@@ -55,17 +53,17 @@ class AlbumPropertyDataset:
     def get_album_id_count_for_key(self, key: str) -> int:
         return len(self.get_album_id_set_for_key(key=key))
 
-    def get_values(self, key: str) -> list[str]:
-        return list(self.__values_by_key[key]) if key in self.__values_by_key else []
+    def get_value_count_by_key(self, key: str) -> int:
+        return len(self.__values_by_key[key]) if key in self.__values_by_key else 0
+
+    def get_values(self, key: str) -> set[str]:
+        return self.__values_by_key[key] if key in self.__values_by_key else set()
 
     def get_album_id_set_by_key_value(self, key: str, value: str) -> set[str]:
         return self.__album_id_by_key_value[(key, value)] if (key, value) in self.__album_id_by_key_value else set()
 
-    def get_album_id_list_by_key_value(self, key: str, value: str) -> list[str]:
-        return list(self.get_album_id_set_by_key_value(key=key, value=value))
-
     def get_album_id_count_by_key_value(self, key: str, value: str) -> int:
-        return len(self.__album_id_by_key_value[(key, value)]) if (key, value) in self.__album_id_by_key_value else 0
+        return len(self.get_album_id_set_by_key_value(key, value))
 
     @property
     def album_id_count(self) -> int:
@@ -74,10 +72,6 @@ class AlbumPropertyDataset:
     @property
     def album_id_set(self) -> set[str]:
         return self.__album_id_set
-
-    @property
-    def album_id_list(self) -> list[str]:
-        return list(self.album_id_set)
 
     def _get_by_album_id(self) -> dict[str, list[AlbumPropertyMetadata]]:
         return self.__metadata_by_album_id

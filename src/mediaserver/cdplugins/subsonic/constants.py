@@ -554,6 +554,22 @@ class ConfigParam(Enum):
         default_value="",
         description=("Location of a file with custom headers. Format should be same as an ENV file"))
 
+    REDACT_CUSTOM_HEADERS = _ConfigParamData(
+        "redactcustomheaders",
+        default_value=True,
+        description="Redact custom headers if enabled")
+
+    RECENTLY_PLAYED_SONGS_MAX_SONGS = _ConfigParamData(
+        "recentlyplayedsongsmaxsongs",
+        default_value=100,
+        description="Maximum number of recently played songs to show")
+
+    RECENTLY_PLAYED_SONGS_MAX_ALBUMS = _ConfigParamData(
+        "recentlyplayedsongsmaxalbums",
+        default_value=10,
+        description="Maximum number of albums to be loaded in order to retrieve recently played songs")
+
+
     @property
     def key(self) -> str:
         return self.value.key

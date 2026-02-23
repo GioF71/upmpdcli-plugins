@@ -235,6 +235,25 @@ class SongMetadataModel(Enum):
         return self.value.is_updated_timestamp
 
 
+class AlbumArtistMetaModel(Enum):
+
+    ID = MetadataModelData(column_name=ColumnName.ID, primary_key=True)
+    ALBUM_ID = MetadataModelData(column_name=ColumnName.ALBUM_ID)
+    ARTIST_ID = MetadataModelData(column_name=ColumnName.ARTIST_ID)
+    ARTIST_NAME = MetadataModelData(column_name=ColumnName.ARTIST_NAME)
+    CREATED_TIMESTAMP = MetadataModelData(
+        column_name=ColumnName.CREATED_TIMESTAMP,
+        is_created_timestamp=True)
+
+    @property
+    def column_name(self) -> ColumnName:
+        return self.value.column_name
+
+    @property
+    def is_created_timestamp(self) -> bool:
+        return self.value.is_created_timestamp
+
+
 class SongAlbumArtistMetaModel(Enum):
 
     ID = MetadataModelData(column_name=ColumnName.ID, primary_key=True)

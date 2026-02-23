@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,16 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from subsonic_connector.connector import Connector
-from config import UpmpdcliSubsonicConfig
-from msgproc_provider import msgproc
 
-msgproc.log(f"base_url/port: [{UpmpdcliSubsonicConfig().getBaseUrl()}]:[{UpmpdcliSubsonicConfig().getPort()}]")
-msgproc.log(f"server_path: [{UpmpdcliSubsonicConfig().getServerPath()}]")
-msgproc.log(f"User Agent: [{UpmpdcliSubsonicConfig().getUserAgent()}]")
-
-connector: Connector = Connector(UpmpdcliSubsonicConfig())
+import unicodedata
 
 
-def get() -> Connector:
-    return connector
+def simplify(text: str):
+    if text is None:
+        return None
+    # Decompose unicode and strip accents
+    return "".join(
+        c for c in unicodedata.normalize('NFD', str(text))
+        if unicodedata.category(c) != 'Mn').lower()

@@ -520,16 +520,19 @@ def get_cover_art_url_by_album_id(album_id: str) -> str:
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     result: list[Song] = []
     album: Album = try_get_album(album_id=album_id)
     if album:
         msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] "
                     f"artist [{get_album_display_artist(album=album)}] ...")
         cache_actions.on_album(album=album)
+        if verbose:
+            msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] completed.")
     else:
         msgproc.log(f"get_album_tracks will not execute on_album on album_id [{album_id}] ...")
         return None, None
-    albumArtURI: str = build_cover_art_url(item_id=album.getCoverArt())
+    album_cover_art_url: str = build_cover_art_url(item_id=album.getCoverArt())
     song_list: list[Song] = album.getSongs()
     sort_song_list_result: album_util.SortSongListResult = album_util.sort_song_list(song_list)
     current_song: Song
@@ -539,7 +542,7 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
         codec_set_by_path=sort_song_list_result.getCodecSetByPath(),
         album=album,
         song_list=result,
-        art_uri=albumArtURI,
+        art_uri=album_cover_art_url,
         multi_codec_album=sort_song_list_result.getMultiCodecAlbum())
 
 

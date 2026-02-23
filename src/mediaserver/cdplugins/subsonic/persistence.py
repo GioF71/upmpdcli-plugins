@@ -16,6 +16,7 @@
 import os
 import sqlite3
 import sqlite3util
+from search_util import simplify
 import datetime
 import time
 import secrets
@@ -49,6 +50,7 @@ import metadata_converter
 from column_name import ColumnName
 from metadata_model import ArtistMetadataModel
 from metadata_model import AlbumMetadataModel
+from metadata_model import AlbumArtistMetaModel
 from metadata_model import SongMetadataModel
 from metadata_model import SongAlbumArtistMetaModel
 from metadata_model import SongArtistMetaModel
@@ -785,7 +787,7 @@ def get_random_album_by_genre(genre_name: str, connection: sqlite3.Connection = 
     """
     rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql_direct,
-        parameters=(genre_name, ))
+        parameters=(tuple([genre_name])))
     if verbose:
         msgproc.log(f"get_random_album_by_genre query #1 for [{genre_name}] "
                     f"row_count [{len(rows) if rows else 0}]")
@@ -812,7 +814,7 @@ def get_random_album_by_genre(genre_name: str, connection: sqlite3.Connection = 
         """
         rows = __get_sqlite3_selector(connection=the_connection)(
             sql=sql_sec,
-            parameters=(genre_name, ))
+            parameters=(tuple([genre_name])))
         if verbose:
             msgproc.log(f"get_random_album_by_genre query #2 for [{genre_name}] "
                         f"row_count [{len(rows) if rows else 0}]")
@@ -1079,6 +1081,52 @@ def get_artist_metadata(artist_id: str, connection: sqlite3.Connection = None) -
     return __load_artist_metadata(artist_id=artist_id, connection=connection)
 
 
+def find_artist_metadata_by_name(artist_name: str, connection: sqlite3.Connection = None) -> list[ArtistMetadata]:
+    the_connection: sqlite3.Connection = get_working_connection(provided=connection)
+    select_column_list: list[str] = [m.column_name.value for m in ArtistMetadataModel]
+    select_columns: str = ", ".join(select_column_list)
+    like_value: str = f"%{artist_name}%"
+    value_list: list[str] = [like_value] * 4
+    sql: str = f"""
+        SELECT
+            {select_columns}
+        FROM
+            {TableName.ARTIST_METADATA_V1.value}
+        WHERE
+            {ArtistMetadataModel.ARTIST_ID.column_name.value} IN (
+                SELECT
+                    DISTINCT {ArtistMetadataModel.ARTIST_ID.column_name.value}
+                FROM {TableName.ARTIST_METADATA_V1.value}
+                    WHERE
+                        simplify({ArtistMetadataModel.ARTIST_NAME.column_name.value}) LIKE simplify(?) OR
+                        simplify({ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value}) LIKE simplify(?)
+                UNION ALL
+                SELECT
+                    DISTINCT {AlbumArtistMetaModel.ARTIST_ID.column_name.value}
+                FROM
+                    {TableName.ALBUM_ARTIST_V1.value}
+                WHERE
+                    {AlbumArtistMetaModel.ALBUM_ID.column_name.value} IN (
+                        SELECT
+                            {AlbumMetadataModel.ALBUM_ID.column_name.value}
+                        FROM
+                            {TableName.ALBUM_METADATA_V1.value}
+                        WHERE
+                            simplify({AlbumMetadataModel.ALBUM_DISPLAY_ARTIST.column_name.value}) LIKE simplify(?) OR
+                            simplify({AlbumMetadataModel.ALBUM_ARTIST.column_name.value}) LIKE simplify(?)));
+    """
+    rows: list[Any] = __get_sqlite3_selector(the_connection)(
+        sql=sql,
+        parameters=tuple(value_list))
+    result: list[ArtistMetadata] = []
+    for row in rows if rows else []:
+        artist: ArtistMetadata = __artist_metadata_by_row(row=row)
+        result.append(artist)
+    if connection is None:
+        the_connection.close()
+    return result
+
+
 def get_kv_item(
         partition: str,
         key: str,
@@ -1171,7 +1219,7 @@ def get_working_connection(provided: sqlite3.Connection) -> sqlite3.Connection:
 
 def __load_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = (song_id, )
+    t = (tuple([song_id]))
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.SONG_METADATA_V1.value,
         select_column_list=[m.column_name.value for m in SongMetadataModel],
@@ -1226,7 +1274,7 @@ def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Con
 
 def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> ArtistMetadata:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = (artist_id, )
+    t = tuple([artist_id])
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.ARTIST_METADATA_V1.value,
         select_column_list=[m.column_name.value for m in ArtistMetadataModel],
@@ -1247,7 +1295,7 @@ def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> Ar
 
 def __load_artist_roles(artist_id: str, connection: sqlite3.Connection = None) -> list[ArtistRole]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = (artist_id, )
+    t = tuple([artist_id])
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.ARTIST_ROLE_V1.value,
         select_column_list=[
@@ -1267,33 +1315,6 @@ def __load_artist_roles(artist_id: str, connection: sqlite3.Connection = None) -
         entry: ArtistRole = ArtistRole(
             artist_id=row[0],
             artist_role=row[1])
-        result.append(entry)
-    return result
-
-
-def __load_album_artists(album_id: str, connection: sqlite3.Connection = None) -> list[ArtistFromAlbum]:
-    the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = (album_id, )
-    q: str = sqlhelper.create_simple_select_sql(
-        table_name=TableName.ALBUM_ARTIST_V1.value,
-        select_column_list=[
-            ColumnName.ARTIST_ID.value,
-            ColumnName.ARTIST_NAME.value
-        ],
-        where_column_list=[
-            ColumnName.ALBUM_ID.value
-        ])
-    rows: list[Any] = __get_sqlite3_selector(the_connection)(
-        sql=q,
-        parameters=t)
-    if connection is None:
-        the_connection.close()
-    result: list[ArtistFromAlbum] = []
-    for row in rows if rows else []:
-        entry: ArtistFromAlbum = ArtistFromAlbum(
-            album_id=album_id,
-            artist_id=row[0],
-            artist_name=row[1])
         result.append(entry)
     return result
 
@@ -1412,7 +1433,7 @@ def __delete_album_metadata_from_db(
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=TableName.ALBUM_METADATA_V1.value,
         where_column_list=[ColumnName.ALBUM_ID.value])
-    t = (album_id, )
+    t = tuple([album_id])
     __get_sqlite3_executor(the_connection)(
         sql=q,
         data=t,
@@ -1562,7 +1583,7 @@ def __delete_artist_metadata_from_db(
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=TableName.ARTIST_METADATA_V1.value,
         where_column_list=[ColumnName.ARTIST_ID.value])
-    t = (artist_id, )
+    t = tuple([artist_id])
     __get_sqlite3_executor(the_connection)(
         sql=q,
         data=t,
@@ -2695,7 +2716,6 @@ def get_album_property_values(
     curr: AlbumPropertyKeyValue
     for curr in condition_list if condition_list else []:
         parameters.extend([curr.key, curr.value])
-    # msgproc.log(f"sql [{sql}] parameters [{parameters}]")
     the_connection: sqlite3.Connection = get_working_connection(connection)
     result: list[AlbumPropertyValueSelection] = []
     rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
@@ -2831,6 +2851,7 @@ def __get_connection() -> sqlite3.Connection:
         __get_db_full_path(),
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
     connection.execute("PRAGMA foreign_keys = ON;")
+    connection.create_function("simplify", 1, simplify)
     return connection
 
 
@@ -2865,7 +2886,7 @@ def __store_db_version(version: str):
     db_version: str = get_db_version()
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
-        insert_tuple = (version, )
+        insert_tuple = tuple([version])
         connection: sqlite3.Connection = __get_connection()
         cursor = connection.cursor()
         insert_sql: str = sqlhelper.create_simple_insert_sql(

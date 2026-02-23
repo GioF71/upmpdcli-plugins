@@ -77,6 +77,7 @@ class TagType(Enum):
     RANDOM_SONGS_LIST = _TagTypeData("Random Songs")
     FAVORITE_SONGS = _TagTypeData("Favorite Songs (Paginated)")
     FAVORITE_SONGS_LIST = _TagTypeData("Favorite Songs")
+    RECENTLY_PLAYED_SONGS = _TagTypeData("Recently played Songs")
     GENRES = _TagTypeData("Genres")
     PLAYLISTS = _TagTypeData("Playlists")
     INTERNET_RADIOS = _TagTypeData("Internet Radios")

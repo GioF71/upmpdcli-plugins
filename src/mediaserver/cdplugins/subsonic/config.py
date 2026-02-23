@@ -173,7 +173,7 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
 
     def getLegacyAuth(self) -> bool:
         legacy_auth_enabled_str: str = _get_option_value("legacyauth", "false")
-        if not legacy_auth_enabled_str.lower() in ["true", "false", "1", "0"]:
+        if legacy_auth_enabled_str.lower() not in ["true", "false", "1", "0"]:
             raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
         return legacy_auth_enabled_str in ["true", "1"]
 
