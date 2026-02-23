@@ -1,5 +1,13 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.4
+
+- Add support for http custom headers (`customheadersfilename`), requires proxy mode
+- Store "starred" to Artist, Album and Song metadata table
+- Search artist by name now uses the preloaded data if available (much faster and accurate!)
+- Implemented search playlists by name
+- Implemented recently played songs
+
 ## Release 0.9.3
 
 - Renamed album property key ALL_ARTISTS to ARTIST_CONTRIBUTOR (a reload will be required)

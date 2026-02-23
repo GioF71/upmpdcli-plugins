@@ -34,8 +34,14 @@ class ArtistIdName:
 
 class ArtistIdNameCoverArt(ArtistIdName):
 
-    def __init__(self, artist_id: str, artist_name: str, cover_art: str = None):
-        super().__init__(artist_id=artist_id, artist_name=artist_name)
+    def __init__(
+            self,
+            artist_id: str,
+            artist_name: str,
+            cover_art: str = None):
+        super().__init__(
+            artist_id=artist_id,
+            artist_name=artist_name)
         self.__cover_art: str = cover_art
 
     @property

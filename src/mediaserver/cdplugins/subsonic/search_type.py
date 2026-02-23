@@ -21,12 +21,14 @@ class KindType:
     ARTIST = "artist"
     ALBUM = "album"
     TRACK = "track"
+    PLAYLIST = "playlist"
 
 
 class SearchType(Enum):
     ALBUM = 0, "album"
     ARTIST = 1, "artist"
     TRACK = 2, "track"
+    TITLE = 3, "title"
 
     def __init__(
             self,

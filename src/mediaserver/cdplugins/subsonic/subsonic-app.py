@@ -71,6 +71,7 @@ import entry_creator
 import constants
 import persistence
 import metadata_converter
+from artist_metadata import ArtistMetadata
 from album_metadata import AlbumMetadata
 from album_property_metadata import AlbumPropertyMetadata
 from album_property_key import AlbumPropertyKey
@@ -79,6 +80,7 @@ from album_property_key import AlbumPropertyKeyValue
 from album_property_dataset import AlbumPropertyDataset
 from album_property_dataset import AlbumPropertyDatasetProcessor
 from common_data_structures import ArtistIdNameCoverArt
+import search_result_rank
 
 from album_util import sort_song_list
 from album_util import get_album_base_path
@@ -145,6 +147,7 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.RANDOM_SONGS_LIST.tag_name: False,
     TagType.FAVORITE_SONGS.tag_name: False,
     TagType.FAVORITE_SONGS_LIST.tag_name: False,
+    TagType.RECENTLY_PLAYED_SONGS.tag_name: False,
     TagType.INTERNET_RADIOS.tag_name: False,
     TagType.ALBUM_BROWSER.tag_name: False
 }
@@ -252,6 +255,14 @@ def trackuri(a):
         result = cover_art_trackuri(cover_art_id)
     else:
         msgproc.log(f"Invalid path [{path}]")
+    custom_headers: dict[str, str] = config.get_custom_headers()
+    if verbose:
+        msgproc.log(f"trackuri custom_headers [{len(custom_headers)}]")
+    for k, v in custom_headers.items():
+        if verbose:
+            redacted_header_value: str = "redacted" if config.get_config_param_as_bool(constants.ConfigParam.REDACT_CUSTOM_HEADERS) else v
+            msgproc.log(f"trackuri setting header [{k}] [{redacted_header_value}]")
+        result[f"header:{k}"] = v
     return result
 
 
@@ -1183,6 +1194,122 @@ def handler_element_favorite_songs_container(objid, item_identifier: ItemIdentif
     return entries
 
 
+def __get_timestamp(song: Song) -> float | None:
+    ts: str = subsonic_util.get_song_played(song=song)
+    if ts and len(ts) > 0:
+        dt_obj: datetime.datetime = datetime.datetime.fromisoformat(ts)
+        return dt_obj.timestamp()
+    return None
+
+
+def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    song_list: list[Song] = []
+    song_limit: int = config.get_config_param_as_int(constants.ConfigParam.RECENTLY_PLAYED_SONGS_MAX_SONGS)
+    offset: int = 0
+    loaded_album_count: int = 0
+    max_albums: int = config.get_config_param_as_int(constants.ConfigParam.RECENTLY_PLAYED_SONGS_MAX_ALBUMS)
+    # number of albums from getAlbumList in recent mode to extract
+    # should not be worth to go beyond max_albums
+    num_album: int = max_albums
+    finished: bool = False
+    loaded_album_dict: dict[str, Album] = {}
+    # songs that we are not sure we can add to the list yet
+    backlog: list[Song] = []
+    while not finished:
+        response: Response[AlbumList] = connector_provider.get().getAlbumList(
+            ltype=ListType.RECENT,
+            offset=offset,
+            size=num_album)
+        if not response or not response.isOk():
+            msgproc.log(f"Cannot load recently played albums at offset [{offset}]")
+            return entries
+        album_list_obj: AlbumList = response.getObj()
+        album_list: list[Album] = album_list_obj.getAlbums()
+        loaded_album_count += len(album_list)
+        if verbose:
+            msgproc.log(f"loaded_album_count [{loaded_album_count}]")
+            msgproc.log(f"handler_tag_recently_played_songs loaded [{len(album_list) if album_list else 0}] "
+                        f"from offset [{offset}]")
+        # examine each album
+        curr_album: Album
+        for curr_album in album_list:
+            # we must load the album because we want "played" data for each song
+            loaded: Album = loaded_album_dict[curr_album.getId()] if curr_album.getId() in loaded_album_dict else None
+            if not loaded:
+                loaded = subsonic_util.try_get_album(album_id=curr_album.getId())
+                if not loaded:
+                    msgproc.log(f"Cannot load album [{curr_album.getId()}]")
+                    continue
+                loaded_album_dict[curr_album.getId()] = loaded
+            #  extract only played songs
+            played_songs: list[Song] = list(filter(lambda x: __get_timestamp(song=x), loaded.getSongs()))
+            if len(played_songs) == 0:
+                # skip? stop?
+                continue
+            if verbose:
+                msgproc.log(f"album [{curr_album.getId()}] [{curr_album.getTitle()}] "
+                            f"has [{len(played_songs)}] played songs")
+            # sort played songs by played time descending
+            played_songs.sort(key=lambda x: __get_timestamp(song=x), reverse=True)
+            # most recently played from this album?
+            most_recently_played_for_album: Song = played_songs[0]
+            most_recently_played_for_album_time: float = __get_timestamp(most_recently_played_for_album)
+            # extract from backlog the songs played before this
+            curr_backlog: Song
+            rmv_backlog: int = 0
+            for curr_backlog in backlog:
+                curr_backlog_time: float = __get_timestamp(curr_backlog)
+                if verbose:
+                    msgproc.log(f"curr_backlog_time [{curr_backlog_time}] "
+                                f"most_recently_played_for_album_time [{most_recently_played_for_album_time}] "
+                                f"backlog is after [{curr_backlog_time >= most_recently_played_for_album_time}]")
+                if curr_backlog_time >= most_recently_played_for_album_time:
+                    if verbose:
+                        msgproc.log(f"Adding [{curr_backlog.getId()}] [{curr_backlog.getTitle()}] from backlog")
+                    # msgproc.log(f"Adding [{curr_backlog.getId()}] [{curr_backlog.getTitle()}] to song_list")
+                    song_list.append(curr_backlog)
+                    rmv_backlog += 1
+                    if len(song_list) >= song_limit:
+                        # good to go
+                        finished = True
+                        break
+                else:
+                    if verbose:
+                        msgproc.log(f"Not adding [{curr_backlog.getId()}] [{curr_backlog.getTitle()}] from backlog")
+                    break
+            if finished:
+                break
+            # remove from backlog
+            if verbose:
+                msgproc.log(f"removing [{rmv_backlog}] songs from backlog")
+            backlog = backlog[rmv_backlog:]
+            # the collected songs are ready for the backlog, so we add to backlog
+            if verbose:
+                msgproc.log(f"Adding [{len(played_songs)}] from [{curr_album.getId()}] to backlog")
+            backlog.extend(played_songs)
+            backlog.sort(key=lambda x: __get_timestamp(song=x), reverse=True)
+            if verbose:
+                msgproc.log(f"Backlog length is [{len(backlog)}]")
+        if (not album_list or len(album_list) < num_album) or (loaded_album_count >= max_albums):
+            # we are finished
+            finished = True
+            break
+        offset += num_album
+    # process backlog?
+    # if not len(song_list) >= song_limit and len(backlog) > 0:
+    while len(song_list) < song_limit and len(backlog) > 0:
+        curr_from_backlog: Song = backlog[0]
+        song_list.append(curr_from_backlog)
+        backlog = backlog[1:]
+    curr_song: Song
+    for curr_song in song_list:
+        entries.append(entry_creator.song_to_entry(
+            objid=objid,
+            song=curr_song))
+    return entries
+
+
 def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     # just show plain songs here, unless they are too many
     res: Response[Starred]
@@ -1248,31 +1375,47 @@ def __get_album_property_dataset() -> AlbumPropertyDataset:
     dataset_load_start: float = time.time()
     key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
     dataset: list[AlbumPropertyMetadata] = persistence.get_album_property_dataset(property_key_list=key_list)
+    res: AlbumPropertyDataset = AlbumPropertyDataset(dataset)
     dataset_load_elapsed: float = time.time() - dataset_load_start
     msgproc.log(f"__get_album_property_dataset dataset ({len(dataset)} items) loaded in [{dataset_load_elapsed:.3f}]")
-    return AlbumPropertyDataset(dataset)
+    return res
 
 
 def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    start: float = time.time()
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     # get the dataset
     dataset: AlbumPropertyDataset = __get_album_property_dataset()
+    if verbose:
+        msgproc.log(f"handler_tag_album_browser elapsed after load dataset [{time.time() - start:.3f}]")
+    load_album_meta_start: float = time.time()
     # extract keys, no need to sort them
-    property_keys: list[str] = dataset.keys
+    property_keys: set[str] = dataset.keys
     # matching albums
-    album_id_list: list[str] = dataset.album_id_list
+    album_id_list: list[str] = list(dataset.album_id_set)
     random_album_id_list: list[str] = random.choices(album_id_list, k=len(property_keys))
     random_album_metadata_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=random_album_id_list)
+    if verbose:
+        msgproc.log(f"handler_tag_album_browser loaded [{len(random_album_id_list)}] "
+                    f"albums metadata in [{time.time() - load_album_meta_start:.3f}]")
     # just get the albums
+    md_list_start: float = time.time()
     random_album_metadata_list: list[AlbumMetadata] = list(random_album_metadata_dict.values())
     if verbose:
+        msgproc.log(f"handler_tag_album_browser loaded md to list [{len(random_album_metadata_list)}] "
+                    f"albums metadata in [{time.time() - md_list_start:.3f}]")
+    if verbose:
         msgproc.log(f"handler_tag_album_browser property keys [{property_keys}]")
+    msgproc.log(f"handler_tag_album_browser elapsed before key iteration [{time.time() - start:.3f}]")
     curr: AlbumPropertyKey
     for curr in AlbumPropertyKey:
+        key_display_start: float = time.time()
         if curr.property_key not in property_keys:
-            msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] skipped")
+            if verbose:
+                msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] "
+                            f"skipped in [{time.time() - key_display_start:.3f}]")            
             continue
-        value_count: int = len(dataset.get_values(key=curr.property_key))
+        value_count: int = dataset.get_value_count_by_key(key=curr.property_key)
         # none will show up?
         none_needed: bool = dataset.get_album_id_count_for_key(key=curr.property_key) < dataset.album_id_count
         if none_needed > 0:
@@ -1291,28 +1434,16 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
             pid=objid,
             title=f"{curr.display_value} [{value_count}]")
         # set cover art if one is available
-        if len(random_album_metadata_list) > 0:
-            random_album: AlbumMetadata = random_album_metadata_list.pop(0)
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art),
-                target=entry)
+        random_album: AlbumMetadata = random_album_metadata_list.pop(0) if len(random_album_metadata_list) > 0 else None
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art if random_album else None),
+            target=entry)
         entries.append(entry)
+        if verbose:
+            msgproc.log(f"handler_tag_album_browser shown key [{curr.property_key}] in [{time.time() - key_display_start:.3f}]")
+    if verbose:
+        msgproc.log(f"handler_tag_album_browser completed in [{time.time() - start:.3f}]")
     return entries
-
-
-def condition_list_to_dict(condition_list: list[AlbumPropertyKeyValue]) -> dict[str, list[str]]:
-    res: dict[str, list[str]] = {}
-    curr: AlbumPropertyKeyValue
-    for curr in condition_list if condition_list else []:
-        list_by_key: list[str] = res[curr.key] if curr.key in res else None
-        if list_by_key is None:
-            list_by_key = [curr.value]
-            res[curr.key] = list_by_key
-        else:
-            # add if it does not already exists
-            if curr.value not in list_by_key:
-                list_by_key.append(curr.value)
-    return res
 
 
 def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1358,7 +1489,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
                     f"filtered to [{dataset.size}] "
                     f"albums [{matching_album_count}]")
     album_id_list_to_load: list[str] = []
-    values: list[str] = sorted(dataset.get_values(key=album_property_key))
+    values: list[str] = sorted(list(dataset.get_values(key=album_property_key)))
     none_album_id_set: set[str] = dataset.album_id_set - dataset.get_album_id_set_for_key(key=album_property_key)
     none_entry_size: int = len(none_album_id_set)
     none_entry_needed: bool = none_entry_size > 0
@@ -1373,6 +1504,8 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     at_offset: list[str] = values_to_show[offset:] if len(values_to_show) > offset else []
     to_display: list[str] = ([] if len(at_offset) == 0
                              else at_offset[0:min(len(at_offset), album_property_key_matched.max_items + 1)])
+    # filter out already set filters
+    to_display = list(filter(lambda x: not __condition_already_exists(condition_list, album_property_key, x), to_display))
     next_value: str = (at_offset[album_property_key_matched.max_items]
                        if len(to_display) > album_property_key_matched.max_items
                        else None)
@@ -1381,11 +1514,11 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     random_matching_album_id_by_value: dict[str, str] = {}
     match_count_by_value: dict[str, int] = {}
     for curr_value in to_display if to_display else []:
-        value_matching_album_list: list[str] = dataset.get_album_id_list_by_key_value(key=album_property_key, value=curr_value)
-        if len(value_matching_album_list) == 0:
+        value_matching_albums: set[str] = dataset.get_album_id_set_by_key_value(key=album_property_key, value=curr_value)
+        if len(value_matching_albums) == 0:
             msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}] [{curr_value}]")
-        match_count_by_value[curr_value] = len(value_matching_album_list)
-        random_album_id: str = secrets.choice(value_matching_album_list) if len(value_matching_album_list) > 0 else None
+        match_count_by_value[curr_value] = len(value_matching_albums)
+        random_album_id: str = secrets.choice(list(value_matching_albums)) if len(value_matching_albums) > 0 else None
         random_matching_album_id_by_value[curr_value] = random_album_id
         if verbose:
             msgproc.log(f"random_matching_album_id_by_value for [{curr_value}] -> {random_album_id}")
@@ -1393,12 +1526,11 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
         if verbose:
             msgproc.log(f"album_id_list_to_load appending [{random_album_id}] for [{curr_value}]")
             msgproc.log(f"handler_album_browse_filter_key pair [{album_property_key}]:[{curr_value}] "
-                        f"matches [{len(value_matching_album_list)}] albums out of [{matching_album_count}]")
+                        f"matches [{len(value_matching_albums)}] albums out of [{matching_album_count}]")
     # find album matching None
     if verbose:
         msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] [none] "
                     f"matches [{len(none_album_id_set)}] albums")
-    if verbose:
         msgproc.log(f"loading album with id list: [{album_id_list_to_load}]")
     random_album_metadata_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list_to_load)
     if verbose:
@@ -1475,6 +1607,21 @@ def property_key_in_filter_list(property_key: str, filter_list: list[list[str]])
     return False
 
 
+def __condition_already_exists(
+        condition_list: list[AlbumPropertyKeyValue],
+        property_key: str, property_value: str | None) -> bool:
+    conditions_by_key: list[AlbumPropertyKeyValue] = list(filter(
+        lambda x: x.key == property_key,
+        condition_list if condition_list else []))
+    curr: AlbumPropertyKeyValue
+    for curr in conditions_by_key:
+        if curr.value is None and property_value is None:
+            return True
+        elif curr.value == property_value:
+            return True
+    return False
+
+
 def __any_none_condition_for_key(condition_list: list[AlbumPropertyKeyValue], property_key: str) -> bool:
     curr: AlbumPropertyKeyValue
     conditions_by_key: list[AlbumPropertyKeyValue] = list(filter(
@@ -1517,11 +1664,11 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     # shrink dataset.
     dataset_processor: AlbumPropertyDatasetProcessor = AlbumPropertyDatasetProcessor(dataset=full_dataset)
     dataset: AlbumPropertyDataset = dataset_processor.apply_filters(filter_list=condition_list)
-    matching_albums: list[str] = dataset.album_id_list
+    matching_albums: list[str] = list(dataset.album_id_set)
     msgproc.log(f"dataset with size [{full_dataset.size}] -> "
                 f"filtered to [{dataset.size}] "
                 f"albums [{len(matching_albums)}]")
-    dataset_keys: list[str] = dataset.keys
+    dataset_keys: set[str] = dataset.keys
     msgproc.log(f"dataset keys [{dataset_keys}]")
     key_list: list[str] = []
     curr: AlbumPropertyKey
@@ -1535,14 +1682,14 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
             msgproc.log(f"handler_album_browse_filter_value key [{curr_key}] already has a filter for None, skipping")
             continue
         # get values for key
-        values: list[str] = dataset.get_values(key=curr_key)
+        values: set[str] = dataset.get_values(key=curr_key)
         if verbose:
             msgproc.log(f"handler_album_browse_filter_value values for [{curr_key}] -> [{values}]")
         # is there only one value, and this matches all items?
         valid_value_count: int = 0
         curr_value: str
-        for curr_value in values if values else []:
-            val_match_count: int = len(dataset.get_album_id_list_by_key_value(key=curr_key, value=curr_value))
+        for curr_value in values if values else set():
+            val_match_count: int = len(dataset.get_album_id_set_by_key_value(key=curr_key, value=curr_value))
             if val_match_count == len(matching_albums):
                 if verbose:
                     msgproc.log(f"handler_album_browse_filter_value pair [{curr_key}]: [{curr_value}] "
@@ -1573,7 +1720,7 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     for curr_album_property_key in AlbumPropertyKey:
         if curr_album_property_key not in property_key_list:
             continue
-        values_by_key: list[str] = dataset.get_values(key=curr_album_property_key.property_key)
+        values_by_key: set[str] = dataset.get_values(key=curr_album_property_key.property_key)
         msgproc.log(f"handler_album_browse_filter_value presenting [{curr_album_property_key.display_value}] "
                     f"([{curr_album_property_key.property_key}]) for [{len(values_by_key)}] values")
         identifier: ItemIdentifier = ItemIdentifier(
@@ -1670,7 +1817,7 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
     # shrink dataset.
     dataset_processor: AlbumPropertyDatasetProcessor = AlbumPropertyDatasetProcessor(dataset=full_dataset)
     dataset: AlbumPropertyDataset = dataset_processor.apply_filters(filter_list=condition_list)
-    matching_albums: list[str] = dataset.album_id_list
+    matching_albums: list[str] = list(dataset.album_id_set)
     matching_album_count: int = len(matching_albums)
     msgproc.log(f"handler_element_matching_albums matching_album_count [{matching_album_count}]")
     # load albums
@@ -3833,6 +3980,8 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
         tag_list.append(TagType.FAVORITE_SONGS_LIST)
         if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_FAVORITE_SONGS_PAGINATED_VIEW):
             tag_list.append(TagType.FAVORITE_SONGS)
+    # add recently played songs
+    tag_list.append(TagType.RECENTLY_PLAYED_SONGS)
     entry_list: list[dict[str, any]] = tag_list_to_entries(
         objid,
         tag_list)
@@ -3871,6 +4020,7 @@ __tag_action_dict: dict = {
     TagType.RANDOM_SONGS_LIST.tag_name: handler_tag_random_songs_list,
     TagType.FAVORITE_SONGS.tag_name: handler_tag_favourite_songs,
     TagType.FAVORITE_SONGS_LIST.tag_name: handler_tag_favourite_songs_list,
+    TagType.RECENTLY_PLAYED_SONGS.tag_name: handler_tag_recently_played_songs,
     TagType.ALBUM_BROWSER.tag_name: handler_tag_album_browser
 }
 
@@ -4075,6 +4225,7 @@ def log_search_duration(
 
 
 def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     artist_list: list[Artist] = []
     artist_id_set: set[str] = set()
     # try to search artists by the provided artist_name
@@ -4083,17 +4234,22 @@ def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
         artistCount=20,
         albumCount=0,
         songCount=0)
-    msgproc.log(f"search_artist_by_artist_name for [{artist_name}] -> [{len(res.getArtists()) if res else 0}] artists")
+    if verbose:
+        msgproc.log(f"search_artist_by_artist_name for [{artist_name}] -> "
+                    f"[{len(res.getArtists()) if res else 0}] artists")
     current: Artist
     for current in res.getArtists():
-        if not current.getId() in artist_id_set:
+        if current.getId() not in artist_id_set:
             # keep track and store in list
             artist_id_set.add(current.getId())
-            msgproc.log(f"search_artist_by_artist_name for [{artist_name}] adding [{current.getId()}] [{current.getName()}]")
+            if verbose:
+                msgproc.log(f"search_artist_by_artist_name for [{artist_name}] "
+                            f"adding [{current.getId()}] [{current.getName()}]")
             artist_list.append(current)
     # we also want to see if we have matching artist id by the provided artist_name
     artist_id_list: list[str] = persistence.get_artist_id_list_by_display_name(artist_display_name=artist_name)
-    msgproc.log(f"search_artist_by_artist_name [{artist_name}] -> [{artist_id_list}]")
+    if verbose:
+        msgproc.log(f"search_artist_by_artist_name handle display names: [{artist_name}] -> [{artist_id_list}]")
     artist_id: str
     # split it!
     for artist_id in artist_id_list:
@@ -4107,7 +4263,9 @@ def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
             msgproc.log(f"search_artist_by_artist_name could not retrieve artist by id [{artist_id}]")
             continue
         found: Artist = artist_res.getObj()
-        msgproc.log(f"search_artist_by_artist_name for [{artist_name}] adding [{found.getId()}] [{found.getName()}]")
+        if verbose:
+            msgproc.log(f"search_artist_by_artist_name for [{artist_name}] "
+                        f"adding [{found.getId()}] [{found.getName()}]")
         artist_list.append(found)
     return artist_list
 
@@ -4132,6 +4290,7 @@ def search_songs_by_song_title(song_title: str) -> list[Song]:
 
 
 def search_songs_by_artist(artist_name: str) -> list[Song]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     song_list: list[Song] = []
     album_id_set: set[str] = set()
     song_id_set: set[str] = set()
@@ -4139,12 +4298,14 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
     artist_list: list[Artist] = search_artist_by_artist_name(artist_name=artist_name)
     current_artist: Artist
     for current_artist in artist_list:
-        msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
-                    f"found artist_id [{current_artist.getId()}] [{current_artist.getName()}]")
+        if verbose:
+            msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
+                        f"found artist_id [{current_artist.getId()}] [{current_artist.getName()}]")
         # we must load the artist
         artist_res: Response[Artist] = connector_provider.get().getArtist(artist_id=current_artist.getId())
         if not artist_res or not artist_res.isOk():
-            msgproc.log(f"search_songs_by_artist could not retrieve artist by id [{current_artist.getId()}]")
+            if verbose:
+                msgproc.log(f"search_songs_by_artist could not retrieve artist by id [{current_artist.getId()}]")
             continue
         artist: Artist = artist_res.getObj()
         # get albums by that artist and append to result list
@@ -4154,14 +4315,16 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
             if album.getId() in album_id_set:
                 continue
             album_id_set.add(album.getId())
-            msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
-                        f"artist_id [{artist.getId()}] [{artist.getName()}] "
-                        f"found album_id [{album.getId()}] "
-                        f"title [{album.getTitle()}]")
+            if verbose:
+                msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
+                            f"artist_id [{artist.getId()}] [{artist.getName()}] "
+                            f"found album_id [{album.getId()}] "
+                            f"title [{album.getTitle()}]")
             # we must load the album
             album_res: Response[Album] = connector_provider.get().getAlbum(albumId=album.getId())
             if not album_res or not album_res.isOk():
-                msgproc.log(f"search_songs_by_artist could not retrieve album by id [{album.getId()}]")
+                if verbose:
+                    msgproc.log(f"search_songs_by_artist could not retrieve album by id [{album.getId()}]")
                 continue
             # add the songs to the list
             song: Song
@@ -4169,74 +4332,76 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
                 if song.getId() in song_id_set:
                     continue
                 song_id_set.add(song.getId())
-                msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
-                            f"artist_id [{artist.getId()}] [{artist.getName()}] "
-                            f"album_id [{album.getId()}] "
-                            f"title [{album.getTitle()}] "
-                            f"adding song: [{song.getTitle()}]")
+                if verbose:
+                    msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
+                                f"artist_id [{artist.getId()}] [{artist.getName()}] "
+                                f"album_id [{album.getId()}] "
+                                f"title [{album.getTitle()}] "
+                                f"adding song: [{song.getTitle()}]")
                 song_list.append(song)
-    return song_list
+    return song_list[:config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT)]
 
 
-def search_albums_by_album_title(album_title: str, found_album_id_set: set[str]) -> list[Album]:
+def search_albums_by_album_title(album_title: str) -> list[Album]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     album_list: list[Album] = []
     res: SearchResult = connector_provider.get().search(
         query=album_title,
         artistCount=0,
-        albumCount=20,
+        albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT),
         songCount=0)
-    msgproc.log(f"search_albums_by_album_title for [{album_title}] -> [{len(res.getAlbums()) if res else 0}] albums")
+    if verbose:
+        msgproc.log(f"search_albums_by_album_title for [{album_title}] -> [{len(res.getAlbums()) if res else 0}] albums")
     album: Album
     for album in res.getAlbums():
-        if album.getId() in found_album_id_set:
-            continue
-        found_album_id_set.add(album.getId())
-        msgproc.log(f"search_albums_by_album_title for album_title [{album_title}] "
-                    f"found album_id [{album.getId()}] "
-                    f"title [{album.getTitle()}]")
-        # we must load the album
-        loaded: Album = subsonic_util.try_get_album(album_id=album.getId())
-        if loaded:
-            album_list.append(loaded)
-    return album_list
+        if verbose:
+            msgproc.log(f"search_albums_by_album_title for album_title [{album_title}] "
+                        f"found album_id [{album.getId()}] "
+                        f"title [{album.getTitle()}]")
+        album_list.append(album)
+    return album_list[:config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT)]
 
 
-def search_albums_by_song_title(song_title: str, found_album_id_set: set[str]) -> list[Album]:
-    album_list: list[Album] = []
-    res: SearchResult = connector_provider.get().search(
-        query=song_title,
-        artistCount=0,
-        albumCount=0,
-        songCount=20)
-    msgproc.log(f"search_albums_by_song_title for [{song_title}] -> [{len(res.getArtists()) if res else 0}] songs")
-    song: Song
-    for song in res.getSongs():
-        if song.getAlbumId() in found_album_id_set:
-            continue
-        found_album_id_set.add(song.getAlbumId())
-        msgproc.log(f"search_albums_by_song_title for song_title [{song_title}] "
-                    f"found song_id [{song.getId()}] "
-                    f"title [{song.getTitle()}] "
-                    f"album_id [{song.getAlbumId()}]")
-        # we must load the album
-        album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId())
-        if album:
-            album_list.append(album)
-    return album_list
+def search_artist_by_name(artist_name: str) -> list[ArtistIdNameCoverArt]:
+    if (config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ALBUMS) and
+            config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ALBUMS)):
+        return search_artist_by_name_using_db(artist_name=artist_name)
+    else:
+        return search_artist_by_name_using_api(artist_name=artist_name)
 
 
-def search_artist_by_title(title: str) -> list[Artist]:
-    artist_list: list[Artist] = []
+def search_artist_by_name_using_db(artist_name: str) -> list[ArtistIdNameCoverArt]:
+    result: list[ArtistIdNameCoverArt] = []
+    artist_list: list[ArtistMetadata] = persistence.find_artist_metadata_by_name(artist_name=artist_name)
+    if not artist_list or len(artist_list) == 0:
+        return []
+    # rank
+    artist_list = search_result_rank.sort_artist_list_by_rank(
+        search_value=artist_name,
+        artist_list=artist_list)
+    # limit
+    artist_list = artist_list[0:min(config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT), len(artist_list))]
+    curr: ArtistMetadata
+    for curr in artist_list:
+        result.append(ArtistIdNameCoverArt(
+            artist_id=curr.artist_id,
+            artist_name=curr.artist_name,
+            cover_art=curr.artist_cover_art))
+    return result
+
+
+def search_artist_by_name_using_api(artist_name: str) -> list[ArtistIdNameCoverArt]:
+    artist_list: list[ArtistIdNameCoverArt] = []
     artist_id_set: set[str] = set()
     res: SearchResult = connector_provider.get().search(
-        query=title,
+        query=artist_name,
         artistCount=20,
         albumCount=20,
         songCount=20)
     if not res:
         # it's already over
         return artist_list
-    msgproc.log(f"search_artist_by_title for [{title}] -> "
+    msgproc.log(f"search_artist_by_name for [{artist_name}] -> "
                 f"[{len(res.getArtists())}] artists "
                 f"[{len(res.getAlbums())}] albums "
                 f"[{len(res.getSongs())}] songs")
@@ -4249,7 +4414,10 @@ def search_artist_by_title(title: str) -> list[Artist]:
         artist_id_set.add(artist.getId())
         loaded = subsonic_util.try_get_artist(artist_id=artist.getId())
         if loaded:
-            artist_list.append(loaded)
+            artist_list.append(ArtistIdNameCoverArt(
+                artist_id=loaded.getId(),
+                artist_name=loaded.getName(),
+                cover_art=subsonic_util.get_artist_cover_art(artist=loaded)))
     # process albums
     album: Album
     for album in res.getAlbums():
@@ -4261,7 +4429,10 @@ def search_artist_by_title(title: str) -> list[Artist]:
             artist_id_set.add(curr_artist_id)
             loaded = subsonic_util.try_get_artist(artist_id=curr_artist_id)
             if loaded:
-                artist_list.append(loaded)
+                artist_list.append(ArtistIdNameCoverArt(
+                    artist_id=loaded.getId(),
+                    artist_name=loaded.getName(),
+                    cover_art=subsonic_util.get_artist_cover_art(artist=loaded)))
     # process songs
     song: Song
     for song in res.getSongs():
@@ -4278,19 +4449,24 @@ def search_artist_by_title(title: str) -> list[Artist]:
             artist_id_set.add(curr_occ.artist_id)
             loaded = subsonic_util.try_get_artist(artist_id=curr_occ.artist_id)
             if loaded:
-                artist_list.append(loaded)
+                artist_list.append(ArtistIdNameCoverArt(
+                    artist_id=loaded.getId(),
+                    artist_name=loaded.getName(),
+                    cover_art=subsonic_util.get_artist_cover_art(artist=loaded)))
     return artist_list
 
 
 def search_albums_by_artist(artist_name: str) -> list[Album]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     album_list: list[Album] = []
     album_id_set: set[str] = set()
     # get the artists.
     artist_list: list[Artist] = search_artist_by_artist_name(artist_name=artist_name)
     current_artist: Artist
     for current_artist in artist_list:
-        msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
-                    f"found artist_id [{current_artist.getId()}] [{current_artist.getName()}]")
+        if verbose:
+            msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
+                        f"found artist_id [{current_artist.getId()}] [{current_artist.getName()}]")
         # we must load the artist
         artist_res: Response[Artist] = connector_provider.get().getArtist(artist_id=current_artist.getId())
         if not artist_res or not artist_res.isOk():
@@ -4304,12 +4480,13 @@ def search_albums_by_artist(artist_name: str) -> list[Album]:
             if album.getId() in album_id_set:
                 continue
             album_id_set.add(album.getId())
-            msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
-                        f"artist_id [{artist.getId()}] [{artist.getName()}] "
-                        f"found album_id [{album.getId()}] "
-                        f"title [{album.getTitle()}]")
+            if verbose:
+                msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
+                            f"artist_id [{artist.getId()}] [{artist.getName()}] "
+                            f"found album_id [{album.getId()}] "
+                            f"title [{album.getTitle()}]")
             album_list.append(album)
-    return album_list
+    return album_list[:config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT)]
 
 
 @dispatcher.record('search')
@@ -4325,12 +4502,17 @@ def search(a):
     field: str = a["field"]
     objkind: str = a["objkind"] if "objkind" in a else None
     origsearch: str = a["origsearch"] if "origsearch" in a else None
-    msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
+    msgproc.log(f"origsearch: [{origsearch}]")
+    msgproc.log(f"value: [{value}]")
+    msgproc.log(f"field: [{field}]")
+    msgproc.log(f"objkind: [{objkind}]")
+    # msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
     if not value:
         # required, we return nothing if not set
         return _returnentries(entries, no_cache=without_cache)
     kind_specified: bool = objkind and len(objkind) > 0
     field_specified: bool = field and len(field) > 0
+    value_specified: bool = value and len(value) > 0
     album_as_container: bool = (config.get_config_param_as_bool(constants.ConfigParam.SEARCH_RESULT_ALBUM_AS_CONTAINER)
                                 and not config.get_config_param_as_bool(constants.ConfigParam.DISABLE_NAVIGABLE_ALBUM))
     album_entry_options: dict[str, any] = {}
@@ -4346,6 +4528,9 @@ def search(a):
     search_start: float = time.time()
     if kind_specified and field_specified:
         msgproc.log(f"Both specified: kind [{objkind}] field [{field}]")
+        if not value_specified:
+            msgproc.log("A value must be specified")
+            return []
         if objkind == KindType.ALBUM:
             # looking for albums.
             if SearchType.ARTIST.getName() == field:
@@ -4363,15 +4548,10 @@ def search(a):
                             album=current_album,
                             options=album_entry_options))
                     resultset_length += 1
-            elif SearchType.TRACK.getName() == field:
-                found_album_id_set: set[str] = set()
-                # we need to find albums by tracks
-                album_list: list[Album] = search_albums_by_song_title(song_title=value, found_album_id_set=found_album_id_set)
-                # actually the searcher might also want to search album by the album title
-                # we will use value as the album title
-                album_list.extend(search_albums_by_album_title(album_title=value, found_album_id_set=found_album_id_set))
+            elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
+                # find albums by title
+                album_list: list[Album] = search_albums_by_album_title(album_title=value)
                 for current_album in album_list:
-                    # cache_actions.on_album(album=current_album)
                     if album_as_container:
                         entries.append(entry_creator.album_to_navigable_entry(
                             objid=objid,
@@ -4382,8 +4562,6 @@ def search(a):
                             album=current_album,
                             options=album_entry_options))
                     resultset_length += 1
-                # actually the searcher might also want to search album by the album title
-                # we will use value as the album title
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
         elif objkind == KindType.TRACK:
@@ -4396,7 +4574,7 @@ def search(a):
                         objid=objid,
                         song=current_song))
                     resultset_length += 1
-            elif SearchType.TRACK.getName() == field:
+            elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
                 # looking for track by tracks
                 song_list: list[Song] = search_songs_by_song_title(song_title=value)
                 for current_song in song_list:
@@ -4407,15 +4585,38 @@ def search(a):
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
         elif objkind == KindType.ARTIST:
-            if SearchType.TRACK.getName() == field:
+            if SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
                 # we search artists by any title
-                artist_list: list[Artist] = search_artist_by_title(title=value)
-                artist: Artist
+                artist_list: list[ArtistIdNameCoverArt] = search_artist_by_name(artist_name=value)
+                artist: ArtistIdNameCoverArt
                 for artist in artist_list:
-                    entries.append(entry_creator.artist_to_entry(
+                    entries.append(entry_creator.artist_to_entry_raw(
                         objid=objid,
-                        artist=artist))
+                        artist_id=artist.artist_id,
+                        artist_entry_name=artist.artist_name,
+                        artist_cover_art=artist.cover_art))
                     resultset_length += 1
+            else:
+                msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
+        elif objkind == KindType.PLAYLIST:
+            if SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
+                # search playlist by title
+                res: Response[Playlists] = connector_provider.get().getPlaylists()
+                if not res or not res.isOk():
+                    msgproc.log("search cannot load playlists")
+                    return []
+                pl_list: list[Playlist] = list(filter(
+                    lambda x: value.lower() in x.getName().lower(),
+                    res.getObj().getPlaylists()))
+                ranked_pl_list: list[Playlist] = search_result_rank.sort_obj_by_rank(
+                    obj_list=pl_list,
+                    search_value=value,
+                    key=lambda p: [p.getName()])
+                curr_playlist: Playlist
+                for curr_playlist in ranked_pl_list if ranked_pl_list else []:
+                    entries.append(entry_creator.playlist_to_entry(
+                        objid=objid,
+                        playlist=curr_playlist))
             else:
                 msgproc.log(f"unimplemented search schema objkind [{objkind}] field [{field}]")
         else:
@@ -4446,7 +4647,7 @@ def search(a):
                         album=current_album,
                         options=album_entry_options))
                 resultset_length += 1
-        elif SearchType.TRACK.getName() == field:
+        elif SearchType.TRACK.getName() == field or SearchType.TITLE.getName() == field:
             # search tracks by specified value
             search_result: SearchResult = connector_provider.get().search(
                 query=value,
@@ -4525,7 +4726,7 @@ def search(a):
                         album=current_album,
                         options=album_entry_options))
                 resultset_length += 1
-        elif SearchType.TRACK.getName() == objkind:
+        elif SearchType.TRACK.getName() == objkind or SearchType.TITLE.getName() == objkind:
             # search tracks by specified value
             search_result: SearchResult = connector_provider.get().search(
                 query=value,

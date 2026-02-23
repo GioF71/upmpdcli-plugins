@@ -445,5 +445,6 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.FAVORITE_ARTISTS.tag_name: favourite_artist_art_retriever,
     TagType.PLAYLISTS.tag_name: playlists_art_retriever,
     TagType.FAVORITE_SONGS.tag_name: favourite_song_retriever,
-    TagType.FAVORITE_SONGS_LIST.tag_name: favourite_song_retriever
+    TagType.FAVORITE_SONGS_LIST.tag_name: favourite_song_retriever,
+    TagType.RECENTLY_PLAYED_SONGS.tag_name: recently_played_albums_art_retriever
 }

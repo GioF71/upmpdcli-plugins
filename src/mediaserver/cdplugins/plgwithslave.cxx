@@ -14,7 +14,8 @@
  *   Free Software Foundation, Inc.,
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include "config.h"
+
+// #define LOGGER_LOCAL_LOGINC 4
 
 #include "plgwithslave.hxx"
 
@@ -63,6 +64,7 @@ public:
     string media_url;
     long long len{0};
     time_t opentime{0};
+    std::unordered_map<std::string, std::string> fullresponse;
 };
 
 class ContentCacheEntry {
@@ -333,9 +335,18 @@ std::string PlgWithSlave::get_media_url(const std::string& path, const std::stri
         m->laststream.path = path;
         m->laststream.media_url = it->second;
         m->laststream.opentime = now;
+        m->laststream.fullresponse = response;
+    } else {
+        response = m->laststream.fullresponse;
     }
 
-    LOGDEB("PlgWithSlave: media url [" << m->laststream.media_url << "]\n");
+    LOGDEB1("PlgWithSlave: media url [" << m->laststream.media_url << "]\n");
+#if 0
+    LOGDEB("PlgWithSlave: response:\n");
+    for (const auto& [k,v] : response) {
+        LOGDEB("    " << k << " -> " << v << "\n");
+    }
+#endif
     return m->laststream.media_url;
 }
 
@@ -699,8 +710,7 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
             // - uprcl does not use the pre-cooked search but directly the upnp search
             // radio-browser, radio-paradise, upradios, hra, bbc: no search or ok
             // ! Subsonic and Tidal need change !
-            slavefield = "track";
-//            slavefield = "title";
+            slavefield = "title";
             value = vs[i+2];
         }
     }

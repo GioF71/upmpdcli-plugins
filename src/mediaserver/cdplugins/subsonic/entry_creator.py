@@ -269,8 +269,7 @@ def genre_to_entry(
     genre_art: str = None
     genre_art_url: str = None
     # first, query the db
-    album_metadata: AlbumMetadata = persistence.get_random_album_by_genre(
-        genre_name=genre_name)
+    album_metadata: AlbumMetadata = persistence.get_random_album_by_genre(genre_name=genre_name)
     if album_metadata:
         if verbose:
             msgproc.log("genre_to_entry got from db "
@@ -533,7 +532,7 @@ def song_to_entry(
     multi_codec_album: MultiCodecAlbum = get_option(options=options, option_key=OptionKey.MULTI_CODEC_ALBUM)
     if (MultiCodecAlbum.YES == multi_codec_album and
         config.get_config_param_as_bool(constants.ConfigParam.ALLOW_BLACKLIST_CODEC_IN_SONG) and
-            (not song.getSuffix().lower() in config.get_whitelist_codecs())):
+            (song.getSuffix().lower() not in config.get_whitelist_codecs())):
         title = "{} [{}]".format(title, song.getSuffix())
     upnp_util.set_track_title(title, entry)
     entry['tp'] = 'it'
@@ -625,7 +624,8 @@ def album_to_entry(
     force_load_quality_info: bool = get_option(
         options=options,
         option_key=OptionKey.FORCE_RELOAD_ALBUM_QUALITY_INFO)
-    msgproc.log(f"album_to_entry for [{album.getId()}] force_load_quality_info [{force_load_quality_info}]")
+    if verbose:
+        msgproc.log(f"album_to_entry for [{album.getId()}] force_load_quality_info [{force_load_quality_info}]")
     album_quality_badge: str = album_metadata.quality_badge if album_metadata else None
     any_lossy: bool = album_metadata.get_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS) in [
             audio_codec.LosslessStatus.LOSSY,
@@ -664,9 +664,9 @@ def album_to_entry(
         blacklist_count: int = 0
         song: Song
         for song in song_list:
-            if not song.getSuffix().lower() in codecs:
+            if song.getSuffix().lower() not in codecs:
                 codecs.append(song.getSuffix().lower())
-                if not song.getSuffix().lower() in config.get_whitelist_codecs():
+                if song.getSuffix().lower() not in config.get_whitelist_codecs():
                     blacklist_count += 1
                 else:
                     whitelist_count += 1
