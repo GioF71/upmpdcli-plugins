@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.5
+
+- Album browser: performance improvements
+- Improvements in recently played songs
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.4
 
 - Add support for http custom headers (`customheadersfilename`), requires proxy mode

@@ -1213,7 +1213,6 @@ def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, en
     # should not be worth to go beyond max_albums
     num_album: int = max_albums
     finished: bool = False
-    loaded_album_dict: dict[str, Album] = {}
     # songs that we are not sure we can add to the list yet
     backlog: list[Song] = []
     while not finished:
@@ -1235,13 +1234,13 @@ def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, en
         curr_album: Album
         for curr_album in album_list:
             # we must load the album because we want "played" data for each song
-            loaded: Album = loaded_album_dict[curr_album.getId()] if curr_album.getId() in loaded_album_dict else None
+            load_start: float = time.time()
+            loaded = subsonic_util.try_get_album(album_id=curr_album.getId())
             if not loaded:
-                loaded = subsonic_util.try_get_album(album_id=curr_album.getId())
-                if not loaded:
-                    msgproc.log(f"Cannot load album [{curr_album.getId()}]")
-                    continue
-                loaded_album_dict[curr_album.getId()] = loaded
+                msgproc.log(f"Cannot load album [{curr_album.getId()}]")
+                continue
+            msgproc.log(f"handler_tag_recently_played_songs loaded album [{curr_album.getId()}] "
+                        f"[{curr_album.getTitle()}] by [{curr_album.getArtist()}] in [{time.time() - load_start:.3f}]")
             #  extract only played songs
             played_songs: list[Song] = list(filter(lambda x: __get_timestamp(song=x), loaded.getSongs()))
             if len(played_songs) == 0:
@@ -1272,36 +1271,45 @@ def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, en
                     rmv_backlog += 1
                     if len(song_list) >= song_limit:
                         # good to go
+                        msgproc.log(f"handler_tag_recently_played_songs reached limit of [{song_limit}] songs")
                         finished = True
                         break
                 else:
                     if verbose:
                         msgproc.log(f"Not adding [{curr_backlog.getId()}] [{curr_backlog.getTitle()}] from backlog")
                     break
-            if finished:
-                break
             # remove from backlog
             if verbose:
                 msgproc.log(f"removing [{rmv_backlog}] songs from backlog")
             backlog = backlog[rmv_backlog:]
-            # the collected songs are ready for the backlog, so we add to backlog
+            # the collected songs are ready for the backlog, so we add them to the backlog song list
+            # those additional songs might be used in the final part if processing the backlog is allowed
             if verbose:
                 msgproc.log(f"Adding [{len(played_songs)}] from [{curr_album.getId()}] to backlog")
             backlog.extend(played_songs)
             backlog.sort(key=lambda x: __get_timestamp(song=x), reverse=True)
             if verbose:
                 msgproc.log(f"Backlog length is [{len(backlog)}]")
-        if (not album_list or len(album_list) < num_album) or (loaded_album_count >= max_albums):
-            # we are finished
+            if finished:
+                break
+        if loaded_album_count >= max_albums:
+            # we are finished (#1)
+            msgproc.log(f"handler_tag_recently_played_songs reached limit of [{max_albums}] albums")
+            finished = True
+            break
+        if (not album_list or len(album_list) < num_album):
+            # we are finished (#2)
+            msgproc.log("handler_tag_recently_played_songs no more recently played albums available")
             finished = True
             break
         offset += num_album
-    # process backlog?
-    # if not len(song_list) >= song_limit and len(backlog) > 0:
-    while len(song_list) < song_limit and len(backlog) > 0:
-        curr_from_backlog: Song = backlog[0]
-        song_list.append(curr_from_backlog)
-        backlog = backlog[1:]
+    # process backlog allowed?
+    if config.get_config_param_as_bool(constants.ConfigParam.RECENTLY_PLAYED_SONGS_BACKLOG_PROC_AFTER_LAST_ALBUM):
+        while len(song_list) < song_limit and len(backlog) > 0:
+            curr_from_backlog: Song = backlog[0]
+            song_list.append(curr_from_backlog)
+            backlog = backlog[1:]
+    # cycle on song_list and create entries
     curr_song: Song
     for curr_song in song_list:
         entries.append(entry_creator.song_to_entry(
@@ -1407,6 +1415,7 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
     if verbose:
         msgproc.log(f"handler_tag_album_browser property keys [{property_keys}]")
     msgproc.log(f"handler_tag_album_browser elapsed before key iteration [{time.time() - start:.3f}]")
+    all_value_counts: dict[str, int] = dataset.get_all_value_counts()
     curr: AlbumPropertyKey
     for curr in AlbumPropertyKey:
         key_display_start: float = time.time()
@@ -1415,9 +1424,9 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
                 msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] "
                             f"skipped in [{time.time() - key_display_start:.3f}]")            
             continue
-        value_count: int = dataset.get_value_count_by_key(key=curr.property_key)
+        value_count: int = all_value_counts[curr.property_key] if curr.property_key in all_value_counts else 0
         # none will show up?
-        none_needed: bool = dataset.get_album_id_count_for_key(key=curr.property_key) < dataset.album_id_count
+        none_needed: bool = len(dataset.get_missing_album_ids_for_key(key=curr.property_key)) > 0
         if none_needed > 0:
             #  [None] will be displayed, so we increment counter
             value_count += 1
@@ -1489,10 +1498,10 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
                     f"filtered to [{dataset.size}] "
                     f"albums [{matching_album_count}]")
     album_id_list_to_load: list[str] = []
+    value_frequencies: dict[str, int] = dataset.get_value_frequencies(key=album_property_key)
     values: list[str] = sorted(list(dataset.get_values(key=album_property_key)))
-    none_album_id_set: set[str] = dataset.album_id_set - dataset.get_album_id_set_for_key(key=album_property_key)
-    none_entry_size: int = len(none_album_id_set)
-    none_entry_needed: bool = none_entry_size > 0
+    none_album_id_set: set[str] = dataset.get_missing_album_ids_for_key(key=album_property_key)
+    none_entry_needed: bool = len(none_album_id_set) > 0
     msgproc.log(f"handler_album_browse_filter_key none_entry_needed [{none_entry_needed}]")
     none_random_album_id: str = secrets.choice(list(none_album_id_set)) if len(none_album_id_set) > 0 else None
     if none_random_album_id:
@@ -1512,21 +1521,18 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     to_show: list[str] = to_display[0:min(album_property_key_matched.max_items, len(to_display))] if len(to_display) > 0 else []
     curr_value: str
     random_matching_album_id_by_value: dict[str, str] = {}
-    match_count_by_value: dict[str, int] = {}
+    # match_count_by_value: dict[str, int] = {}
     for curr_value in to_display if to_display else []:
-        value_matching_albums: set[str] = dataset.get_album_id_set_by_key_value(key=album_property_key, value=curr_value)
-        if len(value_matching_albums) == 0:
-            msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}] [{curr_value}]")
-        match_count_by_value[curr_value] = len(value_matching_albums)
-        random_album_id: str = secrets.choice(list(value_matching_albums)) if len(value_matching_albums) > 0 else None
+        random_album_id: str = dataset.get_representative_album_id(key=album_property_key, value=curr_value)
         random_matching_album_id_by_value[curr_value] = random_album_id
         if verbose:
             msgproc.log(f"random_matching_album_id_by_value for [{curr_value}] -> {random_album_id}")
         album_id_list_to_load.append(random_album_id)
         if verbose:
             msgproc.log(f"album_id_list_to_load appending [{random_album_id}] for [{curr_value}]")
+            cnt: int = value_frequencies[curr_value] if curr_value in value_frequencies else 0
             msgproc.log(f"handler_album_browse_filter_key pair [{album_property_key}]:[{curr_value}] "
-                        f"matches [{len(value_matching_albums)}] albums out of [{matching_album_count}]")
+                        f"matches [{cnt}] albums out of [{matching_album_count}]")
     # find album matching None
     if verbose:
         msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] [none] "
@@ -1546,24 +1552,24 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
+        value_matching_album_count: int = value_frequencies[curr_value] if curr_value in value_frequencies else 0
         entry: dict[str, any] = upmplgutils.direntry(
             id=id,
             pid=objid,
-            title=f"{curr_value} [{match_count_by_value[curr_value]}]" if curr_value else f"[None] [{none_entry_size}]")
+            title=f"{curr_value} [{value_matching_album_count}]" if curr_value else f"[None] [{len(none_album_id_set)}]")
         # get cover art, special case for None
         curr_album_id: str = (none_random_album_id if curr_value is None
                               else (random_matching_album_id_by_value[curr_value]
                                     if curr_value in random_matching_album_id_by_value
                                     else None))
         # do we have it loaded?
-        random_album_metadata: AlbumMetadata = (random_album_metadata_dict[curr_album_id]
-                                                if curr_album_id in random_album_metadata_dict
-                                                else None)
+        curr_value_md: AlbumMetadata = (random_album_metadata_dict[curr_album_id]
+                                        if curr_album_id in random_album_metadata_dict
+                                        else None)
         # set cover art
-        if random_album_metadata:
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album_metadata.album_cover_art),
-                target=entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=curr_value_md.album_cover_art) if curr_value_md else None,
+            target=entry)
         entries.append(entry)
     # next?
     if next_value:
