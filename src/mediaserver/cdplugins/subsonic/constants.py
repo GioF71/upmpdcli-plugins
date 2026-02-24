@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.4"
+    PLUGIN_RELEASE = "0.9.5"
     PLUGIN_NAME = "subsonic"
 
 
@@ -569,6 +569,11 @@ class ConfigParam(Enum):
         default_value=10,
         description="Maximum number of albums to be loaded in order to retrieve recently played songs")
 
+    RECENTLY_PLAYED_SONGS_BACKLOG_PROC_AFTER_LAST_ALBUM = _ConfigParamData(
+        "recentlyplayedsongsbacklogprocafterlastalbum",
+        default_value=False,
+        description=("Allow backlog processing after last loaded album, "
+                     "can lead to slightly inaccurate in the final results if enabled"))
 
     @property
     def key(self) -> str:
