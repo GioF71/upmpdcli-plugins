@@ -19,126 +19,152 @@ from album_property_key import AlbumPropertyKeyValue
 from collections import defaultdict
 
 
-class AlbumPropertyDataset:
+from collections import defaultdict
 
-    def __init__(self, dataset: list[AlbumPropertyMetadata]):
-        self.__dataset_size = len(dataset)
-        # Main storage: Key is album_id
-        self.__metadata_by_id: dict[str, list[AlbumPropertyMetadata]] = defaultdict(list)
-        # Reverse index: (key, value) -> set of album_ids
-        self.__index: dict[tuple[str, str], set[str]] = defaultdict(set)
-        # Track which IDs have which keys for the "None" filter logic
-        self.__key_presence: dict[str, set[str]] = defaultdict(set)
-        self.__representative_ids: dict[tuple[str, str], str] = {}
-        curr: AlbumPropertyMetadata
+class AlbumPropertyDataset:
+    def __init__(self, dataset: list["AlbumPropertyMetadata"]):
+        # Storage
+        self.__metadata_by_id = defaultdict(list)
+        self.__index = defaultdict(set)        # (key, val) -> {album_ids}
+        self.__key_presence = defaultdict(set) # key -> {album_ids}
+        self.__representative_ids = {}         # (key, val) -> one sample album_id
+        
+        # J1900 Performance: Localize references to avoid 'self.' lookups in the loop
+        meta_by_id = self.__metadata_by_id
+        idx = self.__index
+        presence = self.__key_presence
+        repr_ids = self.__representative_ids
+
         for curr in dataset:
-            self.__metadata_by_id[curr.album_id].append(curr)
-            self.__index[(curr.album_property_key, curr.album_property_value)].add(curr.album_id)
-            self.__key_presence[curr.album_property_key].add(curr.album_id)
-            # Only store the first one we encounter for this specific (key, value)
-            if (curr.album_property_key, curr.album_property_value) not in self.__representative_ids:
-                self.__representative_ids[(curr.album_property_key, curr.album_property_value)] = curr.album_id
+            aid = curr.album_id
+            k = curr.album_property_key
+            v = curr.album_property_value
+            kid = (k, v)
+            
+            # 1. Store the full metadata object
+            meta_by_id[aid].append(curr)
+            
+            # 2. Update the inverted indices
+            idx[kid].add(aid)
+            presence[k].add(aid)
+            
+            # 3. Store a representative for thumbnails/UI
+            if kid not in repr_ids:
+                repr_ids[kid] = aid
+        
+        self.__dataset_size = len(dataset)
+
+    @property
+    def keys(self) -> list[str]:
+        """Returns sorted list of all unique metadata keys."""
+        return sorted(self.__key_presence.keys())
+
+    @property
+    def album_id_count(self) -> int:
+        """Returns the number of unique album IDs. Faster than len(album_id_set)."""
+        return len(self.__metadata_by_id)
+
+    def get_values(self, key: str) -> list[str]:
+        """Returns sorted list of all unique values for a specific key."""
+        return sorted({v for (k, v) in self.__index.keys() if k == key})
+
+    def get_all_value_counts(self) -> dict[str, int]:
+        """Returns {key: count_of_unique_values} mapping."""
+        counts = defaultdict(int)
+        for prop_key, _ in self.__index.keys():
+            counts[prop_key] += 1
+        return dict(counts)
+
+    def get_value_frequencies(self, key: str) -> dict[str, int]:
+        """Returns {value: album_count} for a specific key."""
+        frequencies = {}
+        for (prop_key, prop_val), album_ids in self.__index.items():
+            if prop_key == key:
+                frequencies[prop_val] = len(album_ids)
+        return frequencies
+
+    def get_missing_album_ids_for_key(self, key: str) -> set[str]:
+        """Returns album IDs that don't have this key at all."""
+        return self.album_id_set - self.get_album_id_set_for_key(key)
+
+    def get_all_missing_ids_by_key(self) -> dict[str, set[str]]:
+        """Returns {key: set_of_missing_ids} for every key in the dataset."""
+        all_ids = self.album_id_set
+        return {
+            key: all_ids - present_ids 
+            for key, present_ids in self.__key_presence.items()
+        }
+
+    def get_representative_album_id(self, key: str, value: str) -> str | None:
+        """Returns one album ID that carries this key-value pair."""
+        return self.__representative_ids.get((key, value))
 
     @property
     def size(self) -> int:
         return self.__dataset_size
 
     @property
-    def keys(self) -> set[str]:
-        # Derived from the keys in our presence tracker
-        return set(self.__key_presence.keys())
-
-    def get_album_id_set_for_key(self, key: str) -> set[str]:
-        return self.__key_presence.get(key, set())
-
-    def get_values(self, key: str) -> set[str]:
-        # Extract values from the tuple keys in our index
-        return {k[1] for k in self.__index.keys() if k[0] == key}
-
-    def get_value_count_by_key(self, key: str) -> int:
-        # Efficiently calculates unique values without storing a separate dict
-        return len(self.get_values(key))
-
-    def get_album_id_set_by_key_value(self, key: str, value: str) -> set[str]:
-        return self.__index.get((key, value), set())
-
-    def get_album_id_count_for_key(self, key: str) -> int:
-        # Returns the number of unique album_ids that have this property key
-        return len(self.__key_presence.get(key, set()))
-
-    def get_missing_album_ids_for_key(self, key: str) -> set[str]:
-        # Returns album_ids that have NO entries for the specified key
-        return self.album_id_set - self.__key_presence.get(key, set())
-    
-    def get_all_value_counts(self) -> dict[str, int]:
-        # Aggregates the number of unique values for every key in one pass
-        counts: dict[str, int] = defaultdict(int)
-        
-        # self.__index.keys() contains tuples of (key, value)
-        for prop_key, _ in self.__index.keys():
-            counts[prop_key] += 1
-            
-        return dict(counts)
-        
-    def get_value_frequencies(self, key: str) -> dict[str, int]:
-        # Returns a mapping of {value: count_of_albums} for a specific key
-        # e.g., {"Rock": 15, "Pop": 10}
-        frequencies: dict[str, int] = {}
-        # We look at our index keys that match the requested property key
-        for (prop_key, prop_val), album_ids in self.__index.items():
-            if prop_key == key:
-                frequencies[prop_val] = len(album_ids)
-        return frequencies
-    
-    @property
     def album_id_set(self) -> set[str]:
+        """Returns the set of all unique album IDs in the dataset."""
         return set(self.__metadata_by_id.keys())
 
-    @property
-    def album_id_count(self) -> int:
-        return len(self.__metadata_by_id)
+    def get_album_id_set_for_key(self, key: str) -> set[str]:
+        """Returns all album IDs that have at least one value for this key."""
+        return self.__key_presence.get(key, set())
 
-    def get_representative_album_id(self, key: str, value: str) -> str | None:
-        """Returns a single album_id for cover art purposes without fetching the full set."""
-        return self.__representative_ids.get((key, value))
-    
-    def _get_by_album_id(self) -> dict[str, list[AlbumPropertyMetadata]]:
+    def get_album_id_set_by_key_value(self, key: str, value: str) -> set[str]:
+        """Returns all album IDs matching a specific key-value pair."""
+        return self.__index.get((key, value), set())
+
+    def _get_by_album_id(self) -> dict[str, list]:
+        """Internal bridge to bypass Name Mangling in the Processor."""
         return self.__metadata_by_id
 
 
 class AlbumPropertyDatasetProcessor:
-    
     def __init__(self, dataset: AlbumPropertyDataset):
         self.__dataset = dataset
 
-    def apply_filters(self, filter_list: list[AlbumPropertyKeyValue]) -> AlbumPropertyDataset:
+    def apply_filters(self, filter_list: list) -> AlbumPropertyDataset:
+        """
+        Filters the dataset based on a list of KeyValue objects.
+        Optimized for low-IPC CPUs like the J1900.
+        """
         if not filter_list:
             return self.__dataset
 
-        # Start with all possible IDs
-        all_ids = self.__dataset.album_id_set
-        matching_ids = all_ids
+        # Bypass Name Mangling to get the raw data map
+        by_id_map = self.__dataset._get_by_album_id()
+        
+        # Start with all available IDs as the universe
+        matching_ids = set(by_id_map.keys())
+        
+        # Localize dataset methods to avoid '.' lookups in the loop
+        get_by_key = self.__dataset.get_album_id_set_for_key
+        get_by_kv = self.__dataset.get_album_id_set_by_key_value
 
         for f in filter_list:
-            if f.value is None:
-                # Albums that DO NOT have this key
-                current_match = all_ids - self.__dataset.get_album_id_set_for_key(f.key)
-            else:
-                current_match = self.__dataset.get_album_id_set_by_key_value(f.key, f.value)
+            key, val = f.key, f.value
             
-            # Efficient intersection
+            if val is None:
+                # Optimized 'None' filter: Subtract IDs that have the key
+                current_match = matching_ids - get_by_key(key)
+            else:
+                # Direct lookup for key-value matches
+                current_match = get_by_kv(key, val)
+            
+            # Fast in-place intersection (C-level performance)
             matching_ids &= current_match
             
-            # Short-circuit: if no IDs match, stop processing filters
+            # Short-circuit if we hit zero results
             if not matching_ids:
                 break
 
-        # Reconstruct the dataset
-        by_id = self.__dataset._get_by_album_id()
+        # Reconstruct the result list using a flat list comprehension
         filtered_metadata = [
             item 
             for aid in matching_ids 
-            for item in by_id.get(aid, [])
+            for item in by_id_map[aid]
         ]
         
         return AlbumPropertyDataset(filtered_metadata)

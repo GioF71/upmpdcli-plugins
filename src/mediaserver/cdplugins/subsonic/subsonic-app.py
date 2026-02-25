@@ -260,7 +260,9 @@ def trackuri(a):
         msgproc.log(f"trackuri custom_headers [{len(custom_headers)}]")
     for k, v in custom_headers.items():
         if verbose:
-            redacted_header_value: str = "redacted" if config.get_config_param_as_bool(constants.ConfigParam.REDACT_CUSTOM_HEADERS) else v
+            redacted_header_value: str = v
+            if config.get_config_param_as_bool(constants.ConfigParam.REDACT_CUSTOM_HEADERS):
+                redacted_header_value = "redacted"
             msgproc.log(f"trackuri setting header [{k}] [{redacted_header_value}]")
         result[f"header:{k}"] = v
     return result
@@ -1383,9 +1385,16 @@ def __get_album_property_dataset() -> AlbumPropertyDataset:
     dataset_load_start: float = time.time()
     key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
     dataset: list[AlbumPropertyMetadata] = persistence.get_album_property_dataset(property_key_list=key_list)
+    load_elapsed: float = time.time() - dataset_load_start
+    dataset_create_start: float = time.time()
     res: AlbumPropertyDataset = AlbumPropertyDataset(dataset)
-    dataset_load_elapsed: float = time.time() - dataset_load_start
-    msgproc.log(f"__get_album_property_dataset dataset ({len(dataset)} items) loaded in [{dataset_load_elapsed:.3f}]")
+    finish_time: float = time.time()
+    dataset_load_elapsed: float = finish_time - dataset_create_start
+    total_elapsed: float = finish_time - dataset_load_start
+    msgproc.log(f"__get_album_property_dataset [{len(dataset)} items] "
+                f"load [{load_elapsed:.3f}] "
+                f"dataset created in [{dataset_load_elapsed:.3f}] "
+                f"total [{total_elapsed:.3f}]")
     return res
 
 
@@ -1416,18 +1425,19 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
         msgproc.log(f"handler_tag_album_browser property keys [{property_keys}]")
     msgproc.log(f"handler_tag_album_browser elapsed before key iteration [{time.time() - start:.3f}]")
     all_value_counts: dict[str, int] = dataset.get_all_value_counts()
+    all_missing_ids_by_key: dict[str, set[str]] = dataset.get_all_missing_ids_by_key()
     curr: AlbumPropertyKey
     for curr in AlbumPropertyKey:
         key_display_start: float = time.time()
         if curr.property_key not in property_keys:
             if verbose:
                 msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] "
-                            f"skipped in [{time.time() - key_display_start:.3f}]")            
+                            f"skipped in [{time.time() - key_display_start:.3f}]")
             continue
         value_count: int = all_value_counts[curr.property_key] if curr.property_key in all_value_counts else 0
         # none will show up?
-        none_needed: bool = len(dataset.get_missing_album_ids_for_key(key=curr.property_key)) > 0
-        if none_needed > 0:
+        none_needed: bool = curr.property_key in all_missing_ids_by_key
+        if none_needed:
             #  [None] will be displayed, so we increment counter
             value_count += 1
         key: str = curr.property_key

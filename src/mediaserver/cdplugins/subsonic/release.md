@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.6b1
+
+- Performance improvements
+
 ## Release 0.9.5
 
 - Album browser: performance improvements
