@@ -1,7 +1,8 @@
 # Subsonic Plugin Release Notes
 
-## Release 0.9.6b1
+## Release 0.9.6b2
 
+- AlbumPropertyMetadata simplified (vroom vroom)
 - Performance improvements
 
 ## Release 0.9.5

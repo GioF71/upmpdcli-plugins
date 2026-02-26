@@ -1384,18 +1384,20 @@ def __create_favorite_song_entry(objid, song: Song, track_number: int = None) ->
 def __get_album_property_dataset() -> AlbumPropertyDataset:
     dataset_load_start: float = time.time()
     key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
-    dataset: list[AlbumPropertyMetadata] = persistence.get_album_property_dataset(property_key_list=key_list)
+    def on_meta(x: AlbumPropertyMetadata):
+        dataset.push(x)
+    dataset: AlbumPropertyDataset = AlbumPropertyDataset()
+    persistence.load_album_property_dataset(property_key_list=key_list, on_meta=on_meta)
     load_elapsed: float = time.time() - dataset_load_start
     dataset_create_start: float = time.time()
-    res: AlbumPropertyDataset = AlbumPropertyDataset(dataset)
     finish_time: float = time.time()
     dataset_load_elapsed: float = finish_time - dataset_create_start
     total_elapsed: float = finish_time - dataset_load_start
-    msgproc.log(f"__get_album_property_dataset [{len(dataset)} items] "
+    msgproc.log(f"__get_album_property_dataset [{dataset.size} items] "
                 f"load [{load_elapsed:.3f}] "
                 f"dataset created in [{dataset_load_elapsed:.3f}] "
                 f"total [{total_elapsed:.3f}]")
-    return res
+    return dataset
 
 
 def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1436,8 +1438,8 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
             continue
         value_count: int = all_value_counts[curr.property_key] if curr.property_key in all_value_counts else 0
         # none will show up?
-        none_needed: bool = curr.property_key in all_missing_ids_by_key
-        if none_needed:
+        missing_set_size: int = len(all_missing_ids_by_key[curr.property_key])
+        if missing_set_size > 0:
             #  [None] will be displayed, so we increment counter
             value_count += 1
         key: str = curr.property_key
@@ -1733,6 +1735,7 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     random_album_metadata_dict: dict[str, AlbumMetadata] = (persistence.get_album_metadata_dict(album_id_list=random_album_id_list)
                                                             if len(random_album_id_list) > 0
                                                             else {})
+    all_missing_ids_by_key: dict[str, set[str]] = dataset.get_all_missing_ids_by_key()
     for curr_album_property_key in AlbumPropertyKey:
         if curr_album_property_key not in property_key_list:
             continue
@@ -1749,8 +1752,8 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
         # size by key?
         property_size_to_display: int = len(values_by_key)
         # none will show up?
-        none_needed: bool = dataset.get_album_id_count_for_key(key=curr_album_property_key.property_key) < dataset.album_id_count
-        if none_needed:
+        missing_set_size: int = len(all_missing_ids_by_key[curr_album_property_key.property_key])
+        if missing_set_size > 0:
             #  [None] will be displayed, so we increment counter
             property_size_to_display += 1
         # strip already set
@@ -1809,7 +1812,6 @@ def __sort_matching_album_list(album_metadata_list: list[AlbumMetadata]):
 
 def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    # filter_value_encoded: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     if verbose:

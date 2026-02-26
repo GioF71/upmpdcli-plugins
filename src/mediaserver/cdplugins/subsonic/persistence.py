@@ -2632,10 +2632,26 @@ def purge_unknown_album_properties(
     return del_count
 
 
+def __on_meta(x: AlbumPropertyMetadata, res: list[AlbumPropertyMetadata]):
+    res.append(x)
+
+
 def get_album_property_dataset(
         property_key_list: list[str],
         connection: sqlite3.Connection = None) -> list[AlbumPropertyMetadata]:
-    if len(property_key_list if property_key_list else []) == 0:
+    res: list[AlbumPropertyMetadata] = []
+    load_album_property_dataset(
+        property_key_list=property_key_list,
+        on_meta=res.append,
+        connection=connection)
+    return res
+
+
+def load_album_property_dataset(
+        property_key_list: list[str],
+        on_meta: Callable[[AlbumPropertyMetadata], None],
+        connection: sqlite3.Connection = None) -> int:
+    if (len(property_key_list) if property_key_list else 0) == 0:
         raise Exception("get_album_property_dataset requires a list of property keys")
     qmarks: str = __create_qmark_list(len(property_key_list))
     sql: str = f"""
@@ -2651,24 +2667,25 @@ def get_album_property_dataset(
             {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} IN ({qmarks})
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    result: list[AlbumPropertyMetadata] = []
     rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(property_key_list))
+    cnt: int = 0
     for row in rows if rows else []:
         album_id: str = row[0]
         key: str = row[1]
         value: str = row[2]
         created: datetime.datetime = row[3]
         updated: datetime.datetime = row[4]
-        curr: AlbumPropertyMetadata = AlbumPropertyMetadata()
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_ID, album_id)
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY, key)
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE, value)
-        curr.set_value(AlbumPropertyMetaModel.CREATED_TIMESTAMP, created)
-        curr.set_value(AlbumPropertyMetaModel.UPDATED_TIMESTAMP, updated)
-        result.append(curr)
+        curr: AlbumPropertyMetadata = AlbumPropertyMetadata(
+            album_id=album_id,
+            key=key,
+            value=value,
+            created=created,
+            updated=updated)
+        on_meta(curr)
+        cnt += 1
     if connection is None:
         the_connection.close()
-    return result
+    return cnt
 
 
 def get_album_property_values(

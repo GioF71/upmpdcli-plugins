@@ -14,41 +14,45 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from metadata import Metadata
 from metadata_model import AlbumPropertyMetaModel
-from typing import Optional
 from typing import Any
 import datetime
 
 
-class AlbumPropertyMetadata(Metadata):
+class AlbumPropertyMetadata:
 
-    def get_value(self, album_metadata_model: AlbumPropertyMetaModel) -> Optional[Any]:
-        return self._get(album_metadata_model.column_name)
+    def __init__(
+            self,
+            album_id: str,
+            key: str,
+            value: str,
+            created: datetime.datetime,
+            updated: datetime.datetime):
+        self.__album_id: str = album_id
+        self.__key: str = key
+        self.__value: str = value
+        self.__created: datetime.datetime = created
+        self.__updated: datetime.datetime = updated
 
     def set_value(self, album_metadata_model: AlbumPropertyMetaModel, value: Any):
         return self._set(album_metadata_model.column_name, value)
 
     @property
-    def id(self) -> str:
-        return self.get_value(AlbumPropertyMetaModel.ALBUM_ID)
-
-    @property
     def album_id(self) -> str:
-        return self.get_value(AlbumPropertyMetaModel.ALBUM_ID)
+        return self.__album_id
 
     @property
     def album_property_key(self) -> str:
-        return self.get_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY)
+        return self.__key
 
     @property
     def album_property_value(self) -> str:
-        return self.get_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE)
+        return self.__value
 
     @property
     def created_timestamp(self) -> datetime.datetime:
-        return self.get_value(AlbumPropertyMetaModel.CREATED_TIMESTAMP)
+        return self.__created
 
     @property
     def updated_timestamp(self) -> datetime.datetime:
-        return self.get_value(AlbumPropertyMetaModel.UPDATED_TIMESTAMP)
+        return self.__updated

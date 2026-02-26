@@ -15,44 +15,34 @@
 
 
 from album_property_metadata import AlbumPropertyMetadata
-from album_property_key import AlbumPropertyKeyValue
 from collections import defaultdict
 
-
-from collections import defaultdict
 
 class AlbumPropertyDataset:
-    def __init__(self, dataset: list["AlbumPropertyMetadata"]):
-        # Storage
-        self.__metadata_by_id = defaultdict(list)
-        self.__index = defaultdict(set)        # (key, val) -> {album_ids}
-        self.__key_presence = defaultdict(set) # key -> {album_ids}
-        self.__representative_ids = {}         # (key, val) -> one sample album_id
-        
-        # J1900 Performance: Localize references to avoid 'self.' lookups in the loop
-        meta_by_id = self.__metadata_by_id
-        idx = self.__index
-        presence = self.__key_presence
-        repr_ids = self.__representative_ids
 
-        for curr in dataset:
-            aid = curr.album_id
-            k = curr.album_property_key
-            v = curr.album_property_value
-            kid = (k, v)
-            
-            # 1. Store the full metadata object
-            meta_by_id[aid].append(curr)
-            
-            # 2. Update the inverted indices
-            idx[kid].add(aid)
-            presence[k].add(aid)
-            
-            # 3. Store a representative for thumbnails/UI
-            if kid not in repr_ids:
-                repr_ids[kid] = aid
-        
-        self.__dataset_size = len(dataset)
+    def __init__(self):
+        # Storage
+        self.__metadata_by_id: dict[str, AlbumPropertyMetadata] = defaultdict(list)
+        self.__index: dict[tuple[str, str], set[str]] = defaultdict(set)        # (key, val) -> {album_ids}
+        self.__key_presence: dict[str, set[str]] = defaultdict(set) # key -> {album_ids}
+        self.__representative_ids: dict[str, str] = {}         # (key, val) -> one sample album_id
+        self.__dataset_size: int = 0
+
+    def push(self, meta: AlbumPropertyMetadata):
+        aid: str = meta.album_id
+        k: str = meta.album_property_key
+        v: str = meta.album_property_value
+        kid: tuple[str, str] = (k, v)
+        # 1. Store the full metadata object
+        self.__metadata_by_id[aid].append(meta)
+        # 2. Update the inverted indices
+        self.__index[kid].add(aid)
+        self.__key_presence[k].add(aid)
+        # 3. Store a representative for thumbnails/UI
+        if kid not in self.__representative_ids:
+            self.__representative_ids[kid] = aid
+        self.__dataset_size += 1
+
 
     @property
     def keys(self) -> list[str]:
@@ -65,8 +55,8 @@ class AlbumPropertyDataset:
         return len(self.__metadata_by_id)
 
     def get_values(self, key: str) -> list[str]:
-        """Returns sorted list of all unique values for a specific key."""
-        return sorted({v for (k, v) in self.__index.keys() if k == key})
+        """Returns sorted list of all unique values for a specific key, ignoring None."""
+        return sorted({v for (k, v) in self.__index.keys() if k == key and v is not None})
 
     def get_all_value_counts(self) -> dict[str, int]:
         """Returns {key: count_of_unique_values} mapping."""
@@ -112,6 +102,9 @@ class AlbumPropertyDataset:
         """Returns all album IDs that have at least one value for this key."""
         return self.__key_presence.get(key, set())
 
+    def get_album_id_count_for_key(self, key: str) -> int:
+        return len(self.get_album_id_set_for_key(key))
+
     def get_album_id_set_by_key_value(self, key: str, value: str) -> set[str]:
         """Returns all album IDs matching a specific key-value pair."""
         return self.__index.get((key, value), set())
@@ -122,6 +115,7 @@ class AlbumPropertyDataset:
 
 
 class AlbumPropertyDatasetProcessor:
+
     def __init__(self, dataset: AlbumPropertyDataset):
         self.__dataset = dataset
 
@@ -142,29 +136,27 @@ class AlbumPropertyDatasetProcessor:
         # Localize dataset methods to avoid '.' lookups in the loop
         get_by_key = self.__dataset.get_album_id_set_for_key
         get_by_kv = self.__dataset.get_album_id_set_by_key_value
-
         for f in filter_list:
             key, val = f.key, f.value
-            
             if val is None:
                 # Optimized 'None' filter: Subtract IDs that have the key
                 current_match = matching_ids - get_by_key(key)
             else:
                 # Direct lookup for key-value matches
                 current_match = get_by_kv(key, val)
-            
             # Fast in-place intersection (C-level performance)
             matching_ids &= current_match
-            
             # Short-circuit if we hit zero results
             if not matching_ids:
                 break
-
         # Reconstruct the result list using a flat list comprehension
         filtered_metadata = [
             item 
             for aid in matching_ids 
             for item in by_id_map[aid]
         ]
-        
-        return AlbumPropertyDataset(filtered_metadata)
+        res: AlbumPropertyDataset = AlbumPropertyDataset()
+        curr: AlbumPropertyMetadata
+        for curr in filtered_metadata:
+            res.push(curr)
+        return res
