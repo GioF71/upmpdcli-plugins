@@ -208,11 +208,6 @@ def album_to_navigable_entry(
         if artist:
             title = f"{title} - {artist}"
     entry_title: str = title
-    entry_title = subsonic_util.append_album_id_to_album_title(
-        current_albumtitle=entry_title,
-        album_id=album.getId(),
-        album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
-        is_search_result=False)
     if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_CONTAINER):
         # available here?
         album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
@@ -698,12 +693,6 @@ def album_to_entry(
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
         album_version=album_version,
-        album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
-        is_search_result=is_search_result)
-    # show album id
-    title = subsonic_util.append_album_id_to_album_title(
-        current_albumtitle=title,
-        album_id=album.getId(),
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
     # musicbrainz?

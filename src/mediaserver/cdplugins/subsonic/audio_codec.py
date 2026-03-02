@@ -51,6 +51,10 @@ class AudioCodec(Enum):
     ALAC = _AudioCodecData(
         codec_name="alac",
         lossless=True)
+    APE = _AudioCodecData(
+        codec_name="ape",
+        lossless=True,
+        suffixes=["ape"])
     DSF = _AudioCodecData(
         codec_name="dsf",
         lossless=True)

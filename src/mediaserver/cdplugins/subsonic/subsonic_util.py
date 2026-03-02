@@ -794,7 +794,7 @@ def get_all_artists_in_album(album: Album, in_songs: bool = True) -> list[Artist
     current: dict[str, str]
     for current in lst:
         if ((constants.DictKey.NAME.value in current and constants.DictKey.ID.value in current)
-                and not current[constants.DictKey.ID.value] in artist_id_set):
+                and current[constants.DictKey.ID.value] not in artist_id_set):
             occ_list.append(ArtistsOccurrence(id=current[constants.DictKey.ID.value], name=current[constants.DictKey.NAME.value]))
             artist_id_set.add(current[constants.DictKey.ID.value])
     song_list: list[Song] = album.getSongs() if in_songs else list()
@@ -1099,21 +1099,6 @@ def append_something_to_album_title(
     if do_append:
         album_title = f"{album_title} [{something}]"
     return album_title
-
-
-def append_album_id_to_album_title(
-        current_albumtitle: str,
-        album_id: str,
-        album_entry_type: constants.AlbumEntryType,
-        is_search_result: bool) -> str:
-    return append_something_to_album_title(
-        current_albumtitle=current_albumtitle,
-        something=album_id,
-        album_entry_type=album_entry_type,
-        is_search_result=is_search_result,
-        container_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_CONTAINER,
-        view_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_VIEW,
-        search_res_config=constants.ConfigParam.APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES)
 
 
 def append_album_badge_to_album_title(

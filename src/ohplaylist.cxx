@@ -273,7 +273,10 @@ bool OHPlaylist::makeIdArray(string& out)
     return true;
 }
 
-// (private)
+// (private). Lookup input id in old saved state, and try to find its new instance in the active
+// queue. Allows a CP which would have switched playlist->radio->playlist to still use pre-switch
+// song ids (before it gets the idArray event or if it ignores it).
+// This must be called *after* restoring the mpd queue, which does not affect the saved version.
 int OHPlaylist::idFromOldId(int oldid)
 {
     auto it = std::find_if(m_mpdsavedstate.queue.begin(), m_mpdsavedstate.queue.end(),
@@ -330,6 +333,8 @@ void OHPlaylist::setActive(bool onoff)
 {
     if (onoff) {
         m_dev->getmpdcli()->clearQueue();
+        // Note that this does not change the stored state, which is still valid for, e.g. looking
+        // up pre-restore song ids.
         m_dev->getmpdcli()->restoreState(m_mpdsavedstate);
         onEvent(nullptr);
         m_active = true;
@@ -554,8 +559,7 @@ int OHPlaylist::seekIndex(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::seekIndex" << '\n');
 
-    // Unlike seekid, this should work as the indices are restored by
-    // mpdcli restorestate
+    // Unlike seekid, this should work as the indices are restored by mpdcli restorestate
     if (!m_active && m_udev->getohpr()) {
         m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
     }
@@ -577,9 +581,9 @@ int OHPlaylist::id(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::id: not active" << '\n');
         return 409; // HTTP Conflict
     }
-    LOGDEB("OHPlaylist::id" << '\n');
 
     const MpdStatus &mpds = m_dev->getMpdStatus();
+    LOGDEB("OHPlaylist::id: mpds.songid:" << mpds.songid << '\n');
     data.addarg("Value", mpds.songid == -1 ? "0" : SoapHelp::i2s(mpds.songid));
     return UPNP_E_SUCCESS;
 }
@@ -716,12 +720,9 @@ int OHPlaylist::readList(const SoapIncoming& sc, SoapOutgoing& data)
 }
 
 // Adds the given uri and metadata as a new track to the playlist. 
-// Set the AfterId argument to 0 to insert a track at the start of the
-// playlist.
-// Reports a 800 fault code if AfterId is not 0 and doesn’t appear in
-// the playlist.
-// Reports a 801 fault code if the playlist is full (i.e. already
-// contains TracksMax tracks).
+// Set the AfterId argument to 0 to insert a track at the start of the playlist.
+// Reports a 800 fault code if AfterId is not 0 and doesn’t appear in the playlist.
+// Reports a 801 fault code if the playlist is full (i.e. already contains TracksMax tracks).
 int OHPlaylist::insert(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::insert" << '\n');
@@ -802,15 +803,21 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
         LOGERR("OHPlaylist::deleteId: no Id param\n");
         return UPNP_E_INVALID_PARAM;
     }
-    if (!m_active) {
-        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
-        id = idFromOldId(id);
-        if (id < 0) {
-            // Error was logged by idFromOldId
-            return UPNP_E_INTERNAL_ERROR;
-        }
-    }
     LOGDEB("OHPlaylist::deleteId: " << id << '\n');
+    if (!m_active) {
+        // We can do this while not active: just clear the entry. No need to switch.
+        auto it = std::find_if(m_mpdsavedstate.queue.begin(), m_mpdsavedstate.queue.end(),
+                               [id] (const UpSong& entry) {return entry.mpdid == id;});
+        if (it == m_mpdsavedstate.queue.end()) {
+            LOGERR("OHPlaylist::deleteId: " << id << " not found\n");
+            return UPNP_E_INVALID_PARAM;
+        }
+        m_mpdsavedstate.queue.erase(it);
+        if (m_mpdsavedstate.queue.empty()) {
+            m_mpdsavedstate.status.state = MpdStatus::MPDS_STOP;
+        }
+        return UPNP_E_SUCCESS;
+    }
     const MpdStatus &mpds = m_dev->getMpdStatus();
     if (mpds.songid == id) {
         // MPD skips to the next track if the current one is removed,
@@ -824,8 +831,11 @@ int OHPlaylist::deleteId(const SoapIncoming& sc, SoapOutgoing& data)
 int OHPlaylist::deleteAll(const SoapIncoming& sc, SoapOutgoing& data)
 {
     LOGDEB("OHPlaylist::deleteAll" << '\n');
-    if (!m_active && m_udev->getohpr()) {
-        m_udev->getohpr()->iSetSourceIndexByName(OHPlaylistSourceName);
+    if (!m_active) {
+        // We can do this while not active: just clear the saved list. No need to switch
+        m_mpdsavedstate.queue.clear();
+        m_mpdsavedstate.status.state = MpdStatus::MPDS_STOP;
+        return UPNP_E_SUCCESS;
     }
     bool ok = m_dev->getmpdcli()->clearQueue();
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;

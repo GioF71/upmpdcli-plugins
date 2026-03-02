@@ -25,9 +25,6 @@ allowqbadgeinalbumsearchresult|Append quality badge to album search result|False
 allowversioninalbumcontainer|Append version to album container|True
 allowversioninalbumview|Append version to album view|True
 allowversioninalbumsearchresult|Append version to album search result|True
-showalbumidinalbumcontainer|Show album id in album container|False
-showalbumidinalbumview|Show album id in album search result|False
-showalbumidinalbumsearchresult|Show album id in album search result|False
 appendyeartoalbumcontainer|Show year in album container|True
 appendyeartoalbumview|Show year in album view|False
 appendyeartoalbumsearchresult|Show year in album search result|False
