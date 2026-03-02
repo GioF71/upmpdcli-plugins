@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.5"
+    PLUGIN_RELEASE = "0.9.6"
     PLUGIN_NAME = "subsonic"
 
 
@@ -188,19 +188,6 @@ class ConfigParam(Enum):
         "allowversioninalbumsearchresult",
         default_value=True,
         description="Append version to album search result")
-
-    APPEND_ALBUM_ID_IN_ALBUM_CONTAINER = _ConfigParamData(
-        "showalbumidinalbumcontainer",
-        default_value=False,
-        description="Show album id in album container")
-    APPEND_ALBUM_ID_IN_ALBUM_VIEW = _ConfigParamData(
-        "showalbumidinalbumview",
-        default_value=False,
-        description="Show album id in album search result")
-    APPEND_ALBUM_ID_IN_ALBUM_SEARCH_RES = _ConfigParamData(
-        "showalbumidinalbumsearchresult",
-        default_value=False,
-        description="Show album id in album search result")
 
     APPEND_YEAR_TO_ALBUM_CONTAINER = _ConfigParamData(
         "appendyeartoalbumcontainer",

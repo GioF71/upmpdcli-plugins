@@ -25,7 +25,6 @@ import upmplgutils
 import upmpdmeta
 import os
 import statistics
-import random
 
 from subsonic_connector.response import Response
 from subsonic_connector.album_list import AlbumList
@@ -73,12 +72,14 @@ import persistence
 import metadata_converter
 from artist_metadata import ArtistMetadata
 from album_metadata import AlbumMetadata
-from album_property_metadata import AlbumPropertyMetadata
 from album_property_key import AlbumPropertyKey
-from album_property_key import get_album_property_key
 from album_property_key import AlbumPropertyKeyValue
-from album_property_dataset import AlbumPropertyDataset
-from album_property_dataset import AlbumPropertyDatasetProcessor
+from album_property_key import AlbumPropertyKeyOccurrence
+from album_property_key import AlbumPropertyValueOccurrence
+from album_property_key import get_album_property_key
+from album_property_key import condition_list_contains_negative
+from album_property_key import condition_list_positive_count
+from album_property_key import condition_list_contains_positive
 from common_data_structures import ArtistIdNameCoverArt
 import search_result_rank
 
@@ -89,6 +90,7 @@ from album_util import MultiCodecAlbum
 from album_util import AlbumTracks
 from album_util import get_album_year_str
 from album_util import has_year
+from artist_role import get_artist_role_display_value
 
 from value_holder import encode_value_holder
 from value_holder import decode_value_holder
@@ -112,6 +114,8 @@ import secrets
 import mimetypes
 import time
 import datetime
+from collections import defaultdict
+
 from typing import Callable
 from typing import Any
 
@@ -260,7 +264,9 @@ def trackuri(a):
         msgproc.log(f"trackuri custom_headers [{len(custom_headers)}]")
     for k, v in custom_headers.items():
         if verbose:
-            redacted_header_value: str = "redacted" if config.get_config_param_as_bool(constants.ConfigParam.REDACT_CUSTOM_HEADERS) else v
+            redacted_header_value: str = v
+            if config.get_config_param_as_bool(constants.ConfigParam.REDACT_CUSTOM_HEADERS):
+                redacted_header_value = "redacted"
             msgproc.log(f"trackuri setting header [{k}] [{redacted_header_value}]")
         result[f"header:{k}"] = v
     return result
@@ -1379,199 +1385,141 @@ def __create_favorite_song_entry(objid, song: Song, track_number: int = None) ->
     return song_entry
 
 
-def __get_album_property_dataset() -> AlbumPropertyDataset:
-    dataset_load_start: float = time.time()
-    key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
-    dataset: list[AlbumPropertyMetadata] = persistence.get_album_property_dataset(property_key_list=key_list)
-    res: AlbumPropertyDataset = AlbumPropertyDataset(dataset)
-    dataset_load_elapsed: float = time.time() - dataset_load_start
-    msgproc.log(f"__get_album_property_dataset dataset ({len(dataset)} items) loaded in [{dataset_load_elapsed:.3f}]")
-    return res
-
-
 def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    start: float = time.time()
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    # get the dataset
-    dataset: AlbumPropertyDataset = __get_album_property_dataset()
+    # use jackpot query!
+    occ_list: list[AlbumPropertyKeyOccurrence] = persistence.get_album_property_key_occurence_list(condition_list=[])
+    curr_occ: AlbumPropertyKeyOccurrence
     if verbose:
-        msgproc.log(f"handler_tag_album_browser elapsed after load dataset [{time.time() - start:.3f}]")
-    load_album_meta_start: float = time.time()
-    # extract keys, no need to sort them
-    property_keys: set[str] = dataset.keys
-    # matching albums
-    album_id_list: list[str] = list(dataset.album_id_set)
-    random_album_id_list: list[str] = random.choices(album_id_list, k=len(property_keys))
-    random_album_metadata_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=random_album_id_list)
-    if verbose:
-        msgproc.log(f"handler_tag_album_browser loaded [{len(random_album_id_list)}] "
-                    f"albums metadata in [{time.time() - load_album_meta_start:.3f}]")
-    # just get the albums
-    md_list_start: float = time.time()
-    random_album_metadata_list: list[AlbumMetadata] = list(random_album_metadata_dict.values())
-    if verbose:
-        msgproc.log(f"handler_tag_album_browser loaded md to list [{len(random_album_metadata_list)}] "
-                    f"albums metadata in [{time.time() - md_list_start:.3f}]")
-    if verbose:
-        msgproc.log(f"handler_tag_album_browser property keys [{property_keys}]")
-    msgproc.log(f"handler_tag_album_browser elapsed before key iteration [{time.time() - start:.3f}]")
-    all_value_counts: dict[str, int] = dataset.get_all_value_counts()
-    curr: AlbumPropertyKey
-    for curr in AlbumPropertyKey:
-        key_display_start: float = time.time()
-        if curr.property_key not in property_keys:
-            if verbose:
-                msgproc.log(f"handler_tag_album_browser property [{curr.display_value}] [{curr.property_key}] "
-                            f"skipped in [{time.time() - key_display_start:.3f}]")            
+        for curr_occ in occ_list:
+            msgproc.log(f"Occ [{curr_occ.property_key}] [{curr_occ.property_value_count}] [{curr_occ.is_missing_for_some}] [{curr_occ.representative_album_id}]")
+    occ_dict: dict[str, AlbumPropertyKeyOccurrence] = {occ.property_key: occ for occ in occ_list}
+    album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
+    album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list)
+    curr_key: AlbumPropertyKey
+    for curr_key in AlbumPropertyKey:
+        # match occurrence or continue
+        occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
+        if not occurrence:
             continue
-        value_count: int = all_value_counts[curr.property_key] if curr.property_key in all_value_counts else 0
-        # none will show up?
-        none_needed: bool = len(dataset.get_missing_album_ids_for_key(key=curr.property_key)) > 0
-        if none_needed > 0:
-            #  [None] will be displayed, so we increment counter
-            value_count += 1
-        key: str = curr.property_key
+        # create entry for property key
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
-            key)
+            curr_key.property_key)
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        # values for the specified key?
+        # value count for the specified key
+        count: int = occurrence.property_value_count + (1 if occurrence.is_missing_for_some else 0)
         entry: dict[str, any] = upmplgutils.direntry(
             id=id,
             pid=objid,
-            title=f"{curr.display_value} [{value_count}]")
-        # set cover art if one is available
-        random_album: AlbumMetadata = random_album_metadata_list.pop(0) if len(random_album_metadata_list) > 0 else None
+            title=f"{curr_key.display_value} [{count}]")
+        # representative album
+        occ_album: AlbumMetadata = album_dict.get(occurrence.representative_album_id)
         upnp_util.set_album_art_from_uri(
-            album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art if random_album else None),
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=occ_album.album_cover_art if occ_album else None),
             target=entry)
         entries.append(entry)
-        if verbose:
-            msgproc.log(f"handler_tag_album_browser shown key [{curr.property_key}] in [{time.time() - key_display_start:.3f}]")
-    if verbose:
-        msgproc.log(f"handler_tag_album_browser completed in [{time.time() - start:.3f}]")
     return entries
 
 
-def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    album_property_key: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    album_property_key_matched: AlbumPropertyKey = get_album_property_key(property_key=album_property_key)
-    if album_property_key_matched is None:
-        msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}]")
-        return []
-    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+def extract_selection_list(current_selection_list_str: str) -> list[list[str]]:
     current_selection_list: list[list[str]] = []
-    current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST)
     if current_selection_list_str:
         # decode it
         lst: list[tuple[str, str]] = json.loads(codec.base64_decode(current_selection_list_str))
         # add to main list
         current_selection_list.extend(lst)
-    # list_to_encode
-    encoded_list: str = codec.base64_encode(json.dumps(current_selection_list))
-    msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] selection list [{current_selection_list}]")
+    return current_selection_list
+
+
+def convert_selection_list(selection_list: list[list[str]]) -> list[AlbumPropertyKeyValue]:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     condition_list: list[AlbumPropertyKeyValue] = []
     curr_selection: list[str]
-    for curr_selection in current_selection_list if current_selection_list else []:
+    for curr_selection in selection_list if selection_list else []:
+        if len(curr_selection if curr_selection else []) != 2:
+            raise Exception("convert_selection_list every list must contain two items")
         condition: AlbumPropertyKeyValue = AlbumPropertyKeyValue(
             key=curr_selection[0],
             value=curr_selection[1])
         if verbose:
             msgproc.log(f"handler_album_browse_filter_key appending condition [{curr_selection[0]}]:[{curr_selection[1]}]")
         condition_list.append(condition)
-    full_dataset: AlbumPropertyDataset = __get_album_property_dataset()
-    # shrink dataset (if needed)
-    dataset: AlbumPropertyDataset = None
-    if len(condition_list) > 0:
-        # actually shrink the dataset applying the conditions
-        dataset_processor: AlbumPropertyDatasetProcessor = AlbumPropertyDatasetProcessor(dataset=full_dataset)
-        dataset = dataset_processor.apply_filters(filter_list=condition_list)
-    else:
-        # empty conditions dataset is same as the full dataset
-        dataset = full_dataset
-    matching_album_count: int = dataset.album_id_count
-    if verbose:
-        msgproc.log(f"dataset with size [{full_dataset.size}] -> "
-                    f"filtered to [{dataset.size}] "
-                    f"albums [{matching_album_count}]")
-    album_id_list_to_load: list[str] = []
-    value_frequencies: dict[str, int] = dataset.get_value_frequencies(key=album_property_key)
-    values: list[str] = sorted(list(dataset.get_values(key=album_property_key)))
-    none_album_id_set: set[str] = dataset.get_missing_album_ids_for_key(key=album_property_key)
-    none_entry_needed: bool = len(none_album_id_set) > 0
-    msgproc.log(f"handler_album_browse_filter_key none_entry_needed [{none_entry_needed}]")
-    none_random_album_id: str = secrets.choice(list(none_album_id_set)) if len(none_album_id_set) > 0 else None
-    if none_random_album_id:
-        if verbose:
-            msgproc.log(f"random_matching_album_id_by_value appending [{none_random_album_id}] for None")
-        album_id_list_to_load.append(none_random_album_id)
-    values_to_show: list[str] = [None] + values if none_entry_needed else values
+    return condition_list
+
+
+def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    # verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    album_property_key: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    album_property_key_matched: AlbumPropertyKey = get_album_property_key(property_key=album_property_key)
+    if album_property_key_matched is None:
+        msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}]")
+        return []
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, codec.base64_encode(json.dumps([])))
+    selection_list: list[list[str]] = extract_selection_list(current_selection_list_str=current_selection_list_str)
+    encoded_selection_list: str = codec.base64_encode(json.dumps(selection_list))
+    condition_list: list[AlbumPropertyKeyValue] = convert_selection_list(selection_list=selection_list)
+    occ_list: list[AlbumPropertyValueOccurrence] = persistence.get_album_property_value_occurence_list(condition_list=condition_list, property_key=album_property_key)
+    # early exit if nothing is available
+    if not occ_list:
+        # nothing to show
+        return entries
+    # remove any AlbumPropertyValueOccurrence that already appears in condition_list
+    occ_list = list(filter(
+        lambda x: not condition_list_contains_positive(
+            condition_list=condition_list,
+            album_property_key=album_property_key,
+            album_property_value=x.property_value),
+        occ_list))
+    # keep track of the album id to load
+    album_id_set: set[str] = set()
+    # keep track of entries by value
+    entry_list_dict_by_album_id: dict[str, list[dict[str, any]]] = defaultdict(list)
+    # none is needed in the first page (offset == 0) and if any element has "missing" set to True
+    none_entry_needed: bool = offset == 0 and occ_list[0].is_missing_for_some
+    values_to_show: list[AlbumPropertyValueOccurrence] = ([None] + occ_list) if none_entry_needed else occ_list
     # at offset
-    at_offset: list[str] = values_to_show[offset:] if len(values_to_show) > offset else []
-    to_display: list[str] = ([] if len(at_offset) == 0
-                             else at_offset[0:min(len(at_offset), album_property_key_matched.max_items + 1)])
-    # filter out already set filters
-    to_display = list(filter(lambda x: not __condition_already_exists(condition_list, album_property_key, x), to_display))
-    next_value: str = (at_offset[album_property_key_matched.max_items]
-                       if len(to_display) > album_property_key_matched.max_items
-                       else None)
-    to_show: list[str] = to_display[0:min(album_property_key_matched.max_items, len(to_display))] if len(to_display) > 0 else []
-    curr_value: str
-    random_matching_album_id_by_value: dict[str, str] = {}
-    # match_count_by_value: dict[str, int] = {}
-    for curr_value in to_display if to_display else []:
-        random_album_id: str = dataset.get_representative_album_id(key=album_property_key, value=curr_value)
-        random_matching_album_id_by_value[curr_value] = random_album_id
-        if verbose:
-            msgproc.log(f"random_matching_album_id_by_value for [{curr_value}] -> {random_album_id}")
-        album_id_list_to_load.append(random_album_id)
-        if verbose:
-            msgproc.log(f"album_id_list_to_load appending [{random_album_id}] for [{curr_value}]")
-            cnt: int = value_frequencies[curr_value] if curr_value in value_frequencies else 0
-            msgproc.log(f"handler_album_browse_filter_key pair [{album_property_key}]:[{curr_value}] "
-                        f"matches [{cnt}] albums out of [{matching_album_count}]")
-    # find album matching None
-    if verbose:
-        msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] [none] "
-                    f"matches [{len(none_album_id_set)}] albums")
-        msgproc.log(f"loading album with id list: [{album_id_list_to_load}]")
-    random_album_metadata_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list_to_load)
-    if verbose:
-        msgproc.log(f"loaded album_id: [{list(random_album_metadata_dict.keys())}]")
-    for curr_value in to_show:
-        if verbose:
-            msgproc.log(f"handler_album_browse_filter_key for [{album_property_key}] appending value [{curr_value}]")
+    at_offset: list[AlbumPropertyValueOccurrence] = values_to_show[offset:] if len(values_to_show) > offset else []
+    # make this configurable
+    curr_value: AlbumPropertyValueOccurrence
+    for curr_value in at_offset[:album_property_key_matched.max_items]:
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_VALUE.element_name,
-            encode_value_holder(value=curr_value))
+            encode_value_holder(value=curr_value.property_value if curr_value else None))
         identifier.set(ItemIdentifierKey.ALBUM_BROWSE_FILTER_KEY, album_property_key)
-        identifier.set(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, encoded_list)
+        identifier.set(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, encoded_selection_list)
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        value_matching_album_count: int = value_frequencies[curr_value] if curr_value in value_frequencies else 0
+        # value_matching_album_count: int = value_frequencies[curr_value] if curr_value in value_frequencies else 0
+        match_count: int
+        representative_album_id: str = None
+        if curr_value:
+            # regular
+            match_count = curr_value.album_count
+            representative_album_id = curr_value.representative_album_id
+            msgproc.log(f"handler_album_browse_filter_key [{curr_value.property_value}] -> repr [{representative_album_id}]")
+        else:
+            # none
+            none_condition_list: list[AlbumPropertyKeyValue] = condition_list + [AlbumPropertyKeyValue(key=album_property_key, value=None)]
+            match_count: int = persistence.get_album_property_matching_count(condition_list=none_condition_list)
+            representative_album_id: str = persistence.get_one_random_album_property_matching(condition_list=none_condition_list)
+            msgproc.log(f"handler_album_browse_filter_key [None] -> repr [{representative_album_id}]")
+        title: str = f"{curr_value.property_value if curr_value else '[None]'} [{match_count}]"
         entry: dict[str, any] = upmplgutils.direntry(
             id=id,
             pid=objid,
-            title=f"{curr_value} [{value_matching_album_count}]" if curr_value else f"[None] [{len(none_album_id_set)}]")
-        # get cover art, special case for None
-        curr_album_id: str = (none_random_album_id if curr_value is None
-                              else (random_matching_album_id_by_value[curr_value]
-                                    if curr_value in random_matching_album_id_by_value
-                                    else None))
-        # do we have it loaded?
-        curr_value_md: AlbumMetadata = (random_album_metadata_dict[curr_album_id]
-                                        if curr_album_id in random_album_metadata_dict
-                                        else None)
-        # set cover art
-        upnp_util.set_album_art_from_uri(
-            album_art_uri=subsonic_util.build_cover_art_url(item_id=curr_value_md.album_cover_art) if curr_value_md else None,
-            target=entry)
+            title=f"{title}")
+        if representative_album_id:
+            # add album_id to load of albums to load
+            album_id_set.add(representative_album_id)
+            # associate that album_id with the entry
+            entry_list_dict_by_album_id[representative_album_id].append(entry)
         entries.append(entry)
-    # next?
+    next_value: AlbumPropertyValueOccurrence = at_offset[album_property_key_matched.max_items] if len(at_offset) > album_property_key_matched.max_items else None
     if next_value:
         # add next button
         next_identifier: ItemIdentifier = ItemIdentifier(
@@ -1586,57 +1534,26 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             id=next_id,
             pid=objid,
             title="Next")
-        # get cover art, special case for None
-        next_album_id: str = (random_matching_album_id_by_value[next_value]
-                              if next_value in random_matching_album_id_by_value
-                              else None)
-        # do we have it loaded?
-        next_album_metadata: AlbumMetadata = (random_album_metadata_dict[next_album_id]
-                                              if next_album_id in random_album_metadata_dict
-                                              else None)
-        # set cover art
-        if next_album_metadata:
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.build_cover_art_url(item_id=next_album_metadata.album_cover_art),
-                target=next_entry)
         entries.append(next_entry)
+        entry_list_dict_by_album_id[next_value.representative_album_id].append(next_entry)
+        album_id_set.add(next_value.representative_album_id)
+    # load album id list
+    msgproc.log(f"Loading [{len(album_id_set)}] albums ...")
+    album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=list(album_id_set))
+    # cycle through entries
+    entry_album_id: str
+    entry_value_list: list[dict[str, any]]
+    # set cover art to entries
+    for entry_album_id, entry_value_list in entry_list_dict_by_album_id.items():
+        # do we have a cover?
+        entry_value: dict[str, any]
+        for entry_value in entry_value_list:
+            # set cover art if available
+            entry_album: AlbumMetadata = album_dict.get(entry_album_id)
+            upnp_util.set_album_art_from_uri(
+                album_art_uri=subsonic_util.build_cover_art_url(item_id=entry_album.album_cover_art) if entry_album else None,
+                target=entry_value)
     return entries
-
-
-def property_key_in_filter_list(property_key: str, filter_list: list[list[str]]) -> bool:
-    curr: list[str]
-    for curr in filter_list if filter_list else []:
-        # first in list is the key
-        msgproc.log(f"property_key_in_filter_list key [{curr[0]}]")
-        if curr[0] == property_key:
-            return True
-    return False
-
-
-def __condition_already_exists(
-        condition_list: list[AlbumPropertyKeyValue],
-        property_key: str, property_value: str | None) -> bool:
-    conditions_by_key: list[AlbumPropertyKeyValue] = list(filter(
-        lambda x: x.key == property_key,
-        condition_list if condition_list else []))
-    curr: AlbumPropertyKeyValue
-    for curr in conditions_by_key:
-        if curr.value is None and property_value is None:
-            return True
-        elif curr.value == property_value:
-            return True
-    return False
-
-
-def __any_none_condition_for_key(condition_list: list[AlbumPropertyKeyValue], property_key: str) -> bool:
-    curr: AlbumPropertyKeyValue
-    conditions_by_key: list[AlbumPropertyKeyValue] = list(filter(
-        lambda x: x.key == property_key,
-        condition_list if condition_list else []))
-    for curr in conditions_by_key:
-        if curr.value is None:
-            return True
-    return False
 
 
 def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1644,147 +1561,99 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     encoded_filter_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     filter_value: str = decode_value_holder(encoded_filter_value)
     filter_key: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_FILTER_KEY)
-    if True:
+    if verbose:
         msgproc.log(f"handler_album_browse_filter_value filter_key [{filter_key}] "
                     f"filter_value [{encoded_filter_value}] -> [{filter_value}]")
-    msgproc.log(f"handler_album_browse_filter_value [{filter_key}] [{filter_value}]")
-    current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST)
-    current_selection_list: list[list[str]] = []
-    if current_selection_list_str:
-        # decode
-        lst: list[tuple[str, str]] = json.loads(codec.base64_decode(current_selection_list_str))
-        current_selection_list.extend(lst)
-    # add current selection
-    current_selection_list.append([filter_key, filter_value])
+    current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, codec.base64_encode(json.dumps([])))
+    selection_list: list[list[str]] = extract_selection_list(current_selection_list_str=current_selection_list_str)
+    # add new selection
+    selection_list.append([filter_key, filter_value])
     # rebuild filters
-    encoded_list: str = codec.base64_encode(json.dumps(current_selection_list))
-    msgproc.log(f"filter list [{current_selection_list}] encodes to [{encoded_list}]")
-    condition_list: list[AlbumPropertyKeyValue] = []
-    curr_selection: list[str]
-    for curr_selection in current_selection_list if current_selection_list else []:
-        condition: AlbumPropertyKeyValue = AlbumPropertyKeyValue(
-            key=curr_selection[0],
-            value=curr_selection[1])
-        condition_list.append(condition)
-    full_dataset: AlbumPropertyDataset = __get_album_property_dataset()
-    # shrink dataset.
-    dataset_processor: AlbumPropertyDatasetProcessor = AlbumPropertyDatasetProcessor(dataset=full_dataset)
-    dataset: AlbumPropertyDataset = dataset_processor.apply_filters(filter_list=condition_list)
-    matching_albums: list[str] = list(dataset.album_id_set)
-    msgproc.log(f"dataset with size [{full_dataset.size}] -> "
-                f"filtered to [{dataset.size}] "
-                f"albums [{len(matching_albums)}]")
-    dataset_keys: set[str] = dataset.keys
-    msgproc.log(f"dataset keys [{dataset_keys}]")
-    key_list: list[str] = []
-    curr: AlbumPropertyKey
-    for curr in AlbumPropertyKey:
-        curr_key: str = curr.property_key
-        if curr_key not in dataset_keys:
-            msgproc.log(f"handler_album_browse_filter_value property [{curr.display_value}] [{curr.property_key}] skipped")
+    condition_list: list[AlbumPropertyKeyValue] = convert_selection_list(selection_list=selection_list)
+    # build encoded selection list to use for entries
+    encoded_selection_list: str = codec.base64_encode(json.dumps(selection_list))
+    msgproc.log(f"filter list [{selection_list}] encodes to [{encoded_selection_list}]")
+    # how many matching albums?
+    matching_album_count: int = persistence.get_album_property_matching_count(condition_list=condition_list)
+    # use jackpot query again
+    occ_list: list[AlbumPropertyKeyOccurrence] = (persistence.get_album_property_key_occurence_list(condition_list=condition_list)
+                                                  if matching_album_count > 1
+                                                  else [])
+    if verbose:
+        curr_occ: AlbumPropertyKeyOccurrence
+        for curr_occ in occ_list:
+            msgproc.log("handler_album_browse_filter_value curr_occ "
+                        f"[{curr_occ.property_key}] "
+                        f"[{curr_occ.property_value_count}] "
+                        f"[{curr_occ.is_missing_for_some}] "
+                        f"[{curr_occ.representative_album_id}]")
+    occ_dict: dict[str, AlbumPropertyKeyOccurrence] = {occ.property_key: occ for occ in occ_list}
+    occ_album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
+    album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=occ_album_id_list)
+    curr_key: AlbumPropertyKey
+    for curr_key in AlbumPropertyKey:
+        # match occurrence or continue
+        occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
+        if not occurrence:
             continue
-        # values for key?
-        if __any_none_condition_for_key(condition_list=condition_list, property_key=curr_key):
-            msgproc.log(f"handler_album_browse_filter_value key [{curr_key}] already has a filter for None, skipping")
+        # we have the occurrence. Calculate if we need to show it or not
+        # if there is already a "None" in filters for curr_key, we do not need to show the key
+        if condition_list_contains_negative(condition_list=condition_list, album_property_key=curr_key.property_key):
             continue
-        # get values for key
-        values: set[str] = dataset.get_values(key=curr_key)
-        if verbose:
-            msgproc.log(f"handler_album_browse_filter_value values for [{curr_key}] -> [{values}]")
-        # is there only one value, and this matches all items?
-        valid_value_count: int = 0
-        curr_value: str
-        for curr_value in values if values else set():
-            val_match_count: int = len(dataset.get_album_id_set_by_key_value(key=curr_key, value=curr_value))
-            if val_match_count == len(matching_albums):
-                if verbose:
-                    msgproc.log(f"handler_album_browse_filter_value pair [{curr_key}]: [{curr_value}] "
-                                "matches the entire dataset, skipping")
+        pos_filter_count: int = condition_list_positive_count(
+                condition_list=condition_list,
+                album_property_key=curr_key.property_key)
+        # if missing is false and we have the same number of positives, we do not need to show the key
+        if not occurrence.is_missing_for_some:
+            if occurrence.property_value_count == pos_filter_count:
                 continue
-            if val_match_count > 0:
-                if verbose:
-                    msgproc.log(f"handler_album_browse_filter_value pair [{curr_key}]: [{curr_value}] "
-                                f"matches [{val_match_count}] out of [{len(matching_albums)}]")
-                valid_value_count += 1
-            else:
-                if verbose:
-                    msgproc.log(f"handler_album_browse_filter_value pair [{curr_key}]: [{curr_value}] "
-                                "does not match anything, skipping")
-        if valid_value_count == 0:
-            continue
-        key_list.append(curr_key)
-    msgproc.log(f"handler_album_browse_filter_value we should present [{key_list}]")
-    property_key_list: list[AlbumPropertyKey] = list(map(lambda x: get_album_property_key(x), key_list))
-    curr_album_property_key: AlbumPropertyKey
-    # load some albums just to get cover arts, also considering one for "matching albums"
-    random_album_id_list: list[str] = (random.choices(matching_albums, k=len(property_key_list) + 1)
-                                       if len(matching_albums) > 0
-                                       else [])
-    random_album_metadata_dict: dict[str, AlbumMetadata] = (persistence.get_album_metadata_dict(album_id_list=random_album_id_list)
-                                                            if len(random_album_id_list) > 0
-                                                            else {})
-    for curr_album_property_key in AlbumPropertyKey:
-        if curr_album_property_key not in property_key_list:
-            continue
-        values_by_key: set[str] = dataset.get_values(key=curr_album_property_key.property_key)
-        msgproc.log(f"handler_album_browse_filter_value presenting [{curr_album_property_key.display_value}] "
-                    f"([{curr_album_property_key.property_key}]) for [{len(values_by_key)}] values")
+        # if no missing and there is only one value remaining, we do not need to show the key
+        if not occurrence.is_missing_for_some:
+            if (occurrence.property_value_count - pos_filter_count) == 1:
+                continue
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
-            curr_album_property_key.property_key)
-        identifier.set(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, encoded_list)
+            occurrence.property_key)
+        identifier.set(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, encoded_selection_list)
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
         # size by key?
-        property_size_to_display: int = len(values_by_key)
-        # none will show up?
-        none_needed: bool = dataset.get_album_id_count_for_key(key=curr_album_property_key.property_key) < dataset.album_id_count
-        if none_needed:
-            #  [None] will be displayed, so we increment counter
-            property_size_to_display += 1
-        # strip already set
-        curr_condition: AlbumPropertyKeyValue
-        for curr_condition in condition_list:
-            if not curr_condition.key == curr_album_property_key.property_key:
-                continue
-            if curr_condition.value and curr_condition.value in values_by_key:
-                property_size_to_display -= 1
+        property_size_to_display: int = occurrence.property_value_count - pos_filter_count
+        # none?
+        property_size_to_display += (1 if occurrence.is_missing_for_some else 0)
         entry: dict[str, any] = upmplgutils.direntry(
             id=id,
             pid=objid,
-            title=f"{curr_album_property_key.display_value} [{property_size_to_display}]")
-        # set cover art if one is available
-        random_album_id: str = random_album_id_list.pop(0) if len(random_album_id_list) > 0 else None
-        random_album: AlbumMetadata = (random_album_metadata_dict[random_album_id]
-                                       if random_album_id and random_album_id in random_album_metadata_dict
-                                       else None)
-        if random_album:
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art),
-                target=entry)
+            title=f"{curr_key.display_value} [{property_size_to_display}]")
+        entry_album_metadata: AlbumMetadata = album_dict.get(occurrence.representative_album_id)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=entry_album_metadata.album_cover_art if entry_album_metadata else None),
+            target=entry)
         entries.append(entry)
     # Add matching albums entry
     msgproc.log(f"Creating matching albums entry with value [{current_selection_list_str}]")
     matching_identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALBUM_BROWSE_MATCHING_ALBUMS.element_name,
-        encoded_list)
+        encoded_selection_list)
     matching_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(matching_identifier))
+    matching_album_random_id: str = persistence.get_one_random_album_property_matching(condition_list=condition_list)
+    random_album: AlbumMetadata = persistence.get_album_metadata(album_id=matching_album_random_id) if matching_album_random_id else None
     matching_entry: dict[str, any] = upmplgutils.direntry(
         id=matching_id,
         pid=objid,
-        title=f"Matching albums [{len(matching_albums)}]")
+        title=f"Matching albums [{matching_album_count}]")
     entries.append(matching_entry)
-    random_album_id: str = random_album_id_list.pop(0) if len(random_album_id_list) > 0 else None
-    random_album: AlbumMetadata = (random_album_metadata_dict[random_album_id]
-                                   if random_album_id and random_album_id in random_album_metadata_dict
-                                   else None)
-    if random_album:
-        upnp_util.set_album_art_from_uri(
-            album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art),
-            target=matching_entry)
+    # random_album_id: str = random_album_id_list.pop(0) if len(random_album_id_list) > 0 else None
+    # random_album: AlbumMetadata = (random_album_metadata_dict[random_album_id]
+    #                                if random_album_id and random_album_id in random_album_metadata_dict
+    #                                else None)
+    # if random_album:
+    upnp_util.set_album_art_from_uri(
+        album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art if random_album else None),
+        target=matching_entry)
     return entries
 
 
@@ -1799,7 +1668,6 @@ def __sort_matching_album_list(album_metadata_list: list[AlbumMetadata]):
 
 def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
-    # filter_value_encoded: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     if verbose:
@@ -1819,11 +1687,7 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
             key=curr_selection[0],
             value=curr_selection[1])
         condition_list.append(condition)
-    full_dataset: AlbumPropertyDataset = __get_album_property_dataset()
-    # shrink dataset.
-    dataset_processor: AlbumPropertyDatasetProcessor = AlbumPropertyDatasetProcessor(dataset=full_dataset)
-    dataset: AlbumPropertyDataset = dataset_processor.apply_filters(filter_list=condition_list)
-    matching_albums: list[str] = list(dataset.album_id_set)
+    matching_albums: list[str] = persistence.get_album_property_matching(condition_list=condition_list)
     matching_album_count: int = len(matching_albums)
     msgproc.log(f"handler_element_matching_albums matching_album_count [{matching_album_count}]")
     # load albums
@@ -1850,6 +1714,14 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
     to_display: list[AlbumMetadata] = (to_show if len(to_show) <= num_albums_to_display
                                        else to_show[0:config.get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE)])
     navigable: bool = not config.get_config_param_as_bool(constants.ConfigParam.DISABLE_NAVIGABLE_ALBUM)
+    append_title: bool = config.get_config_param_as_bool(
+                            constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_ALBUM_VIEW
+                            if not navigable
+                            else constants.ConfigParam.ALLOW_APPEND_ARTIST_IN_ALBUM_CONTAINER)
+    append_year: bool = config.get_config_param_as_bool(
+                            constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW
+                            if not navigable
+                            else constants.ConfigParam.APPEND_YEAR_TO_ALBUM_CONTAINER)
     curr: AlbumMetadata
     for curr in to_display:
         album_identifier: ItemIdentifier = ItemIdentifier(
@@ -1858,10 +1730,16 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
         album_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(album_identifier))
+        entry_title: str = curr.album_name
+        # year
+        if curr.album_year and append_year:
+            entry_title = f"{entry_title} [{curr.album_year}]"
+        if append_title:
+            entry_title = f"{entry_title} - {curr.album_display_artist}"
         album_entry: dict[str, any] = upmplgutils.direntry(
             id=album_id,
             pid=objid,
-            title=curr.album_name)
+            title=entry_title)
         upnp_util.set_artist(artist=curr.album_display_artist, target=album_entry)
         if not navigable:
             upnp_util.set_class_album(target=album_entry)
@@ -2522,7 +2400,7 @@ def handler_tag_artist_roles(objid, item_identifier: ItemIdentifier, entries: li
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        entry: dict[str, any] = upmplgutils.direntry(id=id, pid=objid, title=role_entry.artist_role.capitalize())
+        entry: dict[str, any] = upmplgutils.direntry(id=id, pid=objid, title=get_artist_role_display_value(role_entry.artist_role))
         artist_cover_art: str = role_entry.random_artist_cover_art
         if not artist_cover_art:
             if verbose:
@@ -3337,11 +3215,6 @@ def handler_element_navigable_album(
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
         album_version=album_version,
-        album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
-        is_search_result=False)
-    title = subsonic_util.append_album_id_to_album_title(
-        current_albumtitle=title,
-        album_id=album_id,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=False)
     if album_mb_id and config.get_config_param_as_bool(constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_VIEW):

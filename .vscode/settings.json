@@ -1,4 +1,8 @@
 {
+    "editor.rulers": [132],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "python.analysis.lineLength": "warning"
+    },
     "python.analysis.extraPaths": [
         "${workspaceFolder}/src/mediaserver/cdplugins/pycommon"
     ],
@@ -6,6 +10,9 @@
         "${workspaceFolder}/src/mediaserver/cdplugins/pycommon"
     ],
     "flake8.args": [
+        "--max-line-length=132"
+    ],
+    "pylint.args": [
         "--max-line-length=132"
     ],
     "pylint.enabled": false

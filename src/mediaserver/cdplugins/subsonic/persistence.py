@@ -69,6 +69,8 @@ from song_data_structures import SongArtist
 from song_data_structures import SongContributor
 
 from album_property_key import AlbumPropertyKeyValue
+from album_property_key import AlbumPropertyKeyOccurrence
+from album_property_key import AlbumPropertyValueOccurrence
 
 from msgproc_provider import msgproc
 
@@ -1248,7 +1250,8 @@ def __load_album_metadata(album_id: str, connection: sqlite3.Connection = None) 
 
 def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Connection = None) -> dict[str, AlbumMetadata]:
     if len(album_id_list if album_id_list else []) == 0:
-        raise Exception("__load_album_metadata_list requires a list of album ids")
+        # just return an empty dict
+        return {}
     the_connection: sqlite3.Connection = get_working_connection(connection)
     t = tuple(album_id_list)
     qmarks: str = __create_qmark_list(len(album_id_list))
@@ -2632,10 +2635,287 @@ def purge_unknown_album_properties(
     return del_count
 
 
+def __on_meta(x: AlbumPropertyMetadata, res: list[AlbumPropertyMetadata]):
+    res.append(x)
+
+
 def get_album_property_dataset(
         property_key_list: list[str],
         connection: sqlite3.Connection = None) -> list[AlbumPropertyMetadata]:
-    if len(property_key_list if property_key_list else []) == 0:
+    res: list[AlbumPropertyMetadata] = []
+    load_album_property_dataset(
+        property_key_list=property_key_list,
+        on_meta=res.append,
+        connection=connection)
+    return res
+
+
+def __create_album_property_intersect() -> str:
+    return (f"INTERSECT SELECT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} "
+            f"FROM {TableName.ALBUM_PROPERTY_V1.value} "
+            f"WHERE {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ? AND "
+            f"{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} = ? ")
+
+
+def __create_album_property_except() -> str:
+    return (f"EXCEPT SELECT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} "
+            f"FROM {TableName.ALBUM_PROPERTY_V1.value} "
+            f"WHERE {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ? ")
+
+
+def get_album_property_matching_count(
+        condition_list: list[AlbumPropertyKeyValue],
+        connection: sqlite3.Connection = None) -> int:
+    values: list[str] = []
+    intersections: str = ""
+    curr_condition: AlbumPropertyKeyValue
+    for curr_condition in condition_list if condition_list else []:
+        # positive or negative?
+        if curr_condition.value:
+            # positive
+            intersections += __create_album_property_intersect()
+            values.append(curr_condition.key)
+            values.append(curr_condition.value)
+        else:
+            # negative
+            intersections += __create_album_property_except()
+            values.append(curr_condition.key)
+    sql: str = f"""
+        SELECT
+            count({AlbumMetadataModel.ALBUM_ID.column_name.value})
+        FROM
+            {TableName.ALBUM_METADATA_V1.value} WHERE {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} IN (
+                SELECT
+                    DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+                    FROM {TableName.ALBUM_PROPERTY_V1.value}
+        {intersections})
+    """        
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    # there must be a row
+    res: int = None
+    if rows and len(rows) == 1:
+        res = rows[0][0]
+    if connection is None:
+        the_connection.close()
+    return res
+
+
+def get_one_random_album_property_matching(
+        condition_list: list[AlbumPropertyKeyValue],
+        connection: sqlite3.Connection = None) -> str:
+    values: list[str] = []
+    intersections: str = ""
+    curr_condition: AlbumPropertyKeyValue
+    for curr_condition in condition_list if condition_list else []:
+        # positive or negative?
+        if curr_condition.value:
+            # positive
+            intersections += __create_album_property_intersect()
+            values.append(curr_condition.key)
+            values.append(curr_condition.value)
+        else:
+            # negative
+            intersections += __create_album_property_except()
+            values.append(curr_condition.key)
+    sql: str = f"""
+        SELECT
+            {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+        FROM (
+            SELECT
+                DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+            FROM
+                {TableName.ALBUM_PROPERTY_V1.value}
+            {intersections}) 
+        ORDER BY RANDOM() 
+        LIMIT 1
+    """        
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    # there must be a row
+    res: str = None
+    if rows and len(rows) == 1:
+        res = rows[0][0]
+    if connection is None:
+        the_connection.close()
+    return res
+
+
+def get_album_property_matching(
+        condition_list: list[AlbumPropertyKeyValue],
+        connection: sqlite3.Connection = None) -> list[str]:
+    values: list[str] = []
+    intersections: str = ""
+    curr_condition: AlbumPropertyKeyValue
+    for curr_condition in condition_list if condition_list else []:
+        # positive or negative?
+        if curr_condition.value:
+            # positive
+            intersections += __create_album_property_intersect()
+            values.append(curr_condition.key)
+            values.append(curr_condition.value)
+        else:
+            # negative
+            intersections += __create_album_property_except()
+            values.append(curr_condition.key)
+    sql: str = f"""
+        SELECT
+            DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+        FROM
+            {TableName.ALBUM_PROPERTY_V1.value}
+        {intersections}
+    """        
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    # load rows and get list of album id
+    res: list[str] = []
+    for row in rows if rows else []:
+        res.append(row[0])
+    if connection is None:
+        the_connection.close()
+    return res
+
+
+def get_album_property_key_occurence_list(
+        condition_list: list[AlbumPropertyKeyValue],
+        connection: sqlite3.Connection = None) -> list[AlbumPropertyKeyOccurrence]:
+    values: list[str] = []
+    intersections: str = ""
+    curr_condition: AlbumPropertyKeyValue
+    for curr_condition in condition_list if condition_list else []:
+        # positive or negative?
+        if curr_condition.value:
+            # positive
+            intersections += __create_album_property_intersect()
+            values.append(curr_condition.key)
+            values.append(curr_condition.value)
+        else:
+            # negative
+            intersections += __create_album_property_except()
+            values.append(curr_condition.key)
+    sql: str = f"""
+        WITH FilteredUniverse AS (
+            -- standard filter logic (Intersects/Excepts)
+            SELECT
+                DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+            FROM
+                {TableName.ALBUM_PROPERTY_V1.value}
+            {intersections}),
+        RankedMetadata AS (
+            -- We join the metadata and assign a random rank to each album per key
+            SELECT 
+                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value},
+                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value},
+                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value},
+                ROW_NUMBER() OVER (
+                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} 
+                    ORDER BY RANDOM()
+                ) as random_rank
+            FROM
+                {TableName.ALBUM_PROPERTY_V1.value} apv
+            JOIN
+                FilteredUniverse fu ON
+                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+        )
+        SELECT 
+            rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value},
+            -- 1. How many unique values (e.g. 15 different years)
+            COUNT(DISTINCT rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}) AS unique_value_count,
+            -- 2. Logic for the missing flag
+            CASE 
+                WHEN COUNT(DISTINCT rm.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) < (SELECT COUNT(*) FROM FilteredUniverse) THEN 1 
+                ELSE 0 
+            END AS is_missing_for_some,
+            -- 3. The Jackpot: The album that happened to be 'Rank #1' in our random shuffle
+            MAX(CASE WHEN random_rank = 1 THEN rm.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} END) AS representative_album_id
+        FROM RankedMetadata rm
+        GROUP BY rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}
+        ORDER BY rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}
+    """
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    res: list[AlbumPropertyKeyOccurrence] = []
+    for row in rows if rows else []:
+        res.append(AlbumPropertyKeyOccurrence(
+            property_key=row[0],
+            property_value_count=row[1],
+            is_missing_for_some=row[2],
+            representative_album_id=row[3]))
+    if connection is None:
+        the_connection.close()
+    return res
+
+
+def get_album_property_value_occurence_list(
+        condition_list: list[AlbumPropertyKeyValue],
+        property_key: str,
+        connection: sqlite3.Connection = None) -> list[AlbumPropertyValueOccurrence]:
+    values: list[str] = []
+    intersections: str = ""
+    curr_condition: AlbumPropertyKeyValue
+    for curr_condition in condition_list if condition_list else []:
+        # positive or negative?
+        if curr_condition.value:
+            # positive
+            intersections += __create_album_property_intersect()
+            values.append(curr_condition.key)
+            values.append(curr_condition.value)
+        else:
+            # negative
+            intersections += __create_album_property_except()
+            values.append(curr_condition.key)
+    # property_key appears twice
+    values.extend([property_key] * 2)
+    sql: str = f"""
+        WITH FilteredUniverse AS (
+            -- Your active filters (Genre=Classical, etc.)
+            SELECT DISTINCT album_id FROM album_property_v1
+            {intersections}
+        ),
+        KeyStats AS (
+            -- Check once if this specific key is missing from any albums in our universe
+            SELECT 
+                CASE 
+                    WHEN COUNT(DISTINCT fu.album_id) > COUNT(DISTINCT apv.album_id) THEN 1 
+                    ELSE 0 
+                END as has_missing
+            FROM FilteredUniverse fu
+            LEFT JOIN album_property_v1 apv 
+            ON fu.album_id = apv.album_id 
+            AND apv.album_property_key = ?
+        )
+        SELECT 
+            apv.album_property_value,
+            COUNT(apv.album_id) AS album_count,
+            -- Jackpot: A representative ID for THIS SPECIFIC value (e.g., a sample for '1994')
+            MIN(apv.album_id) AS representative_album_id,
+            -- Carry the missing flag through
+            (SELECT has_missing FROM KeyStats) AS key_is_missing_somewhere
+        FROM album_property_v1 apv
+        JOIN FilteredUniverse fu ON apv.album_id = fu.album_id
+        WHERE apv.album_property_key = ?
+        GROUP BY apv.album_property_value
+        ORDER BY apv.album_property_value ASC
+    """
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    res: list[AlbumPropertyValueOccurrence] = []
+    for row in rows if rows else []:
+        res.append(AlbumPropertyValueOccurrence(
+            property_value=row[0],
+            album_count=row[1],
+            representative_album_id=row[2],
+            is_missing_for_some=row[3]))
+    if connection is None:
+        the_connection.close()
+    return res
+
+
+def load_album_property_dataset(
+        property_key_list: list[str],
+        on_meta: Callable[[AlbumPropertyMetadata], None],
+        connection: sqlite3.Connection = None) -> int:
+    if (len(property_key_list) if property_key_list else 0) == 0:
         raise Exception("get_album_property_dataset requires a list of property keys")
     qmarks: str = __create_qmark_list(len(property_key_list))
     sql: str = f"""
@@ -2651,24 +2931,25 @@ def get_album_property_dataset(
             {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} IN ({qmarks})
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    result: list[AlbumPropertyMetadata] = []
     rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(property_key_list))
+    cnt: int = 0
     for row in rows if rows else []:
         album_id: str = row[0]
         key: str = row[1]
         value: str = row[2]
         created: datetime.datetime = row[3]
         updated: datetime.datetime = row[4]
-        curr: AlbumPropertyMetadata = AlbumPropertyMetadata()
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_ID, album_id)
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY, key)
-        curr.set_value(AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE, value)
-        curr.set_value(AlbumPropertyMetaModel.CREATED_TIMESTAMP, created)
-        curr.set_value(AlbumPropertyMetaModel.UPDATED_TIMESTAMP, updated)
-        result.append(curr)
+        curr: AlbumPropertyMetadata = AlbumPropertyMetadata(
+            album_id=album_id,
+            key=key,
+            value=value,
+            created=created,
+            updated=updated)
+        on_meta(curr)
+        cnt += 1
     if connection is None:
         the_connection.close()
-    return result
+    return cnt
 
 
 def get_album_property_values(

@@ -106,3 +106,91 @@ class AlbumPropertyKeyValue:
     @property
     def value(self) -> str:
         return self.__value
+
+
+class AlbumPropertyKeyOccurrence:
+
+    def __init__(
+            self,
+            property_key: str,
+            property_value_count: int,
+            is_missing_for_some: bool,
+            representative_album_id: str):
+        self.__property_key: str = property_key
+        self.__property_value_count: int = property_value_count
+        self.__is_missing_for_some: bool = is_missing_for_some
+        self.__representative_album_id: str = representative_album_id
+
+    @property
+    def property_key(self) -> str:
+        return self.__property_key
+
+    @property
+    def property_value_count(self) -> int:
+        return self.__property_value_count
+
+    @property
+    def is_missing_for_some(self) -> bool:
+        return self.__is_missing_for_some
+
+    @property
+    def representative_album_id(self) -> str:
+        return self.__representative_album_id
+
+
+def condition_list_contains_negative(condition_list: list[AlbumPropertyKeyValue], album_property_key: str) -> bool:
+    curr: AlbumPropertyKeyValue
+    for curr in condition_list if condition_list else []:
+        if curr.key == album_property_key and curr.value is None:
+            return True
+    return False
+
+
+def condition_list_positive_count(condition_list: list[AlbumPropertyKeyValue], album_property_key: str) -> int:
+    cnt: int = 0
+    curr: AlbumPropertyKeyValue
+    for curr in condition_list if condition_list else []:
+        if curr.key == album_property_key and curr.value is not None:
+            cnt += 1
+    return cnt
+
+
+def condition_list_contains_positive(
+        condition_list: list[AlbumPropertyKeyValue],
+        album_property_key: str,
+        album_property_value: str) -> bool:
+    curr: AlbumPropertyKeyValue
+    for curr in condition_list if condition_list else []:
+        if curr.key == album_property_key and curr.value == album_property_value:
+            return True
+    return False
+
+
+class AlbumPropertyValueOccurrence:
+
+    def __init__(
+            self,
+            property_value: str,
+            album_count: int,
+            is_missing_for_some: bool,
+            representative_album_id: str):
+        self.__property_value: str = property_value
+        self.__album_count: int = album_count
+        self.__is_missing_for_some: bool = is_missing_for_some
+        self.__representative_album_id: str = representative_album_id
+
+    @property
+    def property_value(self) -> str:
+        return self.__property_value
+
+    @property
+    def album_count(self) -> int:
+        return self.__album_count
+
+    @property
+    def is_missing_for_some(self) -> bool:
+        return self.__is_missing_for_some
+
+    @property
+    def representative_album_id(self) -> str:
+        return self.__representative_album_id

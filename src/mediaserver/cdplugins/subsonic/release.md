@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.6
+
+- AlbumBrowser now uses queries (much faster!)
+- Artist Role: we can now set a display value set for some roles (first and only for now is albumartist)
+- Album browser: append artist to matching album if configured (with `allowappendartistinalbumview` or `allowappendartistinalbumcontainer`)
+- Album browser: append year to matching album if configured (with `appendyeartoalbumview` or `appendyeartoalbumcontainer`)
+- Add APE to AudioCodec enum
+- Remove obscure configuration variables for adding album id to album entries
+- Performance improvements
+
 ## Release 0.9.5
 
 - Album browser: performance improvements

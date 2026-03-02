@@ -246,12 +246,12 @@ def sort_song_list(song_list: list[Song]) -> SortSongListResult:
     for song in song_list:
         dec: __Decorated_Song = __Decorated_Song(song)
         dec_list.append(dec)
-        if not dec.getPath() in codec_set_by_path:
+        if dec.getPath() not in codec_set_by_path:
             codec_set_by_path[dec.getPath()] = set()
         codec_per_path_set: set[str] = codec_set_by_path[dec.getPath()]
-        if not song.getSuffix().lower() in codec_per_path_set:
+        if song.getSuffix().lower() not in codec_per_path_set:
             codec_per_path_set.add(song.getSuffix().lower())
-        if not song.getSuffix().lower() in codec_dict:
+        if song.getSuffix().lower() not in codec_dict:
             codec_dict[song.getSuffix().lower()] = 1
         else:
             codec_dict[song.getSuffix().lower()] = codec_dict[song.getSuffix().lower()] + 1

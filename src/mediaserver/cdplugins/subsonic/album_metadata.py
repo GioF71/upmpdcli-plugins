@@ -126,7 +126,7 @@ class AlbumMetadata(Metadata):
 
     @property
     def album_display_artist(self) -> int:
-        return self.get_value(AlbumMetadataModel.ALBUM_DISPLAY_ARTIST)
+        return self.get_value(AlbumMetadataModel.ALBUM_DISPLAY_ARTIST, "")
 
     @property
     def album_explicit_status(self) -> int:
