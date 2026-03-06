@@ -32,7 +32,7 @@ from table_name import TableName
 from metadata_model import SongMetadataModel
 from msgproc_provider import msgproc
 from typing import Any
-
+import sqlite3
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
     return cache_manager_provider.get().delete_cached_element(cache_type.cache_name, key)
@@ -40,17 +40,23 @@ def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
 
 def on_album(album: Album):
     start: float = time.time()
-    __on_album(album=album)
+    connection: sqlite3.Connection = persistence.get_working_connection()
+    try:
+        __on_album(album=album, connection=connection)
+    except Exception as ex:
+        msgproc.log(f"on_album failed due to [{type(ex)}] [{ex}]")
+        connection.close()
     elapsed: float = time.time() - start
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
-def __on_album(album: Album):
+def __on_album(album: Album, connection: sqlite3.Connection = None):
     if not album or not album.getId():
         # nothing to do
         return
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    the_connection: sqlite3.Connection = persistence.get_working_connection(connection)
     album_quality_badge: str = None
     track_quality_summary: str = None
     album_path_joined: str = None
@@ -67,47 +73,80 @@ def __on_album(album: Album):
                         f"summary [{track_quality_summary}] "
                         f"path [{album_path_joined}]")
     # delete orphaned tracks
+    # msgproc.log("delete_song_list_not_in")
     persistence.delete_song_list_not_in(
         album_id=album.getId(),
-        song_list=list(map(lambda x: x.getId(), song_list)))
+        song_list=list(map(lambda x: x.getId(), song_list)),
+        connection=the_connection,
+        do_commit=False)
+    # the_connection.commit()
     # save metadata
+    # msgproc.log("save_album_metadata")
     persistence.save_album_metadata(
         album_metadata=metadata_converter.build_album_metadata(
             album=album,
             quality_badge=album_quality_badge,
             song_quality_summary=track_quality_summary,
             album_path=album_path_joined),
-        context="__on_album")
+        context="__on_album",
+        connection=the_connection,
+        do_commit=False)
     # save properties
     album_properties: dict[str, list[Any]] = subsonic_util.build_album_properties(album=album)
+    # msgproc.log("save_album_properties")
     persistence.save_album_properties(
         album_id=album.getId(),
-        properties=album_properties)
+        properties=album_properties,
+        connection=the_connection,
+        do_commit=False)
     # save other data
     album_artists: list[ArtistFromAlbum] = subsonic_util.get_artists_from_album(album=album)
+    # msgproc.log("update_album_artists")
     persistence.update_album_artists(
         album_id=album.getId(),
-        album_artists=album_artists)
+        album_artists=album_artists,
+        connection=the_connection,
+        do_commit=False)
+    # msgproc.log("update_album_discs")
     persistence.update_album_discs(
         album_id=album.getId(),
-        album_discs=subsonic_util.get_disc_titles_from_album(album=album))
+        album_discs=subsonic_util.get_disc_titles_from_album(album=album),
+        connection=the_connection,
+        do_commit=False)
+    # msgproc.log("update_album_genres")
     persistence.update_album_genres(
         album_id=album.getId(),
-        album_genres=subsonic_util.get_genres_from_album(album=album))
+        album_genres=subsonic_util.get_genres_from_album(album=album),
+        connection=the_connection,
+        do_commit=False)
+    # msgproc.log("update_album_record_labels")
     persistence.update_album_record_labels(
         album_id=album.getId(),
-        album_record_labels=subsonic_util.get_album_record_label_names(album=album))
+        album_record_labels=subsonic_util.get_album_record_label_names(album=album),
+        connection=the_connection,
+        do_commit=False)
+    # msgproc.log("update_album_moods")
     persistence.update_album_moods(
         album_id=album.getId(),
-        album_moods=subsonic_util.get_album_moods(album=album))
+        album_moods=subsonic_util.get_album_moods(album=album),
+        connection=the_connection,
+        do_commit=False)
+    # msgproc.log("update_album_release_types")
     persistence.update_album_release_types(
         album_id=album.getId(),
-        album_release_types=subsonic_util.get_album_release_types(album=album).types)
+        album_release_types=subsonic_util.get_album_release_types(album=album).types,
+        connection=the_connection,
+        do_commit=False)
     if verbose:
         msgproc.log("__on_album saving songs ...")
     song: Song
     for song in song_list if song_list else []:
-        __on_album_song(album=album, song=song)
+        # msgproc.log("__on_album_song")
+        __on_album_song(
+            album=album,
+            song=song,
+            connection=the_connection,
+            do_commit=False)
     # purge removed songs
     if song_count > 0:
         persistence.delete_by_parent_id_and_id_in_list(
@@ -116,43 +155,63 @@ def __on_album(album: Album):
             parent_id=album.getId(),
             id_column_name=SongMetadataModel.SONG_ID.column_name,
             id_list=list(map(lambda x: x.getId(), song_list)),
-            in_mode=persistence.InMode.NOT_IN)
+            in_mode=persistence.InMode.NOT_IN,
+            connection=the_connection,
+            do_commit=False)
+    persistence.commit(connection=the_connection)
+    if connection is None:
+        the_connection.close()
 
 
 def __on_album_song(
         album: Album,
-        song: Song):
+        song: Song,
+        connection: sqlite3.Connection,
+        do_commit: bool = True):
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    the_connection: sqlite3.Connection = persistence.get_working_connection(provided=connection)
     if verbose:
         msgproc.log(f"__on_album saving songs song [{song.getId()}] ...")
+    # msgproc.log("__on_album_song save_song_metadata")
     persistence.save_song_metadata(
         song_metadata=metadata_converter.build_song_metadata(song=song),
-        context="__on_album_song")
+        context="__on_album_song",
+        connection=connection,
+        do_commit=do_commit)
     # song album artists
     song_album_artist_list: list[SongArtist] = subsonic_util.get_song_artists_by_type(
         song=song,
         song_artist_type=SongArtistType.SONG_ALBUM_ARTIST)
+    # msgproc.log("__on_album_song save_song_album_artist_list")
     persistence.save_song_album_artist_list(
         song_id=song.getId(),
         album_id=album.getId(),
-        song_album_artist_list=song_album_artist_list)
+        song_album_artist_list=song_album_artist_list,
+        connection=the_connection,
+        do_commit=do_commit)
     if verbose:
         msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] album_artists [{len(song_album_artist_list)}]")
     # song artists
     song_artist_list: list[SongArtist] = subsonic_util.get_song_artists_by_type(
         song=song,
         song_artist_type=SongArtistType.SONG_ARTIST)
+    # msgproc.log("__on_album_song save_song_artist_list")
     persistence.save_song_artist_list(
         song_id=song.getId(),
         album_id=album.getId(),
-        song_artist_list=song_artist_list)
+        song_artist_list=song_artist_list,
+        connection=the_connection,
+        do_commit=do_commit)
     if verbose:
         msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] artists [{len(song_artist_list)}]")
     # contributors
     song_contributor_list: list[SongContributor] = subsonic_util.get_song_contributors(song=song)
+    # msgproc.log("__on_album_song save_song_contributor_list")
     persistence.save_song_contributor_list(
         song_id=song.getId(),
         album_id=album.getId(),
-        song_contributor_list=song_contributor_list)
+        song_contributor_list=song_contributor_list,
+        connection=the_connection,
+        do_commit=do_commit)
     if verbose:
         msgproc.log(f"__on_album [{album.getId()}] song [{song.getId()}] contributors [{len(song_contributor_list)}]")

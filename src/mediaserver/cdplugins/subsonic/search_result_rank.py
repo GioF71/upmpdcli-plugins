@@ -84,10 +84,12 @@ class SearchResultRank(Enum):
 def sort_artist_list_by_rank(
         search_value: str,
         artist_list: list[ArtistMetadata]) -> list[ArtistMetadata]:
+    def get_names(a: ArtistMetadata) -> list[str]:
+        return [a.artist_name, a.artist_sort_name] if a.artist_sort_name else [a.artist_name]
     return sort_obj_by_rank(
         search_value=search_value,
         obj_list=artist_list,
-        key=lambda a: [a.artist_name, a.artist_sort_name])
+        key=get_names)
 
 
 T = TypeVar("T")

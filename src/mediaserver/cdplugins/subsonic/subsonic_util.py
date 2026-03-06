@@ -94,6 +94,9 @@ def convert_album_properties(album_properties: dict[str, list[Any]]) -> dict[Alb
 
 def build_album_properties(album: Album) -> dict[str, list[Any]]:
     res: dict[str, list[str]] = {}
+    # has musicbrainz?
+    mb_id: str = get_album_musicbrainz_id(album=album)
+    res[AlbumPropertyKey.HAS_MUSICBRAINZ.property_key] = ["yes" if mb_id and len(mb_id) > 0 else "no"]
     genres: list[str] = album.getGenres()
     res[AlbumPropertyKey.GENRE.property_key] = list(set(genres))
     year: int = album.getYear()
@@ -103,6 +106,8 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
         res[AlbumPropertyKey.DECADE.property_key] = [__get_decade(year)]
     # label
     res[AlbumPropertyKey.LABEL.property_key] = get_album_record_label_names(album=album)
+    # label (initial)
+    res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1] for x in get_album_record_label_names(album=album)]
     # artists
     artist_list: list[str] = []
     artist_list.append(get_album_display_artist(album=album))
@@ -1118,9 +1123,14 @@ def append_album_badge_to_album_title(
 
 def append_album_version_to_album_title(
         current_albumtitle: str,
+        clean_album_title: str,
         album_version: str,
         album_entry_type: constants.AlbumEntryType,
         is_search_result: bool) -> str:
+    # don't append version if clean title ends with that already
+    if clean_album_title.endswith(f" ({album_version})") or clean_album_title.endswith(f" [{album_version}]"):
+        # do nothing, the clean title already contains the version
+       return current_albumtitle
     return append_something_to_album_title(
         current_albumtitle=current_albumtitle,
         something=album_version,

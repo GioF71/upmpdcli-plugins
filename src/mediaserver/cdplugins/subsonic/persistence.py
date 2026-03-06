@@ -1215,7 +1215,7 @@ def get_table_count(
     return res
 
 
-def get_working_connection(provided: sqlite3.Connection) -> sqlite3.Connection:
+def get_working_connection(provided: sqlite3.Connection = None) -> sqlite3.Connection:
     return provided if provided is not None else __get_connection()
 
 
@@ -2869,33 +2869,46 @@ def get_album_property_value_occurence_list(
     sql: str = f"""
         WITH FilteredUniverse AS (
             -- Your active filters (Genre=Classical, etc.)
-            SELECT DISTINCT album_id FROM album_property_v1
+            SELECT
+                DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+            FROM
+                {TableName.ALBUM_PROPERTY_V1.value}
             {intersections}
         ),
         KeyStats AS (
             -- Check once if this specific key is missing from any albums in our universe
             SELECT 
                 CASE 
-                    WHEN COUNT(DISTINCT fu.album_id) > COUNT(DISTINCT apv.album_id) THEN 1 
+                    WHEN COUNT(DISTINCT fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) > 
+                            COUNT(DISTINCT apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) THEN 1 
                     ELSE 0 
                 END as has_missing
             FROM FilteredUniverse fu
-            LEFT JOIN album_property_v1 apv 
-            ON fu.album_id = apv.album_id 
-            AND apv.album_property_key = ?
+            LEFT JOIN
+                {TableName.ALBUM_PROPERTY_V1.value} apv 
+            ON
+                fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = 
+                    apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} 
+                AND apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ?
         )
         SELECT 
-            apv.album_property_value,
-            COUNT(apv.album_id) AS album_count,
+            apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value},
+            COUNT(apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) AS album_count,
             -- Jackpot: A representative ID for THIS SPECIFIC value (e.g., a sample for '1994')
-            MIN(apv.album_id) AS representative_album_id,
+            MIN(apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) AS representative_album_id,
             -- Carry the missing flag through
             (SELECT has_missing FROM KeyStats) AS key_is_missing_somewhere
-        FROM album_property_v1 apv
-        JOIN FilteredUniverse fu ON apv.album_id = fu.album_id
-        WHERE apv.album_property_key = ?
-        GROUP BY apv.album_property_value
-        ORDER BY apv.album_property_value ASC
+        FROM
+            {TableName.ALBUM_PROPERTY_V1.value} apv
+        JOIN
+            FilteredUniverse fu ON
+                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+        WHERE
+            apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ?
+        GROUP BY
+            apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}
+        ORDER BY
+            apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} ASC
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
     rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
@@ -3953,6 +3966,7 @@ def __create_migration(applies_on: int, migration_name: str, migration_function:
 
 
 def __init():
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     __prepare_table_db_version()
     migrations: list[Migration] = [
         Migration(
@@ -4265,16 +4279,18 @@ def __init():
     migration_counter: int = 0
     for current_migration in migrations:
         db_version: str = get_db_version()
-        msgproc.log(f"Current db version is [{db_version}] -> "
-                    f"Examining migration [{current_migration.migration_name}] "
-                    f"index [{migration_counter}] ...")
+        if verbose:
+            msgproc.log(f"Current db version is [{db_version}] -> "
+                        f"Examining migration [{current_migration.migration_name}] "
+                        f"index [{migration_counter}] ...")
         if not db_version or db_version == current_migration.apply_on:
             msgproc.log(f"Migration [{current_migration.migration_name}] "
                         f"is executing on current db version [{db_version}] ...")
             current_migration.migration_function()
             msgproc.log(f"Migration [{current_migration.migration_name}] executed.")
         else:
-            msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
+            if verbose:
+                msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
         migration_counter += 1
     migrated_db_version: str = get_db_version()
     msgproc.log(f"Current db version is [{migrated_db_version}]")

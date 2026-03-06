@@ -1,5 +1,15 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.7
+
+- Add album property key LABEL_INITIAL (gets us easier navigability for LABELs)
+- Album browser: append version to matching album if configured (with `allowversioninalbumview` or `allowversioninalbumcontainer`), and if the album title doesn't already end with the version
+- Show album performance improvement (avoid calling on_album twice and avoid multiple commits)
+- Handle missing artist sort name gracefully
+- Reduce verbosity for (skipped) migrations
+- Add Album Property for Album MusicBrainz Id (values are just yes or no), so we can find those poorly tagged albums more easily
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.6
 
 - AlbumBrowser now uses queries (much faster!)

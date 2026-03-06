@@ -64,50 +64,6 @@ from typing import Optional
 import persistence
 
 
-def artist_entry_for_album(objid, album: Album) -> dict[str, any]:
-    msgproc.log(f"artist_entry_for_album creating artist entry for album with album_id: [{album.getId()}]")
-    artist_identifier: ItemIdentifier = ItemIdentifier(
-        name=ElementType.ARTIST.element_name,
-        value=album.getArtistId())
-    id: str = identifier_util.create_objid(
-        objid=objid,
-        id=identifier_util.create_id_from_identifier(artist_identifier))
-    artist_entry_title: str = subsonic_util.get_album_display_artist(album=album)
-    if album.getArtistId() and config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_ID):
-        msgproc.log(f"artist_entry_for_album: Adding [{album.getArtistId()}] to [{artist_entry_title}]")
-        artist_entry_title = f"{artist_entry_title} [{album.getArtistId()}]"
-    artist: Artist = subsonic_util.try_get_artist(album.getArtistId())
-    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
-        # we want the artist mb id, so we load the artist
-        artist_mb_id: str = (subsonic_util.get_artist_musicbrainz_id(artist)
-                             if artist
-                             else None)
-        if artist_mb_id:
-            if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER):
-                artist_entry_title = f"{artist_entry_title} [mb]"
-            else:
-                artist_entry_title = f"{artist_entry_title} [mb:{artist_mb_id}]"
-    # add album count
-    album_count: int = artist.getAlbumCount() if artist else 0
-    artist_entry_title = f"{artist_entry_title} [{album_count}]"
-    artist_entry: dict[str, any] = (upmplgutils.direntry(
-        id=id,
-        pid=objid,
-        title=artist_entry_title))
-    if artist_entry:
-        art_uri: str = None
-        # does the artist has coverArt?
-        artist_cover_art: str = subsonic_util.get_artist_cover_art(artist)
-        # if not already found from the artist, we try to get an album cover for the artist entry
-        if artist_cover_art:
-            art_uri = subsonic_util.build_cover_art_url(item_id=artist_cover_art, force_save=True)
-        else:
-            art_uri = art_retriever.get_album_cover_art_url_by_artist_id(artist_id=album.getArtistId())
-        upnp_util.set_album_art_from_uri(album_art_uri=art_uri, target=artist_entry)
-        cache_actions.on_album(album=album)
-    return artist_entry
-
-
 def genre_artist_to_entry(
         objid,
         genre: str,
@@ -197,6 +153,7 @@ def album_to_navigable_entry(
         is_search_result=False)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
+        clean_album_title=album.getTitle(),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
         is_search_result=False)
@@ -692,6 +649,7 @@ def album_to_entry(
         is_search_result=is_search_result)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
+        clean_album_title=album.getTitle(),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
@@ -810,7 +768,7 @@ def album_version_to_entry(
         title = f"{title} [{album_quality_badge}]"
         msgproc.log(f"album_version_to_entry title [{title}]")
     artist = subsonic_util.get_album_display_artist(album=current_album)
-    cache_actions.on_album(current_album)
+    # cache_actions.on_album(current_album)
     entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     current_album_cover_art: str = subsonic_util.build_cover_art_url(item_id=current_album.getCoverArt())
     upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
