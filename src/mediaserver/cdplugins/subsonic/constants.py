@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.6"
+    PLUGIN_RELEASE = "0.9.7"
     PLUGIN_NAME = "subsonic"
 
 

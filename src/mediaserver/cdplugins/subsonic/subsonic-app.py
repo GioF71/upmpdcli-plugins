@@ -1722,6 +1722,10 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
                             constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW
                             if not navigable
                             else constants.ConfigParam.APPEND_YEAR_TO_ALBUM_CONTAINER)
+    append_version: bool = config.get_config_param_as_bool(
+                            constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER
+                            if not navigable
+                            else constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW)
     curr: AlbumMetadata
     for curr in to_display:
         album_identifier: ItemIdentifier = ItemIdentifier(
@@ -1731,6 +1735,14 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
             objid=objid,
             id=identifier_util.create_id_from_identifier(album_identifier))
         entry_title: str = curr.album_name
+        # version
+        if append_version:
+            entry_title = subsonic_util.append_album_version_to_album_title(
+                current_albumtitle=entry_title,
+                clean_album_title=curr.album_name,
+                album_version=curr.album_version,
+                album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER if navigable else constants.AlbumEntryType.ALBUM_VIEW,
+                is_search_result=False)
         # year
         if curr.album_year and append_year:
             entry_title = f"{entry_title} [{curr.album_year}]"
@@ -3190,7 +3202,8 @@ def handler_element_navigable_album(
         msgproc.log(f"handler_element_navigable_album album [{album_id}] -> record label names [{record_label_names}]")
     album_entry: dict[str, any] = entry_creator.album_to_entry(
         objid=objid,
-        album=album)
+        album=album,
+        album_metadata=album_metadata)
     # set title a little differently here ...
     title: str = clean_title
     # album year if available
@@ -3214,6 +3227,7 @@ def handler_element_navigable_album(
         is_search_result=False)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
+        clean_album_title=album.getTitle(),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=False)
@@ -3257,11 +3271,13 @@ def handler_element_navigable_album(
         msgproc.log(f"handler_element_navigable_album adding {len(additional)} additional artists "
                     f"[{list(map(lambda c: c.artist_id, additional))}] "
                     f"skip_artist_id_set [{skip_artist_id_set}] ...")
+        msgproc.log("before create_entries_for_album_additional_artists")
         additional_artist_entries: list[dict, str] = create_entries_for_album_additional_artists(
             objid=objid,
             album_id=album_id,
             additional=additional,
             skip_artist_id_set=skip_artist_id_set)
+        msgproc.log("after create_entries_for_album_additional_artists")
         entries.extend(additional_artist_entries)
     elif len(additional) > 0:
         # create main artist entry if album has artist id
@@ -3380,6 +3396,7 @@ def create_entries_for_album_additional_artists(
         artist_id_list=artist_id_list)
     curr_artist: subsonic_util.ArtistsOccurrence
     for curr_artist in additional:
+        msgproc.log(f"Processing curr_artist [{curr_artist.artist_id}] [{curr_artist.artist_name}] ...")
         add_current: bool = curr_artist.artist_id not in skip_artist_id_set
         msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.artist_id}] [{curr_artist.artist_name}] "
                     f"adding [{'yes' if add_current else 'no'}]")
@@ -3660,6 +3677,7 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
         item_identifier=item_identifier,
         album_id=album_id,
         album_version_path=album_version_path,
+        album_and_tracks=(album, album_tracks),
         entries=entries)
 
 

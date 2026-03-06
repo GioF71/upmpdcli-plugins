@@ -51,6 +51,7 @@ class AlbumPropertyKey(Enum):
 
     GENRE = _AlbumPropertyKeyData(display_value="Genre")
     MOOD = _AlbumPropertyKeyData(display_value="Mood")
+    LABEL_INITIAL = _AlbumPropertyKeyData(display_value="Label (Initial)")
     LABEL = _AlbumPropertyKeyData(display_value="Label")
     DECADE = _AlbumPropertyKeyData(display_value="Decade", unique_value=True)
     YEAR = _AlbumPropertyKeyData(display_value="Year", unique_value=True)
@@ -63,6 +64,7 @@ class AlbumPropertyKey(Enum):
     BIT_DEPTH = _AlbumPropertyKeyData(display_value="Bit Depth")
     SAMPLING_RATE = _AlbumPropertyKeyData(display_value="Sampling Rate")
     CHANNEL_COUNT = _AlbumPropertyKeyData(display_value="Channel Count")
+    HAS_MUSICBRAINZ = _AlbumPropertyKeyData(display_value="MusicBrainz Album Id")
 
     @property
     def property_key(self) -> str:
