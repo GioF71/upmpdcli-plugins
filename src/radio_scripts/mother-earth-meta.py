@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ import json
 import sys
 import os
 
-apiurl = "https://motherearth.streamserver24.com/api/nowplaying"
+apiurl = "https://stream.motherearthradio.de/api/nowplaying"
 
 def msg(s):
     print(f"{s}", file=sys.stderr)

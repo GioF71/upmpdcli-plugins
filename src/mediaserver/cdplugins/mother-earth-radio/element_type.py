@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,17 +22,17 @@ class ElementType(Enum):
     ENTRY_BY_TITLE = 3, "ntrbt"
 
     def __init__(self, 
-            num : int, 
-            element_name : str):
-        self.num : int = num
-        self.element_name : str = element_name
+            num: int, 
+            element_name: str):
+        self.num: int = num
+        self.element_name: str = element_name
 
     def getName(self):
         return self.element_name
 
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in ElementType:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")
