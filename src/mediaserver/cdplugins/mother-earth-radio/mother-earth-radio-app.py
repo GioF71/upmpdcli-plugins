@@ -61,48 +61,60 @@ def _init_mother_earth_radio():
     _g_init = True
     return True
 
-def build_intermediate_url(rp_id : int) -> str:
+def build_intermediate_url(rp_id: str) -> str:
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
-    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{str(rp_id)}"
-    msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
+    encoded_rp_id: str = codec.encode(rp_id)
+    url = f"http://{http_host_port}/{constants.plugin_name}/track/version/1/trackId/{encoded_rp_id}"
+    msgproc.log(f"build_intermediate_url [{rp_id}] -> [{encoded_rp_id}] -> [{url}]")
     return url
 
-def build_streaming_url(station_id : str) -> str:
-    current : RadioStationEntry
-    for current in radio_stations.radio_station_list:
-        msgproc.log(f"build_streaming_url current.id: [{current.id}] station_id [{station_id}] [{type(station_id)}]")
-        if str(current.id) == station_id:
-            msgproc.log(f"build_streaming_url for station_id: [{station_id}] -> [{current.url}]")
-            return current.url
-    msgproc.log(f"build_streaming_url not found for station_id: [{station_id}]")
-    return None
+def build_streaming_url(station_id: str) -> str:
+    station_name: str = codec.decode(station_id)
+    select: RadioStationEntry = radio_stations.get_by_name(station_name=station_name)
+    msgproc.log(f"build_streaming_url [{station_id}] -> [{station_name}] -> [{select.value.url if select else None}]")
+    return select.value.url if select else None
+
 
 @dispatcher.record('trackuri')
 def trackuri(a):
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
     msgproc.log(f"UPMPD_PATHPREFIX: [{upmpd_pathprefix}] trackuri: [{a}]")
-    rp_id = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
-    url = build_streaming_url(rp_id) or ""
-    msgproc.log(f"intermediate_url for rp_id {rp_id} -> [{url}]")
-    return {'media_url' : url}
+    rp_id: str = upmplgutils.trackid_from_urlpath(upmpd_pathprefix, a)
+    url: str = build_streaming_url(rp_id) or ""
+    msgproc.log(f"trackuri [{rp_id}] -> [{url}]")
+    return {'media_url': url}
 
 def _returnentries(entries):
     """Helper function: build plugin browse or search return value from items list"""
-    return {"entries" : json.dumps(entries), "nocache" : "0"}
+    return {"entries": json.dumps(entries), "nocache": "0"}
 
 def _objidtopath(objid):
     if objid.find(_g_myprefix) != 0:
         raise Exception(f"subsonic: bad objid {objid}: bad prefix")
     return objid[len(_g_myprefix):].lstrip("/")
 
-def radio_entry_data_to_entry(objid, entry_id : str, radio_station_entry : RadioStationEntry) -> dict:
-    entry : dict = {}
+def radio_entry_data_to_entry(
+        objid,
+        entry_id: str,
+        radio_station_entry: RadioStationEntry,
+        radio_station_name: str) -> dict:
+    entry: dict = {}
     entry['id'] = entry_id
-    entry['pid'] = radio_station_entry.id
+    entry['pid'] = codec.encode(radio_station_name)
     entry['tp']= 'it'
-    entry['uri'] = build_intermediate_url(radio_station_entry.id)
+    entry['uri'] = build_intermediate_url(radio_station_name)
     upnp_util.set_class('object.item.audioItem.audioBroadcast', entry)
-    title : str = f"{radio_station_entry.title} [{radio_station_entry.codec}]"
+    title: str = (f"{radio_station_entry.title} "
+                   f"[{radio_station_entry.codec}] "
+                   f"[{radio_station_entry.bit_depth}] "
+                   f"[{radio_station_entry.sampling_rate}]")
+    # append channel count if needed
+    if radio_station_entry.channel_count == 1:
+        title = f"{title} [mono]"
+    elif radio_station_entry.channel_count == 2:
+        title = f"{title} [stereo]"
+    else:
+        title = f"{title} [{radio_station_entry.channel_count} channels]"
     upnp_util.set_album_title(title, entry)
     upnp_util.set_artist(radio_station_entry.title, entry)
     entry['upnp:album'] = radio_station_entry.codec
@@ -118,36 +130,35 @@ def radio_entry_data_to_entry(objid, entry_id : str, radio_station_entry : Radio
         entry)
     return entry
 
-def radio_station_to_entry(objid, radio_station_entry : RadioStationEntry) -> dict:
-    identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_ENTRY.getName(), str(radio_station_entry.id))
-    id : str = identifier_util.create_objid(
+def radio_station_to_entry(objid, radio_station_entry: RadioStationEntry, radio_station_name: str) -> dict:
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO_ENTRY.getName(), codec.encode(radio_station_name))
+    id: str = identifier_util.create_objid(
         objid = objid, 
         id = identifier_util.create_id_from_identifier(identifier))
-    return radio_entry_data_to_entry(objid = objid, entry_id = id, radio_station_entry = radio_station_entry)
+    return radio_entry_data_to_entry(
+        objid=objid,
+        entry_id=id,
+        radio_station_entry=radio_station_entry,
+        radio_station_name=radio_station_name)
 
-def get_radio_by_id(radio_id : str) -> RadioStationEntry:
-    current : RadioStationEntry
-    for current in radio_stations.radio_station_list:
-        if radio_id == str(current.id): return current
-    return None
 
 def handler_tag_by_something(
         objid, 
-        thing_extractor : Callable[[RadioStationEntry], str],
-        element_to_be_created : ElementType,
-        entries : list) -> list:
-    thing_set : set[str] = set()
-    current : RadioStationEntry
+        thing_extractor: Callable[[RadioStationEntry], str],
+        element_to_be_created: ElementType,
+        entries: list) -> list:
+    thing_set: set[str] = set()
+    current: RadioStationEntry
     for current in radio_stations.radio_station_list:
-        curr_thing : str = thing_extractor(current)
-        if not curr_thing in thing_set:
+        curr_thing: str = thing_extractor(current)
+        if curr_thing not in thing_set:
             # add entry
-            identifier : ItemIdentifier = ItemIdentifier(element_to_be_created.getName(), curr_thing)
-            id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-            entry : dict = upmplgutils.direntry(
-                id = id, 
-                pid = objid, 
-                title = curr_thing)
+            identifier: ItemIdentifier = ItemIdentifier(element_to_be_created.getName(), curr_thing)
+            id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+            entry: dict = upmplgutils.direntry(
+                id=id, 
+                pid=objid, 
+                title=curr_thing)
             entries.append(entry)
             # store in set
             thing_set.add(curr_thing)
@@ -155,104 +166,124 @@ def handler_tag_by_something(
 
 def handler_tag_by_codec(
         objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    thing_extractor : Callable[[RadioStationEntry], str] = lambda x : x.codec
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    def thing_extractor(radio_station: RadioStationEntry) -> str:
+        return radio_station.codec
     return handler_tag_by_something(
-        objid = objid,
-        thing_extractor = thing_extractor,
-        element_to_be_created = ElementType.ENTRY_BY_CODEC,
-        entries = entries)
+        objid=objid,
+        thing_extractor=thing_extractor,
+        element_to_be_created=ElementType.ENTRY_BY_CODEC,
+        entries=entries)
 
 def handler_tag_by_name(
         objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    thing_extractor : Callable[[RadioStationEntry], str] = lambda x : x.title
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    def thing_extractor(radio_station: RadioStationEntry) -> str:
+        return radio_station.title
     return handler_tag_by_something(
-        objid = objid,
-        thing_extractor = thing_extractor,
-        element_to_be_created = ElementType.ENTRY_BY_TITLE,
-        entries = entries)
+        objid=objid,
+        thing_extractor=thing_extractor,
+        element_to_be_created=ElementType.ENTRY_BY_TITLE,
+        entries=entries)
 
 def handler_tag_all_streams(
         objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    current : RadioStationEntry
-    for current in radio_stations.radio_station_list:
-        entries.append(radio_station_to_entry(objid, current))
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    current: radio_stations.RadioStation
+    for current in radio_stations.RadioStation:
+        entries.append(radio_station_to_entry(objid, current.value, current.name))
     return entries
 
 def handler_element_by_something(
         objid, 
-        selected : str, 
-        thing_extractor : Callable[[RadioStationEntry], str],
-        entries : list) -> list:
-    current : RadioStationEntry
-    for current in radio_stations.radio_station_list:
-        if thing_extractor(current) == selected:
-            entries.append(radio_station_to_entry(objid, current))
+        selected: str, 
+        thing_extractor: Callable[[RadioStationEntry], str],
+        entries: list) -> list:
+    current: radio_stations.RadioStation
+    for current in radio_stations.RadioStation:
+        if thing_extractor(current.value) == selected:
+            entries.append(radio_station_to_entry(objid, current.value, current.name))
     return entries
 
 def handler_element_by_title(
-        objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    select_thing : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    thing_extractor : Callable[[RadioStationEntry], str] = lambda x : x.title
-    return handler_element_by_something(objid = objid, selected = select_thing, thing_extractor = thing_extractor, entries = entries)
+        objid,
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    select_thing: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    def thing_extractor(radio_station: RadioStationEntry) -> str:
+        return radio_station.title
+    return handler_element_by_something(
+        objid=objid,
+        selected=select_thing,
+        thing_extractor=
+        thing_extractor,
+        entries=entries)
 
 def handler_element_by_codec(
         objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    select_thing : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    thing_extractor : Callable[[RadioStationEntry], str] = lambda x : x.codec
-    return handler_element_by_something(objid = objid, selected = select_thing, thing_extractor = thing_extractor, entries = entries)
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    select_thing: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    def thing_extractor(radio_station: RadioStationEntry) -> str:
+        return radio_station.codec
+    return handler_element_by_something(
+        objid=objid,
+        selected=select_thing,
+        thing_extractor=
+        thing_extractor,
+        entries=
+        entries)
 
 def handler_element_radio_entry(
         objid, 
-        item_identifier : ItemIdentifier, 
-        entries : list) -> list:
-    radio_id : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    msgproc.log(f"handler_element_radio_entry radio_id {radio_id}")
-    radio_entry : RadioStationEntry = get_radio_by_id(radio_id)
+        item_identifier: ItemIdentifier, 
+        entries: list) -> list:
+    radio_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_radio_entry radio_id [{radio_id}]")
+    radio_entry: RadioStationEntry = radio_stations.get_by_name(codec.decode(radio_id))
     msgproc.log(f"handler_element_radio_entry radio_entry found [{'yes' if radio_entry else 'no'}]")
-    if not radio_entry: return entries
-    identifier : ItemIdentifier = ItemIdentifier(ElementType.RADIO_ENTRY.getName(), radio_id)
-    id : str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
-    track_entry : dict = radio_entry_data_to_entry(objid, id, radio_entry)
+    if not radio_entry:
+        return entries
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO_ENTRY.getName(), radio_id)
+    id: str = identifier_util.create_objid(objid, identifier_util.create_id_from_identifier(identifier))
+    track_entry: dict = radio_entry_data_to_entry(
+        objid,
+        id,
+        radio_entry,
+        codec.decode(radio_id))
     entries.append(track_entry)
     return entries
 
-__tag_action_dict : dict = {
+__tag_action_dict: dict = {
     TagType.ALL_STREAMS.getTagName(): handler_tag_all_streams,
     TagType.BY_CODEC.getTagName(): handler_tag_by_codec,
     TagType.BY_TITLE.getTagName(): handler_tag_by_name,
 }
 
-__elem_action_dict : dict = {
+__elem_action_dict: dict = {
     ElementType.ENTRY_BY_TITLE.getName(): handler_element_by_title,
     ElementType.ENTRY_BY_CODEC.getName(): handler_element_by_codec,
     ElementType.RADIO_ENTRY.getName(): handler_element_radio_entry
 }
 
-def tag_to_entry(objid, tag : TagType) -> dict[str, any]:
-    tagname : str = tag.getTagName()
-    identifier : ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
-    id : str = identifier_util.create_objid(
+def tag_to_entry(objid, tag: TagType) -> dict[str, any]:
+    tagname: str = tag.getTagName()
+    identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.getName(), tagname)
+    id: str = identifier_util.create_objid(
         objid = objid, 
         id = identifier_util.create_id_from_identifier(identifier))
-    entry : dict = upmplgutils.direntry(
-        id = id, 
-        pid = objid, 
-        title = get_tag_type_by_name(tag.getTagName()).getTagTitle())
+    entry: dict = upmplgutils.direntry(
+        id=id, 
+        pid=objid, 
+        title=get_tag_type_by_name(tag.getTagName()).getTagTitle())
     return entry
 
-def show_tags(objid, entries : list) -> list:
+def show_tags(objid, entries: list) -> list:
     for tag in TagType:
-        tag_entry : dict[str, any] = tag_to_entry(objid, tag)
+        tag_entry: dict[str, any] = tag_to_entry(objid, tag)
         entries.append(tag_entry)
     return entries
 
@@ -260,16 +291,17 @@ def show_tags(objid, entries : list) -> list:
 def browse(a):
     msgproc.log(f"browse: args: --{a}--")
     _init_mother_earth_radio()
-    if 'objid' not in a: raise Exception("No objid in args")
+    if 'objid' not in a:
+        raise Exception("No objid in args")
     objid = a['objid']
     path = html.unescape(_objidtopath(objid))
     msgproc.log(f"browse: path: --{path}--")
-    path_list : list[str] = objid.split("/")
-    curr_path : str
+    path_list: list[str] = objid.split("/")
+    curr_path: str
     for curr_path in path_list:
         if not _g_myprefix == curr_path:
             msgproc.log(f"browse: current_path [{curr_path}] decodes to [{codec.decode(curr_path)}]")
-    last_path_item : str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
+    last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
     msgproc.log(f"browse: path_list: --{path_list}-- last: --{last_path_item}--")
     entries = []
     if len(path_list) == 1 and _g_myprefix == last_path_item:
@@ -277,11 +309,11 @@ def browse(a):
         entries = show_tags(objid, entries)
     else:
         # decode
-        decoded_path : str = codec.decode(last_path_item)
-        item_dict : dict[str, any] = json.loads(decoded_path)
-        item_identifier : ItemIdentifier = ItemIdentifier.from_dict(item_dict)
-        thing_name : str = item_identifier.get(ItemIdentifierKey.THING_NAME)
-        thing_value : str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+        decoded_path: str = codec.decode(last_path_item)
+        item_dict: dict[str, any] = json.loads(decoded_path)
+        item_identifier: ItemIdentifier = ItemIdentifier.from_dict(item_dict)
+        thing_name: str = item_identifier.get(ItemIdentifierKey.THING_NAME)
+        thing_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
         msgproc.log(f"browse: item_identifier name: --{thing_name}-- value: --{thing_value}--")
         if ElementType.TAG.getName() == thing_name:
             tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
@@ -301,7 +333,7 @@ def browse(a):
 def search(a):
     msgproc.log("search: [%s]" % a)
     _init_mother_earth_radio()
-    objid = a["objid"]
+    # objid = a["objid"]
     entries = []
 
     # Run the search and build a list of entries in the expected format. See for example

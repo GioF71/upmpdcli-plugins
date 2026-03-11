@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,17 +21,17 @@ class ItemIdentifierKey(Enum):
     THING_VALUE = 1, 'v'
             
     def __init__(self, 
-            num : int, 
-            key_name : str):
-        self.num : int = num
-        self.key_name : str = key_name
+            num: int, 
+            key_name: str):
+        self.num: int = num
+        self.key_name: str = key_name
     
     def getName(self) -> str:
         return self.key_name
     
 # duplicate check
-name_checker_set : set[str] = set()
-id_checker_set : set[int] = set()
+name_checker_set: set[str] = set()
+id_checker_set: set[int] = set()
 for v in ItemIdentifierKey:
     if v.getName() in name_checker_set:
         raise Exception(f"Duplicated name [{v.getName()}]")
