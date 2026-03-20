@@ -136,9 +136,6 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.ALPHABETICAL_BY_NAME_ALBUMS.tag_name: False,
     TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.tag_name: False,
     TagType.RANDOM.tag_name: False,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: False,
-    TagType.ALBUMS_WITHOUT_COVER.tag_name: False,
-    TagType.ALBUMS_WITHOUT_GENRE.tag_name: False,
     TagType.FAVORITE_ALBUMS.tag_name: False,
     TagType.ALL_ARTISTS.tag_name: False,
     TagType.ARTIST_ROLES.tag_name: False,
@@ -232,7 +229,7 @@ def __coverartid_from_urlpath(pathprefix, a):
 
 @dispatcher.record('trackuri')
 def trackuri(a):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
@@ -273,7 +270,7 @@ def trackuri(a):
 
 
 def cover_art_trackuri(item_id: str):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log(f"cover_art_trackuri for item_id [{item_id}]")
     cover_art_url: str = subsonic_util.build_cover_art_url(item_id=item_id, force_final_url=True)
@@ -286,7 +283,7 @@ def cover_art_trackuri(item_id: str):
 
 
 def song_trackuri(track_id: str):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     song: Song = None
     try:
         res: Response[Song] = connector_provider.get().getSong(song_id=track_id)
@@ -378,7 +375,7 @@ def _station_to_entry(
 
 
 def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log(f"entering _song_data_to_entry for song id [{song.getId()}] ...")
     entry: dict[str, any] = {}
@@ -832,7 +829,7 @@ def _playlist_entry_to_entry(
 
 
 def _create_list_of_playlist_entries(objid, playlist_id: str, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     start_time: float = time.time()
     response: Response[Playlist] = connector_provider.get().getPlaylist(playlist_id)
     get_playlist_elapsed: float = time.time() - start_time
@@ -924,99 +921,6 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
     except Exception as ex:
         msgproc.log(f"Cannot handle tag [{tag_type.tag_name}] [{type(ex)}] [{ex}]")
         return list()
-
-
-def handler_tag_albums_without_musicbrainz(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    return handle_tag_albums_with_anomaly(
-        objid=objid,
-        item_identifier=item_identifier,
-        entries=entries,
-        anomaly_detector=lambda lbm: not subsonic_util.get_album_musicbrainz_id(lbm))
-
-
-def handler_tag_albums_without_cover(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    return handle_tag_albums_with_anomaly(
-        objid=objid,
-        item_identifier=item_identifier,
-        entries=entries,
-        anomaly_detector=lambda lbm: not lbm.getCoverArt())
-
-
-def handler_tag_albums_without_genre(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    return handle_tag_albums_with_anomaly(
-        objid=objid,
-        item_identifier=item_identifier,
-        entries=entries,
-        anomaly_detector=lambda lbm: len(lbm.getGenres()) == 0)
-
-
-def handle_tag_albums_with_anomaly(
-        objid,
-        item_identifier: ItemIdentifier,
-        entries: list,
-        anomaly_detector: Callable[[Album], bool]) -> list:
-    initial_offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    offset: int = initial_offset
-    finished: bool = False
-    album_selection: list[Album] = []
-    finished: bool = False
-    max_load_size: int = config.get_config_param_as_int(constants.ConfigParam.MAINTENANCE_MAX_ALBUM_LOAD_SIZE)
-    load_count: int = 0
-    search_size: int = config.get_config_param_as_int(constants.ConfigParam.SEARCH_SIZE_ALBUM_LIBRARY_MAINTENANCE)
-    show_next: bool = False
-    while not finished:
-        msgproc.log(f"Executing search with offset [{offset}] selection size [{len(album_selection)}]")
-        search_result: SearchResult = connector_provider.get().search(
-            "",
-            artistCount=0,
-            songCount=0,
-            albumCount=search_size,
-            albumOffset=offset)
-        album_list: list[Album] = search_result.getAlbums()
-        load_count += len(album_list) if album_list else 0
-        curr: Album
-        for curr in album_list:
-            # if not subsonic_util.get_album_musicbrainz_id(curr):
-            if anomaly_detector(curr):
-                album_selection.append(curr)
-                msgproc.log(f"Using offset [{offset}] selection size [{len(album_selection)}]")
-                if len(album_selection) == (config.get_items_per_page() + 1):
-                    # enough albums
-                    finished = True
-                    break
-                else:
-                    offset += 1
-            else:
-                offset += 1
-        if len(album_list) < search_size:
-            # finished
-            finished = True
-        # are we hitting the max load?
-        if not finished and load_count >= max_load_size:
-            # force show next button, however there won't be an image
-            show_next = True
-            finished = True
-    to_display: list[Album] = album_selection[0:min(len(album_selection), config.get_items_per_page())]
-    next_album: Album = (album_selection[config.get_items_per_page()]
-                         if len(album_selection) == (config.get_items_per_page() + 1)
-                         else None)
-    curr_to_display: Album
-    for curr_to_display in to_display:
-        entries.append(entry_creator.album_to_navigable_entry(
-            objid=objid,
-            album=curr_to_display))
-    if show_next or next_album:
-        # add next album entry
-        next_entry: dict[str, any] = _create_tag_next_entry(
-            objid=objid,
-            tag=get_tag_type_by_name(item_identifier.get(ItemIdentifierKey.THING_VALUE)),
-            offset=offset)
-        if next_album:
-            # set album art
-            next_cover_art: str = subsonic_util.build_cover_art_url(item_id=next_album.getCoverArt())
-            upnp_util.set_album_art_from_uri(next_cover_art, next_entry)
-        entries.append(next_entry)
-    return entries
 
 
 def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1209,7 +1113,7 @@ def __get_timestamp(song: Song) -> float | None:
 
 
 def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     song_list: list[Song] = []
     song_limit: int = config.get_config_param_as_int(constants.ConfigParam.RECENTLY_PLAYED_SONGS_MAX_SONGS)
     offset: int = 0
@@ -1386,7 +1290,7 @@ def __create_favorite_song_entry(objid, song: Song, track_number: int = None) ->
 
 
 def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     # use jackpot query!
     occ_list: list[AlbumPropertyKeyOccurrence] = persistence.get_album_property_key_occurence_list(condition_list=[])
     curr_occ: AlbumPropertyKeyOccurrence
@@ -1397,10 +1301,13 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
     album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list)
     curr_key: AlbumPropertyKey
-    for curr_key in AlbumPropertyKey:
+    for curr_key in config.get_enabled_album_property_key_list():
         # match occurrence or continue
         occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
         if not occurrence:
+            continue
+        # hide if count is one and the are not any album without the property
+        if occurrence.property_value_count == 1 and not occurrence.is_missing_for_some:
             continue
         # create entry for property key
         identifier: ItemIdentifier = ItemIdentifier(
@@ -1435,7 +1342,7 @@ def extract_selection_list(current_selection_list_str: str) -> list[list[str]]:
 
 
 def convert_selection_list(selection_list: list[list[str]]) -> list[AlbumPropertyKeyValue]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     condition_list: list[AlbumPropertyKeyValue] = []
     curr_selection: list[str]
     for curr_selection in selection_list if selection_list else []:
@@ -1451,7 +1358,7 @@ def convert_selection_list(selection_list: list[list[str]]) -> list[AlbumPropert
 
 
 def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    # verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    # verbose: bool = config.get_verbose_logging()
     album_property_key: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     album_property_key_matched: AlbumPropertyKey = get_album_property_key(property_key=album_property_key)
     if album_property_key_matched is None:
@@ -1557,7 +1464,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
 
 
 def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     encoded_filter_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     filter_value: str = decode_value_holder(encoded_filter_value)
     filter_key: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_FILTER_KEY)
@@ -1591,7 +1498,7 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     occ_album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=occ_album_id_list)
     curr_key: AlbumPropertyKey
-    for curr_key in AlbumPropertyKey:
+    for curr_key in config.get_enabled_album_property_key_list():
         # match occurrence or continue
         occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
         if not occurrence:
@@ -1667,7 +1574,7 @@ def __sort_matching_album_list(album_metadata_list: list[AlbumMetadata]):
 
 
 def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     if verbose:
@@ -2286,7 +2193,7 @@ def handle_tag_all_artists_unsorted_by_role(
         tag_type: TagType,
         entries: list,
         role_filter: Callable[[Artist], True] = None) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     initial_offset: int = offset
     req_count: int = config.get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE)
@@ -2398,7 +2305,7 @@ def handler_tag_all_artists_unsorted(objid, item_identifier: ItemIdentifier, ent
 
 
 def handler_tag_artist_roles(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     roles: list[persistence.ArtistRoleEntry] = persistence.get_artist_roles()
     role_entry: persistence.ArtistRoleEntry
     for role_entry in roles if roles else []:
@@ -2521,7 +2428,7 @@ def handler_element_artists_by_initial(objid, item_identifier: ItemIdentifier, e
 
 
 def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     release_types: str = item_identifier.get(ItemIdentifierKey.ALBUM_RELEASE_TYPE, "")
@@ -2582,7 +2489,7 @@ def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entrie
 
 
 def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     # show artist appearances
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
@@ -2632,7 +2539,7 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
 
 
 def handler_element_artist_role(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     artist_role: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     roles_initials: list[persistence.ArtistRoleInitialEntry] = persistence.get_artist_role_initials(artist_role=artist_role)
     role_initial_entry: persistence.ArtistRoleInitialEntry
@@ -2668,7 +2575,7 @@ def handler_element_artist_role(objid, item_identifier: ItemIdentifier, entries:
 
 
 def handler_element_artist_role_initial(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     artist_initial: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     artist_role: str = item_identifier.get(ItemIdentifierKey.ARTIST_ROLE)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
@@ -3161,7 +3068,7 @@ def handler_element_navigable_album(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     album: Album = subsonic_util.try_get_album(album_id=album_id)
     if not album:
@@ -3485,7 +3392,7 @@ def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType)
 
 
 def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     res_artist_info: Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
     if not res_artist_info.isOk():
         raise Exception(f"Cannot get artist info for artist_id {artist_id}")
@@ -3756,10 +3663,7 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
         tag_list.append(TagType.FAVORITE_ALBUMS)
     # add maintenance features
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_MAINTENANCE_FEATURES):
-        tag_list.extend([
-            TagType.ALBUMS_WITHOUT_MUSICBRAINZ,
-            TagType.ALBUMS_WITHOUT_COVER,
-            TagType.ALBUMS_WITHOUT_GENRE])
+        tag_list.extend([])
     context: TagToEntryContext = TagToEntryContext()
     current: TagType
     for current in tag_list:
@@ -3802,7 +3706,7 @@ def get_group_artists_item_list() -> list[Any]:
 
 def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     tag_list: list[Any] = get_group_artists_item_list()
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     random_size: int = 100
     msgproc.log(f"handler_tag_group_artists getting [{random_size}] random songs ...")
     res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=random_size)
@@ -3849,7 +3753,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
                 msgproc.log(f"handler_tag_group_artists got cover art from artist: [{'yes' if artist_cover_art else 'no'}] "
                             f"CoverArt: [{artist_cover_art}]")
             if not artist_cover_art:
-                if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+                if config.get_verbose_logging():
                     msgproc.log(f"handler_tag_group_artists artist [{select_fav.getId()}] [{select_fav.getName()}] "
                                 "has no cover art, using albums (slower) ...")
                 fav_art_uri = art_retriever.get_album_cover_art_url_by_artist_id(artist_id=select_fav.getId())
@@ -3899,9 +3803,6 @@ __tag_action_dict: dict = {
     TagType.HIGHEST_RATED_ALBUMS.tag_name: handler_tag_highest_rated,
     TagType.MOST_PLAYED_ALBUMS.tag_name: handler_tag_most_played,
     TagType.FAVORITE_ALBUMS.tag_name: handler_tag_favourite_albums,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: handler_tag_albums_without_musicbrainz,
-    TagType.ALBUMS_WITHOUT_COVER.tag_name: handler_tag_albums_without_cover,
-    TagType.ALBUMS_WITHOUT_GENRE.tag_name: handler_tag_albums_without_genre,
     TagType.RANDOM.tag_name: handler_tag_random,
     TagType.GENRES.tag_name: handler_tag_genres,
     TagType.ARTIST_ROLES.tag_name: handler_tag_artist_roles,
@@ -4003,7 +3904,7 @@ def tag_to_entry(
 
 
 def show_tag_entries(objid, entries: list) -> list:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log("show_tag_entries starting ...")
     context: TagToEntryContext = TagToEntryContext()
@@ -4122,7 +4023,7 @@ def log_search_duration(
 
 
 def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     artist_list: list[Artist] = []
     artist_id_set: set[str] = set()
     # try to search artists by the provided artist_name
@@ -4187,7 +4088,7 @@ def search_songs_by_song_title(song_title: str) -> list[Song]:
 
 
 def search_songs_by_artist(artist_name: str) -> list[Song]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     song_list: list[Song] = []
     album_id_set: set[str] = set()
     song_id_set: set[str] = set()
@@ -4240,7 +4141,7 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
 
 
 def search_albums_by_album_title(album_title: str) -> list[Album]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     album_list: list[Album] = []
     res: SearchResult = connector_provider.get().search(
         query=album_title,
@@ -4354,7 +4255,7 @@ def search_artist_by_name_using_api(artist_name: str) -> list[ArtistIdNameCoverA
 
 
 def search_albums_by_artist(artist_name: str) -> list[Album]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     album_list: list[Album] = []
     album_id_set: set[str] = set()
     # get the artists.

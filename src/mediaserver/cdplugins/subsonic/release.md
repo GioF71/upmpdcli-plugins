@@ -1,5 +1,17 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.8
+
+- Album browser: add suffix
+- Add metadata entry for Album quality (quality badge) also for Album Browser entries for "Matching Albums"
+- Remove now obsolete maintenance feature "Album without Musicbrainz"
+- Remove now obsolete maintenance feature "Album without CoverArt"
+- Remove now obsolete maintenance feature "Album without Genre"
+- Add Album Property for Album Cover Art (values are just yes or no), so we can find those albums that are missing a cover art
+- Add Album Property for Album Artist (collects artist/album artist available at the album level)
+- Album Browser: avoid to show a key if there is only one value and no album missing the key (so that value would select all the albums)
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.7
 
 - Add album property key LABEL_INITIAL (gets us easier navigability for LABELs)

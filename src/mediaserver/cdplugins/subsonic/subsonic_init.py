@@ -239,7 +239,7 @@ def get_loaded_song_list(loaded_by_album_id: dict[str, list[Song]], album_id: st
 
 def preload_songs(connection: sqlite3.Connection, preload_albums_result: PreloadAlbumsResult):
     msgproc.log("preload_songs starting ...")
-    verbose_logging: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose_logging: bool = config.get_verbose_logging()
     preload_verbose_logging: bool = (verbose_logging and
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()
@@ -271,7 +271,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
         for song in res.getSongs():
             album_exists: bool = song.getAlbumId() in album_id_set
             if not album_exists:
-                if not song.getAlbumId() in missing_album_id_set:
+                if song.getAlbumId() not in missing_album_id_set:
                     # try loading.
                     album_md: AlbumMetadata = persistence.get_album_metadata(
                         album_id=song.getAlbumId(),
@@ -390,7 +390,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
 def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
     msgproc.log("preload_albums starting ...")
     result: PreloadAlbumsResult = PreloadAlbumsResult()
-    verbose_logging: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose_logging: bool = config.get_verbose_logging()
     preload_verbose_logging: bool = (verbose_logging and
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()

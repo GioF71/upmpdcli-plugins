@@ -775,7 +775,7 @@ def get_artist_id_list_by_display_name(artist_display_name: str, connection: sql
 
 
 def get_random_album_by_genre(genre_name: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     the_connection: sqlite3.Connection = get_working_connection(connection)
     album_metadata: AlbumMetadata = None
     column_list_names: list[str] = __album_metadata_model_all_column_names
@@ -2118,7 +2118,7 @@ def save_artist_metadata(
         connection=the_connection,
         do_commit=do_commit)
     elapsed: float = time.time() - start
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if config.get_verbose_logging():
         msgproc.log(f"save_artist_metadata for artist_id [{artist_metadata.artist_id}] executed in [{elapsed:.3f}]")
     if connection is None:
         the_connection.close()
@@ -2179,7 +2179,7 @@ def __save_artist_metadata(
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> ArtistMetadata:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if config.get_verbose_logging():
         msgproc.log(f"save_artist_metadata for artist_id: {artist_metadata.artist_id} "
                     f"name [{artist_metadata.artist_name}] "
                     f"musicbrainz_id [{artist_metadata.artist_musicbrainz_id}]")
@@ -3966,7 +3966,7 @@ def __create_migration(applies_on: int, migration_name: str, migration_function:
 
 
 def __init():
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     __prepare_table_db_version()
     migrations: list[Migration] = [
         Migration(

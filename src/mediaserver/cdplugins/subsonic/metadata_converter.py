@@ -31,6 +31,7 @@ from release_date import ReleaseDate
 from constants import ItemKey
 from album_property_key import AlbumPropertyKey
 from disc_title import DiscTitle
+from song_info import SongInfo
 import audio_codec
 
 
@@ -264,8 +265,10 @@ def build_album_metadata(
         album_track_quality_summary: str = subsonic_util.calc_song_quality_summary(song_list=song_list)
         if album_track_quality_summary:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY, album_track_quality_summary)
+        # collect song info list
+        song_info_list: list[SongInfo] = subsonic_util.get_song_info_list(song_list=song_list)
         # averate bitrate
-        avg_bitrate: int = subsonic_util._get_avg_bitrate_int(subsonic_util.get_song_info_list(song_list=song_list))
+        avg_bitrate: int = subsonic_util._get_avg_bitrate_int(song_info_list=song_info_list)
         if avg_bitrate:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_AVERAGE_BITRATE, avg_bitrate)
         # album_path

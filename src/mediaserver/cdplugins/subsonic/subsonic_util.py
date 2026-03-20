@@ -97,6 +97,8 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # has musicbrainz?
     mb_id: str = get_album_musicbrainz_id(album=album)
     res[AlbumPropertyKey.HAS_MUSICBRAINZ.property_key] = ["yes" if mb_id and len(mb_id) > 0 else "no"]
+    cover_art: str = album.getCoverArt()
+    res[AlbumPropertyKey.HAS_COVER_ART.property_key] = ["yes" if cover_art and len(cover_art) > 0 else "no"]
     genres: list[str] = album.getGenres()
     res[AlbumPropertyKey.GENRE.property_key] = list(set(genres))
     year: int = album.getYear()
@@ -109,54 +111,22 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # label (initial)
     res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1] for x in get_album_record_label_names(album=album)]
     # artists
-    artist_list: list[str] = []
-    artist_list.append(get_album_display_artist(album=album))
-    artist_list.extend([x.artist_name for x in get_artists_from_album(
+    album_artist_set: set[str] = set()
+    album_artist_set.add(get_album_display_artist(album=album))
+    album_artist_set.update([x.artist_name for x in get_artists_from_album(
         album=album,
         item_key=constants.ItemKey.ALBUM_ARTISTS)])
-    artist_list.extend([x.artist_name for x in get_artists_from_album(
+    album_artist_set.update([x.artist_name for x in get_artists_from_album(
         album=album,
         item_key=constants.ItemKey.ARTISTS)])
-    artist_name_list: list[str] = list(set(artist_list))
-    # get artists from songs (both types)
-    song_artist_list: list[SongArtist]
-    for song_artist_list in ([
-            get_song_artists_by_type(
-                song=s,
-                song_artist_type=SongArtistType.SONG_ALBUM_ARTIST) + get_song_artists_by_type(
-                    song=s,
-                    song_artist_type=SongArtistType.SONG_ARTIST)
-            for s in album.getSongs()]):
-        curr_song_artist: SongArtist
-        for curr_song_artist in song_artist_list:
-            if curr_song_artist.artist_name not in artist_name_list:
-                artist_name_list.append(curr_song_artist.artist_name)
-    if len(artist_name_list) > 0:
-        res[AlbumPropertyKey.ARTIST.property_key] = artist_name_list
-    # contributors
-    contributor_name_list: list[str] = []
-    song_contributor_list: list[SongContributor]
-    for song_contributor_list in ([get_song_contributors(song=s) for s in album.getSongs()]):
-        curr_song_contributor: SongContributor
-        for curr_song_contributor in song_contributor_list:
-            if curr_song_contributor.artist_name not in song_contributor_list:
-                contributor_name_list.append(curr_song_contributor.artist_name)
-    if len(contributor_name_list) > 0:
-        res[AlbumPropertyKey.CONTRIBUTOR.property_key] = contributor_name_list
-        # pass
-    # all artists
-    all_artist_names: list[str] = list(set(contributor_name_list + artist_name_list))
-    if len(all_artist_names) > 0:
-        res[AlbumPropertyKey.ARTIST_CONTRIBUTOR.property_key] = all_artist_names
-        # pass
+    # at this point I can just extract the album artist list
+    res[AlbumPropertyKey.ALBUM_ARTIST.property_key] = list(album_artist_set)
     # release type
     release_types: list[str] = get_album_release_types(album=album).types
-    if len(release_types) > 0:
-        res[AlbumPropertyKey.RELEASE_TYPE.property_key] = release_types
+    res[AlbumPropertyKey.RELEASE_TYPE.property_key] = release_types
     # suffixes and lossless status
     song_list: list[Song] = album.getSongs()
     if len(song_list if song_list else []) > 0:
-        # we prefer provided list of songs
         song_properties: dict[str, any] = build_album_properties_from_songs(song_list=song_list)
         # contribute to main dictionary
         res.update(song_properties)
@@ -166,9 +136,9 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
 def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[Any]]:
     res: dict[str, list[str]] = {}
     # suffixes and lossless status
-    suffixes: list[str] = list(set(list(dict.fromkeys(list(map(
-        lambda x: x.getSuffix().lower() if x.getSuffix() else None,
-        song_list))))))
+    non_empty_suffix_list: list[str] = [x.getSuffix().lower() for x in list(filter(lambda x: x.getSuffix() is not None, song_list))]
+    suffixes: list[str] = list(set(non_empty_suffix_list))
+    res[AlbumPropertyKey.SUFFIX.property_key] = suffixes
     lossless_statuses: list[audio_codec.LosslessStatus] = list(map(
         lambda x: audio_codec.get_lossless_status(x),
         suffixes))
@@ -189,6 +159,32 @@ def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[A
     channel_count_list: list[str] = list(set([str(get_song_channel_count(x)) for x in song_list]))
     if channel_count_list:
         res[AlbumPropertyKey.CHANNEL_COUNT.property_key] = channel_count_list
+    # get artists from songs (both types)
+    song_artist_set: set[str] = set()
+    song_artist_list_by_type: list[SongArtist]
+    for song_artist_list_by_type in ([
+            get_song_artists_by_type(
+                song=s,
+                song_artist_type=SongArtistType.SONG_ALBUM_ARTIST) + get_song_artists_by_type(
+                    song=s,
+                    song_artist_type=SongArtistType.SONG_ARTIST)
+            for s in song_list]):
+        curr_song_artist: SongArtist
+        for curr_song_artist in song_artist_list_by_type:
+            song_artist_set.add(curr_song_artist.artist_name)
+    # set artist propery
+    res[AlbumPropertyKey.ARTIST.property_key] = list(song_artist_set)
+    # contributors
+    contributor_name_set: set[str] = set()
+    song_contributor_list: list[SongContributor]
+    for song_contributor_list in ([get_song_contributors(song=s) for s in song_list]):
+        curr_song_contributor: SongContributor
+        for curr_song_contributor in song_contributor_list:
+            contributor_name_set.add(curr_song_contributor.artist_name)
+    res[AlbumPropertyKey.CONTRIBUTOR.property_key] = list(contributor_name_set)
+    # all artists
+    all_song_artist_names: list[str] = contributor_name_set.union(song_artist_set)
+    res[AlbumPropertyKey.ARTIST_CONTRIBUTOR.property_key] = all_song_artist_names
     return res
 
 
@@ -476,7 +472,7 @@ def try_get_album(
         if res and res.getObj() and res.isOk():
             album: Album = res.getObj()
             elapsed: float = time.time() - start
-            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            if config.get_verbose_logging():
                 msgproc.log(f"try_get_album loaded album for album_id [{album_id}] in [{elapsed:.3f}]")
             return album
     except Exception as e:
@@ -490,7 +486,7 @@ def try_get_artist(artist_id: str) -> Artist:
     try:
         res: Response[Artist] = connector_provider.get().getArtist(artist_id)
         artist: Artist = res.getObj() if res and res.isOk() else None
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if config.get_verbose_logging():
             msgproc.log(f"try_get_artist loaded artist_id [{artist_id}] "
                         f"success [{artist is not None}] in "
                         f"[{(time.time() - start):.3f}] sec")
@@ -525,7 +521,7 @@ def get_cover_art_url_by_album_id(album_id: str) -> str:
 
 
 def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     result: list[Song] = []
     album: Album = try_get_album(album_id=album_id)
     if album:
@@ -886,7 +882,7 @@ def get_album_date_for_sorting(album: Album) -> str:
 
 
 def ensure_directory(base_dir: str, sub_dir_list: list[str]) -> str:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     curr_sub_dir: str
     curr_dir: str = base_dir
     for curr_sub_dir in sub_dir_list:
@@ -1557,7 +1553,7 @@ def build_cover_art_url(
     if force_final_url or not config.get_config_param_as_bool(constants.ConfigParam.ENABLE_COVER_ART_INTERMEDIATE_URL):
         cover_art_url: str = __build_cover_art_url(item_id=item_id, force_save=force_save)
         elapsed: float = time.time() - start
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if config.get_verbose_logging():
             msgproc.log(f"build_cover_art_url for item_id [{item_id}] total elapsed [{elapsed:.3f}]")
     else:
         # build intermediate cover art URL
@@ -1578,7 +1574,7 @@ def __build_cover_art_url(item_id: str, force_save: bool = False) -> str:
     cover_art_url: str = connector_provider.get().buildCoverArtUrl(item_id=item_id)
     if not cover_art_url:
         return None
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if (__validate_image_caching_enabled()):
         save_start: float = time.time()
         if verbose:
@@ -1686,7 +1682,7 @@ def __build_image_path_as_list(item_id_with_ext: str) -> list[str]:
 
 
 def __match_images_only(match_list: list[str]) -> list[str]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     result: list[str] = []
     for m in match_list if match_list else []:
         if match_supported_image_type_by_name(m):
@@ -2003,6 +1999,7 @@ def set_album_metadata_by_metadata_only(
         song_count=album_metadata.album_song_count)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_DISC_AND_TRACK_COUNTERS, disc_track_counters, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, album_metadata.album_media_type, target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
 
 
 def set_album_metadata(
