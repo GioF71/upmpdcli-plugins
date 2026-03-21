@@ -98,7 +98,7 @@ def get_playlists() -> Response[Artists]:
 
 
 def get_starred() -> Response[Starred]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     global cached_starred
     if __cached_response_is_expired(
             cached=cached_starred,

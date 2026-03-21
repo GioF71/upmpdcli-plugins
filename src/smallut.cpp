@@ -653,11 +653,10 @@ void neutchars(const std::string& str, std::string& out, const std::string& char
 }
 
 
-/* Truncate a string to a given maxlength, avoiding cutting off midword
- * if reasonably possible. Note: we could also use textsplit, stopping when
- * we have enough, this would be cleanly utf8-aware but would remove
- * punctuation */
-static const std::string cstr_SEPAR = " \t\n\r-:.;,/[]{}";
+// Truncate a string to a given maxlength, avoiding cutting off midword if reasonably
+// possible. Note: we could also use textsplit, stopping when we have enough, this would be cleanly
+// utf8-aware but would remove punctuation.
+static const std::string cstr_SEPAR = " \t\n\r-:.;,/[]{}_";
 std::string truncate_to_word(const std::string& input, std::string::size_type maxlen)
 {
     std::string output;
@@ -666,12 +665,10 @@ std::string truncate_to_word(const std::string& input, std::string::size_type ma
     } else {
         output = input.substr(0, maxlen);
         std::string::size_type space = output.find_last_of(cstr_SEPAR);
-        // Original version only truncated at space if space was found after
-        // maxlen/2. But we HAVE to truncate at space, else we'd need to do
-        // utf8 stuff to avoid truncating at multibyte char. In any case,
-        // not finding space means that the text probably has no value.
-        // Except probably for Asian languages, so we may want to fix this
-        // one day
+        // The original version only truncated at space if space was found after maxlen/2. But we
+        // HAVE to truncate at space, else we'd need to do utf8 stuff to avoid truncating at
+        // multibyte char. In any case, not finding space means that the text probably has no value.
+        // Except probably for Asian languages, so we may want to fix this one day
         if (space == std::string::npos) {
             output.erase();
         } else {

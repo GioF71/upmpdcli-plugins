@@ -21,6 +21,7 @@ from subsonic_connector.connector import Constants as SubsonicConnectorConstants
 from subsonic_connector.configuration import ConfigurationInterface
 from tag_type import TagType
 from dotenv import dotenv_values
+from album_property_key import AlbumPropertyKey
 
 
 def get_plugin_config_variable_name(name: str) -> str:
@@ -120,6 +121,17 @@ def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> 
     return _get_option_value_as_bool(
         configuration_parameter.key,
         default_value_as_int)
+
+
+# shortcut for verbose logging
+def get_verbose_logging() -> bool:
+    return get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+
+
+# list of enabled AlbumPropertyKey
+# transparent for now
+def get_enabled_album_property_key_list() -> list[AlbumPropertyKey]:
+    return list(AlbumPropertyKey)
 
 
 def get_items_per_page() -> int:

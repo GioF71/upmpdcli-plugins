@@ -1,3 +1,11 @@
+upmpdcli (1.9.15-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: plugins updates: subsonic, mother earth.
+  * OpenHome: Playlist: Improve compat with Linn version.
+  * OpenHome: Radio: use album title if available in radio metadata.
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Sat, 21 Mar 2026 08:30:00 +0100
+
 upmpdcli (1.9.14-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Media server: let the plugins specify custom HTTP header for fetching

@@ -116,6 +116,7 @@ struct RadioMeta {
     string dynArtUri;
     string dynTitle;
     string dynArtist;
+    string dynAlbum;
 };
 
 
@@ -297,6 +298,7 @@ void OHRadio::maybeExecMetaScript(RadioMeta& radio, MpdStatus &mpds)
 
     radio.dynTitle = decoded.get("title", "").asString();
     radio.dynArtist = decoded.get("artist", "").asString();
+    radio.dynAlbum = decoded.get("album", "").asString();
     radio.dynArtUri = decoded.get("artUrl", "").asString();
     int reload = decoded.get("reload", 10).asInt();
     if (reload < 2) {
@@ -395,6 +397,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
         maybeExecMetaScript(radio, mpds);
         mpds.currentsong.title = radio.dynTitle;
         mpds.currentsong.artist = radio.dynArtist;
+        mpds.currentsong.album = radio.dynAlbum;
     }
     if (mpds.currentsong.title.empty()) {
         mpds.currentsong.title = radio.title;

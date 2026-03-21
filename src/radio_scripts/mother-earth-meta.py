@@ -49,6 +49,7 @@ for station in jsd:
             data = {}
             data["title"] = nowplaying["song"]["title"]
             data["artist"] = nowplaying["song"]["artist"]
+            data["album"] = nowplaying["song"]["album"]
             data["artUrl"] = nowplaying["song"]["art"]
             data["reload"] = int(nowplaying["remaining"])
             print(f"{json.dumps(data)}")

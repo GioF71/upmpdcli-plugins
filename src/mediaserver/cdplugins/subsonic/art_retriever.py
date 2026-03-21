@@ -179,7 +179,7 @@ def get_album_cover_art_uri_by_artist(artist: Artist, force_save: bool = False) 
         return subsonic_util.build_cover_art_url(item_id=artist_cover_art, force_save=force_save)
     # maybe look at the albums if available
     album_list: list[Album] = artist.getAlbumList()
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if config.get_verbose_logging():
         msgproc.log(f"get_album_cover_art_uri_by_artist [{artist.getId()}] [{artist.getName()}] "
                     f"album_list len is [{len(album_list)}]")
     if not album_list:
@@ -210,7 +210,7 @@ def get_album_cover_art_uri_by_artist(artist: Artist, force_save: bool = False) 
 
 
 def get_album_cover_art_by_artist_id(artist_id: str, skip_artist_metadata_cache: bool = False) -> str:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log(f"get_album_cover_art_by_artist_id for [{artist_id}] "
                     f"skip_artist_metadata_cache [{skip_artist_metadata_cache}]")
@@ -292,7 +292,7 @@ def __get_first_album_with_cover_art_from_album_list(album_list: list[Album]) ->
     album: Album
     for album in album_list if album_list else []:
         if album.getCoverArt():
-            if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+            if config.get_verbose_logging():
                 msgproc.log(f"__get_first_album_with_cover_art_from_album_list using album [{album.getId()}] "
                             f"coverArt [{album.getCoverArt()}]")
             return album
@@ -325,7 +325,7 @@ def favourite_artist_art_retriever(tag_to_entry_context: TagToEntryContext = Non
 
 
 def _favourite_artist_art_retriever() -> RetrievedArt:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
         msgproc.log("_favourite_artist_art_retriever no starred artists")
@@ -434,9 +434,6 @@ __tag_art_retriever_dict: dict[str, Callable[[], RetrievedArt]] = {
     TagType.MOST_PLAYED_ALBUMS.tag_name: most_played_albums_art_retriever,
     TagType.RANDOM.tag_name: random_albums_art_retriever,
     TagType.ALBUM_BROWSER.tag_name: random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_MUSICBRAINZ.tag_name: random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_COVER.tag_name: random_albums_art_retriever,
-    TagType.ALBUMS_WITHOUT_GENRE.tag_name: random_albums_art_retriever,
     TagType.RANDOM_SONGS_LIST.tag_name: random_albums_art_retriever,
     TagType.GENRES.tag_name: random_albums_art_retriever,
     TagType.ALL_ARTISTS.tag_name: random_albums_art_retriever,

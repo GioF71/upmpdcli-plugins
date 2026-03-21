@@ -1,11 +1,12 @@
 Summary:        UPnP Media Renderer front-end to MPD, the Music Player Daemon
 Name:           upmpdcli
-Version:        1.9.3
+Version:        1.9.15
 Release:        1%{?dist}
 Group:          Applications/Multimedia
 License:        GPLv2+
 URL:            http://www.lesbonscomptes.com/updmpdcli
 Source0:        http://www.lesbonscomptes.com/upmpdcli/downloads/upmpdcli-%{version}.tar.gz
+Patch0:          bottle-py3.patch
 Requires(pre):  shadow-utils
 Requires(post): systemd
 Requires(preun): systemd
@@ -30,7 +31,7 @@ on Android tablets or phones.
 
 
 %prep
-%autosetup
+%autosetup -p1 -D -b 0
 
 %build
 %meson -Dscctl=true
