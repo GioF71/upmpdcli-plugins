@@ -17,7 +17,6 @@ import cache_type
 import cache_manager_provider
 import subsonic_util
 import config
-import constants
 import persistence
 import album_util
 import time
@@ -47,7 +46,7 @@ def on_album(album: Album):
         msgproc.log(f"on_album failed due to [{type(ex)}] [{ex}]")
         connection.close()
     elapsed: float = time.time() - start
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if config.get_verbose_logging():
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
@@ -55,7 +54,7 @@ def __on_album(album: Album, connection: sqlite3.Connection = None):
     if not album or not album.getId():
         # nothing to do
         return
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     the_connection: sqlite3.Connection = persistence.get_working_connection(connection)
     album_quality_badge: str = None
     track_quality_summary: str = None
@@ -168,7 +167,7 @@ def __on_album_song(
         song: Song,
         connection: sqlite3.Connection,
         do_commit: bool = True):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     the_connection: sqlite3.Connection = persistence.get_working_connection(provided=connection)
     if verbose:
         msgproc.log(f"__on_album saving songs song [{song.getId()}] ...")

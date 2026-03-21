@@ -32,7 +32,7 @@ class TagToEntryContext:
 
     @property
     def random_album_list(self) -> list[Album]:
-        verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+        verbose: bool = config.get_verbose_logging()
         if verbose:
             msgproc.log("TagToEntryContext::random_album_list enter ...")
         if not self.__random_album_list or len(self.__random_album_list) == 0:

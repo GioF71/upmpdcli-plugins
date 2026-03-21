@@ -287,7 +287,7 @@ def get_album_path_list_joined(song_list: list[Song]) -> str:
     start: float = time.time()
     result: str = persistence_constants.Separator.PATH.value.join(get_album_path_list_by_song_list(song_list=song_list))
     elapsed: float = time.time() - start
-    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+    if config.get_verbose_logging():
         msgproc.log(f"get_album_path_list_joined song_count [{len(song_list) if song_list else 0}] -> "
                     f"[{result}] in [{elapsed:.3f}]")
     return result

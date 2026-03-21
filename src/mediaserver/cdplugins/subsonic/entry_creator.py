@@ -216,7 +216,7 @@ def show_album_genre_information(album: Album):
 def genre_to_entry(
         objid,
         current_genre: Genre) -> dict[str, any]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     genre_name: str = current_genre.getName()
     genre_art: str = None
     genre_art_url: str = None
@@ -278,7 +278,7 @@ def artist_to_entry(
         cover_art: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     cover_art: str = cover_art if cover_art else subsonic_util.get_artist_cover_art(artist)
     artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
     if verbose:
@@ -305,7 +305,7 @@ def artist_to_entry_raw(
         album_cover_art: str = None,
         additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
         options: dict[str, any] = {}) -> dict[str, any]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.element_name,
         artist_id)
@@ -380,7 +380,7 @@ def artist_initial_to_entry(
 
 
 def build_intermediate_url(track_id: str, suffix: str) -> str:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     enable_track_intermediate_url: bool = config.get_config_param_as_bool(constants.ConfigParam.ENABLE_TRACK_INTERMEDIATE_URL)
     if verbose:
         msgproc.log(f"build_intermediate_url enable_track_intermediate_url [{enable_track_intermediate_url}] "
@@ -413,7 +413,7 @@ def build_intermediate_url(track_id: str, suffix: str) -> str:
 
 
 def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, any]):
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     # declaring channel count, bit depth, sample rate and bit rate
     cc: int = 2
     bd: int = 0
@@ -469,7 +469,7 @@ def song_to_entry(
         song: Song,
         force_cover_art_save: bool = False,
         options: dict[str, any] = {}) -> dict:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.SONG.element_name, song.getId())
     id: str = identifier_util.create_objid(
@@ -542,7 +542,7 @@ def album_to_entry(
         album: Album,
         album_metadata: AlbumMetadata = None,
         options: dict[str, any] = {}) -> dict[str, any]:
-    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
+    verbose: bool = config.get_verbose_logging()
     if album_metadata is None:
         album_metadata = persistence.get_album_metadata(album_id=album.getId())
     # still None? save it!

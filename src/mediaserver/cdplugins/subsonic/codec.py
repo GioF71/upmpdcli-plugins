@@ -82,7 +82,7 @@ def base64_decode(encoded: str) -> str:
     if missing_padding != 0:
         # add missing padding characters
         data += '=' * (4 - missing_padding)
-        if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        if config.get_verbose_logging():
             msgproc.log(f"codec.base64_decode sanitized [{data}] "
                         f"(added [{4 - missing_padding}] padding characters)")
     base64_bytes: bytes = data.encode(__encoding)

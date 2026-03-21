@@ -55,16 +55,19 @@ class AlbumPropertyKey(Enum):
     LABEL = _AlbumPropertyKeyData(display_value="Label")
     DECADE = _AlbumPropertyKeyData(display_value="Decade", unique_value=True)
     YEAR = _AlbumPropertyKeyData(display_value="Year", unique_value=True)
+    ALBUM_ARTIST = _AlbumPropertyKeyData(display_value="Album Artist")
     ARTIST = _AlbumPropertyKeyData(display_value="Artist")
     ARTIST_CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Artist/Contributor")
     CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Contributor")
     RELEASE_TYPE = _AlbumPropertyKeyData(display_value="Release Type")
+    SUFFIX = _AlbumPropertyKeyData(display_value="Suffix")
     LOSSLESS_STATUS = _AlbumPropertyKeyData(display_value="Compression Type", unique_value=True)
     QUALITY_BADGE = _AlbumPropertyKeyData(display_value="Quality Badge", unique_value=True)
     BIT_DEPTH = _AlbumPropertyKeyData(display_value="Bit Depth")
     SAMPLING_RATE = _AlbumPropertyKeyData(display_value="Sampling Rate")
     CHANNEL_COUNT = _AlbumPropertyKeyData(display_value="Channel Count")
     HAS_MUSICBRAINZ = _AlbumPropertyKeyData(display_value="MusicBrainz Album Id")
+    HAS_COVER_ART = _AlbumPropertyKeyData(display_value="Cover Art")
 
     @property
     def property_key(self) -> str:
