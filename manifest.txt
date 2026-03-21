@@ -178,13 +178,13 @@ src/mediaserver/cdplugins/streamproxy.cpp
 src/mediaserver/cdplugins/streamproxy.h
 src/mediaserver/cdplugins/subsonic/
 src/mediaserver/cdplugins/subsonic/album_metadata.py
-src/mediaserver/cdplugins/subsonic/album_property_dataset.py
 src/mediaserver/cdplugins/subsonic/album_property_key.py
 src/mediaserver/cdplugins/subsonic/album_property_metadata.py
 src/mediaserver/cdplugins/subsonic/album_util.py
 src/mediaserver/cdplugins/subsonic/art_retriever.py
 src/mediaserver/cdplugins/subsonic/artist_from_album.py
 src/mediaserver/cdplugins/subsonic/artist_metadata.py
+src/mediaserver/cdplugins/subsonic/artist_role.py
 src/mediaserver/cdplugins/subsonic/audio_codec.py
 src/mediaserver/cdplugins/subsonic/cache_actions.py
 src/mediaserver/cdplugins/subsonic/cache_manager_provider.py
@@ -223,7 +223,9 @@ src/mediaserver/cdplugins/subsonic/release.md
 src/mediaserver/cdplugins/subsonic/release_date.py
 src/mediaserver/cdplugins/subsonic/request_cache.py
 src/mediaserver/cdplugins/subsonic/retrieved_art.py
+src/mediaserver/cdplugins/subsonic/search_result_rank.py
 src/mediaserver/cdplugins/subsonic/search_type.py
+src/mediaserver/cdplugins/subsonic/search_util.py
 src/mediaserver/cdplugins/subsonic/song_data_structures.py
 src/mediaserver/cdplugins/subsonic/song_info.py
 src/mediaserver/cdplugins/subsonic/song_metadata.py
