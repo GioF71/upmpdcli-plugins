@@ -284,7 +284,7 @@ bool path_hasdrive(const std::string& s)
 }
 bool path_isdriveabs(const std::string& s)
 {
-    if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && s[2] == '/') {
+    if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && (s[2] == '/' || s[2] == '\\')) {
         return true;
     }
     return false;
@@ -610,8 +610,9 @@ bool fsocc(const std::string& path, int *pc, long long *avmbs)
     if (!GetDiskFreeSpaceExW(syspath, &freebytesavail, &totalbytes, NULL)) {
         return false;
     }
+    auto mpc = int((100 * (totalbytes.QuadPart - freebytesavail.QuadPart)) / totalbytes.QuadPart); 
     if (pc) {
-        *pc = int((100 * freebytesavail.QuadPart) / totalbytes.QuadPart);
+        *pc = mpc;
     }
     if (avmbs) {
         *avmbs = int(totalbytes.QuadPart / FSOCC_MB);

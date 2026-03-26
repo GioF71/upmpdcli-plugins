@@ -397,7 +397,9 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
         maybeExecMetaScript(radio, mpds);
         mpds.currentsong.title = radio.dynTitle;
         mpds.currentsong.artist = radio.dynArtist;
-        mpds.currentsong.album = radio.dynAlbum;
+        if (!radio.dynAlbum.empty()) {
+            mpds.currentsong.album = radio.dynAlbum;
+        }
     }
     if (mpds.currentsong.title.empty()) {
         mpds.currentsong.title = radio.title;
@@ -418,8 +420,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
             }
         }
     }
-    mpds.currentsong.artUri = radio.dynArtUri.empty() ? radio.artUri :
-        radio.dynArtUri;
+    mpds.currentsong.artUri = radio.dynArtUri.empty() ? radio.artUri : radio.dynArtUri;
 
     // Don't report the ever changing bitrate, this causes unnecessary
     // events. CPs interested in bitrate changes can get them from the
@@ -430,8 +431,7 @@ bool OHRadio::makestate(unordered_map<string, string>& st)
         string metatext = didlmake(mpds.currentsong, true);
         string metadata;
         UpSong temp;
-        if (uMetaToUpSong(st["Metadata"], &temp) &&
-            !mpds.currentsong.artUri.empty()) {
+        if (uMetaToUpSong(st["Metadata"], &temp) && !mpds.currentsong.artUri.empty()) {
             temp.artUri = mpds.currentsong.artUri;
             metadata = didlmake(temp, true);
         } else {
