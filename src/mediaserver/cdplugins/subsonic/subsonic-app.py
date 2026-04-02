@@ -3946,6 +3946,7 @@ def browse(a):
     start: float = time.time()
     without_cache: bool = config.get_config_param_as_bool(constants.ConfigParam.BROWSE_WITHOUT_CACHE)
     msgproc.log(f"browse: args: --{a}--")
+    # possibly remove this
     _initsubsonic()
     if 'objid' not in a:
         raise Exception("No objid in args")

@@ -46,6 +46,7 @@ import datetime
 import os
 import glob
 import pathlib
+import threading
 
 
 def get_image_cache_path_for_pruning(www_image_path: list[str]) -> str:
@@ -354,6 +355,8 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
                         do_commit=False)
                 # purge from loaded_by_album_id
                 del loaded_by_album_id[song.getAlbumId()]
+                # commit for every slice of entries
+                persistence.commit(connection=connection)
         total_stored += retrieved
         insert_count += partial_insert_count
         update_count += partial_update_count
@@ -506,6 +509,8 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
             # finished.
             break
         album_offset += retrieved
+        # commit for every slice of entries
+        persistence.commit(connection=connection)
     # get count after loading entries
     count_before_prune: int = persistence.get_table_count(
         table_name=TableName.ALBUM_METADATA_V1,
@@ -560,6 +565,8 @@ def preload_artists(connection: sqlite3.Connection):
             # finished.
             break
         artist_offset += retrieved
+        # commit for every slice of entries
+        persistence.commit(connection=connection)
     # prune
     prune_count: int = persistence.prune_artist_metadata(
         update_timestamp=preload_start,
@@ -574,6 +581,12 @@ def preload_artists(connection: sqlite3.Connection):
 
 
 def initial_caching():
+    thread = threading.Thread(target=initial_caching_executor, args=tuple([]))
+    # Start it
+    thread.start()
+
+
+def initial_caching_executor():
     preload_success: bool = True
     preload_start: float = time.time()
     initial_caching_start: datetime.datetime = datetime.datetime.fromtimestamp(preload_start)

@@ -1215,8 +1215,8 @@ def get_table_count(
     return res
 
 
-def get_working_connection(provided: sqlite3.Connection = None) -> sqlite3.Connection:
-    return provided if provided is not None else __get_connection()
+def get_working_connection(provided: sqlite3.Connection = None, timeout_seconds: float = 5.0) -> sqlite3.Connection:
+    return provided if provided is not None else __get_connection(timeout_seconds=timeout_seconds)
 
 
 def __load_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
@@ -3139,14 +3139,22 @@ def __get_db_full_path() -> str:
         __get_db_filename())
 
 
-def __get_connection() -> sqlite3.Connection:
-    sqlite3.register_converter("TIMESTAMP", __adapt_flexible_timestamp)
-    connection = sqlite3.connect(
-        __get_db_full_path(),
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-    connection.execute("PRAGMA foreign_keys = ON;")
-    connection.create_function("simplify", 1, simplify)
-    return connection
+def __get_connection(timeout_seconds: float = 5.0) -> sqlite3.Connection | None:
+    try:
+        sqlite3.register_converter("TIMESTAMP", __adapt_flexible_timestamp)
+        # Use the timeout parameter (default is 5.0 seconds)
+        connection = sqlite3.connect(
+            __get_db_full_path(),
+            timeout=timeout_seconds,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        connection.execute("PRAGMA foreign_keys = ON;")
+        connection.create_function("simplify", 1, simplify)
+        return connection
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e):
+            msgproc.log("Database is locked")
+        raise e # Re-raise
 
 
 def __prepare_table_db_version():

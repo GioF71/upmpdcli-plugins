@@ -1,5 +1,10 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.9
+
+- ALBUM_LAST_PLAYED set to "Never" if the is no information about when the album has been last played
+- Preload happens in a separate thread, upmpdcli should not crash when media server is accessed during preload (see [#issue 642](https://github.com/GioF71/upmpdcli-docker/issues/642))
+
 ## Release 0.9.8
 
 - Album browser: add suffix

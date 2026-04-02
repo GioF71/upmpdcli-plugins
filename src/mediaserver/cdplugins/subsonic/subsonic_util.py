@@ -1940,6 +1940,11 @@ def set_album_metadata_by_metadata_only(
             upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
             formatted_played,
             target)
+    else:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
+            "Never",
+            target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album_metadata.album_id, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, album_metadata.album_musicbrainz_id, target)
     explicit_status: str = get_explicit_status_display_value(
@@ -2002,6 +2007,10 @@ def set_album_metadata_by_metadata_only(
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
 
 
+def __or_else(v: str, or_else: str) -> str:
+    return v if v and len(v) > 0 else or_else
+
+
 def set_album_metadata(
         album: Album,
         target: dict,
@@ -2022,7 +2031,7 @@ def set_album_metadata(
         metadata_value=album_util.get_formatted_album_original_release_date(album=album),
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, get_album_played(album), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, __or_else(get_album_played(album), "Never"), target)
     joined_genres: str = join_with_comma(album.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album.getId(), target)
