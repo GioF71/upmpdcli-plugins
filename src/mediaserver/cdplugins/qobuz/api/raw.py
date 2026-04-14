@@ -8,28 +8,27 @@
     :part_of: xbmc-qobuz
     :copyright: (c) 2012 by Joachim Basmaison, Cyril Leclerc
     :license: GPLv3, see LICENSE for more details.
+
+    login_with_oauth_code(self, code) was copied from
+    https://github.com/paulborile/qobuz-dl/tree/bug/newauth
+    License: GPL-3.0
 """
 
 import sys
 import time
 import math
 import hashlib
-import socket
-import binascii
-from itertools import cycle
 import requests
-from . import spoofbuz
 
-socket.timeout = 5
+try:
+    import bundle
+except:
+    from qobuz.api import bundle
 
 _loglevel = 3
-
-
 def debug(s):
     if _loglevel >= 4:
         print("%s" % s, file=sys.stderr)
-
-
 def warn(s):
     if _loglevel >= 3:
         print("%s" % s, file=sys.stderr)
@@ -37,22 +36,20 @@ def warn(s):
 
 class RawApi(object):
 
-    def __init__(self, appid, configvalue):
-        if appid and configvalue:
-            self.configvalue = configvalue
-            self.appid = appid
-            self.__set_s4()
-        else:
-            self.spoofer = spoofbuz.Spoofer()
-            self.appid = self.spoofer.getAppId()
+    def __init__(self):
+        jsparse = bundle.Bundle()
+        self.appid = jsparse.get_app_id()
+        self.secrets = [
+            secret for secret in jsparse.get_secrets().values() if secret
+        ]
+        self.private_key = jsparse.get_private_key()
 
         self.version = "0.2"
-        self.baseUrl = "https://www.qobuz.com/api.json/"
         self.user_auth_token = None
         self.user_id = None
         self.error = None
         self.status_code = None
-        self._baseUrl = self.baseUrl + self.version
+        self.baseUrl = "https://www.qobuz.com/api.json/" + self.version
         self.session = requests.Session()
         self.error = None
 
@@ -92,26 +89,6 @@ class RawApi(object):
         if noparams:
             ka["limit"] = "10000"
 
-    def __set_s4(self):
-        """appid and associated secret is for this app usage only
-        Any use of the API implies your full acceptance of the
-        General Terms and Conditions
-        (http://www.qobuz.com/apps/api/QobuzAPI-TermsofUse.pdf)
-        """
-        s3b = self.configvalue.encode("ASCII")
-        s3s = binascii.a2b_base64(s3b)
-        bappid = self.appid.encode("ASCII")
-        a = cycle(bappid)
-        b = zip(s3s, a)
-        self.s4 = b"".join((x ^ y).to_bytes(1, byteorder="big") for (x, y) in b)
-        # print("S4: %s"% self.s4.decode('ASCII'), file=sys.stderr)
-
-    def __unset_s4(self, id, sec):
-        a = cycle(id)
-        b = zip(sec, a)
-        bs4 = b"".join((x ^ y).to_bytes(1, byteorder="big") for (x, y) in b)
-        value = binascii.b2a_base64(bs4)
-        return value
 
     def _api_request(self, params, uri, **opt):
         """Qobuz API HTTP get request
@@ -140,15 +117,16 @@ class RawApi(object):
         """
         self.error = ""
         self.status_code = None
-        url = self._baseUrl + uri
+        url = self.baseUrl + uri
         useToken = False if (opt and "noToken" in opt) else True
         useGet = True if (opt and "useGet" in opt) else False
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0"
         }
         if useToken and self.user_auth_token:
             headers["X-User-Auth-Token"] = self.user_auth_token
         headers["X-App-Id"] = self.appid
+        params.update({"app_id": self.appid})
         r = None
         op = "GET" if useGet else "POST"
         # warn(f"{op} {url} params {params} headers {headers}")
@@ -201,15 +179,10 @@ class RawApi(object):
         self.logged_on = None
 
     def user_login(self, **ka):
-        self._check_ka(ka, ["username", "password"], ["email"])
+        self._check_ka(ka, ["user_id", "user_auth_token"])
         data = self._api_request(ka, "/user/login", noToken=True)
-        if (
-            not data
-            or not "user" in data
-            or not "credential" in data["user"]
-            or not "id" in data["user"]
-            or not "parameters" in data["user"]["credential"]
-        ):
+        if (not data or not "user" in data or not "credential" in data["user"]
+            or not "id" in data["user"] or not "parameters" in data["user"]["credential"]):
             warn("/user/login returns %s" % data)
             self.logout()
             return None
@@ -218,6 +191,7 @@ class RawApi(object):
             return None
         self.user_id = data["user"]["id"]
         self.user_auth_token = data["user_auth_token"]
+        self.session.headers.update({"X-User-Auth-Token": self.user_auth_token})
         self.label = data["user"]["credential"]["parameters"]["short_label"]
         debug("Membership: {}".format(self.label))
         data["user"]["email"] = ""
@@ -226,21 +200,72 @@ class RawApi(object):
         self.setSec()
         return data
 
+
+    # Initial login after browser-based fetching of oauth code which we exchange for a user token
+    def login_with_oauth_code(self, code):
+        # Step 1: Exchange code for token via /oauth/callback
+        callback_url = self.baseUrl + "/oauth/callback"
+        params = {
+            "code": code,
+            "private_key": self.private_key,
+            "app_id": self.appid,
+        }
+        r = self.session.get(callback_url, params=params)
+        r.raise_for_status()
+        json_resp = r.json()
+        token = json_resp.get("token")
+        if not token:
+            warn("No token in OAuth callback response")
+            return None
+        self.user_auth_token = token
+
+        # Step 2: GET /user/login with X-User-Auth-Token to fetch full profile
+        debug(f"login_with_oauth_code: got user token {self.user_auth_token}")
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+                "X-App-Id": self.appid,
+                "Content-Type": "application/json;charset=UTF-8",
+                "X-User-Auth-Token": self.user_auth_token
+            }
+        )
+        login_url = self.baseUrl + "/user/login"
+        r = self.session.post(
+            login_url,
+            headers={"Content-Type": "text/plain;charset=UTF-8"},
+            data="extra=partner"
+        )
+        if r.status_code == 401:
+            warn("OAuth token rejected")
+            return None
+        r.raise_for_status()
+        usr_info = r.json()
+        if not usr_info["user"]["credential"]["parameters"]:
+            warn("Free accounts are not eligible to download tracks.")
+            return None
+        self.label = usr_info["user"]["credential"]["parameters"]["short_label"]
+        debug(f"Membership: {self.label}")
+        self.setSec()
+        return usr_info
+
+
     def setSec(self):
         global _loglevel
         savedloglevel = _loglevel
         _loglevel = 1
-        for value in self.spoofer.getSecrets().values():
-            self.s4 = value.encode("utf-8")
-            if self.userlib_getAlbums(sec=self.s4) is not None:
-                # debug("SECRET [%s]"%self.s4)
+        for value in self.secrets:
+            self.secret = value.encode("utf-8")
+            if self.userlib_getAlbums(sec=self.secret) is not None:
+                # debug("SECRET [%s]"%self.secret)
                 _loglevel = savedloglevel
                 return
         _loglevel = savedloglevel
 
+
     def track_get(self, **ka):
         self._check_ka(ka, ["track_id"])
         return self._api_request(ka, "/track/get")
+
 
     def track_getFileUrl(self, intent="stream", **ka):
         self._check_ka(ka, ["format_id", "track_id"])
@@ -251,7 +276,7 @@ class RawApi(object):
             "trackgetFileUrlformat_id" + fmt_id + "intent" + intent + "track_id" + track_id + ts
         )
         stringvalue = stringvalue.encode("ASCII")
-        stringvalue += self.s4
+        stringvalue += self.secret
         rq_sig = str(hashlib.md5(stringvalue).hexdigest())
         params = {
             "format_id": fmt_id,
@@ -340,3 +365,9 @@ class RawApi(object):
 
     def catalog_getFeaturedTypes(self, **ka):
         return self._api_request(ka, "/catalog/getFeaturedTypes")
+
+
+if __name__ == "__main__":
+    api = RawApi()
+    
+    
