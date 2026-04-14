@@ -159,6 +159,7 @@ src/mediaserver/cdplugins/qobuz/api/__init__.py
 src/mediaserver/cdplugins/qobuz/api/bundle.py
 src/mediaserver/cdplugins/qobuz/api/raw.py
 src/mediaserver/cdplugins/qobuz/qobuz-app.py
+src/mediaserver/cdplugins/qobuz/qobuz-init-oauth.py
 src/mediaserver/cdplugins/qobuz/session.py
 src/mediaserver/cdplugins/radio-browser/
 src/mediaserver/cdplugins/radio-browser/radio-browser-app.py

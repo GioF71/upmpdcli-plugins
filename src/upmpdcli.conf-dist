@@ -166,10 +166,8 @@
 
 # Qobuz streaming service parameters
 
-# Qobuz user name.
+# Qobuz user name. value may be bogus
 #qobuzuser = me@some.place
-# Qobuz password.
-#qobuzpass = agoodpassword
 # Qobuz stream quality.
 #qobuzformatid = 6
 # Qobuz track renumbering.

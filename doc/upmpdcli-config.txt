@@ -392,10 +392,8 @@ directory.
 === Qobuz streaming service parameters 
 
 [[qobuzuser]]
-qobuzuser:: Qobuz user name. Your Qobuz login name.
-
-[[qobuzpass]]
-qobuzpass:: Qobuz password. The password for your Qobuz account.
+qobuzuser:: Qobuz user name. value may be bogus Your Qobuz login name. This must be set to activate the Media Server plugin but the actual
+value is not used.
 
 [[qobuzformatid]]
 qobuzformatid:: Qobuz stream quality. 5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription
