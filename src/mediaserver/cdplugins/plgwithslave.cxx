@@ -145,11 +145,21 @@ public:
 // HTTP Proxy/Redirect handler
 static StreamProxy *o_proxy;
 
+static std::string umap2str(const std::unordered_map<std::string, std::string>& m)
+{
+    std::string out;
+    for (const auto& [key, val] : m) {
+        out += key + " -> " + val + "\n";
+    }
+    return out;
+}
+
 StreamProxy::UrlTransReturn translateurl(
     CDPluginServices *cdsrv, const std::string& useragent, std::string& url,
-    const std::unordered_map<std::string, std::string>& querymap, std::unique_ptr<NetFetch>& fetcher)
+    const std::unordered_map<std::string, std::string>& query, std::unique_ptr<NetFetch>& fetcher)
 {
     LOGDEB("PlgWithSlave::translateurl: url " << url << "\n");
+    LOGDEB("PlgWithSlave::translateurl: params " << umap2str(query) << "\n");
 
     CDPlugin *plg = cdsrv->getpluginforpath(url);
     if (nullptr == plg) {
@@ -165,13 +175,29 @@ StreamProxy::UrlTransReturn translateurl(
     std::string path(url);
     std::unordered_map<std::string, std::string> response;
     // Translate to Tidal/Qobuz etc real temporary URL
-    url = realplg->get_media_url(path, useragent, response);
+    url = realplg->get_media_url(path, useragent, query, response);
     if (url.empty()) {
         LOGERR("answer_to_connection: no media_uri for: " << url << "\n");
         return StreamProxy::Error;
     }
-    StreamProxy::UrlTransReturn method = realplg->doproxy() ?
-        StreamProxy::Proxy : StreamProxy::Redirect;
+
+    // The choice of the proxy / redirect method used to be purely based on the plugin and its
+    // static configuration. It would probably useful to let the get_media_url() method have a way
+    // to decide this, e.g. based on the user agent string ? Anyway needed for the Respond method
+    // which is used with oauth stuff and always dynamically decided.
+    StreamProxy::UrlTransReturn method =
+        realplg->doproxy() ? StreamProxy::Proxy : StreamProxy::Redirect;
+    auto it = response.find("method");
+    if (it != response.end()) {
+        if (!stringlowercmp("proxy", it->second)) {
+            method = StreamProxy::Proxy;
+        } else if (!stringlowercmp("redirect", it->second)) {
+            method = StreamProxy::Redirect;
+        } else if (!stringlowercmp("respond", it->second)) {
+            method = StreamProxy::Respond;
+        }
+    }
+
     if (method == StreamProxy::Proxy) {
         if (!realplg->getname().compare("spotify")) {
 #ifdef ENABLE_SPOTIFY
@@ -313,6 +339,7 @@ bool PlgWithSlave::startInit()
 // The Python code calls the service to translate the trackid to a temp URL. We cache the result for
 // a few seconds to avoid multiple calls to tidal.
 std::string PlgWithSlave::get_media_url(const std::string& path, const std::string& useragent,
+                                        const std::unordered_map<std::string, std::string>& query,
                                         std::unordered_map<std::string, std::string>& response)
 {
     LOGDEB0("PlgWithSlave::get_media_url: " << path << "\n");
@@ -321,7 +348,15 @@ std::string PlgWithSlave::get_media_url(const std::string& path, const std::stri
     }
     time_t now = time(0);
     if (m->laststream.path.compare(path) || (now - m->laststream.opentime > 10)) {
-        if (!m->cmd.callproc("trackuri", {{"path", path}, {"user-agent", useragent}}, response)) {
+        Json::Value jsquery;
+        for (const auto& [k,v] : query) {
+            jsquery[k] = v;
+        }
+        std::ostringstream os;
+        os << jsquery;
+        if (!m->cmd.callproc("trackuri",
+                             {{"path", path}, {"user-agent", useragent}, {"query", os.str()}},
+                              response)) {
             LOGERR("PlgWithSlave::get_media_url: slave failure\n");
             return string();
         }
