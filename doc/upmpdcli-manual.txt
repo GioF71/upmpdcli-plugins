@@ -996,20 +996,24 @@ Enable this function by installing the upmpdcli Qobuz module (which may be a sep
 e.g. upmpdcli-qobuz on Debian), and setting a `qobuzuser` parameter in the configuration. The actual
 value is ignored, the new oauth connection method ignores the local user and password.
 
-The new connection method needs an initial user interaction. You will need to execute the
-`qobuz-init-oauth.py` script on the machine where upmpdcli is running (the script is normally
-located in `/usr/share/upmpdcli/cdplugins/qobuz`. The script will tell you to visit an URL in a Web
-browser. The browser can run on a separate machine (of any kind). The URL will take you to the Qobuz
-Web site, where you will be asked to log in. Qobuz will then instruct the browser to send an
-authorization token and other data to the upmpdcli internal web server, which should then produce a
-success page in the browser.
+The new connection method needs an initial user interaction:
+
+- Execute the `qobuz-init-oauth.py` script on the machine where upmpdcli is running (the script is
+  normally located in `/usr/share/upmpdcli/cdplugins/qobuz`.
+- The script will tell you to visit an URL in a WEB browser. The browser can run on a separate
+  machine (of any kind).
+- The URL will take you to the Qobuz WEB site, where you will be asked to log in. Qobuz will then
+  instruct the browser to send an authorization token and other data to the upmpdcli internal WEB
+  server, which will save them to a cached file and should then produce a success page in the
+  browser. 
 
 This operation is only performed once, or at least very rarely.
 
 Additional configuration parameters are described in the <<qobuzuser,configuration section>>
 
-If you are using Linn Kazoo or BubbleDS, upmpdcli has support for the `Credentials` service,
-which facilitates configuration. Details xref:UPMPDCLI-MS-STR-CRED[here].
+If you are using Linn Kazoo or BubbleDS, upmpdcli has support for the `Credentials` service, which
+allows browsing natively in the Control Point and still have an autonomous playlist on the renderer.
+Details xref:UPMPDCLI-MS-STR-CRED[here].
 
 
 '''
@@ -1512,8 +1516,15 @@ which way you are using will avoid confusion:
 
 This implements the `OpenHome Credentials` service and only works for Qobuz at the moment (it may
 work for Tidal if you have found an API token or appid/secret pair, but I can't test this). The
-corresponding media server module must be installed (upmpdcli-qobuz), but no other configuration
-should be necessary on the renderer.
+corresponding media server module must be installed (upmpdcli-qobuz),
+
+With the old user/password connection method, `Credentials` allowed having no configuration at all
+on the renderer (the necessary parameters were sent from the Control Point). As of april 2026, Qobuz
+only support an OAuth-based connection, and you will need to perform the browser-based
+initialisation on the renderer.
+
+The method still keeps its interest because it allows upmpdcli to manage the playlist so that the
+phone can go to sleep (or away).
 
 BubbleDS needs that the facility be activated: go to `Settings->Renderer Settings`, and
 activate the option for the chosen Renderer.
@@ -1523,15 +1534,11 @@ unknown. When the feature is active, it actually prevents Lumin from discovering
 there is a configuration variable to disable it: '`lumincompat`'. Set to 1 to use upmpdcli v1.3.0
 with Lumin.
 
-Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made a hard
-dependency, so you should check that it is installed.
+Upmpdcli uses the *openssl* command to perform the cryptography work. This was not made an automatic
+package dependency, so you should check that it is installed.
 
 The media service icons will appear in the Control Point interface, and the service will be
 accessible after entering the login and password.
-
-NOTE: the user name and password will be stored on the renderer in an insecure way, meaning that if
-someone steals the machine or obtains root access, there is nothing to prevent them from getting the
-credentials.
 
 Of course any renderer can also access the services through the Media Server interface
 (after configuring upmpdcli, see the xref:UPMPDCLI-MS-STR-UPNP[previous section]).
