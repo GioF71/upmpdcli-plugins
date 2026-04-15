@@ -55,7 +55,7 @@ class Session(object):
         user_id = self.config.get("user_id")
         if not auth_token or not user_id:
             uplog("Qobuz login: oauth initialisation not done")
-            return false
+            return False
         data = self.api.user_login(user_id=user_id, user_auth_token=auth_token)
         if data:
             self.user = User(self, user_id)
@@ -415,7 +415,7 @@ def _parse_track(sess, json_obj, albumarg=None):
     else:
         album = albumarg
 
-    available = json_obj["streamable"] if "streamable" in json_obj else false
+    available = json_obj["streamable"] if "streamable" in json_obj else False
     # if not available:
     # uplog("Track not streamable: %s " % json_obj['title'])
 
