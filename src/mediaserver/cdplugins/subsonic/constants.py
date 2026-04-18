@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.9"
+    PLUGIN_RELEASE = "0.9.10"
     PLUGIN_NAME = "subsonic"
 
 
@@ -561,6 +561,16 @@ class ConfigParam(Enum):
         default_value=False,
         description=("Allow backlog processing after last loaded album, "
                      "can lead to slightly inaccurate in the final results if enabled"))
+
+    ALLOW_MIX_ALBUM_VERSIONS = _ConfigParamData(
+        "allowmixalbumversions",
+        default_value=True,
+        description=("Allow to mix songs from multiple versions of the same album, "
+                     " instead of presenting multiple versions"))
+    STRIP_VERSION_FROM_TITLE = _ConfigParamData(
+        "stripversionfromtitle",
+        default_value=True,
+        description=("Strip album version from title"))
 
     @property
     def key(self) -> str:

@@ -78,11 +78,13 @@ def consume_random_album_for_cover_art(tag_to_entry_context: TagToEntryContext =
         select: Album = random_album_list.pop(0)
         # does the album have a cover art?
         if select.getCoverArt() is not None:
-            msgproc.log(f"consume_random_album_for_cover_art consumed album [{select.getId()}] [{select.getTitle()}] "
+            msgproc.log(f"consume_random_album_for_cover_art consumed album [{select.getId()}] "
+                        f"[{subsonic_util.get_album_title(select)}] "
                         f"by [{subsonic_util.get_album_display_artist(album=select)}]")
             return select
         else:
-            msgproc.log(f"Skipping album [{select.getId()}] [{select.getTitle()}] "
+            msgproc.log(f"Skipping album [{select.getId()}] "
+                        f"[{subsonic_util.get_album_title(select)}] "
                         f"from [{subsonic_util.get_album_display_artist(album=select)}] (no cover art)")
     msgproc.log("consume_random_album_for_cover_art cannot not return an album")
     return None

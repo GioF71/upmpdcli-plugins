@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.10
+
+- Merge album versions by default (`allowmixalbumversions`), selecting best track by disc number / track number using quality metadata
+- Strip version from album as we already handle version separately (can be disabled setting `stripversionfromtitle` to `0`)
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.9
 
 - ALBUM_LAST_PLAYED set to "Never" if the is no information about when the album has been last played

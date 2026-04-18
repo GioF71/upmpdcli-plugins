@@ -59,6 +59,7 @@ import copy
 import os
 import time
 import datetime
+import re
 
 import musicbrainzutils
 
@@ -1040,7 +1041,7 @@ def get_album_release_types(album: Album) -> AlbumReleaseTypes:
             value_list=album_release_types,
             print_function=lambda x: msgproc.log(x),
             album_id=album.getId(),
-            album_title=album.getTitle(),
+            album_title=get_album_title(album),
             album_artist=album.getArtist()))
 
 
@@ -1143,7 +1144,7 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
             and len(explicit_status) > 0):
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS):
             msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
-                        f"[{album.getTitle()}] "
+                        f"[{get_album_title(album)}] "
                         f"by [{get_album_display_artist(album=album)}]")
         # find match ...
         display_value: str = get_explicit_status_display_value(explicit_status)
@@ -1366,6 +1367,34 @@ def get_artist_cover_art(artist: Artist) -> str | None:
         None
 
 
+def get_album_title(album: Album) -> str:
+    strip_version: bool = config.get_config_param_as_bool(constants.ConfigParam.STRIP_VERSION_FROM_TITLE)
+    if not strip_version:
+        return album.getTitle()
+    return __get_album_clean_title(album=album)
+
+
+def get_album_with_version(album: Album) -> str:
+    title: str = get_album_title(album)
+    version: str | None = get_album_version(album)
+    if not version:
+        return title
+    return f"{title} ({version})"
+
+
+def __get_album_clean_title(album: Album) -> str:
+    return __get_album_clean_title_raw(album_title=album.getTitle(), album_version=get_album_version(album))
+
+
+def __get_album_clean_title_raw(album_title: str, album_version: str | None) -> str:
+    if not album_version:
+        return album_title
+    # We look for the version wrapped in parens at the very end of the string
+    # Escape the version string in case it contains regex special characters like '+'
+    pattern = rf"\s*\({re.escape(album_version)}\)$"
+    return re.sub(pattern, "", album_title).strip()
+
+
 def get_album_version(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.ALBUM_VERSION.value) if album else None
 
@@ -1484,13 +1513,13 @@ def get_artists_from_album(
         artist_name: str = d[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in d else None
         if not artist_id or not artist_name:
             raise Exception(f"get_artists_from_album album_id [{album.getId()}] "
-                            f"[{album.getTitle()}] by [{album.getArtist()}] "
+                            f"[{get_album_title(album)}] by [{album.getArtist()}] "
                             f"{item_key.value} keys "
                             f"[{constants.DictKey.ID.value}, {constants.DictKey.NAME.value}] must be set")
         if (artist_id in id_set) and not allow_duplicate_artist_id:
             # skip, duplicate
             msgproc.log(f"get_artists_from_album album_id [{album.getId()}] "
-                        f"[{album.getTitle()}] by [{album.getArtist()}] "
+                        f"[{get_album_title(album)}] by [{album.getArtist()}] "
                         f"duplicate artist_id [{artist_id}] "
                         f"name from discarded entry [{artist_name}]")
             continue
@@ -2016,7 +2045,7 @@ def set_album_metadata(
         target: dict,
         album_metadata: AlbumMetadata = None):
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, get_album_display_artist(album=album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, get_album_title(album), target)
     # year
     album_year: str = str(album.getYear()) if album.getYear() else None
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_YEAR, album_year, target)
@@ -2192,3 +2221,19 @@ def get_mime_type_from_extension(extension: str) -> Optional[str]:
     #    It returns a tuple (mimetype, encoding)
     mimetype, _ = mimetypes.guess_type(dummy_filename, strict=True)
     return mimetype
+
+
+def choose_best_track_by_format(song_list: list[Song]) -> Song:
+    if not song_list:
+        return None
+    if len(song_list) == 1:
+        # just pick first
+        return song_list[0]
+    def sort_key(song: Song):
+        bit_depth = get_song_bit_depth(song) or 0
+        is_lossless = 0 if is_lossy(song.getSuffix(), bit_depth) else 0
+        sample_rate = get_song_sampling_rate(song) or 0
+        bitrate = song.getBitRate() or 0
+        length = song.getDuration() or 0
+        return (is_lossless, bit_depth, sample_rate, bitrate, length)
+    return max(song_list, key=sort_key)

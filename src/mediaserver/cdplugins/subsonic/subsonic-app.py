@@ -1150,14 +1150,16 @@ def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, en
                 msgproc.log(f"Cannot load album [{curr_album.getId()}]")
                 continue
             msgproc.log(f"handler_tag_recently_played_songs loaded album [{curr_album.getId()}] "
-                        f"[{curr_album.getTitle()}] by [{curr_album.getArtist()}] in [{time.time() - load_start:.3f}]")
+                        f"[{subsonic_util.get_album_title(curr_album)}] "
+                        f"by [{curr_album.getArtist()}] "
+                        f"in [{time.time() - load_start:.3f}]")
             #  extract only played songs
             played_songs: list[Song] = list(filter(lambda x: __get_timestamp(song=x), loaded.getSongs()))
             if len(played_songs) == 0:
                 # skip? stop?
                 continue
             if verbose:
-                msgproc.log(f"album [{curr_album.getId()}] [{curr_album.getTitle()}] "
+                msgproc.log(f"album [{curr_album.getId()}] [{subsonic_util.get_album_title(curr_album)}] "
                             f"has [{len(played_songs)}] played songs")
             # sort played songs by played time descending
             played_songs.sort(key=lambda x: __get_timestamp(song=x), reverse=True)
@@ -2714,7 +2716,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             songsel_entry: dict[str, any] = upmplgutils.direntry(
                 songsel_id,
                 objid,
-                f"Song selection in [{ref_album.getTitle()}]")
+                f"Song selection in [{subsonic_util.get_album_with_version(ref_album)}]")
             upnp_util.set_album_art_from_uri(
                 album_art_uri=subsonic_util.get_cover_art_url_by_album(album=ref_album),
                 target=songsel_entry)
@@ -3030,7 +3032,7 @@ def handler_element_album_focus(
             msgproc.log(f"handler_element_album_focus cannot add top songs entry [{type(ex)}] [{ex}]")
     else:
         msgproc.log("handler_element_album_focus no artistId for "
-                    f"album [{album.getId()}] [{album.getTitle()}], "
+                    f"album [{album.getId()}] [{subsonic_util.get_album_with_version(album)}], "
                     "not creating top songs entry")
     get_similar_artists_start_time: float = time.time()
     get_similar_artists_elapsed_time: float = None
@@ -3041,7 +3043,7 @@ def handler_element_album_focus(
             entries.append(similar_artist_entry)
     else:
         msgproc.log(f"handler_element_album_focus no artistId for "
-                    f"album [{album.getId()}] [{album.getTitle()}], "
+                    f"album [{album.getId()}] [{subsonic_util.get_album_with_version(album)}], "
                     "not creating similar artists entry")
     get_radio_entry_list_start_time: float = time.time()
     get_radio_entry_list_elapsed_time: float = None
@@ -3090,7 +3092,7 @@ def handler_element_navigable_album(
             song_quality_summary=song_quality_summary),
         context="handler_element_navigable_album",
         force_insert=True if album_metadata is None else False)
-    clean_title: str = album.getTitle()
+    clean_title: str = subsonic_util.get_album_title(album)
     album_mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
     media_type: str = subsonic_util.get_media_type(album)
     release_types: str = album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value, [])
@@ -3134,7 +3136,7 @@ def handler_element_navigable_album(
         is_search_result=False)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
-        clean_album_title=album.getTitle(),
+        clean_album_title=subsonic_util.get_album_title(album),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=False)
@@ -3556,6 +3558,38 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
     if not album:
         msgproc.log(f"Album [{album_id}] not found")
         persistence.delete_album_metadata(album_id=album_id)
+        return entries
+    # mix tracks?
+    if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_MIX_ALBUM_VERSIONS):
+        # we always present tracks, otherwise we fall back to presenting versions (if there are multiple versions)
+        msgproc.log(f"Preparing mixed content for album_id [{album_id}] ...")
+        # collect by disc number and track
+        song_dict: dict[tuple[int, int], Song] = defaultdict(list)
+        curr: Song
+        for curr in album_tracks.getSongList():
+            msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> adding song [{curr.getTitle()}] ...")
+            song_dict[(curr.getDiscNumber(), curr.getTrack())].append(curr)
+        # present songs.
+        key_list: list[tuple[int, int]] = sorted(song_dict.keys())
+        curr_key: tuple[int, int]
+        track_count: int = 0
+        for curr_key in key_list:
+            track_count += 1
+            song_versions: list[Song] = song_dict[curr_key]
+            best_version: Song = subsonic_util.choose_best_track_by_format(song_versions)
+            msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] -> select best from [{len(song_versions)}] "
+                        f"[{sorted([s.getId() for s in song_versions])}] -> "
+                        f"[{best_version.getId() if best_version else ''}]")
+            if best_version:
+                options: dict[str, str] = {}
+                option_util.set_option(
+                    options=options,
+                    option_key=OptionKey.FORCE_TRACK_NUMBER,
+                    option_value=track_count)
+                entries.append(entry_creator.song_to_entry(
+                    objid=objid,
+                    song=best_version,
+                    options=options))
         return entries
     if album_tracks and album_tracks.getAlbumVersionCount() > 1:
         msgproc.log(f"handler_element_album for album_id [{album_id}] -> [{album_tracks.getAlbumVersionCount()}] versions")
@@ -4118,7 +4152,7 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
                 msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
                             f"artist_id [{artist.getId()}] [{artist.getName()}] "
                             f"found album_id [{album.getId()}] "
-                            f"title [{album.getTitle()}]")
+                            f"title [{subsonic_util.get_album_title(album)}]")
             # we must load the album
             album_res: Response[Album] = connector_provider.get().getAlbum(albumId=album.getId())
             if not album_res or not album_res.isOk():
@@ -4135,7 +4169,7 @@ def search_songs_by_artist(artist_name: str) -> list[Song]:
                     msgproc.log(f"search_songs_by_artist for artist_name [{artist_name}] "
                                 f"artist_id [{artist.getId()}] [{artist.getName()}] "
                                 f"album_id [{album.getId()}] "
-                                f"title [{album.getTitle()}] "
+                                f"title [{subsonic_util.get_album_title(album)}] "
                                 f"adding song: [{song.getTitle()}]")
                 song_list.append(song)
     return song_list[:config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT)]
@@ -4156,7 +4190,7 @@ def search_albums_by_album_title(album_title: str) -> list[Album]:
         if verbose:
             msgproc.log(f"search_albums_by_album_title for album_title [{album_title}] "
                         f"found album_id [{album.getId()}] "
-                        f"title [{album.getTitle()}]")
+                        f"title [{subsonic_util.get_album_title(album)}]")
         album_list.append(album)
     return album_list[:config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT)]
 
@@ -4283,7 +4317,7 @@ def search_albums_by_artist(artist_name: str) -> list[Album]:
                 msgproc.log(f"search_albums_by_artist for artist_name [{artist_name}] "
                             f"artist_id [{artist.getId()}] [{artist.getName()}] "
                             f"found album_id [{album.getId()}] "
-                            f"title [{album.getTitle()}]")
+                            f"title [{subsonic_util.get_album_title(album)}]")
             album_list.append(album)
     return album_list[:config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT)]
 

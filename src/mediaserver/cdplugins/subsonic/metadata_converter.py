@@ -184,7 +184,7 @@ def build_album_metadata(
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MB_ID, subsonic_util.get_album_musicbrainz_id(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST_ID, album.getArtistId())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST, album.getArtist())
-    updated_metadata.set_value(AlbumMetadataModel.ALBUM_NAME, album.getTitle())
+    updated_metadata.set_value(AlbumMetadataModel.ALBUM_NAME, subsonic_util.get_album_title(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_COVER_ART, album.getCoverArt())
     disc_title_list: list[DiscTitle] = subsonic_util.get_disc_titles_from_album(album=album)
     disc_count: int = len(disc_title_list) if disc_title_list and len(disc_title_list) > 1 else 1
