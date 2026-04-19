@@ -23,6 +23,8 @@ from subsonic_connector.album import Album
 from subsonic_connector.song import Song
 from subsonic_connector.internet_radio_stations import InternetRadioStations
 from subsonic_connector.search_result import SearchResult
+from subsonic_connector.music_folders import MusicFolders
+from subsonic_connector.music_folder import MusicFolder
 import metadata_converter
 import artist_from_album as artist_from_album
 from song_data_structures import SongArtistType
@@ -98,6 +100,12 @@ def subsonic_init():
         known_key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
         del_unknown: int = persistence.purge_unknown_album_properties(valid_property_key_list=known_key_list)
         msgproc.log(f"subsonic_init purge_unknown_album_properties deleted [{del_unknown}] records")
+        # show music folders
+        res_mf: Response[MusicFolders] = connector_provider.get().getMusicFolders()
+        if res_mf and res_mf.isOk():
+            curr: MusicFolder
+            for curr in res_mf.getObj().getMusicFolders():
+                msgproc.log(f"Music Folder [{curr.getId()}] [{curr.getName()}]")
         purge_id_cache()
         initial_caching()
         check_supports()
@@ -155,7 +163,10 @@ def check_supports_highest():
     # see if there is support for highest in getAlbumLists2
     supported: bool = False
     try:
-        res: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.HIGHEST, size=1)
+        res: Response[AlbumList] = connector_provider.get().getAlbumList(
+            ltype=ListType.HIGHEST,
+            size=1,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if res and res.isOk():
             # supported!
             supported = True
@@ -262,7 +273,8 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
             songCount=req_count,
             songOffset=song_offset,
             artistCount=0,
-            albumCount=0)
+            albumCount=0,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getSongs())
         song: Song
         partial_insert_count: int = 0
@@ -410,7 +422,8 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
             albumCount=req_count,
             albumOffset=album_offset,
             artistCount=0,
-            songCount=0)
+            songCount=0,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getAlbums())
         album: Album
         partial_insert_count: int = 0
@@ -544,7 +557,8 @@ def preload_artists(connection: sqlite3.Connection):
             artistCount=req_count,
             artistOffset=artist_offset,
             albumCount=0,
-            songCount=0)
+            songCount=0,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getArtists())
         artist: Artist
         for artist in res.getArtists():

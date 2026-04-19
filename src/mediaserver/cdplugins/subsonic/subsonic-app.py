@@ -924,6 +924,8 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
 
 
 def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    music_folder_id: str = config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID)
+    msgproc.log(f"handler_tag_recently_added_albums using music_folder_id [{music_folder_id}]")
     return __handler_tag_album_listype(objid, item_identifier, TagType.RECENTLY_ADDED_ALBUMS, entries)
 
 
@@ -970,7 +972,9 @@ def handler_tag_random_songs_list(objid, item_identifier: ItemIdentifier, entrie
         constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value)
     res: Response[RandomSongs]
     try:
-        res = connector_provider.get().getRandomSongs(size=max_songs)
+        res = connector_provider.get().getRandomSongs(
+            size=max_songs,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not res or not res.isOk():
             msgproc.log("Cannot load random songs")
             return entries
@@ -1129,7 +1133,8 @@ def handler_tag_recently_played_songs(objid, item_identifier: ItemIdentifier, en
         response: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.RECENT,
             offset=offset,
-            size=num_album)
+            size=num_album,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not response or not response.isOk():
             msgproc.log(f"Cannot load recently played albums at offset [{offset}]")
             return entries
@@ -1926,7 +1931,9 @@ def __handle_favourite_songs_paginated(
 def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     song_navigable: bool = item_identifier.get(ItemIdentifierKey.SONG_AS_NAVIGABLE_ENTRY, True)
     req_song_count: int = config.get_items_per_page() + 1
-    response: Response[RandomSongs] = connector_provider.get().getRandomSongs(size=req_song_count)
+    response: Response[RandomSongs] = connector_provider.get().getRandomSongs(
+        size=req_song_count,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not response.isOk():
         raise Exception("Cannot get random songs")
     song_list: list[Song] = response.getObj().getSongs()
@@ -2141,7 +2148,8 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
         ltype=ListType.BY_GENRE,
         genre=genre,
         offset=offset,
-        size=config.get_items_per_page() + 1)
+        size=config.get_items_per_page() + 1,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not album_list_response.isOk():
         return entries
     album_list: list[Album] = album_list_response.getObj().getAlbums()
@@ -2208,7 +2216,8 @@ def handle_tag_all_artists_unsorted_by_role(
         search_result: SearchResult = connector_provider.get().search(
             query="",
             artistCount=search_size,
-            artistOffset=offset)
+            artistOffset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         artist_list: list[Artists] = search_result.getArtists()
         msgproc.log(f"Search for [{search_size}] artists returned [{len(artist_list)}] artists.")
         current_artist: Artist
@@ -3743,7 +3752,9 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
     verbose: bool = config.get_verbose_logging()
     random_size: int = 100
     msgproc.log(f"handler_tag_group_artists getting [{random_size}] random songs ...")
-    res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=random_size)
+    res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(
+        size=random_size,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     album_list: list[Album] = res.getObj().getAlbums() if res and res.isOk() else []
     msgproc.log(f"handler_tag_group_artists got [{len(album_list)}] random songs")
     # filter out songs without cover art
@@ -4066,7 +4077,8 @@ def search_artist_by_artist_name(artist_name: str) -> list[Artist]:
         query=artist_name,
         artistCount=20,
         albumCount=0,
-        songCount=0)
+        songCount=0,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if verbose:
         msgproc.log(f"search_artist_by_artist_name for [{artist_name}] -> "
                     f"[{len(res.getArtists()) if res else 0}] artists")
@@ -4109,7 +4121,8 @@ def search_songs_by_song_title(song_title: str) -> list[Song]:
         query=song_title,
         artistCount=0,
         albumCount=0,
-        songCount=20)
+        songCount=20,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     msgproc.log(f"search_songs_by_song_title for [{song_title}] -> [{len(res.getSongs()) if res else 0}] songs")
     song: Song
     for song in res.getSongs():
@@ -4182,7 +4195,8 @@ def search_albums_by_album_title(album_title: str) -> list[Album]:
         query=album_title,
         artistCount=0,
         albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT),
-        songCount=0)
+        songCount=0,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if verbose:
         msgproc.log(f"search_albums_by_album_title for [{album_title}] -> [{len(res.getAlbums()) if res else 0}] albums")
     album: Album
@@ -4230,7 +4244,8 @@ def search_artist_by_name_using_api(artist_name: str) -> list[ArtistIdNameCoverA
         query=artist_name,
         artistCount=20,
         albumCount=20,
-        songCount=20)
+        songCount=20,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not res:
         # it's already over
         return artist_list
@@ -4462,7 +4477,8 @@ def search(a):
                 query=value,
                 artistCount=0,
                 songCount=0,
-                albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT))
+                albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT),
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             album_list: list[Album] = search_result.getAlbums()
             log_search_duration(search_type="album", what=value, how_many=len(album_list), start=search_start)
             current_album: Album
@@ -4486,7 +4502,8 @@ def search(a):
                 query=value,
                 artistCount=0,
                 songCount=config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT),
-                albumCount=0)
+                albumCount=0,
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             song_list: list[Song] = search_result.getSongs()
             log_search_duration(search_type="track", what=value, how_many=len(song_list), start=search_start)
             sorted_song_list: list[Song] = sort_song_list(song_list).getSongList()
@@ -4502,7 +4519,8 @@ def search(a):
                 query=value,
                 artistCount=config.get_config_param_as_int(constants.ConfigParam.ARTIST_SEARCH_LIMIT),
                 songCount=0,
-                albumCount=0)
+                albumCount=0,
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             artist_list: list[Artist] = search_result.getArtists()
             log_search_duration(search_type="artist", what=value, how_many=len(artist_list), start=search_start)
             current_artist: Artist
@@ -4536,7 +4554,8 @@ def search(a):
                 query=value,
                 artistCount=0,
                 songCount=0,
-                albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT))
+                albumCount=config.get_config_param_as_int(constants.ConfigParam.ALBUM_SEARCH_LIMIT),
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             album_list: list[Album] = search_result.getAlbums()
             log_search_duration(search_type="album", what=value, how_many=len(album_list), start=search_start)
             current_album: Album
@@ -4565,7 +4584,8 @@ def search(a):
                 query=value,
                 artistCount=0,
                 songCount=config.get_config_param_as_int(constants.ConfigParam.SONG_SEARCH_LIMIT),
-                albumCount=0)
+                albumCount=0,
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             song_list: list[Song] = search_result.getSongs()
             log_search_duration(search_type="song", what=value, how_many=len(song_list), start=search_start)
             sorted_song_list: list[Song] = sort_song_list(song_list).getSongList()
@@ -4581,7 +4601,8 @@ def search(a):
                 query=value,
                 artistCount=config.get_config_param_as_int(constants.ConfigParam.ARTIST_SEARCH_LIMIT),
                 songCount=0,
-                albumCount=0)
+                albumCount=0,
+                musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
             artist_list: list[Artist] = search_result.getArtists()
             log_search_duration(search_type="artist", what=value, how_many=len(artist_list), start=search_start)
             current_artist: Artist

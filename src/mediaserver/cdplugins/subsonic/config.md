@@ -105,3 +105,4 @@ recentlyplayedsongsmaxalbums|Maximum number of albums to be loaded in order to r
 recentlyplayedsongsbacklogprocafterlastalbum|Allow backlog processing after last loaded album, can lead to slightly inaccurate in the final results if enabled|False
 allowmixalbumversions|Allow to mix songs from multiple versions of the same album,  instead of presenting multiple versions|True
 stripversionfromtitle|Strip album version from title|True
+musicfolderid|Filter using the specified music folder id|None

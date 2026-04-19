@@ -455,7 +455,8 @@ def get_random_art_by_genre(
     response: Response[AlbumList] = connector.getAlbumList(
         ltype=ListType.BY_GENRE,
         genre=genre,
-        size=max_items)
+        size=max_items,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not response.isOk():
         return None
     album: Album = secrets.choice(response.getObj().getAlbums())
@@ -559,50 +560,59 @@ def get_albums(
     if TagType.RECENTLY_ADDED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getNewestAlbumList(
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.NEWEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
-            toYear=toYear)
+            toYear=toYear,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.OLDEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
-            toYear=toYear)
+            toYear=toYear,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.RANDOM.query_type == query_type:
         albumListResponse = request_cache.get_random_album_list(
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.RECENTLY_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.RECENT,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.MOST_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.FREQUENT,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.HIGHEST_RATED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.HIGHEST,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.ALPHABETICAL_BY_NAME_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.ALPHABETICAL_BY_NAME,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.ALPHABETICAL_BY_ARTIST,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     elif TagType.FAVORITE_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.STARRED,
@@ -626,7 +636,8 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
             ltype=ListType.BY_GENRE,
             genre=genre,
             offset=req_offset,
-            size=100)
+            size=100,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not album_list_response.isOk():
             return set()
         album_list: list[Album] = album_list_response.getObj().getAlbums()
@@ -682,7 +693,8 @@ def get_album_list_by_artist_genre(
             ltype=ListType.BY_GENRE,
             offset=offset,
             size=constants.subsonic_max_return_size,
-            genre=genre_name)
+            genre=genre_name,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not album_list_response.isOk():
             raise Exception(f"Failed to load albums for "
                             f"genre {genre_name} offset {offset}")
@@ -1013,7 +1025,8 @@ def get_artists_by_same_name(artist: Artist) -> list[Artist]:
         query=artist.getName(),
         artistCount=100,
         albumCount=0,
-        songCount=0)
+        songCount=0,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     matching_list: list[Artist] = search_result.getArtists()
     matching: Artist
     for matching in matching_list:
@@ -1389,9 +1402,10 @@ def __get_album_clean_title(album: Album) -> str:
 def __get_album_clean_title_raw(album_title: str, album_version: str | None) -> str:
     if not album_version:
         return album_title
-    # We look for the version wrapped in parens at the very end of the string
-    # Escape the version string in case it contains regex special characters like '+'
-    pattern = rf"\s*\({re.escape(album_version)}\)$"
+    # This matches either [version] or (version) at the end of the string
+    # \[|\( matches either [ or ( 
+    # \]|\) matches either ] or )
+    pattern = rf"\s*[\[\(]{re.escape(album_version)}[\]\)]$| \s*- {re.escape(album_version)}$"
     return re.sub(pattern, "", album_title).strip()
 
 

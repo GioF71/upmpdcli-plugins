@@ -147,7 +147,9 @@ def newest_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) 
 
 
 def recently_added_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
-    response: Response[AlbumList] = connector_provider.get().getNewestAlbumList(size=1)
+    response: Response[AlbumList] = connector_provider.get().getNewestAlbumList(
+        size=1,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     return _get_cover_art_from_res_album_list(response=response)
 
 
@@ -160,17 +162,26 @@ def random_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) 
 
 
 def recently_played_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
-    response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.RECENT, size=1)
+    response: Response[AlbumList] = connector_provider.get().getAlbumList(
+        ltype=ListType.RECENT,
+        size=1,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     return _get_cover_art_from_res_album_list(response=response)
 
 
 def highest_rated_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
-    response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.HIGHEST, size=1)
+    response: Response[AlbumList] = connector_provider.get().getAlbumList(
+        ltype=ListType.HIGHEST,
+        size=1,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     return _get_cover_art_from_res_album_list(response=response)
 
 
 def most_played_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) -> RetrievedArt:
-    response: Response[AlbumList] = connector_provider.get().getAlbumList(ltype=ListType.FREQUENT, size=1)
+    response: Response[AlbumList] = connector_provider.get().getAlbumList(
+        ltype=ListType.FREQUENT,
+        size=1,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     return _get_cover_art_from_res_album_list(response=response)
 
 

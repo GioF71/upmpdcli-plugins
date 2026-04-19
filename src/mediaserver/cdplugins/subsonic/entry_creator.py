@@ -237,7 +237,8 @@ def genre_to_entry(
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_GENRE,
             genre=genre_name,
-            size=5)
+            size=5,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not res or not res.isOk():
             msgproc.log(f"Cannot get albums by genre [{genre_name}]")
         album_list: AlbumList = res.getObj()

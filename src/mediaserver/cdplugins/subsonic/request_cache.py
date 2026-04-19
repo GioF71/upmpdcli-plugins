@@ -147,7 +147,8 @@ def _load_all_artists() -> list[Artist]:
             artistCount=search_size,
             songCount=0,
             albumCount=0,
-            artistOffset=search_offset)
+            artistOffset=search_offset,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         artists: list[Artist] = search_result.getArtists()
         all_artist.extend(artists)
         ac: int = len(artists)
@@ -212,7 +213,9 @@ def get_random_album_list(
                 delta_sec=config.get_config_param_as_int(constants.ConfigParam.CACHED_REQUEST_TIMEOUT_SEC)):
             msgproc.log(f"subsonic_util.get_random_album_list loading first [{config.get_items_per_page()}] random albums ...")
             # actually request first random albums
-            res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
+            res: Response[AlbumList] = connector_provider.get().getRandomAlbumList(
+                size=config.get_items_per_page(),
+                musicFolderId=musicFolderId)
             cached_response_random_firstpage = CachedResponse()
             cached_response_random_firstpage.last_response_obj = res
             cached_response_random_firstpage.last_response_time = datetime.datetime.now()
@@ -252,7 +255,8 @@ def get_first_newest_album_list() -> list[AlbumList]:
             ltype=ListType.BY_YEAR,
             size=config.get_items_per_page(),
             fromYear=datetime.datetime.now().year,
-            toYear=0)
+            toYear=0,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         cached_response_newest = CachedResponse()
         cached_response_newest.last_response_obj = res
         cached_response_newest.last_response_time = datetime.datetime.now()

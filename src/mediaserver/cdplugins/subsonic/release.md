@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.11
+
+- Improve "strip version" to also support square brackets
+- Support music folder id when possible (configured using `musicfolderid`)
+- Music Folder ids and names are displayed during the initialization phase
+
 ## Release 0.9.10
 
 - Merge album versions by default (`allowmixalbumversions`), selecting best track by disc number / track number using quality metadata
