@@ -44,7 +44,7 @@ from msgproc_provider import msgproc
 
 
 def _get_cover_art_from_res_album_list(response: Response[AlbumList], random: bool = False) -> RetrievedArt:
-    if not response.isOk() or len(response.getObj().getAlbums()) == 0:
+    if not response or not response.isOk() or len(response.getObj().getAlbums()) == 0:
         return None
     album_list: list[Album] = response.getObj().getAlbums()
     return __get_cover_art_from_album_list(album_list=album_list, random=random)
@@ -83,7 +83,7 @@ def consume_random_album_for_cover_art(tag_to_entry_context: TagToEntryContext =
                         f"by [{subsonic_util.get_album_display_artist(album=select)}]")
             return select
         else:
-            msgproc.log(f"Skipping album [{select.getId()}] "
+            msgproc.log(f"consume_random_album_for_cover_art skipping album [{select.getId()}] "
                         f"[{subsonic_util.get_album_title(select)}] "
                         f"from [{subsonic_util.get_album_display_artist(album=select)}] (no cover art)")
     msgproc.log("consume_random_album_for_cover_art cannot not return an album")
@@ -157,7 +157,9 @@ def random_albums_art_retriever(tag_to_entry_context: TagToEntryContext = None) 
     random_album_from_context: Album = consume_random_album_for_cover_art(tag_to_entry_context=tag_to_entry_context)
     if random_album_from_context:
         return RetrievedArt(art_url=subsonic_util.build_cover_art_url(item_id=random_album_from_context.getCoverArt()))
-    response: Response[AlbumList] = request_cache.get_random_album_list(size=config.get_items_per_page())
+    response: Response[AlbumList] = request_cache.get_random_album_list(
+        size=config.get_items_per_page(),
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     return _get_cover_art_from_res_album_list(response=response, random=True)
 
 

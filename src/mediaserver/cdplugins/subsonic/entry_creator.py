@@ -45,7 +45,6 @@ import upnp_util
 import subsonic_util
 import codec
 import constants
-import cache_actions
 import metadata_converter
 from album_metadata import AlbumMetadata
 from metadata_model import AlbumMetadataModel
@@ -185,9 +184,8 @@ def album_to_navigable_entry(
         artist=artist)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(
-        album=album,
-        target=entry,
-        album_metadata=album_metadata)
+        album_metadata=album_metadata,
+        target=entry)
     upnp_util.set_album_art_from_uri(
         album_art_uri=subsonic_util.build_cover_art_url(item_id=album.getCoverArt()),
         target=entry)
@@ -692,9 +690,8 @@ def album_to_entry(
     upnp_util.set_class_album(entry)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(
-        album=album,
-        target=entry,
-        album_metadata=album_metadata)
+        album_metadata=album_metadata,
+        target=entry)
     return entry
 
 

@@ -1672,7 +1672,7 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
         upnp_util.set_album_art_from_uri(
             album_art_uri=subsonic_util.build_cover_art_url(item_id=curr.album_cover_art),
             target=album_entry)
-        subsonic_util.set_album_metadata_by_metadata_only(
+        subsonic_util.set_album_metadata(
             album_metadata=curr,
             target=album_entry)
         entries.append(album_entry)
@@ -3157,9 +3157,8 @@ def handler_element_navigable_album(
     upnp_util.set_track_title(title, album_entry)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, album_entry)
     subsonic_util.set_album_metadata(
-        album=album,
-        target=album_entry,
-        album_metadata=album_metadata)
+        album_metadata=album_metadata,
+        target=album_entry)
     entries.append(album_entry)
     # add artist if needed
     skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)
@@ -3555,6 +3554,7 @@ def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: 
 
 
 def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     avp_enc: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, None)
     msgproc.log(f"handler_element_album for album_id [{album_id}] avp_enc [{avp_enc}]")
@@ -3571,12 +3571,15 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
     # mix tracks?
     if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_MIX_ALBUM_VERSIONS):
         # we always present tracks, otherwise we fall back to presenting versions (if there are multiple versions)
-        msgproc.log(f"Preparing mixed content for album_id [{album_id}] ...")
+        if verbose:
+            msgproc.log(f"handler_element_album preparing mixed content for album_id [{album_id}] ...")
         # collect by disc number and track
         song_dict: dict[tuple[int, int], Song] = defaultdict(list)
         curr: Song
         for curr in album_tracks.getSongList():
-            msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> adding song [{curr.getTitle()}] ...")
+            if verbose:
+                msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> "
+                            f"adding song [{curr.getTitle()}] ...")
             song_dict[(curr.getDiscNumber(), curr.getTrack())].append(curr)
         # present songs.
         key_list: list[tuple[int, int]] = sorted(song_dict.keys())
@@ -3586,9 +3589,10 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
             track_count += 1
             song_versions: list[Song] = song_dict[curr_key]
             best_version: Song = subsonic_util.choose_best_track_by_format(song_versions)
-            msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] -> select best from [{len(song_versions)}] "
-                        f"[{sorted([s.getId() for s in song_versions])}] -> "
-                        f"[{best_version.getId() if best_version else ''}]")
+            if len(song_versions) > 1:
+                msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] -> select best from [{len(song_versions)}] "
+                            f"[{sorted([s.getId() for s in song_versions])}] -> "
+                            f"[{best_version.getId() if best_version else ''}]")
             if best_version:
                 options: dict[str, str] = {}
                 option_util.set_option(

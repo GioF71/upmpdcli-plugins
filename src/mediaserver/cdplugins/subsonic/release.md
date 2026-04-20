@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.12
+
+- More support for music folder id, hopefully complete now (see [this issue](https://github.com/GioF71/upmpdcli-plugins/issues/40))
+- Remove now unused method for setting album metadata
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.11
 
 - Improve "strip version" to also support square brackets
