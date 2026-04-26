@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.12"
+    PLUGIN_RELEASE = "0.9.13"
     PLUGIN_NAME = "subsonic"
 
 
@@ -577,6 +577,16 @@ class ConfigParam(Enum):
         "musicfolderid",
         default_value=None,
         description=("Filter using the specified music folder id"))
+
+    ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE = _ConfigParamData(
+        "allowartistduplicatealbumtitle",
+        default_value=True,
+        description=("Add an entry which will display albums with the same title, if any"))
+
+    ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE_VERSION = _ConfigParamData(
+        "allowartistduplicatealbumtitleversion",
+        default_value=True,
+        description=("Add an entry which will display albums with the same title and version, if any"))
 
     @property
     def key(self) -> str:

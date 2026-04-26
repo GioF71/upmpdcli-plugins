@@ -76,6 +76,10 @@ class ElementType(Enum):
     ALBUM_BROWSE_MATCHING_ALBUMS = _ElementTypeData()
     FAVORITE_SONGS_AS_CONTAINERS = _ElementTypeData()
     FAVORITE_SONGS_CONTAINER = _ElementTypeData()
+    ARTIST_ALBUMS_WITH_DUPLICATE_TITLES = _ElementTypeData()
+    ARTIST_ALBUMS_WITH_DUPLICATE_TITLE_VERSION_PAIR = _ElementTypeData()
+    ARTIST_ALBUMS_FILTERED_BY_TITLE = _ElementTypeData()
+    ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION = _ElementTypeData()
 
     @property
     def element_name(self) -> str:

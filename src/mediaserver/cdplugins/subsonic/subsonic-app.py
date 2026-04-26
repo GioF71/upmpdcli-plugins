@@ -1388,6 +1388,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             album_property_key=album_property_key,
             album_property_value=x.property_value),
         occ_list))
+    # num_occ: int = len(occ_list)
     # keep track of the album id to load
     album_id_set: set[str] = set()
     # keep track of entries by value
@@ -1397,7 +1398,9 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     values_to_show: list[AlbumPropertyValueOccurrence] = ([None] + occ_list) if none_entry_needed else occ_list
     # at offset
     at_offset: list[AlbumPropertyValueOccurrence] = values_to_show[offset:] if len(values_to_show) > offset else []
-    # make this configurable
+    # apply sorting if there is no pagination
+    if len(occ_list) == len(at_offset):
+        at_offset = album_property_key_matched.sort_key_values(at_offset)
     curr_value: AlbumPropertyValueOccurrence
     for curr_value in at_offset[:album_property_key_matched.max_items]:
         identifier: ItemIdentifier = ItemIdentifier(
@@ -1422,7 +1425,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             match_count: int = persistence.get_album_property_matching_count(condition_list=none_condition_list)
             representative_album_id: str = persistence.get_one_random_album_property_matching(condition_list=none_condition_list)
             msgproc.log(f"handler_album_browse_filter_key [None] -> repr [{representative_album_id}]")
-        title: str = f"{curr_value.property_value if curr_value else '[None]'} [{match_count}]"
+        title: str = f"{album_property_key_matched.format_key_value(curr_value.property_value) if curr_value else '[None]'} [{match_count}]"
         entry: dict[str, any] = upmplgutils.direntry(
             id=id,
             pid=objid,
@@ -1520,10 +1523,6 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
         # if missing is false and we have the same number of positives, we do not need to show the key
         if not occurrence.is_missing_for_some:
             if occurrence.property_value_count == pos_filter_count:
-                continue
-        # if no missing and there is only one value remaining, we do not need to show the key
-        if not occurrence.is_missing_for_some:
-            if (occurrence.property_value_count - pos_filter_count) == 1:
                 continue
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
@@ -2669,7 +2668,7 @@ def handler_element_artist_role_initial(objid, item_identifier: ItemIdentifier, 
         entries.append(entry_creator.artist_to_entry_raw(
             objid=objid,
             artist_id=curr_artist.artist_id,
-            artist_entry_name=curr_artist.artist_name,
+            artist_entry_name=(curr_artist.artist_sort_name if curr_artist.artist_sort_name else curr_artist.artist_name),
             artist_cover_art=cover_art))
     if has_next:
         # get last.
@@ -2791,15 +2790,15 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] release types counters are: [{artist_release_types}]")
     one_release_type: bool = len(artist_release_types.keys()) == 1
     single_release_type: str = next(iter(artist_release_types)) if one_release_type else None
+    # if one_release_type:
+    #    msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] one release type only: [{single_release_type}]")
     if one_release_type:
-        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] one release type only: [{single_release_type}]")
-    if not one_release_type:
+        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has one release type only: [{single_release_type}] "
+                    "so there is no need for by-releasetype album entries.")
+    else:
         msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has [({len(artist_release_types.keys())})] "
                     f"release types: [{single_release_type}] "
                     "so we can add by-releasetype album entries!")
-    else:
-        msgproc.log(f"Artist [{artist_id}] [{artist.getName()}] has one release type only: [{single_release_type}] "
-                    "so there is no need for by-releasetype album entries.")
     cover_art_album: Album
     if len(albums_as_main_artist) > 0:
         # to rule out album where artist just appears on
@@ -2852,7 +2851,242 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         entries.append(appearances_entry)
     # add fallback albums entry, can be "all releases" or just one entry because there are no release types
     entries.append(albums_entry)
+    # add albums by title
+    __add_artist_albums_by_title(
+        objid=objid,
+        artist_id=artist_id,
+        album_list=album_list,
+        entries=entries)
+    # add albums by title and version
+    __add_artist_albums_by_title_version(
+        objid=objid,
+        artist_id=artist_id,
+        album_list=album_list,
+        entries=entries)
     # add artist focus entry ...
+    __add_artist_focus_entry(
+        objid=objid,
+        artist_id=artist_id,
+        album_list=album_list,
+        albums_as_main_artist=albums_as_main_artist,
+        entries=entries)
+    return entries
+
+
+def __get_albums_by_title(album_list: list[Album]) -> dict[str, Album]:
+    # Initialize a dictionary that defaults to an empty list
+    by_title: dict[str, Album] = defaultdict(list)
+    for album in album_list:
+        title = subsonic_util.get_album_title(album)
+        by_title[title].append(album)
+    # If you need it back as a standard dict:
+    return dict(by_title)
+
+
+def __get_albums_by_title_and_version(album_list: list[Album]) -> dict[tuple[str, str], Album]:
+    # Initialize a dictionary that defaults to an empty list
+    by_title: dict[tuple[str, str], Album] = defaultdict(list)
+    for album in album_list:
+        version: str = subsonic_util.get_album_version(album)
+        if version:
+            key: tuple[str, str] = (subsonic_util.get_album_title(album), subsonic_util.get_album_version(album))
+            by_title[key].append(album)
+    # If you need it back as a standard dict:
+    return dict(by_title)
+
+
+def __add_artist_albums_by_title(
+        objid,
+        artist_id: str,
+        album_list: list[Album],
+        entries: list[any]) -> list[any]:
+    if not config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE):
+        return entries
+    by_title: dict[str, Album] = __get_albums_by_title(album_list=album_list)
+    # any titles with more than one entry?
+    titles_with_duplicates: list[str] = [title for title, albums in by_title.items() if len(albums) > 1]
+    if titles_with_duplicates:
+        msgproc.log(f"Artist [{artist_id}] has titles with duplicates: [{titles_with_duplicates}]")
+        # create the entry
+        item_identifier: ItemIdentifier = ItemIdentifier(
+            name=ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLES.element_name,
+            value=artist_id)
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(item_identifier))
+        albums_w_dupl_titles_entry: dict[str, any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"Albums with same title [{len(titles_with_duplicates)}]")
+        # pick one of the titles with duplications
+        select_album_title: str = secrets.choice(titles_with_duplicates)
+        select_album: Album = secrets.choice(by_title[select_album_title])
+        entries.append(albums_w_dupl_titles_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt()) if select_album else None,
+            target=albums_w_dupl_titles_entry)
+    return entries
+
+
+def __add_artist_albums_by_title_version(
+        objid,
+        artist_id: str,
+        album_list: list[Album],
+        entries: list[any]) -> list[any]:
+    if not config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE_VERSION):
+        return entries
+    by_title_and_version: dict[tuple[str, str], Album] = __get_albums_by_title_and_version(album_list=album_list)
+    # any titles with more than one entry?
+    titles_with_duplicates: list[tuple[str, str]] = [(key[0], key[1]) for key, albums in by_title_and_version.items() if len(albums) > 1]
+    if titles_with_duplicates:
+        msgproc.log(f"Artist [{artist_id}] has title/version pairs with duplicates: [{titles_with_duplicates}]")
+        # create the entry
+        item_identifier: ItemIdentifier = ItemIdentifier(
+           name=ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLE_VERSION_PAIR.element_name,
+           value=artist_id)
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(item_identifier))
+        albums_w_dupl_titles_entry: dict[str, any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"Albums with same title/version [{len(titles_with_duplicates)}]")
+        # pick one of the titles with duplications
+        select_album_title_v_pair: tuple[str, str] = secrets.choice(titles_with_duplicates)
+        select_album: Album = secrets.choice(by_title_and_version[select_album_title_v_pair])
+        entries.append(albums_w_dupl_titles_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt()) if select_album else None,
+            target=albums_w_dupl_titles_entry)
+    return entries
+
+
+def handler_element_albums_with_duplicate_titles(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_albums_with_duplicate_titles for artist_id [{artist_id}]")
+    artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
+    if not artist:
+        msgproc.log(f"handler_element_albums_with_duplicate_titles cannot retrieve artist by id {artist_id}")
+        persistence.delete_artist_metadata(artist_id=artist_id)
+        return entries
+    album_list: list[Album] = artist.getAlbumList()
+    by_title: dict[str, Album] = __get_albums_by_title(album_list=album_list)
+    # any titles with more than one entry?
+    titles_with_duplicates: list[str] = [title for title, albums in by_title.items() if len(albums) > 1]
+    if not titles_with_duplicates:
+        return entries
+    msgproc.log(f"Artist [{artist_id}] has titles with duplicates: [{titles_with_duplicates}]")
+    # display an entry for each title
+    titles_with_duplicates.sort()
+    curr: str
+    for curr in titles_with_duplicates:
+        # create entry
+        item_identifier: ItemIdentifier = ItemIdentifier(
+            name=ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE.element_name,
+            value=artist_id)
+        item_identifier.set(key=ItemIdentifierKey.ALBUM_TITLE, value=curr)
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(item_identifier))
+        curr_entry: dict[str, any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"{curr} [{len(by_title[curr])}]")
+        # pick one of the albums by the current title
+        select_album: Album = secrets.choice(by_title[curr])
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt()) if select_album else None,
+            target=curr_entry)
+        # append entry
+        entries.append(curr_entry)
+    return entries
+
+
+def handler_element_albums_with_duplicate_title_version(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_albums_with_duplicate_titles for artist_id [{artist_id}]")
+    artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
+    if not artist:
+        msgproc.log(f"handler_element_albums_with_duplicate_titles cannot retrieve artist by id {artist_id}")
+        persistence.delete_artist_metadata(artist_id=artist_id)
+        return entries
+    album_list: list[Album] = artist.getAlbumList()
+    by_title_version: dict[tuple[str, str], Album] = __get_albums_by_title_and_version(album_list=album_list)
+    # any title/version pair with more than one entry?
+    titles_with_duplicates: list[tuple[str, str]] = [(key[0], key[1]) for key, albums in by_title_version.items() if len(albums) > 1]
+    if not titles_with_duplicates:
+        return entries
+    msgproc.log(f"Artist [{artist_id}] has titles with duplicates: [{titles_with_duplicates}]")
+    # display an entry for each title
+    titles_with_duplicates.sort()
+    curr: tuple[str, str]
+    for curr in titles_with_duplicates:
+        # create entry
+        item_identifier: ItemIdentifier = ItemIdentifier(
+            name=ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION.element_name,
+            value=artist_id)
+        item_identifier.set(key=ItemIdentifierKey.ALBUM_TITLE, value=curr[0])
+        item_identifier.set(key=ItemIdentifierKey.ALBUM_VERSION, value=curr[1])
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(item_identifier))
+        curr_entry: dict[str, any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"{curr[0]} ({curr[1]}) [{len(by_title_version[curr])}]")
+        # pick one of the albums by the current title
+        select_album: Album = secrets.choice(by_title_version[(curr[0], curr[1])])
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=select_album.getCoverArt()) if select_album else None,
+            target=curr_entry)
+        # append entry
+        entries.append(curr_entry)
+    return entries
+
+
+def handler_element_artist_albums_filtered_by_title(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    title: str = item_identifier.get(ItemIdentifierKey.ALBUM_TITLE)
+    msgproc.log(f"handler_element_artist_albums_filtered_by_title for artist_id [{artist_id}] title [{title}]")
+    artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
+    if not artist:
+        msgproc.log(f"handler_element_artist_albums_filtered_by_title cannot retrieve artist by id {artist_id}")
+        persistence.delete_artist_metadata(artist_id=artist_id)
+        return entries
+    album_list: list[Album] = [x for x in artist.getAlbumList() if x.getTitle() == title]
+    curr: Album
+    for curr in album_list:
+        entries.append(entry_creator.album_to_entry(
+            objid=objid,
+            album=curr))
+    return entries
+
+
+def handler_element_artist_albums_filtered_by_title_version(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    title: str = item_identifier.get(ItemIdentifierKey.ALBUM_TITLE)
+    version: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION)
+    msgproc.log(f"handler_element_artist_albums_filtered_by_title_version for artist_id [{artist_id}] title [{title}] [{version}]")
+    artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
+    if not artist:
+        msgproc.log(f"handler_element_artist_albums_filtered_by_title_version cannot retrieve artist by id {artist_id}")
+        persistence.delete_artist_metadata(artist_id=artist_id)
+        return entries
+    album_list: list[Album] = [x for x in artist.getAlbumList() if x.getTitle() == title and subsonic_util.get_album_version(x) == version]
+    curr: Album
+    for curr in album_list:
+        entries.append(entry_creator.album_to_entry(
+            objid=objid,
+            album=curr))
+    return entries
+
+
+def __add_artist_focus_entry(
+        objid,
+        artist_id: str,
+        album_list: list[Album],
+        albums_as_main_artist: list[Album],
+        entries: list[any]) -> list[any]:
     artist_focus_entry = entry_creator.artist_id_to_artist_focus(objid, artist_id)
     # possibly select another album for artist focus, preferring albums as main artist
     focus_select_album = (secrets.choice(albums_as_main_artist)
@@ -2980,7 +3214,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     genre: str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
     artist_response: Response[Artist] = connector_provider.get().getArtist(artist_id)
     if not artist_response.isOk():
-        raise Exception(f"Cannot retrieve artist by id {artist_id}")
+        raise Exception(f"handler_element_genre_artist cannot retrieve artist by id {artist_id}")
     artist: Artist = artist_response.getObj()
     album_list: list[Album] = subsonic_util.get_album_list_by_artist_genre(artist, genre)
     artist_entry: dict[str, any] = entry_creator.artist_to_entry(
@@ -3574,23 +3808,24 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
         if verbose:
             msgproc.log(f"handler_element_album preparing mixed content for album_id [{album_id}] ...")
         # collect by disc number and track
-        song_dict: dict[tuple[int, int], Song] = defaultdict(list)
+        song_dict: dict[tuple[int, int, str], Song] = defaultdict(list)
         curr: Song
         for curr in album_tracks.getSongList():
             if verbose:
                 msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> "
                             f"adding song [{curr.getTitle()}] ...")
-            song_dict[(curr.getDiscNumber(), curr.getTrack())].append(curr)
+            clean_title: str = curr.getTitle().upper().replace("’", "'")
+            song_dict[(curr.getDiscNumber(), curr.getTrack(), clean_title)].append(curr)
         # present songs.
-        key_list: list[tuple[int, int]] = sorted(song_dict.keys())
-        curr_key: tuple[int, int]
+        key_list: list[tuple[int, int, str]] = sorted(song_dict.keys())
+        curr_key: tuple[int, int, str]
         track_count: int = 0
         for curr_key in key_list:
             track_count += 1
             song_versions: list[Song] = song_dict[curr_key]
             best_version: Song = subsonic_util.choose_best_track_by_format(song_versions)
             if len(song_versions) > 1:
-                msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] -> select best from [{len(song_versions)}] "
+                msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] [{curr_key[2]}] -> select best from [{len(song_versions)}] "
                             f"[{sorted([s.getId() for s in song_versions])}] -> "
                             f"[{best_version.getId() if best_version else ''}]")
             if best_version:
@@ -3906,7 +4141,11 @@ __elem_action_dict: dict = {
     ElementType.ALBUM_BROWSE_FILTER_VALUE.element_name: handler_album_browse_filter_value,
     ElementType.ALBUM_BROWSE_MATCHING_ALBUMS.element_name: handler_element_matching_albums,
     ElementType.FAVORITE_SONGS_AS_CONTAINERS.element_name: handler_element_favorite_songs_as_containers,
-    ElementType.FAVORITE_SONGS_CONTAINER.element_name: handler_element_favorite_songs_container
+    ElementType.FAVORITE_SONGS_CONTAINER.element_name: handler_element_favorite_songs_container,
+    ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLES.element_name: handler_element_albums_with_duplicate_titles,
+    ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLE_VERSION_PAIR.element_name: handler_element_albums_with_duplicate_title_version,
+    ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE.element_name: handler_element_artist_albums_filtered_by_title,
+    ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION.element_name: handler_element_artist_albums_filtered_by_title_version
 }
 
 

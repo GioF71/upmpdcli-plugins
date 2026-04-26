@@ -57,6 +57,8 @@ class ItemIdentifierKey(Enum):
     ARTIST_ROLE = _ItemIdentifierKey()
     ALBUM_BROWSE_SELECTION_LIST = _ItemIdentifierKey()
     ALBUM_BROWSE_FILTER_KEY = _ItemIdentifierKey()
+    ALBUM_TITLE = _ItemIdentifierKey()
+    ALBUM_VERSION = _ItemIdentifierKey()
 
     @property
     def identifier_name(self) -> str:

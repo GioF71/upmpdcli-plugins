@@ -97,6 +97,13 @@ class AudioCodec(Enum):
         return self.value.suffixes[:]
 
 
+class ResolutionStatus(Enum):
+
+    HIRES = "hires"
+    STD = "standard"
+    LOW = "low"
+
+
 class LosslessStatus(Enum):
 
     LOSSLESS = "lossless"

@@ -110,7 +110,7 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # label
     res[AlbumPropertyKey.LABEL.property_key] = get_album_record_label_names(album=album)
     # label (initial)
-    res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1] for x in get_album_record_label_names(album=album)]
+    res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1].upper() for x in get_album_record_label_names(album=album)]
     # artists
     album_artist_set: set[str] = set()
     album_artist_set.add(get_album_display_artist(album=album))
@@ -151,6 +151,9 @@ def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[A
     quality_badge: str = calc_song_list_quality_badge(song_list=song_list)
     if quality_badge:
         res[AlbumPropertyKey.QUALITY_BADGE.property_key] = [quality_badge]
+    # resolution
+    song_resolution_list: list[audio_codec.ResolutionStatus] = calc_song_list_resolution(song_list=song_list)
+    res[AlbumPropertyKey.RESOLUTION_STATUS.property_key] = song_resolution_list
     bit_depth_list: list[str] = list(set([str(get_song_bit_depth(x)) for x in song_list]))
     if bit_depth_list:
         res[AlbumPropertyKey.BIT_DEPTH.property_key] = bit_depth_list
@@ -191,6 +194,44 @@ def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[A
 
 def __get_decade(year: int) -> str:
     return f"{(year // 10) * 10}s"
+
+
+def __is_multiple_of_2_8m(n: int) -> bool:
+    # We use underscores for readability; Python treats 2_800_000 as 2800000
+    target = 2_822_400
+    # Check if the remainder is 0 and the number is not 0 (if 0 isn't desired)
+    if n != 0 and n % target == 0:
+        return True
+    else:
+        return False
+
+
+def calc_song_resolution(song: Song) -> audio_codec.ResolutionStatus:
+    # lossless?
+    bit_depth: int = get_song_bit_depth(song=song)
+    lossy: bool = is_lossy(suffix=song.getSuffix(), bit_depth=bit_depth)
+    if lossy or bit_depth == 0 or (bit_depth != 1 and bit_depth < 16):
+        # resolution is low
+        return audio_codec.ResolutionStatus.LOW
+    # lossless. distinguish.
+    sample_rate: int = get_song_sampling_rate(song=song)
+    if bit_depth == 16 and sample_rate in [44100, 48000]:
+        # lower than standard res
+        return audio_codec.ResolutionStatus.STD
+    elif ((bit_depth == 1 and __is_multiple_of_2_8m(sample_rate)) or 
+            (bit_depth > 16 and sample_rate >= 44100)):
+        return audio_codec.ResolutionStatus.HIRES
+    # fallback to low
+    msgproc.log(f"calc_song_resolution [{song.getId()}] "
+                f"lossy [{lossy}] "
+                f"bit_depth [{bit_depth}] "
+                f"sample_rate [{sample_rate}] "
+                f"falling back to [{audio_codec.ResolutionStatus.LOW}]")
+    return audio_codec.ResolutionStatus.LOW
+
+
+def calc_song_list_resolution(song_list: list[Song], list_identifier: str = None) -> list[str]:
+    return list({calc_song_resolution(x).value for x in song_list})
 
 
 def calc_song_list_quality_badge(song_list: list[Song], list_identifier: str = None) -> str:
@@ -1549,6 +1590,10 @@ def get_album_moods(album: Album) -> list[str]:
     return album.getItem().getListByName(constants.ItemKey.MOODS.value) if album else []
 
 
+def get_song_moods(song: Song) -> list[str]:
+    return song.getItem().getListByName(constants.ItemKey.MOODS.value) if song else []
+
+
 def get_docroot_base_url() -> str:
     host_port: str = (os.environ["UPMPD_UPNPHOSTPORT"]
                       if "UPMPD_UPNPHOSTPORT" in os.environ
@@ -1938,6 +1983,8 @@ def set_song_metadata(
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, song.getAlbum(), target)
     joined_genres: str = join_with_comma(song.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
+    joined_moods: str = join_with_comma(get_song_moods(song))
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, joined_moods, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_DURATION, get_song_duration_display(song), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.DISC_NUMBER, song.getDiscNumber(), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_NUMBER, song.getTrack(), target)
@@ -1977,17 +2024,17 @@ def set_album_metadata(
             release_date_type=album_util.AlbumReleaseDateType.ORIGINAL_RELEASE_DATE),
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, album_metadata.album_version, target)
-    played: any = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
-    formatted_played: str = "Never"
-    if played:
-        if isinstance(played, datetime.datetime):
-            formatted_played = played.strftime("%Y-%m-%d %H:%M:%S")
+    formatted_album_played: str = "Never"
+    album_played: any = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
+    if album_played:
+        if isinstance(album_played, datetime.datetime):
+            formatted_album_played = album_played.strftime("%Y-%m-%d %H:%M:%S")
         else:
             # leave played as-is (already a string)
-            formatted_played = played
+            formatted_album_played = album_played
     upnp_util.set_upmpd_meta(
         upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
-        formatted_played,
+        formatted_album_played,
         target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album_metadata.album_id, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, album_metadata.album_musicbrainz_id, target)

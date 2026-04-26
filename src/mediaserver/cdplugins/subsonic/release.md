@@ -1,5 +1,20 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.13
+
+- Add `mood` metadata also at track level
+- Add Resolution to album property keys
+- AlbumBrowser key selection improved
+- Improve browsing when preloading is still in progress
+- Merge album versions now also uses the track title as key (and also replaces some weird chars, more work is likely to be needed)
+- More sensible sorting and formatting methods for bit depths and sampling rates
+- Artist Roles uses artist_sort_name instead of artist_name
+- Avoid artist_sort_name to be null with new migration (set to artist_name if null)
+- Album Browser: label initial to be upper case
+- Add new view "Albums with duplicate titles" in Artist view (can be disabled with `allowartistduplicatealbumtitle`)
+- Add new view "Albums with duplicate title/version pairs" in Artist view (can be disabled with `allowartistduplicatealbumtitleversion`)
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.12
 
 - More support for music folder id, hopefully complete now (see [this issue](https://github.com/GioF71/upmpdcli-plugins/issues/40))

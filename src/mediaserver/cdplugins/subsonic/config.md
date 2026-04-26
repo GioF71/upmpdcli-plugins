@@ -106,3 +106,5 @@ recentlyplayedsongsbacklogprocafterlastalbum|Allow backlog processing after last
 allowmixalbumversions|Allow to mix songs from multiple versions of the same album,  instead of presenting multiple versions|True
 stripversionfromtitle|Strip album version from title|True
 musicfolderid|Filter using the specified music folder id|None
+allowartistduplicatealbumtitle|Add an entry which will display albums with the same title, if any|True
+allowartistduplicatealbumtitleversion|Add an entry which will display albums with the same title and version, if any|True
