@@ -1,5 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.14
+
+- Initial support for replay gain
+- Album track quality summary column is now populated also during initialization phase
+- Execute initial_caching after setup operations (avoid a `closed database` exception)
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.13
 
 - Add `mood` metadata also at track level

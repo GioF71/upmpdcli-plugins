@@ -107,11 +107,12 @@ def subsonic_init():
             for curr in res_mf.getObj().getMusicFolders():
                 msgproc.log(f"Music Folder [{curr.getId()}] [{curr.getName()}]")
         purge_id_cache()
-        initial_caching()
         check_supports()
         detect_anomalies()
         if config.get_config_param_as_bool(constants.ConfigParam.EXECUTE_VACUUM):
             persistence.do_vacuum()
+        # execute initial caching in its separate thread
+        initial_caching()
         if config.getWebServerDocumentRoot():
             msgproc.log("WebServer is enabled ...")
             path_images_static: list[str] = config.get_webserver_path_images_static()
@@ -356,7 +357,15 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
                     connection=connection,
                     do_commit=False)
                 # update album metadata?
+                # Some values come from album properties
                 upd_dict: dict[AlbumMetadataModel, Any] = subsonic_util.convert_album_properties(album_properties=album_properties)
+                # calculate album track quality summary
+                album_track_quality_summary: str = subsonic_util.calc_song_quality_summary(song_list=loaded_list)
+                # msgproc.log(f"init album_track_quality_summary for album_id [{preloaded_album.album_id}] -> [{album_track_quality_summary}]")
+                upd_dict[AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY] = album_track_quality_summary
+                # album replay gain
+                upd_dict[AlbumMetadataModel.ALBUM_REPLAY_GAIN] = subsonic_util.get_album_replaygain(song_list=loaded_list)
+                # update album path
                 album_path: str = album_util.get_album_path_list_joined(song_list=loaded_list)
                 upd_dict[AlbumMetadataModel.ALBUM_PATH] = album_path
                 if len(upd_dict) > 0:

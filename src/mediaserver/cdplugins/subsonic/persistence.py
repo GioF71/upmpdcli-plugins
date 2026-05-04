@@ -3237,6 +3237,15 @@ def __store_db_version(version: str):
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
+def do_migration_72():
+    __do_create_table(
+        table_name=TableName.ALBUM_METADATA_V1.value,
+        sql=__get_sql_alter_table_add_column(
+            table_name=TableName.ALBUM_METADATA_V1,
+            column_name=AlbumMetadataModel.ALBUM_REPLAY_GAIN.column_name,
+            column_type="FLOAT"))
+
+
 def do_migration_71():
     sql: str = f"""
         UPDATE {TableName.ARTIST_METADATA_V1.value}
@@ -4341,7 +4350,12 @@ def __init():
             migration_name=(f"Updating table {TableName.ARTIST_METADATA_V1.value} "
                             f"setting value for {ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value} "
                             f"to {ArtistMetadataModel.ARTIST_NAME.column_name.value} when empty"),
-            migration_function=do_migration_71)]
+            migration_function=do_migration_71),
+        __create_migration(
+            applies_on=72,
+            migration_name=(f"Altering table {TableName.ALBUM_METADATA_V1.value} "
+                            f"adding {AlbumMetadataModel.ALBUM_REPLAY_GAIN.column_name.value}"),
+            migration_function=do_migration_72)]
     current_migration: Migration
     migration_counter: int = 0
     for current_migration in migrations:

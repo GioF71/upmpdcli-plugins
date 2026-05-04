@@ -69,6 +69,7 @@ from typing import Any
 from enum import Enum
 from song_info import SongInfo
 from disc_title import DiscTitle
+from replay_gain import ReplayGain
 from msgproc_provider import msgproc
 
 
@@ -122,8 +123,8 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
         item_key=constants.ItemKey.ARTISTS)])
     # at this point I can just extract the album artist list
     res[AlbumPropertyKey.ALBUM_ARTIST.property_key] = list(album_artist_set)
-    # release type
-    release_types: list[str] = get_album_release_types(album=album).types
+    # release types (don't complain about anomalies in release types again)
+    release_types: list[str] = get_album_release_types(album=album, print_function=None).types
     res[AlbumPropertyKey.RELEASE_TYPE.property_key] = release_types
     # suffixes and lossless status
     song_list: list[Song] = album.getSongs()
@@ -1041,7 +1042,7 @@ def compareAlbumReleaseTypes(left: AlbumReleaseTypes, right: AlbumReleaseTypes) 
     return 0 if left_str == right_str else 1 if left_str > right_str else -1
 
 
-def get_release_types(album_list: list[Album]) -> dict[str, int]:
+def get_album_list_release_types(album_list: list[Album]) -> dict[str, int]:
     result: dict[str, int] = dict()
     current: Album
     for current in album_list if album_list else list():
@@ -1086,7 +1087,9 @@ def album_has_release_types(album: Album) -> bool:
     return album.getItem().hasName(constants.ItemKey.RELEASE_TYPES.value)
 
 
-def get_album_release_types(album: Album) -> AlbumReleaseTypes:
+def get_album_release_types(
+        album: Album,
+        print_function: Callable[[str], None] = lambda x: msgproc.log(x)) -> AlbumReleaseTypes:
     has_release_types: bool = album_has_release_types(album)
     album_release_types: list[str] = (album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
                                       if has_release_types
@@ -1094,7 +1097,7 @@ def get_album_release_types(album: Album) -> AlbumReleaseTypes:
     return AlbumReleaseTypes(
         types=musicbrainzutils.sanitize_release_types(
             value_list=album_release_types,
-            print_function=lambda x: msgproc.log(x),
+            print_function=print_function,
             album_id=album.getId(),
             album_title=get_album_title(album),
             album_artist=album.getArtist()))
@@ -1115,6 +1118,35 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
 
 def get_song_size(song: Song) -> str:
     return song.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
+
+
+def get_album_replaygain(song_list: list[Song]) -> float | None:
+    album_rg: float = None
+    curr: Song
+    for curr in song_list if song_list else []:
+        curr_album_rg: ReplayGain = get_song_replaygain(song=curr)
+        # early exit with None if rg missing
+        if curr_album_rg is None or curr_album_rg.album_gain is None:
+            return None
+        # early exit with None if missing
+        if album_rg is None:
+            # set album_rg to value
+            album_rg = curr_album_rg.album_gain
+        else:
+            # early exit if different
+            if album_rg != curr_album_rg.album_gain:
+                return None
+    return album_rg
+
+
+def get_song_replaygain(song: Song) -> ReplayGain | None:
+    rg_dict: dict[str, float] = song.getItem().getByName(constants.ItemKey.SONG_REPLAYGAIN.value)
+    if not rg_dict:
+        return None
+    # values
+    a_g: float | None = rg_dict.get(constants.ReplayGainKey.ALBUM_GAIN.value)
+    t_g: float | None = rg_dict.get(constants.ReplayGainKey.TRACK_GAIN.value)
+    return ReplayGain(album_gain=a_g, track_gain=t_g)
 
 
 def get_explicit_status(obj: Album | Song) -> str:
@@ -1979,6 +2011,7 @@ def set_song_metadata(
         song: Song,
         target: dict,
         album_metadata: AlbumMetadata = None):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, join_with_comma(__get_song_album_artist_id_list(song)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, song.getAlbum(), target)
     joined_genres: str = join_with_comma(song.getGenres())
@@ -1999,6 +2032,21 @@ def set_song_metadata(
     # single track quality badge
     track_quality_bade: str = calc_song_list_quality_badge(song_list=[song])
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_QUALITY, track_quality_bade, target)
+    # replay gain
+    rg: ReplayGain | None = get_song_replaygain(song=song)
+    if verbose:
+        msgproc.log(f"track [{song.getId()}] "
+                    f"album rg [{rg.album_gain if rg else None}] "
+                    f"track rg [{rg.track_gain if rg else None}]")
+    if rg:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_GAIN,
+            str(rg.album_gain) if rg.album_gain else '',
+            target)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.TRACK_GAIN,
+            str(rg.track_gain) if rg.track_gain else '',
+            target)
 
 
 def set_album_metadata(
@@ -2081,6 +2129,12 @@ def set_album_metadata(
         upmpdmeta.UpMpdMeta.ALBUM_RECORD_LABELS,
         album_metadata.album_record_label_list,
         target)
+    album_rg: float = album_metadata.get_value(AlbumMetadataModel.ALBUM_REPLAY_GAIN)
+    if album_rg:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_GAIN,
+            str(album_rg),
+            target)
     release_type_list: str = album_metadata.album_release_type_list
     if release_type_list:
         rtl_list: list[str] = release_type_list.split(", ")
@@ -2126,7 +2180,7 @@ def calc_song_quality_summary(song_list: list[Song]) -> str:
         song_quality_badge: str = calc_song_list_quality_badge(song_list=[song])
         if song_quality_badge:
             # get current count, 0 if still not in dict
-            count: int = q_dict[song_quality_badge] if song_quality_badge in q_dict else 0
+            count: int = q_dict.get(song_quality_badge, 0)
             if count == 0:
                 # keep track of new key for lossy or lossless
                 if song_is_lossy:

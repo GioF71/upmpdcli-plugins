@@ -689,6 +689,10 @@ def album_to_entry(
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
+    # do we have album gain?
+    album_replay_gain: float = subsonic_util.get_album_replaygain(song_list=album.getSongs())
+    if verbose:
+        msgproc.log(f"album_to_entry [{album.getId()}] replay gain [{album_replay_gain}]")
     subsonic_util.set_album_metadata(
         album_metadata=album_metadata,
         target=entry)

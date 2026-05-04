@@ -114,3 +114,4 @@ class ColumnName(Enum):
     SONG_STARRED = "song_starred"
     ALBUM_STARRED = "album_starred"
     ARTIST_STARRED = "artist_starred"
+    ALBUM_REPLAY_GAIN = "album_replay_gain"
