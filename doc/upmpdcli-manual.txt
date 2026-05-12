@@ -945,11 +945,23 @@ typically `/var/cache/upmpdcli/tidal`.
 
 If you want, you can use the `-f` argument and specify the target file. You can use this
 feature and have your credentials file written directly by the get_credentials.py program.
+If needed, specify the `-t pkce` if you need pkce authentication.
+The interaction is just a bit more complex, you'll have to paste an URL to the script.
+But these days this should allow FLAC streaming as sometimes the `regular` process results
+in lossy streams served instead of flac files.
 Example:
 
 ....
 sudo -u upmpdcli python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
   -f /var/cache/upmpdcli/tidal/oauth2.credentials.json
+....
+
+or 
+
+....
+sudo -u upmpdcli python3 /usr/share/upmpdcli/cdplugins/tidal/get_credentials.py \
+  -t pkce \
+  -f /var/cache/upmpdcli/tidal/pkce.credentials.json
 ....
 
 The ownership of the generated file depend on the user which runs the script.
