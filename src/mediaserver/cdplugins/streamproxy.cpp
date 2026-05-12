@@ -313,16 +313,28 @@ MHD_Result StreamProxy::Internal::answerConn(
             return MHD_NO;
         }
 
-        // Compute destination url
+        string url(_url);
+
+        // Special-case this, it causes ennoying error messages (during qobuz oauth init).
+        if (beginswith(url, "/favicon.ico")) {
+            struct MHD_Response *response =
+                MHD_create_response_from_buffer(0, 0, MHD_RESPMEM_PERSISTENT);
+            if (nullptr == response ) {
+                return MHD_NO;
+            }
+            MHD_Result mhdret = MHD_queue_response(mhdconn, 404, response);
+            MHD_destroy_response(response);
+            return mhdret;
+        }
+        
+        // Ask our client what to do with the URL: redirect/respond/proxy, and to create the fetcher
+        // if we are proxying.
         unordered_map<string,string> querydata;
         MHD_get_connection_values(mhdconn, MHD_GET_ARGUMENT_KIND, &mapvalues_cb, &querydata);
         std::string useragent;
         const char *ua = MHD_lookup_connection_value(mhdconn,MHD_HEADER_KIND, "user-agent");
         if (ua)
             useragent = ua;
-
-        // Request the method (redirect or proxy), and the fetcher if we are proxying.
-        string url(_url);
         std::unique_ptr<NetFetch> fetcher;
         UrlTransReturn ret = urltrans(useragent, url, querydata, fetcher);
         
@@ -336,9 +348,21 @@ MHD_Result StreamProxy::Internal::answerConn(
                 return MHD_NO;
             }
             MHD_add_response_header(response, "Location", url.c_str());
-            MHD_Result ret = MHD_queue_response(mhdconn, 302, response);
+            MHD_Result mhdret = MHD_queue_response(mhdconn, 302, response);
             MHD_destroy_response(response);
-            return ret;
+            return mhdret;
+        } else if (ret == Respond) {
+            LOGDEB("Streamproxy: responding with HTML " << url << "\n");
+            struct MHD_Response *response =
+                MHD_create_response_from_buffer(url.size(),(void*)url.c_str(),MHD_RESPMEM_MUST_COPY);
+            if (nullptr == response ) {
+                LOGERR("StreamProxy::answerConn: can't create response\n");
+                return MHD_NO;
+            }
+            MHD_add_response_header(response, "Content-Type", "text/html");
+            MHD_Result mhdret = MHD_queue_response(mhdconn, 200, response);
+            MHD_destroy_response(response);
+            return mhdret;
         }
 
         // The connection fd thing is strictly for debug/diag: faking

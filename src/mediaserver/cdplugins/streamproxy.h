@@ -1,4 +1,4 @@
-/* Copyright (C) 2017-2018 J.F.Dockes
+/* Copyright (C) 2017-2026 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published by
  *   the Free Software Foundation; either version 2.1 of the License, or
@@ -27,21 +27,25 @@ class NetFetch;
 
 /// HTTP proxy for UPnP audio transfers
 ///
-/// Uses microhttpd for the server part and libcurl for talking to the
-/// real server.
+/// Uses microhttpd for the server part and libcurl for talking to the real server.
 ///
 class StreamProxy {
 public:
 
+    /** Return values from the urltrans callback function. */
+    enum UrlTransReturn {Error, Proxy, Redirect, Respond};
+
     /** The fetch method deciding function
-     * @param[in,out] url The original URL from the client, changed in place.
+     * @param useragent the user agent string sent by the client.
+     * @param[in,out] url The original URL from the client, changed in place. If the return value
+     *    is UrlTransReturn::Respond, this holds the response body.
      * @param queryparams The HTTP query parameters (?nm=value;..)
      * @param[out] fetcher if we are proxying, the fetcher object used 
      *   to get the data. Ownership is transferred to us.
-     * @return one of Error/Proxy/Redirect, dictating how the client request 
-     *      is to be satisfied (or not)
+     * @return The value tells us how the client request is to be satisfied.
+     *   Proxy: fetch and serve the data. Redirect: use the url value with a 302.
+     *   Respond: use the response data.
      */
-    enum UrlTransReturn {Error, Proxy, Redirect};
     typedef std::function<UrlTransReturn
                           (const std::string& useragent,
                            std::string& url,

@@ -59,6 +59,7 @@ import copy
 import os
 import time
 import datetime
+import re
 
 import musicbrainzutils
 
@@ -68,6 +69,7 @@ from typing import Any
 from enum import Enum
 from song_info import SongInfo
 from disc_title import DiscTitle
+from replay_gain import ReplayGain
 from msgproc_provider import msgproc
 
 
@@ -109,7 +111,7 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # label
     res[AlbumPropertyKey.LABEL.property_key] = get_album_record_label_names(album=album)
     # label (initial)
-    res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1] for x in get_album_record_label_names(album=album)]
+    res[AlbumPropertyKey.LABEL_INITIAL.property_key] = [x[0:1].upper() for x in get_album_record_label_names(album=album)]
     # artists
     album_artist_set: set[str] = set()
     album_artist_set.add(get_album_display_artist(album=album))
@@ -121,8 +123,8 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
         item_key=constants.ItemKey.ARTISTS)])
     # at this point I can just extract the album artist list
     res[AlbumPropertyKey.ALBUM_ARTIST.property_key] = list(album_artist_set)
-    # release type
-    release_types: list[str] = get_album_release_types(album=album).types
+    # release types (don't complain about anomalies in release types again)
+    release_types: list[str] = get_album_release_types(album=album, print_function=None).types
     res[AlbumPropertyKey.RELEASE_TYPE.property_key] = release_types
     # suffixes and lossless status
     song_list: list[Song] = album.getSongs()
@@ -150,6 +152,9 @@ def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[A
     quality_badge: str = calc_song_list_quality_badge(song_list=song_list)
     if quality_badge:
         res[AlbumPropertyKey.QUALITY_BADGE.property_key] = [quality_badge]
+    # resolution
+    song_resolution_list: list[audio_codec.ResolutionStatus] = calc_song_list_resolution(song_list=song_list)
+    res[AlbumPropertyKey.RESOLUTION_STATUS.property_key] = song_resolution_list
     bit_depth_list: list[str] = list(set([str(get_song_bit_depth(x)) for x in song_list]))
     if bit_depth_list:
         res[AlbumPropertyKey.BIT_DEPTH.property_key] = bit_depth_list
@@ -190,6 +195,44 @@ def build_album_properties_from_songs(song_list: list[Song]) -> dict[str, list[A
 
 def __get_decade(year: int) -> str:
     return f"{(year // 10) * 10}s"
+
+
+def __is_multiple_of_2_8m(n: int) -> bool:
+    # We use underscores for readability; Python treats 2_800_000 as 2800000
+    target = 2_822_400
+    # Check if the remainder is 0 and the number is not 0 (if 0 isn't desired)
+    if n != 0 and n % target == 0:
+        return True
+    else:
+        return False
+
+
+def calc_song_resolution(song: Song) -> audio_codec.ResolutionStatus:
+    # lossless?
+    bit_depth: int = get_song_bit_depth(song=song)
+    lossy: bool = is_lossy(suffix=song.getSuffix(), bit_depth=bit_depth)
+    if lossy or bit_depth == 0 or (bit_depth != 1 and bit_depth < 16):
+        # resolution is low
+        return audio_codec.ResolutionStatus.LOW
+    # lossless. distinguish.
+    sample_rate: int = get_song_sampling_rate(song=song)
+    if bit_depth == 16 and sample_rate in [44100, 48000]:
+        # lower than standard res
+        return audio_codec.ResolutionStatus.STD
+    elif ((bit_depth == 1 and __is_multiple_of_2_8m(sample_rate)) or 
+            (bit_depth > 16 and sample_rate >= 44100)):
+        return audio_codec.ResolutionStatus.HIRES
+    # fallback to low
+    msgproc.log(f"calc_song_resolution [{song.getId()}] "
+                f"lossy [{lossy}] "
+                f"bit_depth [{bit_depth}] "
+                f"sample_rate [{sample_rate}] "
+                f"falling back to [{audio_codec.ResolutionStatus.LOW}]")
+    return audio_codec.ResolutionStatus.LOW
+
+
+def calc_song_list_resolution(song_list: list[Song], list_identifier: str = None) -> list[str]:
+    return list({calc_song_resolution(x).value for x in song_list})
 
 
 def calc_song_list_quality_badge(song_list: list[Song], list_identifier: str = None) -> str:
@@ -454,7 +497,8 @@ def get_random_art_by_genre(
     response: Response[AlbumList] = connector.getAlbumList(
         ltype=ListType.BY_GENRE,
         genre=genre,
-        size=max_items)
+        size=max_items,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not response.isOk():
         return None
     album: Album = secrets.choice(response.getObj().getAlbums())
@@ -554,54 +598,64 @@ def get_albums(
         fromYear=None,
         toYear=None) -> list[Album]:
     connector: Connector = connector_provider.get()
+    music_folder_id: str = config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID)
     albumListResponse: Response[AlbumList]
     if TagType.RECENTLY_ADDED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getNewestAlbumList(
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.NEWEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
-            toYear=toYear)
+            toYear=toYear,
+            musicFolderId=music_folder_id)
     elif TagType.OLDEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
             offset=offset,
             fromYear=fromYear,
-            toYear=toYear)
+            toYear=toYear,
+            musicFolderId=music_folder_id)
     elif TagType.RANDOM.query_type == query_type:
         albumListResponse = request_cache.get_random_album_list(
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.RECENTLY_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.RECENT,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.MOST_PLAYED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.FREQUENT,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.HIGHEST_RATED_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.HIGHEST,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.ALPHABETICAL_BY_NAME_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.ALPHABETICAL_BY_NAME,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.ALPHABETICAL_BY_ARTIST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.ALPHABETICAL_BY_ARTIST,
             size=size,
-            offset=offset)
+            offset=offset,
+            musicFolderId=music_folder_id)
     elif TagType.FAVORITE_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.STARRED,
@@ -625,7 +679,8 @@ def load_artists_by_genre(genre: str, artist_offset: int, max_artists: int) -> l
             ltype=ListType.BY_GENRE,
             genre=genre,
             offset=req_offset,
-            size=100)
+            size=100,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not album_list_response.isOk():
             return set()
         album_list: list[Album] = album_list_response.getObj().getAlbums()
@@ -681,7 +736,8 @@ def get_album_list_by_artist_genre(
             ltype=ListType.BY_GENRE,
             offset=offset,
             size=constants.subsonic_max_return_size,
-            genre=genre_name)
+            genre=genre_name,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not album_list_response.isOk():
             raise Exception(f"Failed to load albums for "
                             f"genre {genre_name} offset {offset}")
@@ -986,7 +1042,7 @@ def compareAlbumReleaseTypes(left: AlbumReleaseTypes, right: AlbumReleaseTypes) 
     return 0 if left_str == right_str else 1 if left_str > right_str else -1
 
 
-def get_release_types(album_list: list[Album]) -> dict[str, int]:
+def get_album_list_release_types(album_list: list[Album]) -> dict[str, int]:
     result: dict[str, int] = dict()
     current: Album
     for current in album_list if album_list else list():
@@ -1012,7 +1068,8 @@ def get_artists_by_same_name(artist: Artist) -> list[Artist]:
         query=artist.getName(),
         artistCount=100,
         albumCount=0,
-        songCount=0)
+        songCount=0,
+        musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     matching_list: list[Artist] = search_result.getArtists()
     matching: Artist
     for matching in matching_list:
@@ -1030,7 +1087,9 @@ def album_has_release_types(album: Album) -> bool:
     return album.getItem().hasName(constants.ItemKey.RELEASE_TYPES.value)
 
 
-def get_album_release_types(album: Album) -> AlbumReleaseTypes:
+def get_album_release_types(
+        album: Album,
+        print_function: Callable[[str], None] = lambda x: msgproc.log(x)) -> AlbumReleaseTypes:
     has_release_types: bool = album_has_release_types(album)
     album_release_types: list[str] = (album.getItem().getByName(constants.ItemKey.RELEASE_TYPES.value)
                                       if has_release_types
@@ -1038,9 +1097,9 @@ def get_album_release_types(album: Album) -> AlbumReleaseTypes:
     return AlbumReleaseTypes(
         types=musicbrainzutils.sanitize_release_types(
             value_list=album_release_types,
-            print_function=lambda x: msgproc.log(x),
+            print_function=print_function,
             album_id=album.getId(),
-            album_title=album.getTitle(),
+            album_title=get_album_title(album),
             album_artist=album.getArtist()))
 
 
@@ -1059,6 +1118,35 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
 
 def get_song_size(song: Song) -> str:
     return song.getItem().getByName(constants.ItemKey.ITEM_SIZE.value)
+
+
+def get_album_replaygain(song_list: list[Song]) -> float | None:
+    album_rg: float = None
+    curr: Song
+    for curr in song_list if song_list else []:
+        curr_album_rg: ReplayGain = get_song_replaygain(song=curr)
+        # early exit with None if rg missing
+        if curr_album_rg is None or curr_album_rg.album_gain is None:
+            return None
+        # early exit with None if missing
+        if album_rg is None:
+            # set album_rg to value
+            album_rg = curr_album_rg.album_gain
+        else:
+            # early exit if different
+            if album_rg != curr_album_rg.album_gain:
+                return None
+    return album_rg
+
+
+def get_song_replaygain(song: Song) -> ReplayGain | None:
+    rg_dict: dict[str, float] = song.getItem().getByName(constants.ItemKey.SONG_REPLAYGAIN.value)
+    if not rg_dict:
+        return None
+    # values
+    a_g: float | None = rg_dict.get(constants.ReplayGainKey.ALBUM_GAIN.value)
+    t_g: float | None = rg_dict.get(constants.ReplayGainKey.TRACK_GAIN.value)
+    return ReplayGain(album_gain=a_g, track_gain=t_g)
 
 
 def get_explicit_status(obj: Album | Song) -> str:
@@ -1143,7 +1231,7 @@ def append_explicit_if_needed(current_albumtitle: str, album: Album) -> str:
             and len(explicit_status) > 0):
         if config.get_config_param_as_bool(constants.ConfigParam.DUMP_EXPLICIT_STATUS):
             msgproc.log(f"Explicit status is [{explicit_status}] for album [{album.getId()}] "
-                        f"[{album.getTitle()}] "
+                        f"[{get_album_title(album)}] "
                         f"by [{get_album_display_artist(album=album)}]")
         # find match ...
         display_value: str = get_explicit_status_display_value(explicit_status)
@@ -1366,6 +1454,35 @@ def get_artist_cover_art(artist: Artist) -> str | None:
         None
 
 
+def get_album_title(album: Album) -> str:
+    strip_version: bool = config.get_config_param_as_bool(constants.ConfigParam.STRIP_VERSION_FROM_TITLE)
+    if not strip_version:
+        return album.getTitle()
+    return __get_album_clean_title(album=album)
+
+
+def get_album_with_version(album: Album) -> str:
+    title: str = get_album_title(album)
+    version: str | None = get_album_version(album)
+    if not version:
+        return title
+    return f"{title} ({version})"
+
+
+def __get_album_clean_title(album: Album) -> str:
+    return __get_album_clean_title_raw(album_title=album.getTitle(), album_version=get_album_version(album))
+
+
+def __get_album_clean_title_raw(album_title: str, album_version: str | None) -> str:
+    if not album_version:
+        return album_title
+    # This matches either [version] or (version) at the end of the string
+    # \[|\( matches either [ or ( 
+    # \]|\) matches either ] or )
+    pattern = rf"\s*[\[\(]{re.escape(album_version)}[\]\)]$| \s*- {re.escape(album_version)}$"
+    return re.sub(pattern, "", album_title).strip()
+
+
 def get_album_version(album: Album) -> str | None:
     return album.getItem().getByName(constants.ItemKey.ALBUM_VERSION.value) if album else None
 
@@ -1484,13 +1601,13 @@ def get_artists_from_album(
         artist_name: str = d[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in d else None
         if not artist_id or not artist_name:
             raise Exception(f"get_artists_from_album album_id [{album.getId()}] "
-                            f"[{album.getTitle()}] by [{album.getArtist()}] "
+                            f"[{get_album_title(album)}] by [{album.getArtist()}] "
                             f"{item_key.value} keys "
                             f"[{constants.DictKey.ID.value}, {constants.DictKey.NAME.value}] must be set")
         if (artist_id in id_set) and not allow_duplicate_artist_id:
             # skip, duplicate
             msgproc.log(f"get_artists_from_album album_id [{album.getId()}] "
-                        f"[{album.getTitle()}] by [{album.getArtist()}] "
+                        f"[{get_album_title(album)}] by [{album.getArtist()}] "
                         f"duplicate artist_id [{artist_id}] "
                         f"name from discarded entry [{artist_name}]")
             continue
@@ -1503,6 +1620,10 @@ def get_artists_from_album(
 
 def get_album_moods(album: Album) -> list[str]:
     return album.getItem().getListByName(constants.ItemKey.MOODS.value) if album else []
+
+
+def get_song_moods(song: Song) -> list[str]:
+    return song.getItem().getListByName(constants.ItemKey.MOODS.value) if song else []
 
 
 def get_docroot_base_url() -> str:
@@ -1890,10 +2011,13 @@ def set_song_metadata(
         song: Song,
         target: dict,
         album_metadata: AlbumMetadata = None):
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, join_with_comma(__get_song_album_artist_id_list(song)), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, song.getAlbum(), target)
     joined_genres: str = join_with_comma(song.getGenres())
     upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
+    joined_moods: str = join_with_comma(get_song_moods(song))
+    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, joined_moods, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_DURATION, get_song_duration_display(song), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.DISC_NUMBER, song.getDiscNumber(), target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_NUMBER, song.getTrack(), target)
@@ -1908,9 +2032,24 @@ def set_song_metadata(
     # single track quality badge
     track_quality_bade: str = calc_song_list_quality_badge(song_list=[song])
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.TRACK_QUALITY, track_quality_bade, target)
+    # replay gain
+    rg: ReplayGain | None = get_song_replaygain(song=song)
+    if verbose:
+        msgproc.log(f"track [{song.getId()}] "
+                    f"album rg [{rg.album_gain if rg else None}] "
+                    f"track rg [{rg.track_gain if rg else None}]")
+    if rg:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_GAIN,
+            str(rg.album_gain) if rg.album_gain else '',
+            target)
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.TRACK_GAIN,
+            str(rg.track_gain) if rg.track_gain else '',
+            target)
 
 
-def set_album_metadata_by_metadata_only(
+def set_album_metadata(
         album_metadata: AlbumMetadata,
         target: dict):
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, album_metadata.album_display_artist, target)
@@ -1933,13 +2072,18 @@ def set_album_metadata_by_metadata_only(
             release_date_type=album_util.AlbumReleaseDateType.ORIGINAL_RELEASE_DATE),
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, album_metadata.album_version, target)
-    played: datetime.datetime = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
-    if played:
-        formatted_played = played.strftime("%Y-%m-%d %H:%M:%S")
-        upnp_util.set_upmpd_meta(
-            upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
-            formatted_played,
-            target)
+    formatted_album_played: str = "Never"
+    album_played: any = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
+    if album_played:
+        if isinstance(album_played, datetime.datetime):
+            formatted_album_played = album_played.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            # leave played as-is (already a string)
+            formatted_album_played = album_played
+    upnp_util.set_upmpd_meta(
+        upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED,
+        formatted_album_played,
+        target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album_metadata.album_id, target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, album_metadata.album_musicbrainz_id, target)
     explicit_status: str = get_explicit_status_display_value(
@@ -1985,6 +2129,12 @@ def set_album_metadata_by_metadata_only(
         upmpdmeta.UpMpdMeta.ALBUM_RECORD_LABELS,
         album_metadata.album_record_label_list,
         target)
+    album_rg: float = album_metadata.get_value(AlbumMetadataModel.ALBUM_REPLAY_GAIN)
+    if album_rg:
+        upnp_util.set_upmpd_meta(
+            upmpdmeta.UpMpdMeta.ALBUM_GAIN,
+            str(album_rg),
+            target)
     release_type_list: str = album_metadata.album_release_type_list
     if release_type_list:
         rtl_list: list[str] = release_type_list.split(", ")
@@ -2002,72 +2152,8 @@ def set_album_metadata_by_metadata_only(
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
 
 
-def set_album_metadata(
-        album: Album,
-        target: dict,
-        album_metadata: AlbumMetadata = None):
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ARTIST, get_album_display_artist(album=album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_TITLE, album.getTitle(), target)
-    # year
-    album_year: str = str(album.getYear()) if album.getYear() else None
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_YEAR, album_year, target)
-    # release date
-    upnp_util.set_upmpd_meta(
-        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_RELEASE_DATE,
-        metadata_value=album_util.get_formatted_album_release_date(album=album),
-        target=target)
-    # original release date
-    upnp_util.set_upmpd_meta(
-        metadata_name=upmpdmeta.UpMpdMeta.ALBUM_ORIGINAL_RELEASE_DATE,
-        metadata_value=album_util.get_formatted_album_original_release_date(album=album),
-        target=target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, get_album_version(album), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_LAST_PLAYED, get_album_played(album), target)
-    joined_genres: str = join_with_comma(album.getGenres())
-    upnp_util.set_upnp_meta(constants.UpnpMeta.GENRE, joined_genres, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_ID, album.getId(), target)
-    record_label_names: str = join_with_comma(get_album_record_label_names(album))
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_RECORD_LABELS, record_label_names, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MUSICBRAINZ_ID, get_album_musicbrainz_id(album), target)
-    explicit_status: str = get_explicit_status_display_value(
-        explicit_status=get_explicit_status(album),
-        display_mode=constants.ExplicitDiplayMode.LONG)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_EXPLICIT_STATUS, explicit_status, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_DURATION, get_album_duration_display(album), target)
-    disc_track_counters: str = get_album_disc_and_track_counters(album)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_DISC_AND_TRACK_COUNTERS, disc_track_counters, target)
-    is_compilation_bool: bool = album.getItem().getByName(constants.ItemKey.IS_COMPILATION.value, False)
-    is_compilation: str = "yes" if is_compilation_bool else "no"
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.IS_COMPILATION, is_compilation, target)
-    album_release_types: AlbumReleaseTypes = get_album_release_types(album)
-    album_release_types_display: str = album_release_types.display_name if album_has_release_types else None
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.RELEASE_TYPES, album_release_types_display, target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_MEDIA_TYPE, name_key_to_display(get_media_type(album)), target)
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.MOOD, join_with_comma(get_album_moods(album)), target)
-    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_META_ALBUM_PATH):
-        # album path.
-        path_list: str = album_util.get_album_path_list(album=album)
-        if len(path_list) == 0:
-            # album does not have the required information. Might be from an album list
-            # we try and see if we have the cached information
-            if album_metadata and album_metadata.album_path and len(album_metadata.album_path) > 0:
-                path_list = album_metadata.album_path.split(persistence_constants.Separator.PATH.value)
-        path_str: str = f"[{'], ['.join(path_list)}]" if len(path_list) > 0 else None
-        # don't show more than ...
-        if path_str and len(path_str) > constants.MetadataMaxLength.ALBUM_PATH.value:
-            msgproc.log(f"set_album_metadata album_id: [{album.getId()}] Path: [{path_str}]")
-            path_str = f"<Truncated path> [{path_str[0:constants.MetadataMaxLength.ALBUM_PATH.value]}"
-        upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_PATH, path_str, target)
-    track_detailed_qualities: str = album_metadata.album_track_quality_summary if album_metadata else None
-    upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY_OF_TRACKS, track_detailed_qualities, target)
-    upnp_util.set_upmpd_meta(
-        upmpdmeta.UpMpdMeta.ALBUM_COMPRESSION_TYPE,
-        album_metadata.get_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS),
-        target)
-    upnp_util.set_upmpd_meta(
-        upmpdmeta.UpMpdMeta.ALBUM_AVERAGE_BITRATE,
-        album_metadata.get_value(AlbumMetadataModel.ALBUM_AVERAGE_BITRATE),
-        target)
+def __or_else(v: str, or_else: str) -> str:
+    return v if v and len(v) > 0 else or_else
 
 
 def calc_song_quality_summary(song_list: list[Song]) -> str:
@@ -2094,7 +2180,7 @@ def calc_song_quality_summary(song_list: list[Song]) -> str:
         song_quality_badge: str = calc_song_list_quality_badge(song_list=[song])
         if song_quality_badge:
             # get current count, 0 if still not in dict
-            count: int = q_dict[song_quality_badge] if song_quality_badge in q_dict else 0
+            count: int = q_dict.get(song_quality_badge, 0)
             if count == 0:
                 # keep track of new key for lossy or lossless
                 if song_is_lossy:
@@ -2183,3 +2269,19 @@ def get_mime_type_from_extension(extension: str) -> Optional[str]:
     #    It returns a tuple (mimetype, encoding)
     mimetype, _ = mimetypes.guess_type(dummy_filename, strict=True)
     return mimetype
+
+
+def choose_best_track_by_format(song_list: list[Song]) -> Song:
+    if not song_list:
+        return None
+    if len(song_list) == 1:
+        # just pick first
+        return song_list[0]
+    def sort_key(song: Song):
+        bit_depth = get_song_bit_depth(song) or 0
+        is_lossless = 0 if is_lossy(song.getSuffix(), bit_depth) else 0
+        sample_rate = get_song_sampling_rate(song) or 0
+        bitrate = song.getBitRate() or 0
+        length = song.getDuration() or 0
+        return (is_lossless, bit_depth, sample_rate, bitrate, length)
+    return max(song_list, key=sort_key)

@@ -143,6 +143,7 @@ class AlbumMetadataModel(Enum):
     ALBUM_RELEASE_TYPE_LIST = MetadataModelData(column_name=ColumnName.ALBUM_RELEASE_TYPE_LIST)
     ALBUM_MEDIA_TYPE = MetadataModelData(column_name=ColumnName.ALBUM_MEDIA_TYPE)
     ALBUM_STARRED = MetadataModelData(column_name=ColumnName.ALBUM_STARRED)
+    ALBUM_REPLAY_GAIN = MetadataModelData(column_name=ColumnName.ALBUM_REPLAY_GAIN)
     CREATED_TIMESTAMP = MetadataModelData(
         column_name=ColumnName.CREATED_TIMESTAMP,
         is_created_timestamp=True)

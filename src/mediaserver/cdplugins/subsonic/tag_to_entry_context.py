@@ -40,17 +40,21 @@ class TagToEntryContext:
             if verbose:
                 msgproc.log("TagToEntryContext::random_album_list (loading) ...")
             res: Response[AlbumList] = None
+            music_folder_id: str = config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID)
             if self.__first_load:
                 if verbose:
                     msgproc.log("TagToEntryContext::random_album_list loading from request cache ...")
-                # res = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
-                res = request_cache.get_random_album_list(size=config.get_items_per_page())
+                res = request_cache.get_random_album_list(
+                    size=config.get_items_per_page(),
+                    musicFolderId=music_folder_id)
                 self.__first_load = False
             else:
                 # don't use cache
                 if verbose:
                     msgproc.log("TagToEntryContext::random_album_list loading random albums ...")
-                res = connector_provider.get().getRandomAlbumList(size=config.get_items_per_page())
+                res = connector_provider.get().getRandomAlbumList(
+                    size=config.get_items_per_page(),
+                    musicFolderId=music_folder_id)
             if res and res.isOk():
                 # store.
                 res_list: list[Album] = res.getObj().getAlbums()

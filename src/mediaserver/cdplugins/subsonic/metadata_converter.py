@@ -153,7 +153,8 @@ def build_artist_metadata(
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ALBUM_COUNT, artist.getAlbumCount())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_MEDIA_TYPE, subsonic_util.get_media_type(obj=artist))
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_COVER_ART, subsonic_util.get_artist_cover_art(artist=artist))
-    updated_metadata.set_value(ArtistMetadataModel.ARTIST_SORT_NAME, subsonic_util.get_artist_sort_name(artist=artist))
+    artist_sort_name: str = subsonic_util.get_artist_sort_name(artist=artist)
+    updated_metadata.set_value(ArtistMetadataModel.ARTIST_SORT_NAME, artist_sort_name if artist_sort_name else artist.getName())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
@@ -184,7 +185,7 @@ def build_album_metadata(
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MB_ID, subsonic_util.get_album_musicbrainz_id(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST_ID, album.getArtistId())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST, album.getArtist())
-    updated_metadata.set_value(AlbumMetadataModel.ALBUM_NAME, album.getTitle())
+    updated_metadata.set_value(AlbumMetadataModel.ALBUM_NAME, subsonic_util.get_album_title(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_COVER_ART, album.getCoverArt())
     disc_title_list: list[DiscTitle] = subsonic_util.get_disc_titles_from_album(album=album)
     disc_count: int = len(disc_title_list) if disc_title_list and len(disc_title_list) > 1 else 1
@@ -204,7 +205,9 @@ def build_album_metadata(
     updated_metadata.set_value(
         album_metadata_model=AlbumMetadataModel.ALBUM_RECORD_LABEL_LIST,
         value=", ".join(subsonic_util.get_album_record_label_names(album)))
-    album_release_types: subsonic_util.AlbumReleaseTypes = subsonic_util.get_album_release_types(album=album)
+    album_release_types: subsonic_util.AlbumReleaseTypes = subsonic_util.get_album_release_types(
+        album=album,
+        print_function=None)
     if album_release_types:
         updated_metadata.set_value(
             AlbumMetadataModel.ALBUM_RELEASE_TYPE_LIST,
@@ -275,6 +278,8 @@ def build_album_metadata(
         album_path: str = album_util.get_album_path_list_joined(song_list=song_list)
         if album_path and len(album_path) > 0:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, album_path)
+        # replay gain
+        updated_metadata.set_value(AlbumMetadataModel.ALBUM_REPLAY_GAIN, subsonic_util.get_album_replaygain(song_list=album.getSongs()))
     updated_metadata.set_value(
         album_metadata_model=AlbumMetadataModel.ALBUM_STARRED,
         value=subsonic_util.get_album_starred(album=album))

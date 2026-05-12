@@ -155,10 +155,12 @@ src/mediaserver/cdplugins/pycommon/xbmcplug.py
 src/mediaserver/cdplugins/qobuz/
 src/mediaserver/cdplugins/qobuz/__init__.py
 src/mediaserver/cdplugins/qobuz/api/
+src/mediaserver/cdplugins/qobuz/api/LICENSES.txt
 src/mediaserver/cdplugins/qobuz/api/__init__.py
+src/mediaserver/cdplugins/qobuz/api/bundle.py
 src/mediaserver/cdplugins/qobuz/api/raw.py
-src/mediaserver/cdplugins/qobuz/api/spoofbuz.py
 src/mediaserver/cdplugins/qobuz/qobuz-app.py
+src/mediaserver/cdplugins/qobuz/qobuz-init-oauth.py
 src/mediaserver/cdplugins/qobuz/session.py
 src/mediaserver/cdplugins/radio-browser/
 src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
@@ -231,7 +233,6 @@ src/mediaserver/cdplugins/subsonic/song_info.py
 src/mediaserver/cdplugins/subsonic/song_metadata.py
 src/mediaserver/cdplugins/subsonic/subsonic-app.py
 src/mediaserver/cdplugins/subsonic/subsonic_init.py
-src/mediaserver/cdplugins/subsonic/subsonic_init_provider.py
 src/mediaserver/cdplugins/subsonic/subsonic_util.py
 src/mediaserver/cdplugins/subsonic/table_name.py
 src/mediaserver/cdplugins/subsonic/tag_to_entry_context.py

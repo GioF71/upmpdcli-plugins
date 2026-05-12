@@ -512,9 +512,11 @@ class ArtistEntry:
             self,
             artist_id: str,
             artist_name: str,
+            artist_sort_name: str,
             artist_cover_art: str):
         self.__artist_id: str = artist_id
         self.__artist_name: str = artist_name
+        self.__artist_sort_name: str = artist_sort_name
         self.__artist_cover_art: str = artist_cover_art
 
     @property
@@ -524,6 +526,10 @@ class ArtistEntry:
     @property
     def artist_name(self) -> str:
         return self.__artist_name
+
+    @property
+    def artist_sort_name(self) -> str:
+        return self.__artist_sort_name
 
     @property
     def artist_cover_art(self) -> str:
@@ -653,16 +659,16 @@ def get_artist_role_initials(artist_role: str, connection: sqlite3.Connection = 
         SELECT
             initial,
             {ArtistMetadataModel.ARTIST_ID.column_name.value},
-            {ArtistMetadataModel.ARTIST_NAME.column_name.value},
+            {ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value},
             {ArtistMetadataModel.ARTIST_COVER_ART.column_name.value}
         FROM (
             SELECT
-                UPPER(SUBSTR(amv.{ColumnName.ARTIST_NAME.value}, 1, 1)) AS initial,
-                amv.{ArtistMetadataModel.ARTIST_NAME.column_name.value},
+                UPPER(SUBSTR(amv.{ColumnName.ARTIST_SORT_NAME.value}, 1, 1)) AS initial,
+                amv.{ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value},
                 amv.{ArtistMetadataModel.ARTIST_COVER_ART.column_name.value},
                 amv.{ArtistMetadataModel.ARTIST_ID.column_name.value},
                 ROW_NUMBER() OVER (
-                    PARTITION BY UPPER(SUBSTR(amv.artist_name, 1, 1))
+                    PARTITION BY UPPER(SUBSTR(amv.artist_sort_name, 1, 1))
                     ORDER BY
                         -- 1. Prioritize rows with art
                         (amv.{ArtistMetadataModel.ARTIST_COVER_ART.column_name.value} IS NULL
@@ -711,12 +717,13 @@ def get_artist_by_role_and_initial(
         SELECT
             amv.artist_id,
             amv.artist_name,
+            amv.artist_sort_name,
             amv.artist_cover_art
         FROM {TableName.ARTIST_METADATA_V1.value} amv
         JOIN artist_role_v1 arv ON amv.artist_id = arv.artist_id
         WHERE arv.artist_role = ?
-        AND UPPER(amv.artist_name) LIKE ?
-        ORDER BY UPPER(amv.artist_name)
+        AND UPPER(amv.artist_sort_name) LIKE ?
+        ORDER BY UPPER(amv.artist_sort_name)
         LIMIT ? OFFSET ?;
     """
     t = (artist_role, f"{initial}%", limit, offset)
@@ -728,10 +735,12 @@ def get_artist_by_role_and_initial(
     for row in rows if rows else []:
         artist_id: str = row[0]
         artist_name: str = row[1]
-        artist_cover_art: str = row[2]
+        artist_sort_name: str = row[2]
+        artist_cover_art: str = row[3]
         entry: ArtistEntry = ArtistEntry(
             artist_id=artist_id,
             artist_name=artist_name,
+            artist_sort_name=artist_sort_name,
             artist_cover_art=artist_cover_art)
         res.append(entry)
     if connection is None:
@@ -1215,8 +1224,8 @@ def get_table_count(
     return res
 
 
-def get_working_connection(provided: sqlite3.Connection = None) -> sqlite3.Connection:
-    return provided if provided is not None else __get_connection()
+def get_working_connection(provided: sqlite3.Connection = None, timeout_seconds: float = 5.0) -> sqlite3.Connection:
+    return provided if provided is not None else __get_connection(timeout_seconds=timeout_seconds)
 
 
 def __load_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
@@ -2780,70 +2789,84 @@ def get_album_property_key_occurence_list(
         condition_list: list[AlbumPropertyKeyValue],
         connection: sqlite3.Connection = None) -> list[AlbumPropertyKeyOccurrence]:
     values: list[str] = []
+    # Track which keys are currently active in the filter
+    active_keys = [c.key for c in condition_list] if condition_list else []
     intersections: str = ""
-    curr_condition: AlbumPropertyKeyValue
+    base_select = f"SELECT DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} FROM {TableName.ALBUM_PROPERTY_V1.value}"
     for curr_condition in condition_list if condition_list else []:
-        # positive or negative?
         if curr_condition.value:
-            # positive
-            intersections += __create_album_property_intersect()
-            values.append(curr_condition.key)
-            values.append(curr_condition.value)
+            intersections += f"\nINTERSECT SELECT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} FROM {TableName.ALBUM_PROPERTY_V1.value} WHERE {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ? AND {AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} = ?"
+            values.extend([curr_condition.key, curr_condition.value])
         else:
-            # negative
-            intersections += __create_album_property_except()
+            intersections += f"\nEXCEPT SELECT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value} FROM {TableName.ALBUM_PROPERTY_V1.value} WHERE {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ?"
             values.append(curr_condition.key)
+    # We add the active_keys to the parameters for the HAVING clause check
+    sql_active_keys_placeholder = ','.join(['?'] * len(active_keys)) if active_keys else "''"
+    final_values = tuple(values + active_keys)
     sql: str = f"""
         WITH FilteredUniverse AS (
-            -- standard filter logic (Intersects/Excepts)
-            SELECT
-                DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
-            FROM
-                {TableName.ALBUM_PROPERTY_V1.value}
-            {intersections}),
+            {base_select}
+            {intersections}
+        ),
+        UniverseStats AS (
+            SELECT COUNT(*) as total_count FROM FilteredUniverse
+        ),
         RankedMetadata AS (
-            -- We join the metadata and assign a random rank to each album per key
             SELECT 
-                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value},
-                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value},
-                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value},
+                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} as p_key,
+                apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} as p_value,
+                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} as p_id,
                 ROW_NUMBER() OVER (
                     PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} 
                     ORDER BY RANDOM()
-                ) as random_rank
+                ) as random_rank,
+                COUNT(*) OVER(
+                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}, 
+                                 apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}
+                ) as val_freq
             FROM
                 {TableName.ALBUM_PROPERTY_V1.value} apv
             JOIN
-                FilteredUniverse fu ON
-                apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
+                FilteredUniverse fu ON apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
         )
         SELECT 
-            rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value},
-            -- 1. How many unique values (e.g. 15 different years)
-            COUNT(DISTINCT rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}) AS unique_value_count,
-            -- 2. Logic for the missing flag
+            p_key,
+            COUNT(DISTINCT p_value) AS unique_value_count,
             CASE 
-                WHEN COUNT(DISTINCT rm.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) < (SELECT COUNT(*) FROM FilteredUniverse) THEN 1 
+                WHEN COUNT(DISTINCT p_id) < (SELECT total_count FROM UniverseStats) THEN 1 
                 ELSE 0 
             END AS is_missing_for_some,
-            -- 3. The Jackpot: The album that happened to be 'Rank #1' in our random shuffle
-            MAX(CASE WHEN random_rank = 1 THEN rm.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} END) AS representative_album_id
-        FROM RankedMetadata rm
-        GROUP BY rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}
-        ORDER BY rm.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}
+            MAX(CASE WHEN random_rank = 1 THEN p_id END) AS representative_album_id
+        FROM RankedMetadata
+        GROUP BY p_key
+        HAVING 
+            -- 1. Basics: Not a single-value constant
+            (unique_value_count > 1 OR is_missing_for_some = 1)
+            -- 2. Basics: Not a unique ID
+            AND unique_value_count < (SELECT total_count FROM UniverseStats)
+            -- 3. THE REFINED FIX: 
+            -- Hide if redundant (max_freq == total), UNLESS the key is already active in the filter.
+            AND (
+                MAX(val_freq) < (SELECT total_count FROM UniverseStats) 
+                OR p_key IN ({sql_active_keys_placeholder})
+            )
+        ORDER BY p_key;
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
-    res: list[AlbumPropertyKeyOccurrence] = []
-    for row in rows if rows else []:
-        res.append(AlbumPropertyKeyOccurrence(
-            property_key=row[0],
-            property_value_count=row[1],
-            is_missing_for_some=row[2],
-            representative_album_id=row[3]))
-    if connection is None:
-        the_connection.close()
-    return res
+    try:
+        rows = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(final_values))
+        res: list[AlbumPropertyKeyOccurrence] = []
+        for row in rows if rows else []:
+            res.append(AlbumPropertyKeyOccurrence(
+                property_key=row[0],
+                property_value_count=row[1],
+                is_missing_for_some=row[2],
+                representative_album_id=row[3]))
+        return res
+    finally:
+        # Use a finally block to ensure closure if we opened it locally
+        if connection is None:
+            the_connection.close()
 
 
 def get_album_property_value_occurence_list(
@@ -3139,14 +3162,22 @@ def __get_db_full_path() -> str:
         __get_db_filename())
 
 
-def __get_connection() -> sqlite3.Connection:
-    sqlite3.register_converter("TIMESTAMP", __adapt_flexible_timestamp)
-    connection = sqlite3.connect(
-        __get_db_full_path(),
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-    connection.execute("PRAGMA foreign_keys = ON;")
-    connection.create_function("simplify", 1, simplify)
-    return connection
+def __get_connection(timeout_seconds: float = 5.0) -> sqlite3.Connection | None:
+    try:
+        sqlite3.register_converter("TIMESTAMP", __adapt_flexible_timestamp)
+        # Use the timeout parameter (default is 5.0 seconds)
+        connection = sqlite3.connect(
+            __get_db_full_path(),
+            timeout=timeout_seconds,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        connection.execute("PRAGMA foreign_keys = ON;")
+        connection.create_function("simplify", 1, simplify)
+        return connection
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e):
+            msgproc.log("Database is locked")
+        raise e # Re-raise
 
 
 def __prepare_table_db_version():
@@ -3204,6 +3235,39 @@ def __store_db_version(version: str):
         connection.commit()
         connection.close()
     msgproc.log(f"Db version correctly set to [{version}]")
+
+
+def do_migration_72():
+    __do_create_table(
+        table_name=TableName.ALBUM_METADATA_V1.value,
+        sql=__get_sql_alter_table_add_column(
+            table_name=TableName.ALBUM_METADATA_V1,
+            column_name=AlbumMetadataModel.ALBUM_REPLAY_GAIN.column_name,
+            column_type="FLOAT"))
+
+
+def do_migration_71():
+    sql: str = f"""
+        UPDATE {TableName.ARTIST_METADATA_V1.value}
+        SET {ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value} = {ArtistMetadataModel.ARTIST_NAME.column_name.value}
+        WHERE {ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value} IS null
+    """
+    __execute_update(
+        sql=sql,
+        data=tuple([]))
+
+
+def do_migration_70():
+    __do_create_table(
+        table_name=TableName.ALBUM_PROPERTY_V1.value,
+        sql=create_index_on_columns(
+            table_name=TableName.ALBUM_PROPERTY_V1.value,
+            index_name=(f"{TableName.ALBUM_PROPERTY_V1.value}_"
+                        f"{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}_"
+                        f"{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}"),
+            column_name_list=[
+                AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name,
+                AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name]))
 
 
 def do_migration_69():
@@ -4274,7 +4338,24 @@ def __init():
             applies_on=69,
             migration_name=(f"Altering table {TableName.ARTIST_METADATA_V1.value} "
                             f"adding {ArtistMetadataModel.ARTIST_STARRED.column_name.value}"),
-            migration_function=do_migration_69)]
+            migration_function=do_migration_69),
+        __create_migration(
+            applies_on=70,
+            migration_name=(f"Altering table {TableName.ALBUM_PROPERTY_V1.value} "
+                            f"adding index for {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} "
+                            f"and {AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}"),
+            migration_function=do_migration_70),
+        __create_migration(
+            applies_on=71,
+            migration_name=(f"Updating table {TableName.ARTIST_METADATA_V1.value} "
+                            f"setting value for {ArtistMetadataModel.ARTIST_SORT_NAME.column_name.value} "
+                            f"to {ArtistMetadataModel.ARTIST_NAME.column_name.value} when empty"),
+            migration_function=do_migration_71),
+        __create_migration(
+            applies_on=72,
+            migration_name=(f"Altering table {TableName.ALBUM_METADATA_V1.value} "
+                            f"adding {AlbumMetadataModel.ALBUM_REPLAY_GAIN.column_name.value}"),
+            migration_function=do_migration_72)]
     current_migration: Migration
     migration_counter: int = 0
     for current_migration in migrations:

@@ -444,12 +444,10 @@
 
 # <grouptitle>Qobuz streaming service parameters</grouptitle>
 
-# <var name="qobuzuser" type="string"><brief>Qobuz user name.</brief>
-# <descr>Your Qobuz login name.</descr></var>
+# <var name="qobuzuser" type="string"><brief>Qobuz user name. value may be bogus</brief>
+# <descr>Your Qobuz login name. This must be set to activate the Media Server plugin but the actual
+# value is not used.</descr></var>
 #qobuzuser = me@some.place
-# <var name="qobuzpass" type="string"><brief>Qobuz password.</brief>
-# <descr>The password for your Qobuz account.</descr></var>
-#qobuzpass = agoodpassword
 # <var name="qobuzformatid" type="cstr" values="5 6 7 27">
 # <brief>Qobuz stream quality.</brief>
 # <descr>5 for mp3/320, 6 for FLAC, 7 FLAC 24/96, 27 for hi-res (if your subscription

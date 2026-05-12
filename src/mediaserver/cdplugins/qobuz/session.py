@@ -5,8 +5,12 @@
 import sys
 import json
 from datetime import datetime
+import os
+
 from upmplgmodels import Artist, Album, Track, Playlist, SearchResult, Category, Genre
 from upmplgutils import *
+from conftree import ConfSimple
+
 from qobuz.api import raw
 
 # General limit for fetching stuff, in places where we do it in one chunk.
@@ -26,24 +30,43 @@ class Session(object):
         self.fetch_resource_info = fetch_resource_info
         global show_album_rate_and_bits
         show_album_rate_and_bits = show_album_maxaudio
+        self.config = ConfSimple(os.path.join(getcachedir("qobuz"), "config"), readonly = False)
 
-    def login(self, username, password, appid, cfvalue):
+    def init_oauth(self, auth_code):
+        uplog(f"session: init_oauth: auth_code {auth_code}")
+        if not self.api:
+            self.api = raw.RawApi()
+        usr_info = self.api.login_with_oauth_code(auth_code)
+        if usr_info:
+            oauth_user_id = usr_info.get("user", {}).get("id")
+            oauth_user_auth_token = usr_info.get("user_auth_token")
+            self.config.set("user_auth_token", oauth_user_auth_token)
+            self.config.set("user_id", str(oauth_user_id))
+    
+
+    def login(self):
         # self.api will already exist if get_appid() was called first, which means that the
         # appid/secret were obtained through the spoofer, not the config. This happens when we are
         # working for OH Credentials. Else we create the API with our input params which come from
         # the configuration (and still may be empty in which case the spoofer will be used).
         if not self.api:
-            self.api = raw.RawApi(appid, cfvalue)
-        data = self.api.user_login(username=username, password=password)
+            self.api = raw.RawApi()
+        auth_token = self.config.get("user_auth_token")
+        user_id = self.config.get("user_id")
+        if not auth_token or not user_id:
+            uplog("Qobuz login: oauth initialisation not done")
+            return False
+        data = self.api.user_login(user_id=user_id, user_auth_token=auth_token)
         if data:
-            self.user = User(self, self.api.user_id)
+            self.user = User(self, user_id)
+            self.config.set("user_auth_token", data["user_auth_token"])
             return True
         else:
             return False
 
     def get_appid(self):
         if not self.api:
-            self.api = raw.RawApi(None, None)
+            self.api = raw.RawApi()
         return self.api.appid
 
     def get_appid_and_token(self):
@@ -392,7 +415,7 @@ def _parse_track(sess, json_obj, albumarg=None):
     else:
         album = albumarg
 
-    available = json_obj["streamable"] if "streamable" in json_obj else false
+    available = json_obj["streamable"] if "streamable" in json_obj else False
     # if not available:
     # uplog("Track not streamable: %s " % json_obj['title'])
 

@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.8"
+    PLUGIN_RELEASE = "0.9.14"
     PLUGIN_NAME = "subsonic"
 
 
@@ -71,6 +71,7 @@ class ItemKey(Enum):
     SONG_STARRED = "starred"
     ALBUM_STARRED = "starred"
     ARTIST_STARRED = "starred"
+    SONG_REPLAYGAIN = "replayGain"
 
 
 class DictKey(Enum):
@@ -85,6 +86,11 @@ class DictKey(Enum):
     YEAR = "year"
     DISC = "disc"
     TITLE = "title"
+
+class ReplayGainKey(Enum):
+
+    ALBUM_GAIN = "albumGain"
+    TRACK_GAIN = "trackGain"
 
 
 class AlbumEntryType(Enum):
@@ -561,6 +567,32 @@ class ConfigParam(Enum):
         default_value=False,
         description=("Allow backlog processing after last loaded album, "
                      "can lead to slightly inaccurate in the final results if enabled"))
+
+    ALLOW_MIX_ALBUM_VERSIONS = _ConfigParamData(
+        "allowmixalbumversions",
+        default_value=True,
+        description=("Allow to mix songs from multiple versions of the same album, "
+                     " instead of presenting multiple versions"))
+    
+    STRIP_VERSION_FROM_TITLE = _ConfigParamData(
+        "stripversionfromtitle",
+        default_value=True,
+        description=("Strip album version from title"))
+
+    MUSIC_FOLDER_ID = _ConfigParamData(
+        "musicfolderid",
+        default_value=None,
+        description=("Filter using the specified music folder id"))
+
+    ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE = _ConfigParamData(
+        "allowartistduplicatealbumtitle",
+        default_value=True,
+        description=("Add an entry which will display albums with the same title, if any"))
+
+    ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE_VERSION = _ConfigParamData(
+        "allowartistduplicatealbumtitleversion",
+        default_value=True,
+        description=("Add an entry which will display albums with the same title and version, if any"))
 
     @property
     def key(self) -> str:

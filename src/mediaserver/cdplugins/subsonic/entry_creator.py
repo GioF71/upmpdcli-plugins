@@ -45,7 +45,6 @@ import upnp_util
 import subsonic_util
 import codec
 import constants
-import cache_actions
 import metadata_converter
 from album_metadata import AlbumMetadata
 from metadata_model import AlbumMetadataModel
@@ -96,7 +95,7 @@ def album_to_navigable_entry(
         album: Album,
         album_metadata: AlbumMetadata = None,
         options: dict[str, any] = {}) -> dict[str, any]:
-    title: str = album.getTitle()
+    title: str = subsonic_util.get_album_title(album)
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album=album)
     if album_metadata is None:
         album_metadata = persistence.get_album_metadata(album_id=album.getId())
@@ -119,7 +118,7 @@ def album_to_navigable_entry(
     title = subsonic_util.append_explicit_if_needed(title, album)
     album_date_for_sorting: str = subsonic_util.get_album_date_for_sorting(album)
     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ALBUM_SORTABLE_DATE):
-        msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] "
+        msgproc.log(f"Album [{album.getId()}] [{subsonic_util.get_album_title(album)}] "
                     f"by [{subsonic_util.get_album_display_artist(album=album)}] "
                     f"Sortable Date [{album_date_for_sorting}]")
     prepend_number: int = get_option(options=options, option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE)
@@ -139,7 +138,7 @@ def album_to_navigable_entry(
             title = f"{title} [{get_album_year_str(album)}]"
     else:
         msgproc.log(f"Cannot find year for album [{album.getId()}] "
-                    f"[{album.getTitle()}] by "
+                    f"[{subsonic_util.get_album_title(album)}] by "
                     f"[{subsonic_util.get_album_display_artist(album=album)}]")
     # append genre if allowed
     title = subsonic_util.append_genre_to_artist_entry_name_if_allowed(
@@ -153,7 +152,7 @@ def album_to_navigable_entry(
         is_search_result=False)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
-        clean_album_title=album.getTitle(),
+        clean_album_title=subsonic_util.get_album_title(album),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER,
         is_search_result=False)
@@ -185,9 +184,8 @@ def album_to_navigable_entry(
         artist=artist)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
     subsonic_util.set_album_metadata(
-        album=album,
-        target=entry,
-        album_metadata=album_metadata)
+        album_metadata=album_metadata,
+        target=entry)
     upnp_util.set_album_art_from_uri(
         album_art_uri=subsonic_util.build_cover_art_url(item_id=album.getCoverArt()),
         target=entry)
@@ -205,10 +203,10 @@ def show_album_genre_information(album: Album):
         return
     genre_list: list[str] = album.getGenres()
     if not genre_list or len(genre_list) == 0:
-        msgproc.log(f"WARN: Album [{album.getId()}] [{album.getTitle()}] "
+        msgproc.log(f"WARN: Album [{album.getId()}] [{subsonic_util.get_album_title(album)}] "
                     f"by [{subsonic_util.get_album_display_artist(album=album)}] has no genres")
     else:
-        msgproc.log(f"Album [{album.getId()}] [{album.getTitle()}] by "
+        msgproc.log(f"Album [{album.getId()}] [{subsonic_util.get_album_title(album)}] by "
                     f"[{subsonic_util.get_album_display_artist(album=album)}] "
                     f"has genres [{genre_list}]")
 
@@ -237,7 +235,8 @@ def genre_to_entry(
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_GENRE,
             genre=genre_name,
-            size=5)
+            size=5,
+            musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not res or not res.isOk():
             msgproc.log(f"Cannot get albums by genre [{genre_name}]")
         album_list: AlbumList = res.getObj()
@@ -552,7 +551,7 @@ def album_to_entry(
             context="album_to_entry",
             force_insert=True)
     is_search_result: bool = get_option(options=options, option_key=OptionKey.SEARCH_RESULT)
-    title: str = album.getTitle()
+    title: str = subsonic_util.get_album_title(album)
     album_version: str = subsonic_util.get_album_version(album)
     # explicit?
     title = subsonic_util.append_explicit_if_needed(title, album)
@@ -649,7 +648,7 @@ def album_to_entry(
         is_search_result=is_search_result)
     title = subsonic_util.append_album_version_to_album_title(
         current_albumtitle=title,
-        clean_album_title=album.getTitle(),
+        clean_album_title=subsonic_util.get_album_title(album),
         album_version=album_version,
         album_entry_type=constants.AlbumEntryType.ALBUM_VIEW,
         is_search_result=is_search_result)
@@ -658,7 +657,7 @@ def album_to_entry(
     if verbose:
         msgproc.log(f"Found album_mbid [{album_mbid}] "
                     f"for album [{album.getId()}] "
-                    f"[{album.getTitle()}] "
+                    f"[{subsonic_util.get_album_title(album)}] "
                     f"by [{subsonic_util.get_album_display_artist(album=album)}]")
     show_mbid: bool = config.get_config_param_as_bool(
         constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES
@@ -690,10 +689,13 @@ def album_to_entry(
     upnp_util.set_date_from_album(album=album, target=entry)
     upnp_util.set_class_album(entry)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_quality_badge, entry)
+    # do we have album gain?
+    album_replay_gain: float = subsonic_util.get_album_replaygain(song_list=album.getSongs())
+    if verbose:
+        msgproc.log(f"album_to_entry [{album.getId()}] replay gain [{album_replay_gain}]")
     subsonic_util.set_album_metadata(
-        album=album,
-        target=entry,
-        album_metadata=album_metadata)
+        album_metadata=album_metadata,
+        target=entry)
     return entry
 
 

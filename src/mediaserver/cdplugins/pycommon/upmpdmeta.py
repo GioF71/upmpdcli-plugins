@@ -53,6 +53,8 @@ class UpMpdMeta(Enum):
     ALBUM_LAST_PLAYED = "albumlastplayed"
     ALBUM_COMPRESSION_TYPE = "albumcompressiontype"
     ALBUM_AVERAGE_BITRATE = "albumaveragebitrate"
+    ALBUM_GAIN = "albumgain"
+    TRACK_GAIN = "trackgain"
 
 
 def get_duration_display_from_sec(duration_sec: int) -> str:

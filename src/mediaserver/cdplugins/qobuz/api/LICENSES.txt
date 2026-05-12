@@ -1,0 +1,8 @@
+
+qobuz-app.py is executed from upmpdcli and communicates through a wire protocol.
+
+bundle.py is copied from https://github.com/vitiko98/qobuz-dl (GPL-3.0)
+
+The oauth code in session.py and api/raw.py is copied from
+    https://github.com/paulborile/qobuz-dl/tree/bug/newauth
+    License: GPL-3.0

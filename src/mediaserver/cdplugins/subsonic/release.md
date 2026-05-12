@@ -1,5 +1,50 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.14
+
+- Initial support for replay gain
+- Album track quality summary column is now populated also during initialization phase
+- Execute initial_caching after setup operations (avoid a `closed database` exception)
+- General code cleanup, fixes and optimizations
+
+## Release 0.9.13
+
+- Add `mood` metadata also at track level
+- Add Resolution to album property keys
+- AlbumBrowser key selection improved
+- Improve browsing when preloading is still in progress
+- Merge album versions now also uses the track title as key (and also replaces some weird chars, more work is likely to be needed)
+- More sensible sorting and formatting methods for bit depths and sampling rates
+- Artist Roles uses artist_sort_name instead of artist_name
+- Avoid artist_sort_name to be null with new migration (set to artist_name if null)
+- Album Browser: label initial to be upper case
+- Add new view "Albums with duplicate titles" in Artist view (can be disabled with `allowartistduplicatealbumtitle`)
+- Add new view "Albums with duplicate title/version pairs" in Artist view (can be disabled with `allowartistduplicatealbumtitleversion`)
+- General code cleanup, fixes and optimizations
+
+## Release 0.9.12
+
+- More support for music folder id, hopefully complete now (see [this issue](https://github.com/GioF71/upmpdcli-plugins/issues/40))
+- Remove now unused method for setting album metadata
+- General code cleanup, fixes and optimizations
+
+## Release 0.9.11
+
+- Improve "strip version" to also support square brackets
+- Support music folder id when possible (configured using `musicfolderid`)
+- Music Folder ids and names are displayed during the initialization phase
+
+## Release 0.9.10
+
+- Merge album versions by default (`allowmixalbumversions`), selecting best track by disc number / track number using quality metadata
+- Strip version from album as we already handle version separately (can be disabled setting `stripversionfromtitle` to `0`)
+- General code cleanup, fixes and optimizations
+
+## Release 0.9.9
+
+- ALBUM_LAST_PLAYED set to "Never" if the is no information about when the album has been last played
+- Preload happens in a separate thread, upmpdcli should not crash when media server is accessed during preload (see [#issue 642](https://github.com/GioF71/upmpdcli-docker/issues/642))
+
 ## Release 0.9.8
 
 - Album browser: add suffix

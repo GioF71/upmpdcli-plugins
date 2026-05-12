@@ -117,14 +117,6 @@ def maybelogin(a={}):
     # This is afaik to the benefit of kodi mostly, for better usability
     prepend_artist_to_album = getOptionValue("qobuzprependartisttoalbum", False)
 
-    appid = getOptionValue("qobuzappid")
-    cfvalue = getOptionValue("qobuzcfvalue")
-    if "user" in a:
-        username = a["user"]
-        password = a["password"]
-    else:
-        username, password = getserviceuserpass("qobuz")
-
     # Set default values for track listings
     if formatid == 5:
         setMimeAndSamplerate("audio/mpeg", "44100")
@@ -141,13 +133,7 @@ def maybelogin(a={}):
         formatid, fetch_resource_info=needaudiodetails, show_album_maxaudio=showalbumrateandbits
     )
 
-    # Don't raise an error here because it happens if we are started as an ohcredentials helper with
-    # no login data stored: we are going to get the stuff through the ohcreds service further on.
-    if not username or not password:
-        _g_loginok = False
-        return False
-
-    _g_loginok = session.login(username, password, appid, cfvalue)
+    _g_loginok = session.login()
 
 
 # The following two (getappid and login) are not used by the media server, they're for use by the
@@ -175,6 +161,35 @@ def login(a):
 def trackuri(a):
     msgproc.log(f"trackuri: [{a}]")
     maybelogin()
+
+    if "path" not in a:
+        raise Exception("trackuri: no 'path' in args")
+
+
+    path = a["path"]
+    if path.split("/")[2] == "oauth":
+        msgproc.log("Qobuz: trackuri: OAuth initialisation")
+        if "query" not in a:
+            msgproc.log("Oauth init: no query values ??")
+            return {}
+        #msgproc.log(f"OAuth: got query: {a['query']}")
+        querymap = json.loads(a["query"])
+        auth_code = None
+        try:
+            auth_code = querymap["code"]
+        except:
+            auth_code = querymap["code_autorisation"]
+        msgproc.log(f"OAuth: got auth_code: {auth_code}")
+        # Use the code  and
+        session.init_oauth(auth_code)
+
+        # And return page data to display to the user.
+        return {"method": "Respond",
+                "media_url": "<html><body style='font-family:system-ui;text-align:center'>"
+                "<h3>Upmpdcli qobuz plugin initialisation successful</h3>"
+                "<p>You can close this tab and return to your terminal.</p></body></html>"
+                }
+    
 
     trackid = trackid_from_urlpath(pathprefix, a)
     media_url = session.get_media_url(trackid)
