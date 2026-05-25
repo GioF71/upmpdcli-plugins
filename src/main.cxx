@@ -134,6 +134,7 @@ ohProductDesc_t ohProductDesc = {
 // Static for cleanup in sig handler.
 static vector<UpnpDevice *> devs;
 static MPDCli *mpdclip{nullptr};
+static MPDCli *mpdcliav{nullptr};
 
 string g_datadir;
 string g_cachedir("/var/cache/upmpdcli");
@@ -158,6 +159,9 @@ static void onsig(int)
     }
     if (mpdclip) {
         mpdclip->shouldExit();
+    }
+    if (mpdcliav) {
+        mpdcliav->shouldExit();
     }
 }
 
@@ -348,6 +352,10 @@ int main(int argc, char *argv[])
     bool ownqueue = getBoolOptionValue("ownqueue", true);
     string mpdpassword;
     getOptionValue("mpdpassword", mpdpassword);
+    string ohpartition;
+    getOptionValue("ohpartition", ohpartition);
+    string avpartition;
+    getOptionValue("avpartition", avpartition);
     opts.options |= UpMpd::upmpdNoContentFormatCheck;
     if (getOptionValue("checkcontentformat", value) && !value.empty() && stringToBool(value)) {
         // If option is specified and 1, unset nocheck flag
@@ -717,10 +725,13 @@ int main(int argc, char *argv[])
 
     UpMpd *mediarenderer{nullptr};
     if (!msonly) {
-        // Initialize MPD client object. Retry until it works or power fail.
+        // Determine if we need separate MPDCli instances for OH and AV
+        bool separateclis = !ohpartition.empty() || !avpartition.empty();
+
+        // Initialize MPD client object for OH mode. Retry until it works or power fail.
         int mpdretrysecs = 2;
         for (;;) {
-            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword);
+            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword, ohpartition);
             if (mpdclip == 0) {
                 LOGFAT("Can't allocate MPD client object" << endl);
                 return 1;
@@ -737,6 +748,31 @@ int main(int argc, char *argv[])
             } else {
                 break;
             }
+        }
+        MPDCli *mpdcliav = mpdclip;
+        // If separate partitions are configured, create a second MPDCli for AV mode
+        if (separateclis && enableAV) {
+            int mpdretrysecsav = 2;
+            for (;;) {
+                ::mpdcliav = new MPDCli(mpdhost, mpdport, mpdpassword, avpartition);
+                if (::mpdcliav == 0) {
+                    LOGFAT("Can't allocate AV MPD client object" << endl);
+                    return 1;
+                }
+                if (!::mpdcliav->ok()) {
+                    if (g_mainShouldExit) {
+                        return 1;
+                    }
+                    LOGERR("AV MPD connection failed" << "\n");
+                    delete ::mpdcliav;
+                    ::mpdcliav = 0;
+                    sleep(mpdretrysecsav);
+                    mpdretrysecsav = MIN(2*mpdretrysecsav, 120);
+                } else {
+                    break;
+                }
+            }
+            mpdcliav = ::mpdcliav;
         }
         const MpdStatus& mpdstat = mpdclip->getStatus();
         // Only the "special" upmpdcli 0.19.16 version has patch != 0
@@ -781,6 +817,9 @@ int main(int argc, char *argv[])
         if (!enableAV)
             opts.options |= UpMpd::upmpdNoAV;
         mediarenderer = new UpMpd(hwaddr, friendlyname, ohProductDesc, mpdclip, opts);
+        if (mpdcliav != mpdclip) {
+            mediarenderer->setavmpdcli(mpdcliav);
+        }
         UpMpdOpenHome *oh = mediarenderer->getoh();
         // rootdevice is only used if we implement the media server as
         // an embedded device, which is mostly for testing purposes

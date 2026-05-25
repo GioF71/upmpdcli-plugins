@@ -79,7 +79,8 @@ struct MpdState {
 
 class MPDCli {
 public:
-    MPDCli(const std::string& host, int port = 6600, const std::string& pss="");
+    MPDCli(const std::string& host, int port = 6600, const std::string& pss="",
+           const std::string& partition="");
     ~MPDCli();
     bool ok() {return m_conn != nullptr;}
     bool setVolume(int ivol, bool isMute = false);
@@ -170,6 +171,7 @@ private:
     int m_port;
     int m_timeoutms{2000};
     std::string m_password;
+    std::string m_partition;
     std::string m_onstart;
     std::string m_onplay;
     std::string m_onpause;

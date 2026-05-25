@@ -140,6 +140,10 @@ public:
     const Options& getopts() const {return m_allopts;};
     MPDCli *getmpdcli() {return m_mpdcli;}
     void setmpdcli(MPDCli* mpdcli) {m_mpdcli = mpdcli;}
+    MPDCli *getavmpdcli() {
+        return m_mpdcliav ? m_mpdcliav : m_mpdcli;
+    }
+    void setavmpdcli(MPDCli* mpdcli) {m_mpdcliav = mpdcli;}
     
     void setohpl(OHPlaylist *ohpl) {
         if (m_av) {
@@ -178,9 +182,14 @@ public:
     bool setvolume(int volume);
     bool setmute(bool onoff);
     bool flushvolume();
+    // AV partition volume (used by renderctl when partitions are enabled)
+    int getvolume_av();
+    bool setvolume_av(int volume);
+    bool setmute_av(bool onoff);
 
 private:
     MPDCli *m_mpdcli{0};
+    MPDCli *m_mpdcliav{0};
     Options m_allopts;
     std::string m_mcachefn;
     bool m_radioplaying{false};

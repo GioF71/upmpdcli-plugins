@@ -39,8 +39,9 @@ struct mpd_status;
 using namespace std;
 
 
-MPDCli::MPDCli(const string& host, int port, const string& pass)
-    : m_host(host), m_port(port), m_password(pass)
+MPDCli::MPDCli(const string& host, int port, const string& pass,
+               const string& partition)
+    : m_host(host), m_port(port), m_password(pass), m_partition(partition)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -122,6 +123,15 @@ bool MPDCli::openconn()
             closeconn();
             return false;
         }
+    }
+
+    if (!m_partition.empty()) {
+        if (!mpd_run_switch_partition(m_conn, m_partition.c_str())) {
+            LOGERR("Failed to switch to partition [" << m_partition << "]" << endl);
+            closeconn();
+            return false;
+        }
+        LOGDEB("MPDCli::openconn: switched to partition [" << m_partition << "]" << endl);
     }
 
     const unsigned int *vers = mpd_connection_get_server_version(m_conn);
@@ -216,6 +226,15 @@ top:
         if (!m_password.empty()) {
             if (!mpd_run_password(m_idleconn, m_password.c_str())) {
                 LOGERR("MPDCli::eventloop: password wrong ?\n");
+                mpd_connection_free(m_idleconn);
+                m_idleconn = nullptr;
+                return false;
+            }
+        }
+        if (!m_partition.empty()) {
+            if (!mpd_run_switch_partition(m_idleconn, m_partition.c_str())) {
+                LOGERR("MPDCli::eventloop: failed to switch to partition ["
+                       << m_partition << "]\n");
                 mpd_connection_free(m_idleconn);
                 m_idleconn = nullptr;
                 return false;

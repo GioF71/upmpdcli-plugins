@@ -74,6 +74,15 @@
 #mpdtimeoutms = 2000
 # Set if we own the MPD queue.
 #ownqueue = 1
+# MPD partition to use for OpenHome mode. If set, upmpdcli will use a
+# separate MPD connection to this partition for all OpenHome services
+# (Playlist, Radio, etc.). This allows the OH and AV play queues to be
+# independent. Requires MPD >= 0.21 with partitions enabled.
+#ohpartition =
+# MPD partition to use for UPnP AV mode (AVTransport). If set together
+# with ohpartition, the AV transport queue is isolated from the OH queue.
+# If either is set, both OH and AV get their own MPD connection.
+#avpartition =
 
 # Audio control hooks
 

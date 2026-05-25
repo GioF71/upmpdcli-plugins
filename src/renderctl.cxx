@@ -61,8 +61,8 @@ RenderingControl::RenderingControl(UpMpd *dev, UpMpdMediaRenderer* udev, bool no
     m_udev->addActionMapping(this, "SelectPreset", 
                             bind(&RenderingControl::selectPreset, this, _1, _2));
 
-    m_dev->getmpdcli()->subscribe(MPDCli::MpdMixerEvt,
-                               bind(&RenderingControl::onMpdEvent, this, _1));
+    m_dev->getavmpdcli()->subscribe(MPDCli::MpdMixerEvt,
+                                  bind(&RenderingControl::onMpdEvent, this, _1));
 }
 
 // Rendering Control errors
@@ -103,7 +103,7 @@ const std::string RenderingControl::serviceErrString(int error) const
 
 bool RenderingControl::rdstateMToU(unordered_map<string, string>& status)
 {
-    int volume = m_dev->getvolume();
+    int volume = m_dev->getvolume_av();
     if (volume < 0)
         volume = 0;
     status["Volume"] = SoapHelp::i2s(volume);
@@ -216,9 +216,9 @@ int RenderingControl::setMute(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
     if (desired[0] == 'F' || desired[0] == '0') {
-        m_dev->setmute(false);
+        m_dev->setmute_av(false);
     } else if (desired[0] == 'T' || desired[0] == '1') {
-        m_dev->setmute(true);
+        m_dev->setmute_av(true);
     } else {
         return UPNP_E_INVALID_PARAM;
     }
@@ -232,7 +232,7 @@ int RenderingControl::getMute(const SoapIncoming& sc, SoapOutgoing& data)
         return UPNP_E_INVALID_PARAM;
     }
 
-    int volume = m_dev->getvolume();
+    int volume = m_dev->getvolume_av();
     data.addarg("CurrentMute", volume == 0 ? "1" : "0");
     return UPNP_E_SUCCESS;
 }
@@ -258,7 +258,7 @@ int RenderingControl::setVolume(const SoapIncoming& sc, SoapOutgoing& data,
         return UPNP_E_INVALID_PARAM;
     }
     
-    m_dev->setvolume(volume);
+    m_dev->setvolume_av(volume);
     return UPNP_E_SUCCESS;
 }
 
@@ -271,7 +271,7 @@ int RenderingControl::getVolume(const SoapIncoming& sc, SoapOutgoing& data,
         return UPNP_E_INVALID_PARAM;
     }
     
-    int volume = m_dev->getvolume();
+    int volume = m_dev->getvolume_av();
     if (isDb) {
         volume = percentodbvalue(volume);
     }
@@ -299,7 +299,7 @@ int RenderingControl::selectPreset(const SoapIncoming& sc, SoapOutgoing& data)
 
     // Well there is only the volume actually...
     int volume = 50;
-    m_dev->setvolume(volume);
+    m_dev->setvolume_av(volume);
 
     return UPNP_E_SUCCESS;
 }

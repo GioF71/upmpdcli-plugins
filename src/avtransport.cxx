@@ -85,11 +85,11 @@ AVTransport::AVTransport(
     // If no setnext, we'd like to fake stopping at each track but
     // this does not work because mpd goes into PAUSED PLAY at the end
     // of track, not STOP.
-//    m_dev->getmpdcli()->single(true);
+//    m_dev->getavmpdcli()->single(true);
 #endif
     m_autoplay = getBoolOptionValue("avtautoplay", false);
     keepconsume = getBoolOptionValue("keepconsume", false);
-    m_dev->getmpdcli()->subscribe(
+    m_dev->getavmpdcli()->subscribe(
         MPDCli::MpdQueueEvt|MPDCli::MpdPlayerEvt|MPDCli::MpdOptsEvt,
         bind(&AVTransport::onMpdEvent, this, _1));
 }
@@ -236,7 +236,7 @@ bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
     
     status["TransportState"] = mpdsToTState(mpds);
     status["CurrentTransportActions"] = mpdsToTActions(mpds);
-    status["TransportStatus"] = m_dev->getmpdcli()->ok() ? "OK" : "ERROR_OCCURRED";
+    status["TransportStatus"] = m_dev->getavmpdcli()->ok() ? "OK" : "ERROR_OCCURRED";
     status["TransportPlaySpeed"] = "1";
 
     const string& uri = mpds.currentsong.rsrc.uri;
@@ -418,7 +418,7 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
         // track.  Else it's difficult to impossible to prevent it
         // from growing if upmpdcli restarts. If the option is not set, the
         // user prefers to live with the issue.
-        m_dev->getmpdcli()->clearQueue();
+        m_dev->getavmpdcli()->clearQueue();
         // mpds is now invalid!
         curpos = -1;
     }
@@ -429,12 +429,12 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
     // end of the track. Note that always setting repeat to false is
     // one of the ways which we are incompatible with simultaneous
     // mpc or ohplaylist use (there are many others of course).
-    m_dev->getmpdcli()->repeat(false);
-    m_dev->getmpdcli()->random(false);
+    m_dev->getavmpdcli()->repeat(false);
+    m_dev->getavmpdcli()->random(false);
     // See comment about single in init
-    m_dev->getmpdcli()->single(false);
+    m_dev->getavmpdcli()->single(false);
     if (!keepconsume)
-        m_dev->getmpdcli()->consume(false);
+        m_dev->getavmpdcli()->consume(false);
     
     // curpos == -1 means that the playlist was cleared or we just started. A
     // play will use position 0, so it's actually equivalent to curpos == 0
@@ -453,15 +453,15 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
             int posend;
             for (posend = curpos + 1;; posend++) {
                 UpSong nsong;
-                if (!m_dev->getmpdcli()->statSong(nsong, posend))
+                if (!m_dev->getavmpdcli()->statSong(nsong, posend))
                     break;
             }
             if (posend > curpos+1)
-                m_dev->getmpdcli()->deletePosRange(curpos + 1, posend);
+                m_dev->getavmpdcli()->deletePosRange(curpos + 1, posend);
         }
     }
 
-    int songid = m_dev->getmpdcli()->insert(uri, setnext ? curpos + 1 : curpos, metaformpd);
+    int songid = m_dev->getavmpdcli()->insert(uri, setnext ? curpos + 1 : curpos, metaformpd);
     if (songid < 0) {
         return UPNP_E_INTERNAL_ERROR;
     }
@@ -490,12 +490,12 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
         //  - MediaHouse: no setnext, Play
         //  - Raumfeld: needs autoplay
         if (m_autoplay) {
-            m_dev->getmpdcli()->play(curpos);
+            m_dev->getavmpdcli()->play(curpos);
         } else {
             switch (st) {
-            case MpdStatus::MPDS_PLAY: m_dev->getmpdcli()->play(curpos); break;
-            case MpdStatus::MPDS_PAUSE: m_dev->getmpdcli()->pause(true); break;
-            case MpdStatus::MPDS_STOP: m_dev->getmpdcli()->stop(); break;
+            case MpdStatus::MPDS_PLAY: m_dev->getavmpdcli()->play(curpos); break;
+            case MpdStatus::MPDS_PAUSE: m_dev->getavmpdcli()->pause(true); break;
+            case MpdStatus::MPDS_STOP: m_dev->getavmpdcli()->stop(); break;
             default: break;
             }
         }
@@ -505,8 +505,8 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
                 // Can't just delete here. If the id does not exist, MPD 
                 // gets into an apparently permanent error state, where even 
                 // get_status does not work
-                if (m_dev->getmpdcli()->statId(id)) {
-                    m_dev->getmpdcli()->deleteId(id);
+                if (m_dev->getavmpdcli()->statId(id)) {
+                    m_dev->getavmpdcli()->deleteId(id);
                 }
             }
             m_songids.clear();
@@ -543,7 +543,7 @@ int AVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data)
     LOGDEB1("AVTransport::getTransportInfo. State: " << mpdsToTState(mpds) << "\n");
 
     data.addarg("CurrentTransportState", mpdsToTState(mpds));
-    data.addarg("CurrentTransportStatus", m_dev->getmpdcli()->ok() ? "OK" : "ERROR_OCCURRED");
+    data.addarg("CurrentTransportStatus", m_dev->getavmpdcli()->ok() ? "OK" : "ERROR_OCCURRED");
     data.addarg("CurrentSpeed", "1");
     return UPNP_E_SUCCESS;
 }
@@ -603,13 +603,13 @@ int AVTransport::playcontrol(
         case 0:
             m_uri = m_curMetadata = m_nextUri = m_nextMetadata = "";
             if (m_dev->getopts().options & UpMpd::upmpdOwnQueue) {
-                ok = m_dev->getmpdcli()->clearQueue();
+                ok = m_dev->getavmpdcli()->clearQueue();
             } else {
-                ok = m_dev->getmpdcli()->stop(); 
+                ok = m_dev->getavmpdcli()->stop(); 
             }
             break;
-        case 1: ok = m_dev->getmpdcli()->play();break;
-        case 2: ok = m_dev->getmpdcli()->togglePause();break;
+        case 1: ok = m_dev->getavmpdcli()->play();break;
+        case 2: ok = m_dev->getavmpdcli()->togglePause();break;
         }
         break;
     case MpdStatus::MPDS_PAUSE:
@@ -617,12 +617,12 @@ int AVTransport::playcontrol(
         case 0:
             m_uri = m_curMetadata = m_nextUri = m_nextMetadata = "";
             if (m_dev->getopts().options & UpMpd::upmpdOwnQueue) {
-                ok = m_dev->getmpdcli()->clearQueue();
+                ok = m_dev->getavmpdcli()->clearQueue();
             } else {
-                ok = m_dev->getmpdcli()->stop(); 
+                ok = m_dev->getavmpdcli()->stop(); 
             }
             break;
-        case 1: ok = m_dev->getmpdcli()->togglePause();break;
+        case 1: ok = m_dev->getavmpdcli()->togglePause();break;
         case 2: break;
         }
         break;
@@ -630,7 +630,7 @@ int AVTransport::playcontrol(
     default:
         switch (what) {
         case 0: break;
-        case 1: ok = m_dev->getmpdcli()->play();break;
+        case 1: ok = m_dev->getavmpdcli()->play();break;
         case 2: break;
         }
         break;
@@ -650,8 +650,8 @@ int AVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int what
 
     bool ok = true;
     switch (what) {
-    case 0: ok = m_dev->getmpdcli()->next();break;
-    case 1: ok = m_dev->getmpdcli()->previous();break;
+    case 0: ok = m_dev->getavmpdcli()->next();break;
+    case 1: ok = m_dev->getavmpdcli()->previous();break;
     }
     return ok ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }
@@ -682,29 +682,29 @@ int AVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
 
     bool ok;
     if (!playmode.compare("NORMAL")) {
-        ok = m_dev->getmpdcli()->repeat(false) &&
-            m_dev->getmpdcli()->random(false) &&
-            m_dev->getmpdcli()->single(false);
+        ok = m_dev->getavmpdcli()->repeat(false) &&
+            m_dev->getavmpdcli()->random(false) &&
+            m_dev->getavmpdcli()->single(false);
     } else if (!playmode.compare("SHUFFLE")) {
-        ok = m_dev->getmpdcli()->repeat(false) &&
-            m_dev->getmpdcli()->random(true) &&
-            m_dev->getmpdcli()->single(false);
+        ok = m_dev->getavmpdcli()->repeat(false) &&
+            m_dev->getavmpdcli()->random(true) &&
+            m_dev->getavmpdcli()->single(false);
     } else if (!playmode.compare("REPEAT_ONE")) {
-        ok = m_dev->getmpdcli()->repeat(true) &&
-            m_dev->getmpdcli()->random(false) &&
-            m_dev->getmpdcli()->single(true);
+        ok = m_dev->getavmpdcli()->repeat(true) &&
+            m_dev->getavmpdcli()->random(false) &&
+            m_dev->getavmpdcli()->single(true);
     } else if (!playmode.compare("REPEAT_ALL")) {
-        ok = m_dev->getmpdcli()->repeat(true) &&
-            m_dev->getmpdcli()->random(false) &&
-            m_dev->getmpdcli()->single(false);
+        ok = m_dev->getavmpdcli()->repeat(true) &&
+            m_dev->getavmpdcli()->random(false) &&
+            m_dev->getavmpdcli()->single(false);
     } else if (!playmode.compare("RANDOM")) {
-        ok = m_dev->getmpdcli()->repeat(true) &&
-            m_dev->getmpdcli()->random(true) &&
-            m_dev->getmpdcli()->single(false);
+        ok = m_dev->getavmpdcli()->repeat(true) &&
+            m_dev->getavmpdcli()->random(true) &&
+            m_dev->getavmpdcli()->single(false);
     } else if (!playmode.compare("DIRECT_1")) {
-        ok = m_dev->getmpdcli()->repeat(false) &&
-            m_dev->getmpdcli()->random(false) &&
-            m_dev->getmpdcli()->single(true);
+        ok = m_dev->getavmpdcli()->repeat(false) &&
+            m_dev->getavmpdcli()->random(false) &&
+            m_dev->getavmpdcli()->single(true);
     } else {
         return UPNP_E_INVALID_PARAM;
     }
@@ -756,5 +756,5 @@ int AVTransport::seek(const SoapIncoming& sc, SoapOutgoing& data)
     LOGDEB("AVTransport::seek: seeking to " << abs_seconds << 
            " seconds (" << upnpduration(abs_seconds * 1000) << ")" << "\n");
 
-    return m_dev->getmpdcli()->seek(abs_seconds) ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
+    return m_dev->getavmpdcli()->seek(abs_seconds) ? UPNP_E_SUCCESS : UPNP_E_INTERNAL_ERROR;
 }

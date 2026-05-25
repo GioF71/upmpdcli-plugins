@@ -277,6 +277,22 @@ bool UpMpd::setmute(bool onoff)
     return onoff ? m_mpdcli->setVolume(0, true) : m_mpdcli->setVolume(1, true);
 }
 
+int UpMpd::getvolume_av()
+{
+    MPDCli *cliav = getavmpdcli();
+    return cliav ? cliav->getVolume() : -1;
+}
+bool UpMpd::setvolume_av(int volume)
+{
+    MPDCli *cliav = getavmpdcli();
+    return cliav ? cliav->setVolume(volume) : false;
+}
+bool UpMpd::setmute_av(bool onoff)
+{
+    MPDCli *cliav = getavmpdcli();
+    return cliav ? (onoff ? cliav->setVolume(0, true) : cliav->setVolume(1, true)) : false;
+}
+
 bool UpMpd::checkContentFormat(const string& uri, const string& didl, UpSong *ups, bool p_nocheck)
 {
     bool nocheck = (m_allopts.options & upmpdNoContentFormatCheck) || p_nocheck;
