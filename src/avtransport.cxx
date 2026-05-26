@@ -230,7 +230,7 @@ static string mpdsToTState(const MpdStatus &mpds)
 // Prepare UPnP AVTransport state variables from our and MPD state.
 bool AVTransport::tpstateMToU(unordered_map<string, string>& status)
 {
-    const MpdStatus &mpds =  m_dev->getMpdStatus();
+    const MpdStatus &mpds =  m_dev->getavMpdStatus();
     LOGDEB2("AVT::tpstateMToU: curpos: " << mpds.songpos << " qlen " << mpds.qlen << "\n");
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || (mpds.state == MpdStatus::MPDS_PAUSE);
     
@@ -396,7 +396,7 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
     LOGDEB("Set(next)AVTransportURI: next " << setnext <<  " uri " << uri <<
            " metadata[" << metadata << "]" << "\n");
 
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     const MpdStatus::State st = mpds.state;
 
     // Check that we support the audio format for the input uri.
@@ -522,7 +522,7 @@ int AVTransport::setAVTransportURI(const SoapIncoming& sc, SoapOutgoing& data, b
 
 int AVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     LOGDEB1("AVTransport::getPositionInfo. State: "<<mpdsToTState(mpds)<<" ("<<mpds.state<<")\n");
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -539,7 +539,7 @@ int AVTransport::getPositionInfo(const SoapIncoming& sc, SoapOutgoing& data)
 
 int AVTransport::getTransportInfo(const SoapIncoming& sc,SoapOutgoing& data)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     LOGDEB1("AVTransport::getTransportInfo. State: " << mpdsToTState(mpds) << "\n");
 
     data.addarg("CurrentTransportState", mpdsToTState(mpds));
@@ -558,7 +558,7 @@ int AVTransport::getDeviceCapabilities(const SoapIncoming& sc, SoapOutgoing& dat
 
 int AVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     LOGDEB("AVTransport::getMediaInfo. State: " << mpds.state << "\n");
 
     bool is_song = (mpds.state == MpdStatus::MPDS_PLAY) || (mpds.state == MpdStatus::MPDS_PAUSE);
@@ -588,7 +588,7 @@ int AVTransport::getMediaInfo(const SoapIncoming& sc, SoapOutgoing& data)
 int AVTransport::playcontrol(
     const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     LOGDEB("AVTransport::playcontrol State: " << mpds.state << " what " << what << "\n");
 
     if ((what & ~0x3)) {
@@ -640,7 +640,7 @@ int AVTransport::playcontrol(
 
 int AVTransport::seqcontrol(const SoapIncoming& sc, SoapOutgoing& data, int what)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     LOGDEB("AVTransport::seqcontrol State: " << mpds.state << " what " << what << "\n");
 
     if ((what & ~0x1)) {
@@ -713,7 +713,7 @@ int AVTransport::setPlayMode(const SoapIncoming& sc, SoapOutgoing& data)
 
 int AVTransport::getTransportSettings(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     string playmode = mpdsToPlaymode(mpds);
     data.addarg("PlayMode", playmode);
     data.addarg("RecQualityMode", "NOT_IMPLEMENTED");
@@ -722,7 +722,7 @@ int AVTransport::getTransportSettings(const SoapIncoming& sc, SoapOutgoing& data
 
 int AVTransport::getCurrentTransportActions(const SoapIncoming& sc, SoapOutgoing& data)
 {
-    const MpdStatus &mpds = m_dev->getMpdStatus();
+    const MpdStatus &mpds = m_dev->getavMpdStatus();
     data.addarg("Actions", mpdsToTActions(mpds));
     return UPNP_E_SUCCESS;
 }

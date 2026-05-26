@@ -94,6 +94,8 @@ bool MPDCli::looksLikeTransportURI(const string& path)
 void MPDCli::closeconn()
 {
     if (m_conn) {
+        LOGDEB("MPDCli::closeconn: freeing connection for partition ["
+               << m_partition << "]\n");
         mpd_connection_free(m_conn);
         m_conn = nullptr;
     }
@@ -102,6 +104,8 @@ void MPDCli::closeconn()
 // Call with lock held
 bool MPDCli::openconn()
 {
+    LOGDEB("MPDCli::openconn: opening connection for partition ["
+           << m_partition << "]\n");
     closeconn();
     m_conn = mpd_connection_new(m_host.c_str(), m_port, m_timeoutms);
     if (m_conn == nullptr) {
@@ -126,8 +130,14 @@ bool MPDCli::openconn()
     }
 
     if (!m_partition.empty()) {
+        // Try to create the partition first (harmless if it already exists)
+        if (!mpd_run_newpartition(m_conn, m_partition.c_str())) {
+            // Partition may already exist, which is fine. Clear the error.
+            mpd_connection_clear_error(m_conn);
+        }
         if (!mpd_run_switch_partition(m_conn, m_partition.c_str())) {
-            LOGERR("Failed to switch to partition [" << m_partition << "]" << endl);
+            LOGERR("MPDCli::openconn: failed to switch to partition ["
+                   << m_partition << "]" << endl);
             closeconn();
             return false;
         }
@@ -232,6 +242,10 @@ top:
             }
         }
         if (!m_partition.empty()) {
+            // Try to create the partition first (harmless if it already exists)
+            if (!mpd_run_newpartition(m_idleconn, m_partition.c_str())) {
+                mpd_connection_clear_error(m_idleconn);
+            }
             if (!mpd_run_switch_partition(m_idleconn, m_partition.c_str())) {
                 LOGERR("MPDCli::eventloop: failed to switch to partition ["
                        << m_partition << "]\n");
@@ -352,15 +366,19 @@ bool MPDCli::showError(const string& who)
         //LOGDEB("MPDCli::showError: " << who << " success !" << endl);
         return false;
     }
-    LOGERR(who << " failed: " <<  mpd_connection_get_error_message(m_conn) 
+    LOGERR(who << " failed on partition [" << m_partition
+           << "]: error=" << error << " "
+           << mpd_connection_get_error_message(m_conn) 
            << endl);
     if (error == MPD_ERROR_SERVER) {
         LOGERR(who << " server error: " << 
                mpd_connection_get_server_error(m_conn) << endl);
     }
-    if (error == MPD_ERROR_CLOSED)
+    if (error == MPD_ERROR_CLOSED) {
+        LOGINF("MPDCli::showError: reconnecting partition [" << m_partition << "]\n");
         if (openconn())
             return true;
+    }
 
     if (!mpd_connection_clear_error(m_conn))
         openconn();
@@ -421,6 +439,12 @@ bool MPDCli::updStatus()
                 showError("MPDCli::updStatus");
                 return false;
             }
+        }
+        if (!m_partition.empty()) {
+            const char *partname = mpd_status_get_partition(mpds);
+            LOGDEB("MPDCli::updStatus: on partition ["
+                   << (partname ? partname : "?") << "] expected ["
+                   << m_partition << "]" << endl);
         }
     }
     

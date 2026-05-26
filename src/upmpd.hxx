@@ -132,7 +132,8 @@ public:
         int sendermpdport{0};
     };
     UpMpd(const std::string& hwaddr, const std::string& friendlyname,
-          ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts);
+          ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts,
+          MPDCli *mpdcliav = nullptr);
     ~UpMpd();
 
     UpMpdOpenHome *getoh() {return m_oh;}
@@ -155,6 +156,7 @@ public:
     void startnoloops();
     
     MpdStatus getMpdStatus();
+    MpdStatus getavMpdStatus();
 
     const std::string& getMetaCacheFn() const {
         return m_mcachefn;

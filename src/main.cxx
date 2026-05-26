@@ -816,10 +816,8 @@ int main(int argc, char *argv[])
 
         if (!enableAV)
             opts.options |= UpMpd::upmpdNoAV;
-        mediarenderer = new UpMpd(hwaddr, friendlyname, ohProductDesc, mpdclip, opts);
-        if (mpdcliav != mpdclip) {
-            mediarenderer->setavmpdcli(mpdcliav);
-        }
+        mediarenderer = new UpMpd(hwaddr, friendlyname, ohProductDesc, mpdclip, opts,
+                                  separateclis ? mpdcliav : nullptr);
         UpMpdOpenHome *oh = mediarenderer->getoh();
         // rootdevice is only used if we implement the media server as
         // an embedded device, which is mostly for testing purposes

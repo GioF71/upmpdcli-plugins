@@ -210,9 +210,11 @@ UpMpdOpenHome::UpMpdOpenHome(
 
 
 UpMpd::UpMpd(const string& hwaddr, const string& friendlyname,
-             ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts)
-    : m_mpdcli(mpdcli), m_allopts(opts), m_mcachefn(opts.cachefn)
+             ohProductDesc_t& ohProductDesc, MPDCli *mpdcli, Options opts,
+             MPDCli *mpdcliav)
+    : m_mpdcli(mpdcli), m_mpdcliav(mpdcliav), m_allopts(opts), m_mcachefn(opts.cachefn)
 {
+    LOGDEB("UpMpd: OH MPDCli " << m_mpdcli << " AV MPDCli " << m_mpdcliav << endl);
     string mpdversion = "0.0.0";
     if (nullptr != mpdcli) {
         MpdStatus st = mpdcli->getStatus();
@@ -254,6 +256,12 @@ UpMpd::~UpMpd()
 MpdStatus UpMpd::getMpdStatus()
 {
     return m_mpdcli->getStatus();
+}
+
+MpdStatus UpMpd::getavMpdStatus()
+{
+    MPDCli *cliav = getavmpdcli();
+    return cliav ? cliav->getStatus() : MpdStatus();
 }
 
 int UpMpd::getvolume()
