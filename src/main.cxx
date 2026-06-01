@@ -352,10 +352,10 @@ int main(int argc, char *argv[])
     bool ownqueue = getBoolOptionValue("ownqueue", true);
     string mpdpassword;
     getOptionValue("mpdpassword", mpdpassword);
-    string ohpartition;
-    getOptionValue("ohpartition", ohpartition);
-    string avpartition;
-    getOptionValue("avpartition", avpartition);
+    string mpdohpartition;
+    getOptionValue("mpdohpartition", mpdohpartition);
+    string mpdavpartition;
+    getOptionValue("mpdavpartition", mpdavpartition);
     opts.options |= UpMpd::upmpdNoContentFormatCheck;
     if (getOptionValue("checkcontentformat", value) && !value.empty() && stringToBool(value)) {
         // If option is specified and 1, unset nocheck flag
@@ -726,12 +726,12 @@ int main(int argc, char *argv[])
     UpMpd *mediarenderer{nullptr};
     if (!msonly) {
         // Determine if we need separate MPDCli instances for OH and AV
-        bool separateclis = !ohpartition.empty() || !avpartition.empty();
+        bool separateclis = !mpdohpartition.empty() || !mpdavpartition.empty();
 
         // Initialize MPD client object for OH mode. Retry until it works or power fail.
         int mpdretrysecs = 2;
         for (;;) {
-            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword, ohpartition);
+            mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword, mpdohpartition);
             if (mpdclip == 0) {
                 LOGFAT("Can't allocate MPD client object" << endl);
                 return 1;
@@ -754,7 +754,7 @@ int main(int argc, char *argv[])
         if (separateclis && enableAV) {
             int mpdretrysecsav = 2;
             for (;;) {
-                ::mpdcliav = new MPDCli(mpdhost, mpdport, mpdpassword, avpartition);
+                ::mpdcliav = new MPDCli(mpdhost, mpdport, mpdpassword, mpdavpartition);
                 if (::mpdcliav == 0) {
                     LOGFAT("Can't allocate AV MPD client object" << endl);
                     return 1;

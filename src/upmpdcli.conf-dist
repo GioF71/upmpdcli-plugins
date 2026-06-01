@@ -78,11 +78,11 @@
 # separate MPD connection to this partition for all OpenHome services
 # (Playlist, Radio, etc.). This allows the OH and AV play queues to be
 # independent. Requires MPD >= 0.21 with partitions enabled.
-#ohpartition =
+#mpdohpartition =
 # MPD partition to use for UPnP AV mode (AVTransport). If set together
-# with ohpartition, the AV transport queue is isolated from the OH queue.
+# with mpdohpartition, the AV transport queue is isolated from the OH queue.
 # If either is set, both OH and AV get their own MPD connection.
-#avpartition =
+#mpdavpartition =
 
 # Audio control hooks
 
