@@ -198,6 +198,11 @@ class AlbumPropertyKey(Enum):
         return self.value.property_key if self.value.property_key else self.name.lower()
 
     @property
+    def property_key_raw(self) -> str:
+        v: str = self.value.property_key if self.value.property_key else self.name.lower()
+        return v.lower().replace("_", "")
+
+    @property
     def display_value(self) -> str:
         return self.value.display_value if self.value.display_value else self.name
 

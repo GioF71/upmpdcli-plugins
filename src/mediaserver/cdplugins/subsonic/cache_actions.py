@@ -24,6 +24,7 @@ import metadata_converter
 from subsonic_connector.album import Album
 from subsonic_connector.song import Song
 from artist_from_album import ArtistFromAlbum
+from album_property_key import AlbumPropertyKey
 from song_data_structures import SongArtistType
 from song_data_structures import SongArtist
 from song_data_structures import SongContributor
@@ -90,8 +91,11 @@ def __on_album(album: Album, connection: sqlite3.Connection = None):
         context="__on_album",
         connection=the_connection,
         do_commit=False)
+    enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
     # save properties
     album_properties: dict[str, list[Any]] = subsonic_util.build_album_properties(album=album)
+    # filter.
+    album_properties = {k: v for k, v in album_properties.items() if k in [x.property_key for x in enabled_album_property_key_list]}
     # msgproc.log("save_album_properties")
     persistence.save_album_properties(
         album_id=album.getId(),

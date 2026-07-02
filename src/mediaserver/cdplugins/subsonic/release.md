@@ -1,5 +1,14 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.15
+
+- Execute vacuum is now disabled by default (slows down initialization)
+- Some more technical album property key are disabled by default: Label Initial, Has Cover Art, Has MusicBrainz
+- Each album property key has a raw key, defined by property name to lowercase and without underscores
+- Example raw property key for HAS_COVER_ART is `hascoverart`
+- Individual album property keys can be enabled/disabled using `enablealbumpropertykeyxxxx` for each raw key
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.14
 
 - Initial support for replay gain

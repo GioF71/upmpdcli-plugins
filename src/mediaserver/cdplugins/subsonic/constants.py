@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.14"
+    PLUGIN_RELEASE = "0.9.15"
     PLUGIN_NAME = "subsonic"
 
 
@@ -518,7 +518,7 @@ class ConfigParam(Enum):
 
     EXECUTE_VACUUM = _ConfigParamData(
         key="executevacuum",
-        default_value=True,
+        default_value=False,
         description=("Execute VACUUM on startup (reduce db size)"))
 
     CACHED_REQUEST_TIMEOUT_SEC = _ConfigParamData(
@@ -594,6 +594,21 @@ class ConfigParam(Enum):
         default_value=True,
         description=("Add an entry which will display albums with the same title and version, if any"))
 
+    ENABLE_ALBUM_PROPERTY_KEY_LABEL_INITIAL = _ConfigParamData(
+        "enablealbumpropertykeylabelinitial",
+        default_value=False,
+        description=("Enable the album property key label initial"))
+
+    ENABLE_ALBUM_PROPERTY_KEY_HAS_COVER_ART = _ConfigParamData(
+        "enablealbumpropertykeyhascoverart",
+        default_value=False,
+        description=("Enable the album property key 'Has Cover Art'"))
+
+    ENABLE_ALBUM_PROPERTY_KEY_HAS_MUSICBRAINZ = _ConfigParamData(
+        "enablealbumpropertykeyhasmusicbrainz",
+        default_value=False,
+        description=("Enable the album property key 'Has MusicBrainz'"))
+
     @property
     def key(self) -> str:
         return self.value.key
@@ -606,6 +621,8 @@ class ConfigParam(Enum):
     def description(self) -> str:
         return self.value.description
 
+
+config_param_dict: dict[str, ConfigParam] = {param.key: param for param in ConfigParam}
 
 class _TranscodingInfoData:
 

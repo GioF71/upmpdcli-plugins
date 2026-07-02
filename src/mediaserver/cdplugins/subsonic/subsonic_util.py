@@ -47,7 +47,6 @@ import album_util
 import upnp_util
 import config
 import persistence
-import persistence_constants
 import upmpdmeta
 
 import secrets
@@ -1677,7 +1676,7 @@ def build_cover_art_url(
         if config.get_verbose_logging():
             msgproc.log(f"build_cover_art_url for item_id [{item_id}] total elapsed [{elapsed:.3f}]")
     else:
-        # build intermediate cover art URL
+        # build intermediate cover art URL, this will go through trackuri to be resolved
         http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
         cover_art_url = (f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}"
                          f"/coverart/version/1/coverartId/{item_id}")

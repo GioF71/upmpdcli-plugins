@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -129,9 +129,21 @@ def get_verbose_logging() -> bool:
 
 
 # list of enabled AlbumPropertyKey
-# transparent for now
 def get_enabled_album_property_key_list() -> list[AlbumPropertyKey]:
-    return list(AlbumPropertyKey)
+    enabled_list: list[AlbumPropertyKey] = []
+    curr: AlbumPropertyKey
+    for curr in AlbumPropertyKey:
+        # get config param if exists.
+        config_param: constants.ConfigParam | None = constants.config_param_dict.get("enablealbumpropertykey" + curr.property_key_raw)
+        # get default value. if there is no declaration, we assume it's enabled
+        prop_key_default_value: bool = config_param.default_value if config_param else True
+        # read the value considering the default value
+        if _get_option_value_as_bool("enablealbumpropertykey" + curr.property_key_raw, 1 if prop_key_default_value else 0) == 0:
+            # skip this
+            continue
+        # all other cases, we add it to the list
+        enabled_list.append(curr)
+    return enabled_list
 
 
 def get_items_per_page() -> int:

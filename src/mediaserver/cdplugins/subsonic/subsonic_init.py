@@ -97,7 +97,13 @@ def subsonic_init():
         msgproc.log(f"DB version for [{constants.PluginConstant.PLUGIN_NAME.value}] is "
                     f"[{persistence.get_db_version()}]")
         persistence.purge_spurious_caches()
-        known_key_list: list[str] = [x.property_key for x in AlbumPropertyKey]
+        enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
+        disabled_album_property_key_list: list[AlbumPropertyKey] = [x for x in AlbumPropertyKey if x not in enabled_album_property_key_list]
+        msgproc.log(f"subsonic_init enabled album property keys ([{len(enabled_album_property_key_list)}]) -> "
+                    f"[{[k.property_key for k in enabled_album_property_key_list]}]")
+        msgproc.log(f"subsonic_init disabled album property keys ([{len(disabled_album_property_key_list)}]) -> "
+                    f"[{[k.property_key for k in disabled_album_property_key_list]}]")
+        known_key_list: list[str] = [x.property_key for x in enabled_album_property_key_list]
         del_unknown: int = persistence.purge_unknown_album_properties(valid_property_key_list=known_key_list)
         msgproc.log(f"subsonic_init purge_unknown_album_properties deleted [{del_unknown}] records")
         # show music folders
@@ -256,6 +262,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
     preload_verbose_logging: bool = (verbose_logging and
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()
+    enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
     preload_start: datetime.datetime = datetime.datetime.now()
     song_offset: int = 0
     total_stored: int = 0
@@ -351,6 +358,8 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
             if preloaded_album and preloaded_album.song_count == curr_album_song_count:
                 # song count for album complete, actions?
                 album_properties: dict[str, list[Any]] = subsonic_util.build_album_properties_from_songs(song_list=loaded_list)
+                # filter album properties based on enabled keys
+                album_properties = {k: v for k, v in album_properties.items() if k in [x.property_key for x in enabled_album_property_key_list]}
                 persistence.save_album_properties(
                     album_id=song.getAlbumId(),
                     properties=album_properties,
@@ -421,6 +430,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()
     preload_start: datetime.datetime = datetime.datetime.now()
+    enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
     album_offset: int = 0
     total_stored: int = 0
     req_count: int = constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value
@@ -463,10 +473,13 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
                 partial_update_count += 1
             else:
                 raise Exception(f"Invalid mode [{save_mode}]")
+            album_properties = subsonic_util.build_album_properties(album=album)
+            # filter properties based on enabled keys
+            album_properties = {k: v for k, v in album_properties.items() if k in [x.property_key for x in enabled_album_property_key_list]}
             # save properties
             persistence.save_album_properties(
                 album_id=album.getId(),
-                properties=subsonic_util.build_album_properties(album=album),
+                properties=album_properties,
                 connection=connection,
                 do_commit=False)
             # update album artists

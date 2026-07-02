@@ -582,13 +582,13 @@ def _load_albums_by_type(
                 objid=objid,
                 tag=tag_type,
                 offset=offset + len(entries))
+            next_cover_art: str = subsonic_util.build_cover_art_url(item_id=for_next.getCoverArt())
+            upnp_util.set_album_art_from_uri(next_cover_art, next_page)
+            entries.append(next_page)
         except Exception as add_next:
             msgproc.log(f"_load_albums_by_type [{tag_type.query_type}] "
                         f"cannot add album_id [{current_album.getId()}] "
                         f"as next entry due to [{type(add_next)}] [{add_next}]")
-        next_cover_art: str = subsonic_util.build_cover_art_url(item_id=for_next.getCoverArt())
-        upnp_util.set_album_art_from_uri(next_cover_art, next_page)
-        entries.append(next_page)
         next_total_elapsed: float = time.time() - next_start
         total_elapsed_list.append(next_total_elapsed)
     roundtrip_elapsed: float = time.time() - roundtrip_start
@@ -1307,6 +1307,8 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
     occ_dict: dict[str, AlbumPropertyKeyOccurrence] = {occ.property_key: occ for occ in occ_list}
     album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list)
+    enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
+    msgproc.log(f"handler_tag_album_browser enabled_album_property_key_list [{len(enabled_album_property_key_list)}]")
     curr_key: AlbumPropertyKey
     for curr_key in config.get_enabled_album_property_key_list():
         # match occurrence or continue
