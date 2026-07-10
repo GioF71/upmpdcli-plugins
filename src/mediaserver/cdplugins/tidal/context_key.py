@@ -37,6 +37,8 @@ class ContextKey(Enum):
     ASSUMED_FROM_FIRST_ALBUM_TRACK_DICT = 16, "assumed-from-first-album-track-dict", None
     GET_STREAM_DICT = 17, "get-stream-dict", None
     GUESSED_TRACK_DICT = 18, "guessed-track-dict", None
+    CONTAINER_TYPE = 21, "container-type", None
+    CONTAINER_ID = 20, "container-id", None
 
     def __init__(self,
             num: int,

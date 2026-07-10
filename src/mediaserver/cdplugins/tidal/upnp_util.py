@@ -112,7 +112,6 @@ def set_class_artist(target: dict):
 
 def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
     if metadata_value is not None and len(metadata_value) > 0:
-        # msgproc.log(f"Setting [{raw_metadata_name}]=[{metadata_value}]")
         target[raw_metadata_name] = metadata_value
 
 

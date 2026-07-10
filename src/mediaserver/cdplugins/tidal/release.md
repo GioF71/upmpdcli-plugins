@@ -1,5 +1,16 @@
 # Tidal Plugin Release notes
 
+## 0.8.13
+
+- Review tidal plugin initialization process
+- Favorite album preloading (speeds up showing album container especially if favorite actions are allowed)
+- Image for Page selection entries are now preloaded 
+- Misc code corrections, cleanup and refactoring
+- Performance improvements on initial view (does not load playlists twice)
+- Show container type and id (Album, Playlist, etc) in output from build_intermediate_url (if enabled)
+- Add timestamps in log entries
+- Misc code corrections, cleanup and refactoring
+
 ## 0.8.12
 
 - Add Kodi/21 to user agent whitelist

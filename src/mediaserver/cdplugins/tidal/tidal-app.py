@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@ import time
 import secrets
 import glob
 import shutil
+import threading
+import sqlite3
 
 from typing import Callable
 from typing import Union
 from typing import Optional
 from pathlib import Path
 
-import cmdtalkplugin
 import upmplgutils
 import html
 import pathlib
@@ -75,7 +76,13 @@ from tidalapi.page import FeaturedItems as TidalFeaturedItems
 from track_adapter import TrackAdapter
 from tidal_track_adapter import TidalTrackAdapter
 from played_track_adapter import PlayedTrackAdapter
-from album_adapter import AlbumAdapter, tidal_album_to_adapter, album_adapter_by_album_id
+
+from album_adapter import AlbumMetadata
+from album_adapter import AlbumAdapter
+from album_adapter import tidal_album_to_adapter
+from album_adapter import album_adapter_by_album_id
+from album_adapter import tidal_album_to_album_metadata
+from album_adapter import album_metadata_to_adapter
 
 from played_track import PlayedTrack
 from played_album import PlayedAlbum
@@ -89,6 +96,9 @@ from functools import cmp_to_key
 
 from streaming_info import StreamingInfo
 from tidal_page_definition import TidalPageDefinition
+from container_type import ContainerType
+from msgproc_provider import msgproc
+from msgproc_provider import dispatcher
 
 
 static_images_dict: dict[str, list[str]] = {}
@@ -115,11 +125,6 @@ class SessionStatus:
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = f"0${constants.PluginConstant.PLUGIN_NAME.value}$"
 upmplgutils.setidprefix(constants.PluginConstant.PLUGIN_NAME.value)
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
 def album_retriever(tidal_session: TidalSession, album_id: str) -> TidalAlbum:
@@ -226,11 +231,14 @@ def get_session() -> TidalSession:
     return build_session()
 
 
-def build_intermediate_url(track_id: str) -> str:
+def build_intermediate_url(track_id: str, container_type: ContainerType = None, container_id: str = None) -> str:
     http_host_port = os.environ["UPMPD_HTTPHOSTPORT"]
     url = f"http://{http_host_port}/{constants.PluginConstant.PLUGIN_NAME.value}/track/version/1/trackId/{track_id}"
     if config.log_intermediate_url:
-        msgproc.log(f"intermediate_url for track_id {track_id} -> [{url}]")
+        if container_type and container_type.value and container_id:
+            msgproc.log(f"intermediate_url for [{container_type.value}:{container_id}:{track_id}] -> [{url}]")
+        else:
+            msgproc.log(f"intermediate_url for [{track_id}] -> [{url}]")
     return url
 
 
@@ -900,7 +908,10 @@ def track_to_entry(
     # channels. I could use AudioMode but I can't exactly say how many channels are delivered
     # so I am assuming two, looks like a decent fallback for now
     upnp_util.set_channels(2, entry)
-    song_uri: str = build_intermediate_url(track_adapter.get_id())
+    song_uri: str = build_intermediate_url(
+        track_id=track_adapter.get_id(),
+        container_type=context.get(key=ContextKey.CONTAINER_TYPE),
+        container_id=context.get(key=ContextKey.CONTAINER_ID))    
     upnp_util.set_uri(song_uri, entry)
     title: str = track_adapter.get_name()
     upnp_util.set_track_title(title, entry)
@@ -1004,10 +1015,11 @@ def set_track_stream_information(
         tidal_session: TidalSession,
         track_adapter: TrackAdapter,
         context: Context):
-    is_album: bool = context.get(key=ContextKey.IS_ALBUM)
-    is_playlist: bool = context.get(key=ContextKey.IS_PLAYLIST)
-    is_mix: bool = context.get(key=ContextKey.IS_MIX)
-    is_track: bool = context.get(key=ContextKey.IS_TRACK)
+    container_type: ContainerType = context.get(key=ContextKey.CONTAINER_TYPE)
+    is_album: bool = ContainerType.ALBUM == container_type
+    is_playlist: bool = ContainerType.PLAYLIST == container_type
+    is_mix: bool = ContainerType.MIX == container_type
+    is_track: bool = ContainerType.TRACK == container_type
     is_mix_or_playlist: bool = is_playlist or is_mix
     if config.dump_track_to_entry_result:
         msgproc.log(f"set_track_stream_information track_id [{track_adapter.get_id()}] "
@@ -1355,6 +1367,27 @@ def get_played_track(played_album_tracks: list[PlayedTrack], track_id: str) -> P
     return None
 
 
+def artist_to_entry_raw(
+        objid,
+        artist_id: str,
+        artist_name: str,
+        artist_image_url: str) -> upmplgutils.direntry:
+    # art_uri: str = tidal_util.get_image_url(artist)
+    if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
+        msgproc.log(f"artist_to_entry art_uri = [{artist_image_url}]")
+    identifier: ItemIdentifier = ItemIdentifier(
+        ElementType.ARTIST.getName(),
+        artist_id)
+    identifier.set(ItemIdentifierKey.MISSING_ARTIST_ART, artist_image_url is None)
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
+    entry = upmplgutils.direntry(id, objid, title=artist_name)
+    upnp_util.set_class_artist(entry)
+    upnp_util.set_album_art_from_uri(artist_image_url, entry)
+    return entry
+
+
 def artist_to_entry(
         objid,
         artist: TidalArtist) -> upmplgutils.direntry:
@@ -1697,30 +1730,26 @@ def compare_favorite_artist_by_criteria_list(
 def build_album_sort_criteria_by_artist(descending: bool = False) -> list[AlbumSortCriteria]:
     criteria_list: list[AlbumSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    artist_extractor: Callable[[TidalAlbum], str] = (
-        lambda a:
+    def artist_extractor(a: TidalAlbum) -> str:
+        return (
             a.artist.name.upper()
             if a.artist and a.artist.name
             else "")
-    artist_comparator: Callable[[str, str], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def artist_comparator(left: str, right: str) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(AlbumSortCriteria(artist_extractor, artist_comparator))
-
-    rd_extractor: Callable[[TidalAlbum], float] = (
-        lambda a:
+    def rd_extractor(a: TidalAlbum) -> float:
+        return (
             a.available_release_date.timestamp()
             if a.available_release_date
             else 0.0)
-    rd_comparator: Callable[[float, float], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def rd_comparator(left: float, right: float) -> int:
+        return (multiplier * (-1 if left < right else 0 if left == right else 1))
     criteria_list.append(AlbumSortCriteria(rd_extractor, rd_comparator))
-
-    t_extractor: Callable[[TidalAlbum], str] = lambda a: a.name.upper() if a.name else ""
-    t_comparator: Callable[[str, str], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def t_extractor(a: TidalAlbum) -> str:
+        return a.name.upper() if a.name else ""
+    def t_comparator(left: str, right: str) -> int:
+        return (multiplier * (-1 if left < right else 0 if left == right else 1))
     criteria_list.append(AlbumSortCriteria(t_extractor, t_comparator))
     return criteria_list
 
@@ -1728,12 +1757,10 @@ def build_album_sort_criteria_by_artist(descending: bool = False) -> list[AlbumS
 def build_album_sort_criteria_by_release_date(descending: bool = False) -> list[AlbumSortCriteria]:
     criteria_list: list[AlbumSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    extractor: Callable[[TidalAlbum], float] = (
-        lambda a:
-            a.available_release_date.timestamp() if a.available_release_date else 0.0)
-    comparator: Callable[[float, float], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def extractor(a: TidalAlbum) -> float:
+        return a.available_release_date.timestamp() if a.available_release_date else 0.0
+    def comparator(left: float, right: float) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(AlbumSortCriteria(extractor, comparator))
     return criteria_list
 
@@ -1741,12 +1768,10 @@ def build_album_sort_criteria_by_release_date(descending: bool = False) -> list[
 def build_album_sort_criteria_by_user_date_added(descending: bool = False) -> list[AlbumSortCriteria]:
     criteria_list: list[AlbumSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    extractor: Callable[[TidalAlbum], float] = (
-        lambda a:
-            a.user_date_added.timestamp() if a.user_date_added else 0.0)
-    comparator: Callable[[float, float], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def extractor(a: TidalAlbum) -> float:
+        return a.user_date_added.timestamp() if a.user_date_added else 0.0
+    def comparator(left: float, right: float) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(AlbumSortCriteria(extractor, comparator))
     return criteria_list
 
@@ -1754,12 +1779,10 @@ def build_album_sort_criteria_by_user_date_added(descending: bool = False) -> li
 def build_artist_sort_criteria_by_user_date_added(descending: bool = False) -> list[ArtistSortCriteria]:
     criteria_list: list[ArtistSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    extractor: Callable[[TidalArtist], float] = (
-        lambda a:
-            a.user_date_added.timestamp() if a.user_date_added else 0.0)
-    comparator: Callable[[float, float], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def extractor(a: TidalArtist) -> float:
+        return a.user_date_added.timestamp() if a.user_date_added else 0.0
+    def comparator(left: float, right: float) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(ArtistSortCriteria(extractor, comparator))
     return criteria_list
 
@@ -1767,10 +1790,10 @@ def build_artist_sort_criteria_by_user_date_added(descending: bool = False) -> l
 def build_album_sort_criteria_by_name(descending: bool = False) -> list[AlbumSortCriteria]:
     criteria_list: list[AlbumSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    t_extractor: Callable[[TidalAlbum], str] = lambda a: a.name.upper() if a.name else ""
-    t_comparator: Callable[[str, str], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def t_extractor(a: TidalAlbum) -> str:
+        return a.name.upper() if a.name else ""
+    def t_comparator(left: str, right: str) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(AlbumSortCriteria(t_extractor, t_comparator))
     return criteria_list
 
@@ -1778,10 +1801,10 @@ def build_album_sort_criteria_by_name(descending: bool = False) -> list[AlbumSor
 def build_artist_sort_criteria_by_name(descending: bool = False) -> list[ArtistSortCriteria]:
     criteria_list: list[ArtistSortCriteria] = list()
     multiplier: int = -1 if descending else 1
-    t_extractor: Callable[[TidalArtist], str] = lambda a: a.name.upper() if a.name else ""
-    t_comparator: Callable[[str, str], int] = (
-        lambda left, right:
-            multiplier * (-1 if left < right else 0 if left == right else 1))
+    def t_extractor(a: TidalArtist) -> str:
+        return a.name.upper() if a.name else ""
+    def t_comparator(left: str, right: str) -> int:
+        return multiplier * (-1 if left < right else 0 if left == right else 1)
     criteria_list.append(ArtistSortCriteria(t_extractor, t_comparator))
     return criteria_list
 
@@ -2253,9 +2276,8 @@ def handler_tag_playback_statistics(
         tidal_session=tidal_session)
         if random_last_played_album_id
         else None)
-    get_url_of_random: Callable[[list[PlayedTrack]], str] = (
-        lambda album_list:
-            tidal_util.get_album_art_url_by_album_id(
+    def get_url_of_random(album_list: list[PlayedTrack]) -> str:
+        return (tidal_util.get_album_art_url_by_album_id(
                 album_id=secrets.choice(album_list).album_id,
                 tidal_session=tidal_session)
         if album_list and len(album_list) > 0 else None)
@@ -2374,9 +2396,15 @@ def handler_tag_page_selection(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
+    obj_cache: dict[str, any] = {}
     tidal_session: TidalSession = get_session()
     for tag in get_page_selection():
-        show_single_tag(objid, tidal_session, tag, entries)
+        show_single_tag(
+            objid=objid,
+            tidal_session=tidal_session,
+            tag=tag,
+            entries=entries,
+            obj_cache=obj_cache)
     return entries
 
 
@@ -2550,6 +2578,8 @@ def handler_element_mix(objid, item_identifier: ItemIdentifier, entries: list) -
     track_number: int = offset + 1
     context: Context = Context()
     context.add(key=ContextKey.IS_MIX, value=True)
+    context.add(key=ContextKey.CONTAINER_TYPE, value=ContainerType.MIX)
+    context.add(key=ContextKey.CONTAINER_ID, value=mix_id)
     for track in tracks:
         if not isinstance(track, TidalTrack):
             continue
@@ -3043,7 +3073,7 @@ def create_missing_artist_entry(
         entries.append(__create_album_listen_queue_action_button(
             objid=objid,
             album_id=artist_id,
-            album=None,
+            album_metadata=None,
             in_listen_queue=True))
     return entry
 
@@ -3082,14 +3112,14 @@ def create_missing_album_entry(
         entries.append(__create_album_fav_action_button(
             objid=objid,
             album_id=album_id,
-            album=None,
+            album_metadata=None,
             in_favorites=True))
     # button for bookmark action if needed
     if config.get_allow_bookmark_actions() and in_bookmarks:
         entries.append(__create_album_listen_queue_action_button(
             objid=objid,
             album_id=album_id,
-            album=None,
+            album_metadata=None,
             in_listen_queue=True))
     return entry
 
@@ -3120,33 +3150,64 @@ def handler_element_album_container(
         item_identifier: ItemIdentifier,
         entries: list) -> list:
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    tidal_session: TidalSession = get_session()
-    album: TidalAlbum = tidal_util.try_get_album(tidal_session, album_id)
-    if not album:
-        # we could not get the album
-        msgproc.log(f"Could not load album with id [{album_id}], "
-                    f"returning a {ElementType.MISSING_ALBUM.name} entry")
-        # return a MISSING_ALBUM entry
-        entries.append(create_missing_album_entry(
-            objid=objid,
-            tidal_session=tidal_session,
-            album_id=album_id,
-            entries=entries))
-        return entries
-    # force refresh of album cover
-    tidal_util.get_image_url(album, refresh=True)
+    connection: sqlite3.Connection = persistence.get_connection()
+    # do we know the album already?
+    album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
+    msgproc.log(f"handler_element_album_container album [{album_id}] available as metadata "
+                f"[{album_metadata is not None}]")
+    album: TidalAlbum = None
+    # do we need to load the album from tidal? maybe yes, if cached record is too old    
+    if album_metadata is None:
+        get_session_start: float = time.time()
+        tidal_session: TidalSession = get_session()
+        get_session_elapsed: float = time.time() - get_session_start
+        msgproc.log(f"handler_element_album_container get_session [{get_session_elapsed:.3f}]")
+        load_album_start: float = time.time()
+        album = tidal_util.try_get_album(tidal_session, album_id)
+        load_album_elapsed: float = time.time() - load_album_start
+        msgproc.log(f"handler_element_album_container loaded album [{album_id}] [{album is not None}] "
+                    f"in [{load_album_elapsed:.3f}]")
+        if not album:
+            # we could not get the album
+            msgproc.log(f"Could not load album with id [{album_id}], "
+                        f"returning a {ElementType.MISSING_ALBUM.name} entry")
+            # return a MISSING_ALBUM entry
+            entries.append(create_missing_album_entry(
+                objid=objid,
+                tidal_session=tidal_session,
+                album_id=album_id,
+                entries=entries))
+            return entries
+        else:
+            # store metadata
+            persistence.store_album_metadata(
+                album_metadata=tidal_album_to_album_metadata(album=album),
+                connection=connection)
+    if album:
+        # force refresh of album cover
+        tidal_util.get_image_url(album, refresh=True)
     identifier: ItemIdentifier = ItemIdentifier(
         name=ElementType.ALBUM.getName(),
         value=album_id)
     entry_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    in_favorites: bool = album_id in get_favorite_album_id_list(tidal_session=tidal_session)
-    in_listen_queue: bool = persistence.is_in_album_listen_queue(album_id)
-    album_entry_title: str = "Album" if config.titleless_single_album_view else album.name
+    in_favorites_start: float = time.time()
+    in_favorites: bool = album_metadata is not None and album_metadata.user_date_added is not None
+    in_favorites_elapsed: float = time.time() - in_favorites_start
+    msgproc.log(f"handler_element_album_container in favorites [{in_favorites}] (took [{in_favorites_elapsed:.3f}])")
+    in_listen_queue: bool = persistence.is_in_album_listen_queue(
+        album_id=album_id,
+        connection=connection)
+    album_entry_title: str = "Album" if config.titleless_single_album_view else album_metadata.album_name
     cached_tidal_quality: tidal_util.CachedTidalQuality = tidal_util.get_cached_audio_quality(
-        album_id=album.id)
-    badge: str = tidal_util.get_quality_badge(album=album, cached_tidal_quality=cached_tidal_quality)
+        album_id=album_id,
+        connection=connection)
+    badge: str = tidal_util.get_quality_badge_raw(
+        audio_modes=album_metadata.audio_modes.split(",") if album_metadata.audio_modes else [],
+        media_metadata_tags=album_metadata.media_metadata_tags.split(",") if album_metadata.media_metadata_tags else [],
+        audio_quality=album_metadata.audio_quality,
+        cached_tidal_quality=cached_tidal_quality)
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"handler_element_album_container album_id [{album_id}] "
                     f"badge [{badge}] in_favorites [{in_favorites}] "
@@ -3159,69 +3220,81 @@ def handler_element_album_container(
         album_entry_title = f"{album_entry_title} [{album_id}]"
     entry = upmplgutils.direntry(entry_id, objid, album_entry_title)
     upnp_util.set_class_album(target=entry)
-    upnp_util.set_artist(artist=album.artist.name if album.artist else None, target=entry)
-    tidal_util.add_album_adapter_metadata(album_adapter=tidal_album_to_adapter(album), target=entry)
+    upnp_util.set_artist(artist=album_metadata.artist_name, target=entry)
+    if album:
+        tidal_util.add_album_adapter_metadata(
+            album_adapter=tidal_album_to_adapter(tidal_album=album),
+            target=entry)
+    else:
+        # if we are here, metadata are available
+        tidal_util.add_album_adapter_metadata(
+            album_adapter=album_metadata_to_adapter(album_metadata=album_metadata),
+            target=entry)
     # setting album title does not seem to be relevant for upplay
     # upnp_util.set_album_title(album_title=album.name, target=entry)
     # setting description does not seem to be relevant for upplay
     # upnp_util.set_description(description=album.name, target=entry)
-    upnp_util.set_date(datetime=album.release_date, target=entry)
-    upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), entry)
+    upnp_util.set_date(datetime=album_metadata.release_date, target=entry)
+    #upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), entry)
+    upnp_util.set_album_art_from_uri(album_metadata.image_url, entry)
     entries.append(entry)
+    msgproc.log("handler_element_album_container album entry created.")
     # add Album track entry
-    __add_album_tracks_entry(
-        objid=objid,
-        album=album,
-        entries=entries)
+    # TODO restore this!
+    #__add_album_tracks_entry(
+    #    objid=objid,
+    #    album=album,
+    #    entries=entries)
     # add Artists
     __add_album_artists_entries(
         objid=objid,
-        tidal_session=tidal_session,
-        album=album,
+        album_metadata=album_metadata,
         entries=entries)
     # add favorite action
     if config.get_allow_favorite_actions():
         entries.append(__create_album_fav_action_button(
             objid=objid,
             album_id=album_id,
-            album=album,
+            album_metadata=album_metadata,
             in_favorites=in_favorites))
     # button for bookmark action
     if config.get_allow_bookmark_actions():
         entries.append(__create_album_listen_queue_action_button(
             objid=objid,
             album_id=album_id,
-            album=album,
+            album_metadata=album_metadata,
             in_listen_queue=in_listen_queue))
     # button for removing from statistics
     if config.get_allow_statistics_actions():
         _add_album_rmv_from_stats(
             objid=objid,
-            album=album,
+            album_metadata=album_metadata,
             entries=entries)
     return entries
 
 
 def _add_album_rmv_from_stats(
         objid,
-        album: TidalAlbum,
+        album_metadata: AlbumMetadata,
         entries: list):
-    has_been_played: bool = persistence.album_has_been_played(album.id)
+    has_been_played: bool = persistence.album_has_been_played(album_metadata.album_id)
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"Album with id [{album.id}] name [{album.name}] by [{album.artist.name}] "
+        msgproc.log(f"Album with id [{album_metadata.album_id}] "
+                    f"name [{album_metadata.album_name}] by "
+                    f"[{album_metadata.artist_name}] "
                     f"has been played: "
                     f"[{'yes' if has_been_played else 'no'}]")
     if has_been_played:
         # add entry for removing from stats
         rm_stats: ItemIdentifier = ItemIdentifier(
             ElementType.REMOVE_ALBUM_FROM_STATS.getName(),
-            album.id)
+            album_metadata.album_id)
         rm_stats_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(rm_stats))
         rm_entry: dict[str, any] = upmplgutils.direntry(rm_stats_id, objid, "Remove from Statistics")
         # use same album image for this button
-        upnp_util.set_album_art_from_uri(tidal_util.get_image_url(album), rm_entry)
+        upnp_util.set_album_art_from_uri(album_metadata.image_url, rm_entry)
         entries.append(rm_entry)
 
 
@@ -3251,7 +3324,7 @@ def __create_artist_fav_action_button(
 def __create_album_fav_action_button(
         objid,
         album_id: str,
-        album: TidalAlbum,
+        album_metadata: AlbumMetadata,
         in_favorites: bool) -> dict[str, any]:
     fav_action_elem: ElementType
     fav_action_text: str
@@ -3266,22 +3339,30 @@ def __create_album_fav_action_button(
         id=identifier_util.create_id_from_identifier(fav_action))
     fav_entry: dict[str, any] = upmplgutils.direntry(fav_action_id, objid, fav_action_text)
     upnp_util.set_album_art_from_uri(
-        album_art_uri=tidal_util.get_image_url(album) if album else None,
+        album_art_uri=album_metadata.image_url if album_metadata else None,
         target=fav_entry)
     return fav_entry
 
 
 def __add_album_artists_entries(
         objid,
-        tidal_session: TidalSession,
-        album: TidalAlbum,
+        album_metadata: AlbumMetadata,
         entries: list):
-    artist_list: list[TidalArtist] = get_artist_list(
-        artist=album.artist,
-        artists=album.artists,
-        tracks=album.tracks())
-    for current in artist_list:
-        entries.append(artist_to_entry(objid=objid, artist=current))
+    id_len: int = len(album_metadata.artist_id_list)
+    name_len: int = len(album_metadata.artist_name_list)
+    image_url_len: int = len(album_metadata.artist_image_url_list)
+    if id_len > 0 and id_len == name_len and id_len == image_url_len:
+        # Combine them into a list of tuples
+        combined_list: list[tuple[int, str, str]] = list(zip(
+            album_metadata.artist_id_list,
+            album_metadata.artist_name_list,
+            album_metadata.artist_image_url_list))
+        for current in combined_list:
+            entries.append(artist_to_entry_raw(
+                objid=objid,
+                artist_id=current[0],
+                artist_name=current[1],
+                artist_image_url=current[2]))
 
 
 def __add_album_tracks_entry(
@@ -3305,7 +3386,7 @@ def __add_album_tracks_entry(
 def __create_album_listen_queue_action_button(
         objid,
         album_id: str,
-        album: TidalAlbum,
+        album_metadata: AlbumMetadata,
         in_listen_queue: bool) -> dict[str, any]:
     listen_queue_action_dict: dict[str, str] = (constants.listening_queue_action_del_dict
                                                 if in_listen_queue
@@ -3323,7 +3404,7 @@ def __create_album_listen_queue_action_button(
         title=listen_queue_button_name)
     # use same album image for this button
     upnp_util.set_album_art_from_uri(
-        album_art_uri=tidal_util.get_image_url(album) if album else None,
+        album_art_uri=album_metadata.image_url,
         target=lqb_entry)
     return lqb_entry
 
@@ -3518,7 +3599,8 @@ def handler_element_albums_in_mix_or_playlist(
                       else tidal_session.mix(mix_or_playlist_id))
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"handler_element_albums_in_mix_or_playlist tidal_obj [{type(tidal_obj)}]")
-    id_extractor: Callable[[any], str] = lambda x: x.album.id if x and x.album else None
+    def id_extractor(x: any) -> str:
+        return x.album.id if x and x.album else None
     album_id_list: list[str]
     track_list: list[TidalTrack]
     last_offset: int
@@ -3587,7 +3669,8 @@ def handler_element_artists_in_mix_or_playlist(
         msgproc.log(f"handler_element_artists_in_mix_or_playlist for [{mix_or_playlist_id}] "
                     f"of type [{underlying_type}] from offset [{initial_offset}]")
     tidal_session: TidalSession = get_session()
-    id_extractor: Callable[[any], str] = lambda x: x.artist.id if x and x.artist else None
+    def id_extractor(x: any) -> str:
+        return x.artist.id if x and x.artist else None
     track_list: list[TidalTrack]
     last_offset: int
     _, track_list, last_offset, _, _ = tidal_util.load_unique_ids_from_mix_or_playlist(
@@ -3932,6 +4015,8 @@ def playlist_to_entries(
     counter: int = 0
     context: Context = Context()
     context.add(key=ContextKey.IS_PLAYLIST, value=True)
+    context.add(key=ContextKey.CONTAINER_TYPE, value=ContainerType.PLAYLIST)
+    context.add(key=ContextKey.CONTAINER_ID, value=playlist_id)
     for track in tracks:
         track_entry: dict = None
         # reload track
@@ -3995,6 +4080,8 @@ def handler_element_album(
     # msgproc.log("handler_element_album creating Context ...")
     context: Context = Context()
     context.add(key=ContextKey.IS_ALBUM, value=True)
+    context.add(key=ContextKey.CONTAINER_TYPE, value=ContainerType.ALBUM)
+    context.add(key=ContextKey.CONTAINER_ID, value=album_id)
     options: dict[str, any] = {}
     set_option(options, OptionKey.SKIP_TRACK_ARTIST, True)
     track_num: int = offset + 1
@@ -4036,8 +4123,11 @@ def handler_element_artist_album_catch_all(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     max_items: int = config.albums_per_page
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_artist_album_catch_all artist_id [{artist_id}] getting session ...")
     tidal_session: TidalSession = get_session()
+    msgproc.log(f"handler_element_artist_album_catch_all artist_id [{artist_id}] loading artist ...")
     artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    msgproc.log(f"handler_element_artist_album_catch_all artist_id [{artist_id}] got artist [{artist is not None}]")
     if not artist:
         msgproc.log(f"Artist with id {artist_id} not found")
         # bail
@@ -4062,6 +4152,8 @@ def handler_element_artist_album_catch_all(
             if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
                 msgproc.log(tidal_util.not_stereo_skipmessage(current))
             continue
+        msgproc.log(f"handler_element_artist_album_catch_all artist_id [{artist_id}] "
+                    f"adding album [{current.id}] [{current.name}] ...")
         entries.append(album_to_album_container(
             objid=objid,
             tidal_session=tidal_session,
@@ -4186,30 +4278,6 @@ def add_tracks_to_navigable_entries(
                 tidal_session=tidal_session,
                 track=current),
             options=options))
-    return entries
-
-
-def add_track_as_list_to_entries(
-        objid,
-        tidal_session: TidalSession,
-        items: list[TidalTrack],
-        entries: list) -> list:
-    context: Context = Context()
-    context.add(key=ContextKey.IS_PLAYLIST, value=True)
-    current: TidalTrack
-    track_num: int = 1
-    for current in items if items else list():
-        options: dict[str, any] = dict()
-        set_option(options=options, option_key=OptionKey.FORCED_TRACK_NUMBER, option_value=track_num)
-        entries.append(track_to_entry(
-            objid=objid,
-            track_adapter=choose_track_adapter_by_tidal_track(
-                tidal_session=tidal_session,
-                track=current),
-            options=options,
-            tidal_session=tidal_session,
-            context=context))
-        track_num += 1
     return entries
 
 
@@ -4552,21 +4620,21 @@ def get_artist_albums_image_url(tidal_session: TidalSession, artist_id: str) -> 
     return get_artist_albums_by_album_extractor_image_url(
         tidal_session=tidal_session,
         artist_id=artist_id,
-        extractor=lambda artist: artist.get_albums())
+        extractor=lambda artist: artist.get_albums(limit=1))
 
 
 def get_artist_albums_ep_singles_image_url(tidal_session: TidalSession, artist_id: str) -> str:
     return get_artist_albums_by_album_extractor_image_url(
         tidal_session=tidal_session,
         artist_id=artist_id,
-        extractor=lambda artist: artist.get_ep_singles())
+        extractor=lambda artist: artist.get_ep_singles(limit=1))
 
 
 def get_artist_albums_others_image_url(tidal_session: TidalSession, artist_id: str) -> str:
     return get_artist_albums_by_album_extractor_image_url(
         tidal_session=tidal_session,
         artist_id=artist_id,
-        extractor=lambda artist: artist.get_other())
+        extractor=lambda artist: artist.get_other(limit=1))
 
 
 def get_artist_albums_by_album_extractor_image_url(
@@ -4673,7 +4741,9 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     missing_artist_art: bool = item_identifier.get(ItemIdentifierKey.MISSING_ARTIST_ART)
     tidal_session: TidalSession = get_session()
+    msgproc.log(f"handler_element_artist [{artist_id}] got session")
     artist: TidalArtist = tidal_util.try_get_artist(tidal_session, artist_id)
+    msgproc.log(f"handler_element_artist [{artist_id}] loaded [{artist is not None}]")
     if not artist:
         return create_missing_artist_entry(
             objid=objid,
@@ -4683,6 +4753,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             entries=entries)
     # force reload artist image
     tidal_util.get_image_url(artist, refresh=True)
+    msgproc.log(f"handler_element_artist [{artist_id}] artist image url refreshed")
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"Loading page for artist_id: [{artist_id}] "
                     f"artist.id: [{artist.id}] "
@@ -4692,7 +4763,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         (ElementType.ARTIST_ALBUM_EP_SINGLES, "EP and Singles", get_artist_albums_ep_singles_image_url),
         (ElementType.ARTIST_ALBUM_OTHERS, "Other Albums", get_artist_albums_others_image_url)]
     for album_tuple in album_tuple_array:
-        # msgproc.log(f"handler_element_artist - artist_id {artist_id} current tuple [{album_tuple[0]}]")
+        msgproc.log(f"handler_element_artist artist_id [{artist_id}] adding [{album_tuple[1]}] ...")
         try:
             album_art_uri: str = album_tuple[2](tidal_session, artist_id) if album_tuple[2] else None
             # if there is no album_art_uri, it means there are no albums in the category
@@ -4709,6 +4780,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             entries.append(entry)
         except Exception:
             msgproc.log(f"handler_element_artist - cannot create [{album_tuple[0]}]")
+    msgproc.log(f"handler_element_artist [{artist_id}] adding related node")
     # add related node
     related_identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_FOCUS.getName(),
@@ -4724,6 +4796,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), entry)
     entries.append(entry)
     if config.get_allow_favorite_actions():
+        msgproc.log(f"handler_element_artist [{artist_id}] adding favorite action")
         in_favorites: bool = artist.id in get_favorite_artist_id_list(tidal_session=tidal_session)
         fav_action_elem: ElementType
         fav_action_text: str
@@ -4742,6 +4815,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
         upnp_util.set_album_art_from_uri(tidal_util.get_image_url(artist), fav_entry)
         entries.append(fav_entry)
     if config.get_allow_bookmark_actions():
+        msgproc.log(f"handler_element_artist [{artist_id}] adding bookmark action")
         lqb_entry: dict[str, any] = create_listen_queue_action_for_artist_view(objid, artist)
         entries.append(lqb_entry)
     return entries
@@ -4802,6 +4876,8 @@ def handler_element_track_container(objid, item_identifier: ItemIdentifier, entr
     if track:
         context: Context = Context()
         context.add(key=ContextKey.IS_TRACK, value=True)
+        context.add(key=ContextKey.CONTAINER_TYPE, value=ContainerType.TRACK)
+        context.add(key=ContextKey.CONTAINER_ID, value=track_id)
         tidal_track_adapter: TrackAdapter = choose_track_adapter_by_tidal_track(
             tidal_session=tidal_session,
             track=track)
@@ -5643,7 +5719,8 @@ def __choose_track_adapter_by_track_id(
 
 def image_retriever_categories(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     categories = get_categories(tidal_session=tidal_session)
     first = categories[0] if categories and len(categories) > 0 else None
     return get_category_image_url(
@@ -5659,7 +5736,8 @@ def image_retriever_home_page(
 
 def image_retriever_explore_new_music(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     # generic icon for tag
     msgproc.log(f"image_retriever_explore_new_music looking for specific image for tag [{tag_type.name}] ...")
     tag_image_url: str = get_static_image_url_by_image_name_no_ext(
@@ -5680,25 +5758,29 @@ def image_retriever_explore_new_music(
 
 def image_retriever_rising(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.RISING)
 
 
 def image_retriever_featured(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.FOR_YOU)
 
 
 def image_retriever_for_you(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.FOR_YOU)
 
 
 def image_retriever_explore(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     return __image_retriever_by_page_definition(tidal_session, TidalPageDefinition.EXPLORE)
 
 
@@ -5713,28 +5795,32 @@ def __image_retriever_by_page_definition(
 
 def image_retriever_hires_page(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.HI_RES)
     return image_retriever_page(page=page)
 
 
 def image_retriever_genres_page(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.GENRES)
     return image_retriever_page(page=page)
 
 
 def image_retriever_local_genres_page(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.LOCAL_GENRES)
     return image_retriever_page(page=page)
 
 
 def image_retriever_moods_page(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     page: TidalPage = get_tidal_page(tidal_session, TidalPageDefinition.MOODS)
     return image_retriever_page(page=page)
 
@@ -5780,7 +5866,12 @@ def image_retriever_page(
     return image_url
 
 
-def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loader) -> str:
+def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loader, obj_cache: dict[str, any]) -> str:
+    # in tag image cache?
+    if tag_type.name in tag_images:
+        msgproc.log(f"image_retriever_cached cache hit for [{tag_type.name}] in tag_images!")
+        return tag_images[tag_type.name]
+    msgproc.log(f"image_retriever_cached cache miss for [{tag_type.name}] in tag_images.")
     # specific image for the tag?
     allow_named_static_images: bool = config.get_config_param_as_bool(constants.ConfigParam.ALLOW_NAMED_STATIC_IMAGES)
     allow_generic_static_images: bool = config.get_config_param_as_bool(constants.ConfigParam.ALLOW_GENERIC_STATIC_IMAGES)
@@ -5814,11 +5905,8 @@ def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loade
         if base_url and not config.get_enable_image_caching() and image_url.startswith(base_url):
             msgproc.log(f"Ignoring cached url [{image_url}]")
             image_url = None
-    # msgproc.log(f"Image for tag [{tag_type.name}] "
-    #             f"cached [{'yes' if image_url else 'no'}] "
-    #             f"url [{image_url}]")
     if not image_url:
-        image_url = loader(tidal_session, tag_type)
+        image_url = loader(tidal_session, tag_type, obj_cache)
         if image_url:
             persistence.save_tile_image(TileType.TAG, tag_type.name, image_url)
     return image_url if image_url else static_image_url
@@ -5826,23 +5914,36 @@ def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loade
 
 def image_retriever_my_playlists(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
-    playlists: list[TidalUserPlaylist] = tidal_session.user.playlists()
-    first: TidalUserPlaylist = playlists[0] if playlists and len(playlists) > 0 else None
-    return tidal_util.get_image_url(first) if first else None
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
+    if "all-playlists" not in obj_cache:
+        playlists: list[TidalPlaylist] = tidal_session.user.playlist_and_favorite_playlists()
+        obj_cache["all-playlists"] = playlists
+    else:
+        playlists: list[TidalPlaylist] = obj_cache["all-playlists"]
+    # we only want user playlists here, not favorite playlists
+    playlists = [p for p in playlists if isinstance(p, TidalUserPlaylist)]
+    select_playlist: TidalUserPlaylist = secrets.choice(playlists) if playlists and len(playlists) > 0 else None
+    return tidal_util.get_image_url(select_playlist) if select_playlist else None
 
 
 def image_retriever_all_playlists(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
-    playlists: list[TidalPlaylist] = tidal_session.user.playlist_and_favorite_playlists()
-    first: TidalPlaylist = playlists[0] if playlists and len(playlists) > 0 else None
-    return tidal_util.get_image_url(first) if first else None
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
+    if "all-playlists" not in obj_cache:
+        playlists: list[TidalPlaylist] = tidal_session.user.playlist_and_favorite_playlists()
+        obj_cache["all-playlists"] = playlists
+    else:
+        playlists: list[TidalPlaylist] = obj_cache["all-playlists"]
+    select_playlist: TidalPlaylist = secrets.choice(playlists) if playlists and len(playlists) > 0 else None
+    return tidal_util.get_image_url(select_playlist) if select_playlist else None
 
 
 def image_retriever_favorite_albums(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     items: list[TidalAlbum] = tidal_session.user.favorites.albums(limit=1, offset=0)
     first: TidalAlbum = items[0] if items and len(items) > 0 else None
     return tidal_util.get_image_url(first) if first else None
@@ -5850,7 +5951,8 @@ def image_retriever_favorite_albums(
 
 def image_retriever_favorite_artists(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     items: list[TidalArtist] = tidal_session.user.favorites.artists(limit=1, offset=0)
     first: TidalArtist = items[0] if items and len(items) > 0 else None
     return tidal_util.get_image_url(first) if first else None
@@ -5858,7 +5960,8 @@ def image_retriever_favorite_artists(
 
 def image_retriever_favorite_tracks(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     items: list[TidalTrack] = tidal_session.user.favorites.tracks(limit=1, offset=0)
     first: TidalTrack = items[0] if items and len(items) > 0 else None
     return (tidal_util.get_album_art_url_by_album_id(
@@ -5869,7 +5972,8 @@ def image_retriever_favorite_tracks(
 
 def image_retriever_playback_statistics(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     items: list[PlayedTrack] = persistence.get_last_played_tracks(max_tracks=10)
     first: PlayedTrack = secrets.choice(items) if items and len(items) > 0 else None
     image_url = (tidal_util.get_album_art_url_by_album_id(
@@ -5909,7 +6013,8 @@ def __get_random_artist_id_from_listen_queue() -> str:
 
 def image_retriever_listen_queue(
         tidal_session: TidalSession,
-        tag_type: TagType) -> str:
+        tag_type: TagType,
+        obj_cache: dict[str, any]) -> str:
     select_album_id: str = __get_random_album_id_from_listen_queue()
     return (tidal_util.get_album_art_url_by_album_id(
         album_id=select_album_id,
@@ -5929,7 +6034,7 @@ def __get_page(tidal_session: TidalSession, page_path: str) -> TidalPage:
     return tidal_session.page.get(page_path)
 
 
-__tag_image_retriever: dict = {
+__tag_image_retriever: dict[str, Callable[[TidalSession, TagType, dict[str, any]], str]] = {
     # image for PAGE_SELECTION is same as featured
     TagType.PAGE_SELECTION.name: image_retriever_featured,
     TagType.CATEGORIES.name: image_retriever_categories,
@@ -6088,11 +6193,24 @@ def get_tag_hidden_from_front_page() -> list[TagType]:
 
 
 def show_tags(objid, entries: list, tidal_session: TidalSession) -> list:
+    obj_cache: dict[str, any] = {}
+    tags_start: float = time.time()
+    hidden_tags: list[TagType] = get_tag_hidden_from_front_page()
     for tag in TagType:
-        if tag not in get_tag_hidden_from_front_page():
-            show_single_tag(objid, tidal_session, tag, entries)
+        tag_start: float = time.time()
+        if tag not in hidden_tags:
+            show_single_tag(
+                objid=objid,
+                tidal_session=tidal_session,
+                tag=tag,
+                entries=entries,
+                obj_cache=obj_cache)
+            tag_elapsed: float = time.time() - tag_start
         else:
             msgproc.log(f"{TagType.__name__} [{tag.name}] is hidden from the front page")
+        msgproc.log(f"show_tags [{tag.name}] elapsed [{tag_elapsed:.3f}]")
+    tags_elapsed: float = time.time() - tags_start
+    msgproc.log(f"show_tags elapsed [{tags_elapsed:.3f}]")
     return entries
 
 
@@ -6103,15 +6221,20 @@ def is_tag_enabled(tag: TagType) -> bool:
         return True
 
 
-def show_single_tag(objid, tidal_session: TidalSession, tag: TagType, entries: list) -> list:
+def show_single_tag(
+        objid,
+        tidal_session: TidalSession,
+        tag: TagType,
+        entries: list,
+        obj_cache: dict[str, any] = {}) -> list:
     if not is_tag_enabled(tag):
         # tag is disabled, we do nothing
         return entries
     tag_display_name: str = get_tidal_tag_type_by_name(tag.name)
     get_image_start: float = time.time()
-    curr_tag_img_retriever = (__tag_image_retriever[tag.name]
-                              if tag.name in __tag_image_retriever
-                              else None)
+    curr_tag_img_retriever: Callable[[TidalSession, TagType, dict[str, any]], str] = (__tag_image_retriever[tag.name]
+                                if tag.name in __tag_image_retriever
+                                else None)
     get_image_elapsed: float = time.time() - get_image_start
     msgproc.log(f"show_single_tag [{tag.name}] get_image elapsed [{get_image_elapsed:.3f}] sec")
     if not curr_tag_img_retriever:
@@ -6119,7 +6242,8 @@ def show_single_tag(objid, tidal_session: TidalSession, tag: TagType, entries: l
     curr_tag_img: str = (image_retriever_cached(
         tidal_session=tidal_session,
         tag_type=tag,
-        loader=curr_tag_img_retriever) if curr_tag_img_retriever else None)
+        loader=curr_tag_img_retriever,
+        obj_cache=obj_cache) if curr_tag_img_retriever else None)
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"show_single_tag image for [{tag_display_name}] is [{curr_tag_img}]")
     tag_entry: dict[str, any] = tag_to_entry(objid, tag)
@@ -6147,7 +6271,6 @@ def skip_cache(item_identifier: ItemIdentifier) -> bool:
 def browse(a):
     start: float = time.time()
     msgproc.log(f"browse: args: --{a}--")
-    _inittidal()
     if 'objid' not in a:
         raise Exception("No objid in args")
     objid = a['objid']
@@ -6377,10 +6500,8 @@ def search(a):
     allow_next: bool = search_result_track_as_container and config.get_config_param_as_bool(
         configuration_parameter=constants.ConfigParam.ALLOW_NEXT_IN_SEARCH_RESULT)
     msgproc.log("search: [%s]" % a)
-    _inittidal()
     objid = a["objid"]
     entries = []
-
     # Run the search and build a list of entries in the expected format. See for example
     # ../radio-browser/radiotoentry for an example
     value: str = a["value"]
@@ -6388,7 +6509,6 @@ def search(a):
     objkind: str = a["objkind"] if "objkind" in a else None
     origsearch: str = a["origsearch"] if "origsearch" in a else None
     # if not objkind or len(objkind) == 0: objkind = field
-
     msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
     initial_size: int = len(entries)  # should be 0
     search_limit: int = config.get_config_param_as_int(constants.ConfigParam.SEARCH_LIMIT)
@@ -6569,6 +6689,62 @@ def copy_static_images(path_static_images: list[str], static_images_dir: str):
     msgproc.log(f"copy_static_images loaded [{len(static_images_dict)}] keys.")
 
 
+tag_images: dict[str, str] = {}
+
+def preloading():
+    msgproc.log("preloading started ...")
+    tidal_session: TidalSession = get_session()
+    msgproc.log("preloading got a session")
+    cn: sqlite3.Connection = persistence.get_connection()
+    msgproc.log("preloading got a connection")
+    # TODO load favorite artists
+    # TODO load favorite albums
+    album_list: list[TidalAlbum] = tidal_session.user.favorites.albums_paginated()
+    msgproc.log(f"preloading loading [{len(album_list)}] albums ...")
+    curr_album: TidalAlbum
+    for curr_album in album_list:
+        album_start: float = time.time()
+        msgproc.log(f"preloading processing album [{curr_album.id}] ...")
+        curr_album_md: AlbumMetadata = tidal_album_to_album_metadata(curr_album)
+        persistence.store_album_metadata(album_metadata=curr_album_md, connection=cn)
+        msgproc.log(f"preloading processed album [{curr_album.id}] in [{(time.time() - album_start):.3f}]")
+    # TODO load favorite songs
+    # get images for page selection
+    page_selection_tags: list[TagType] = get_page_selection()
+    obj_cache: dict[str, any] = {}
+    curr_page: TagType
+    page_selection_images: dict[str, str] = {}
+    for curr_page in page_selection_tags:
+        msgproc.log(f"preload page [{curr_page}] ...")
+        curr_tag_img_retriever: Callable[[TidalSession, TagType, dict[str, any]], str] = (
+            __tag_image_retriever[curr_page.name]
+            if curr_page.name in __tag_image_retriever
+            else None)
+        if not curr_tag_img_retriever:
+            # go on
+            msgproc.log(f"preloading not image retriever for [{curr_page}]")
+            if curr_page.name in tag_images:
+                del tag_images[curr_page.name]
+            continue
+        curr_tag_img: str = (image_retriever_cached(
+            tidal_session=tidal_session,
+            tag_type=curr_page,
+            loader=curr_tag_img_retriever,
+            obj_cache=obj_cache) if curr_tag_img_retriever else None)
+        msgproc.log(f"preloading page [{curr_page}] -> [{curr_tag_img}]")
+        if curr_tag_img:
+            tag_images[curr_page.name] = curr_tag_img
+            page_selection_images[curr_page.name] = curr_tag_img
+        # select an icon for the "Page Selection" tag itself
+        if len(page_selection_images) > 0:
+            msgproc.log(f"preloading selecting an image for [{TagType.PAGE_SELECTION}] ...")
+            # select one randomly
+            page_selection_img: str = secrets.choice(list(page_selection_images.values()))
+            tag_images[TagType.PAGE_SELECTION.name] = page_selection_img
+            msgproc.log(f"preloading [{TagType.PAGE_SELECTION}] -> [{page_selection_img}]")
+    msgproc.log("preloading finished")
+
+
 def _inittidal():
     global _g_init
     if _g_init:
@@ -6618,4 +6794,17 @@ def _inittidal():
     return True
 
 
+def preloading_worker():
+    preload_interval: int = config.get_config_param_as_int(constants.ConfigParam.PRELOAD_INTERVAL)
+    msgproc.log(f"preloading_worker interval [{preload_interval}]")
+    while True:
+        preloading()
+        time.sleep(3600)
+
+
+_inittidal()
+# preloading
+thread = threading.Thread(target=preloading_worker, args=tuple([]))
+# Start it
+thread.start()
 msgproc.mainloop()

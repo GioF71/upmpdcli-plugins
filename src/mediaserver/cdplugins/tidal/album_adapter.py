@@ -1,4 +1,4 @@
-# Copyright (C) 2024,2025 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ dispatcher = cmdtalkplugin.Dispatch()
 msgproc = cmdtalkplugin.Processor(dispatcher)
 
 
-def __albumToAlbumMetadata(album: TidalAlbum) -> AlbumMetadata:
+def tidal_album_to_album_metadata(album: TidalAlbum) -> AlbumMetadata:
     result: AlbumMetadata = AlbumMetadata()
     result.album_id = album.id
     result.album_name = album.name
@@ -48,6 +48,10 @@ def __albumToAlbumMetadata(album: TidalAlbum) -> AlbumMetadata:
     result.album_duration = album.duration
     result.num_volumes = album.num_volumes
     result.num_tracks = album.num_tracks
+    result.user_date_added = album.user_date_added
+    result.artist_id_list = [x.id for x in album.artists]
+    result.artist_name_list = [x.name for x in album.artists]
+    result.artist_image_url_list = [tidal_util.get_image_url(x) for x in album.artists]
     return result
 
 
@@ -78,7 +82,7 @@ class AlbumAdapter:
 
 
 def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
-    persistence.store_album_metadata(__albumToAlbumMetadata(tidal_album))
+    persistence.store_album_metadata(tidal_album_to_album_metadata(tidal_album))
     album_adapter: AlbumAdapter = AlbumAdapter()
     album_adapter.id = tidal_album.id
     album_adapter.name = tidal_album.name
@@ -104,7 +108,7 @@ def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
     return album_adapter
 
 
-def __album_metadata_to_adapter(album_metadata: AlbumMetadata) -> AlbumAdapter:
+def album_metadata_to_adapter(album_metadata: AlbumMetadata) -> AlbumAdapter:
     album_adapter: AlbumAdapter = AlbumAdapter()
     album_adapter.id = album_metadata.album_id
     album_adapter.name = album_metadata.album_name
@@ -133,7 +137,7 @@ def album_adapter_by_album_id(
     album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
     # msgproc.log(f"album_adapter_by_album_id [{album_id}] cache hit: [{'yes' if album_metadata else 'no'}]")
     if album_metadata:
-        return __album_metadata_to_adapter(album_metadata)
+        return album_metadata_to_adapter(album_metadata)
     # load the album if no metadata is available
     tidal_album: TidalAlbum = tidal_album_loader(album_id)
     # convert to adapter (performs caching)

@@ -40,7 +40,6 @@ class TileType(Enum):
 
 
 def get_tile_type_by_name(tile_type_name: str) -> TileType:
-    # msgproc.log(f"get_tidal_tag_type_by_name with {tag_name}")
     for _, member in TileType.__members__.items():
         if tile_type_name == member.tile_type_name:
             return member

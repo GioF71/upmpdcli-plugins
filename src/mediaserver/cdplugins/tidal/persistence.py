@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ import sqlite3
 from typing import Callable
 from enum import Enum
 
-import cmdtalkplugin
 import upmplgutils
 import constants
 import config
@@ -33,10 +32,7 @@ from tile_image import TileImage
 
 from played_track_request import PlayedTrackRequest
 
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+from msgproc_provider import msgproc
 
 __table_name_played_track_v1: str = "played_track_v1"
 
@@ -84,6 +80,10 @@ class Column(Enum):
     ALBUM_DURATION = ColumnData(column_name="duration", column_type="INTEGER")
     NUM_VOLUMES = ColumnData(column_name="num_volumes", column_type="INTEGER")
     NUM_TRACKS = ColumnData(column_name="num_tracks", column_type="INTEGER")
+    USER_DATE_ADDED = ColumnData(column_name="user_date_added", column_type="TIMESTAMP")
+    ARTIST_ID_LIST = ColumnData(column_name="artist_id_list", column_type="TEXT")
+    ARTIST_NAME_LIST = ColumnData(column_name="artist_name_list", column_type="TEXT")
+    ARTIST_IMAGE_URL_LIST = ColumnData(column_name="artist_image_url_list", column_type="TEXT")
 
     @property
     def column_name(self) -> str:
@@ -134,7 +134,11 @@ class AlbumMetadata:
     album_duration: int = None
     num_volumes: int = None
     num_tracks: int = None
+    user_date_added: datetime = None
     created_timestamp: datetime = None
+    artist_id_list: list[str] = []
+    artist_name_list: list[str] = []
+    artist_image_url_list: list[str] = []
 
 
 class PlayedTracksSorting(Enum):
@@ -171,7 +175,28 @@ def __get_db_full_path() -> str:
     return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), __get_db_filename())
 
 
-def __get_connection() -> sqlite3.Connection:
+def __adapt_flexible_timestamp(ts_bytes):
+    """
+    This function receives bytes from SQLite and converts them to a datetime object.
+    """
+    if not ts_bytes:
+        return None
+    # SQLite gives us bytes, so decode to string
+    ts_str = ts_bytes.decode('utf-8')
+    # Use the flexible logic we built earlier
+    ts_str = ts_str.strip().replace('Z', '+00:00')
+    try:
+        # Standardize space to T for broader compatibility
+        return datetime.datetime.fromisoformat(ts_str.replace(' ', 'T'))
+    except ValueError:
+        # Fallback for specific formats
+        if '.' in ts_str:
+            return datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S.%f%z")
+        return datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S%z")
+
+
+def get_connection() -> sqlite3.Connection:
+    sqlite3.register_converter("TIMESTAMP", __adapt_flexible_timestamp)
     connection = sqlite3.connect(
         __get_db_full_path(),
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -179,7 +204,7 @@ def __get_connection() -> sqlite3.Connection:
 
 
 def __prepare_table_db_version():
-    cursor_obj = __connection.cursor()
+    cursor_obj = get_connection().cursor()
     # Creating table
     create_table: str = """
         CREATE TABLE IF NOT EXISTS db_version(
@@ -190,7 +215,7 @@ def __prepare_table_db_version():
 
 
 def get_db_version() -> str:
-    cursor = __connection.cursor()
+    cursor = get_connection().cursor()
     cursor.execute("SELECT version FROM db_version")
     rows = cursor.fetchall()
     cursor.close()
@@ -200,26 +225,28 @@ def get_db_version() -> str:
 
 
 def __store_db_version(version: str):
+    connection: sqlite3.Connection = get_connection()
     db_version: str = get_db_version()
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
         insert_tuple = (version, )
-        cursor = __connection.cursor()
+        cursor = connection.cursor()
         cursor.execute("INSERT INTO db_version(version) VALUES(?)", insert_tuple)
         cursor.close()
     else:
         msgproc.log(f"Updating db version to [{version}] from [{current_db_version}] ...")
         update_tuple = (version, current_db_version)
-        cursor = __connection.cursor()
+        cursor = connection.cursor()
         cursor.execute("UPDATE db_version set version = ? WHERE version = ?", update_tuple)
         cursor.close()
-    __connection.commit()
+    connection.commit()
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
 def __prepare_table_played_track_v1():
     msgproc.log("Preparing table played_track_v1 ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     create_table: str = """
         CREATE TABLE played_track_v1(
@@ -246,7 +273,8 @@ def __prepare_table_played_track_v1():
 
 def __prepare_table_tile_image_v1():
     msgproc.log(f"Preparing table {__table_name_tile_image_v1} ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     create_table: str = f"""
         CREATE TABLE {__table_name_tile_image_v1}(
@@ -264,7 +292,8 @@ def load_tile_image(
         tile_type: TileType,
         tile_id: str) -> TileImage:
     t = (tile_type.tile_type_name, tile_id)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         f"SELECT {__field_name_tile_image}, update_time \
           FROM {__table_name_tile_image_v1} \
@@ -288,11 +317,13 @@ def save_tile_image(
         tile_type: TileType,
         tile_id: str,
         tile_image: str):
+    connection: sqlite3.Connection = get_connection()
     now: datetime.datetime = datetime.datetime.now()
     existing: TileImage = load_tile_image(tile_type=tile_type, tile_id=tile_id)
     if existing:
         t = (tile_image, now, tile_type.tile_type_name, tile_id)
-        cursor = __connection.cursor()
+        connection: sqlite3.Connection = get_connection()
+        cursor = connection.cursor()
         cursor.execute(
             f"""
             UPDATE
@@ -305,10 +336,10 @@ def save_tile_image(
                 AND tile_id = ?""",
             t)
         cursor.close()
-        __connection.commit()
+        connection.commit()
     else:
         t = (tile_type.tile_type_name, tile_id, tile_image, now)
-        cursor = __connection.cursor()
+        cursor = connection.cursor()
         cursor.execute(
             f"INSERT INTO \
             {__table_name_tile_image_v1}( \
@@ -320,12 +351,13 @@ def save_tile_image(
                 ?, ?, ?, ?)",
             t)
         cursor.close()
-        __connection.commit()
+        connection.commit()
 
 
 def __alter_played_track_v1_add_album_id():
     msgproc.log("Updating table played_track_v1 with new column album_id ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     alter: str = """
         ALTER TABLE played_track_v1
@@ -338,7 +370,8 @@ def __alter_played_track_v1_add_album_id():
 
 def __alter_played_track_v1_add_album_track_count():
     msgproc.log("Updating table played_track_v1 with new column album_track_count ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     alter: str = """
         ALTER TABLE played_track_v1
@@ -351,7 +384,8 @@ def __alter_played_track_v1_add_album_track_count():
 
 def __add_index_by_album_id_to_played_track_v1():
     msgproc.log("Adding index on album_id on table played_track_v1 ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     create_index: str = """
         CREATE INDEX played_track_idx_album_id
         ON played_track_v1(album_id)"""
@@ -362,7 +396,8 @@ def __add_index_by_album_id_to_played_track_v1():
 
 def __alter_tile_image_v1_add_update_time():
     msgproc.log(f"Updating table {__table_name_tile_image_v1} with new column update_time ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     alter: str = f"""
         ALTER TABLE {__table_name_tile_image_v1}
@@ -375,7 +410,8 @@ def __alter_tile_image_v1_add_update_time():
 
 def __alter_table_with_column(table_name: str, column_name: str, column_type: str):
     msgproc.log(f"Updating table {table_name} with new column {column_name} type {column_type} ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     alter: str = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
     cursor_obj.execute(alter)
@@ -385,7 +421,8 @@ def __alter_table_with_column(table_name: str, column_name: str, column_type: st
 
 def __alter_table_drop_column(table_name: str, column_name: str):
     msgproc.log(f"Updating table {table_name} dropping column {column_name} ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     # Creating table
     alter: str = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
     success: bool = False
@@ -498,7 +535,8 @@ def migration_9():
 
 def do_migration_10():
     msgproc.log(f"Adding index on tile_type, tile_id on table {__table_name_tile_image_v1} ...")
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     create_index: str = f"""
         CREATE INDEX tile_image_v1_idx_tile_type_and_id
         ON {__table_name_tile_image_v1}(tile_type, tile_id)"""
@@ -524,7 +562,8 @@ def __do_migration_listen_queue(table_name: str, field_name: str):
         {field_name} VARCHAR(255) PRIMARY KEY,
         {__field_name_created_timestamp} TIMESTAMP)
     """
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     cursor_obj.execute(create_table)
     cursor_obj.close()
 
@@ -563,7 +602,8 @@ def do_migration_15():
         {__field_name_media_metadata_tags} VARCHAR(255),
         {__field_name_created_timestamp} TIMESTAMP)
     """
-    cursor_obj = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
     cursor_obj.execute(create_table)
     cursor_obj.close()
 
@@ -581,6 +621,31 @@ def do_migration_16():
         table_name=__table_name_album_metadata_cache_v1,
         column_name=Column.NUM_TRACKS.column_name,
         column_type=Column.NUM_TRACKS.column_type)
+
+
+def do_migration_17():
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.USER_DATE_ADDED.column_name,
+        column_type=Column.USER_DATE_ADDED.column_type)
+
+
+def do_migration_18():
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.ARTIST_ID_LIST.column_name,
+        column_type=Column.ARTIST_ID_LIST.column_type)
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.ARTIST_NAME_LIST.column_name,
+        column_type=Column.ARTIST_NAME_LIST.column_type)
+
+
+def do_migration_19():
+    __alter_table_with_column(
+        table_name=__table_name_album_metadata_cache_v1,
+        column_name=Column.ARTIST_IMAGE_URL_LIST.column_name,
+        column_type=Column.ARTIST_IMAGE_URL_LIST.column_type)
 
 
 def migration_11():
@@ -605,6 +670,18 @@ def migration_15():
 
 def migration_16():
     migration_template("17", do_migration_16)
+
+
+def migration_17():
+    migration_template("18", do_migration_17)
+
+
+def migration_18():
+    migration_template("19", do_migration_18)
+
+
+def migration_19():
+    migration_template("20", do_migration_19)
 
 
 def insert_playback(
@@ -634,7 +711,8 @@ def insert_playback(
         played_track_request.sample_rate,
         play_count,
         last_played)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         "INSERT INTO played_track_v1(track_id, \
                     album_id, \
@@ -658,7 +736,7 @@ def insert_playback(
                     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
 def update_playback(
@@ -688,7 +766,8 @@ def update_playback(
             played_track_request.track_id,
             last_played,
             played_track_request.track_id)
-        cursor = __connection.cursor()
+        connection: sqlite3.Connection = get_connection()
+        cursor = connection.cursor()
         cursor.execute("UPDATE played_track_v1 set album_id = ?, \
                     album_track_count = ?, \
                     track_name = ?, \
@@ -728,7 +807,8 @@ def update_playback(
             played_track_request.bit_depth,
             played_track_request.sample_rate,
             played_track_request.track_id)
-        cursor = __connection.cursor()
+        connection: sqlite3.Connection = get_connection()
+        cursor = connection.cursor()
         cursor.execute("UPDATE played_track_v1 set album_id = ?, \
                     album_track_count = ?, \
                     track_name = ?, \
@@ -747,12 +827,13 @@ def update_playback(
                     sample_rate = ? \
                     WHERE track_id = ?", t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
 def _get_played_tracks(sorting: PlayedTracksSorting, max_tracks: int) -> list[PlayedTrack]:
     t = (max_tracks, )
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     query: str = f"SELECT \
             track_id, \
             play_count, \
@@ -827,7 +908,8 @@ def get_most_played_tracks(max_tracks: int = 100) -> list[PlayedTrack]:
 
 def get_played_track_entry(track_id: str) -> PlayedTrack:
     t = (track_id,)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute("SELECT \
                    play_count, \
                    last_played, \
@@ -876,9 +958,10 @@ def get_played_track_entry(track_id: str) -> PlayedTrack:
     return result
 
 
-def get_played_album_entries(album_id: str) -> list[PlayedTrack]:
-    t = (album_id,)
-    cursor = __connection.cursor()
+def get_played_album_entries(album_id: str, connection: sqlite3.Connection = None) -> list[PlayedTrack]:
+    t: tuple[str] = tuple([album_id])
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute("SELECT \
                    play_count, \
                    last_played, \
@@ -928,6 +1011,8 @@ def get_played_album_entries(album_id: str) -> list[PlayedTrack]:
         played_track.bit_depth = row[16]
         played_track.sample_rate = row[17]
         result.append(played_track)
+    if connection is None:
+        cn.close()
     return result
 
 
@@ -937,7 +1022,8 @@ def track_has_been_played(track_id: str) -> bool:
 
 def album_has_been_played(album_id: str) -> bool:
     t = (album_id,)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute("SELECT album_id, COUNT(album_id) \
                 FROM played_track_v1 \
                 WHERE \
@@ -951,12 +1037,13 @@ def album_has_been_played(album_id: str) -> bool:
 
 def remove_album_from_played_tracks(album_id: str):
     t = (album_id,)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         "UPDATE played_track_v1 SET play_count = 0, last_played = NULL WHERE album_id = ?",
         t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
 def purge_album_from_played_tracks(album_id: str):
@@ -969,23 +1056,25 @@ def purge_album_from_metadata_cache(album_id: str):
 
 def __purge_album_from_table(album_id: str, table_name):
     t = (album_id,)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         f"DELETE FROM {table_name} "
         f"WHERE {__field_name_album_id} = ?",
         t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
 def remove_track_from_played_tracks(track_id: str):
     t = (track_id,)
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         "UPDATE played_track_v1 SET play_count = 0, last_played = NULL WHERE track_id = ?",
         t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
 def is_album_in_played_tracks(
@@ -1002,7 +1091,8 @@ def __is_album_id_in_table(
         album_id: str,
         table_name: str) -> bool:
     t = (album_id, )
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         f"SELECT * \
           FROM {table_name} \
@@ -1016,7 +1106,8 @@ def __is_album_id_in_table(
 
 
 def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(f"{__most_played_albums_query} LIMIT {max_albums}")
     rows = cursor.fetchall()
     cursor.close()
@@ -1061,9 +1152,11 @@ def track_playback(played_track_request: PlayedTrackRequest):
 def __is_in_listen_queue(
         obj_id: str,
         key_field_name: str,
-        table_name: str) -> bool:
-    t = (obj_id, )
-    cursor = __connection.cursor()
+        table_name: str,
+        connection: sqlite3.Connection = None) -> bool:
+    t: tuple[str] = tuple([obj_id])
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute(
         f"SELECT {key_field_name} \
           FROM {table_name} \
@@ -1076,34 +1169,40 @@ def __is_in_listen_queue(
     if len(rows) > 1:
         raise Exception(f"Multiple {table_name} records for id [{obj_id}]")
     # only one record, yes, it's in listen queue
+    if connection == None:
+        cn.close()
     return True
 
 
-def is_in_track_listen_queue(track_id: str) -> bool:
+def is_in_track_listen_queue(track_id: str, connection: sqlite3.Connection = None) -> bool:
     return __is_in_listen_queue(
         obj_id=track_id,
         key_field_name=__field_name_track_id,
-        table_name=__table_name_listen_track_queue_v1)
+        table_name=__table_name_listen_track_queue_v1,
+        connection=connection)
 
 
-def is_in_album_listen_queue(album_id: str) -> bool:
+def is_in_album_listen_queue(album_id: str, connection: sqlite3.Connection = None) -> bool:
     return __is_in_listen_queue(
         obj_id=album_id,
         key_field_name=__field_name_album_id,
-        table_name=__table_name_listen_album_queue_v1)
+        table_name=__table_name_listen_album_queue_v1,
+        connection=connection)
 
 
-def is_in_artist_listen_queue(artist_id: str) -> bool:
+def is_in_artist_listen_queue(artist_id: str, connection: sqlite3.Connection = None) -> bool:
     return __is_in_listen_queue(
         obj_id=artist_id,
         key_field_name=__field_name_artist_id,
-        table_name=__table_name_listen_artist_queue_v1)
+        table_name=__table_name_listen_artist_queue_v1,
+        connection=connection)
 
 
 def __get_listen_queue(
         table_name: str,
         key_field_name: str) -> list[str]:
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(
         f"SELECT {key_field_name} \
           FROM {table_name} \
@@ -1138,14 +1237,17 @@ def get_track_listen_queue() -> list[str]:
 def __add_to_listen_queue(
         obj_id: str,
         table_name: str,
-        key_field_name: str) -> bool:
+        key_field_name: str,
+        connection: sqlite3.Connection = None) -> bool:
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
     if not __is_in_listen_queue(
             obj_id=obj_id,
             key_field_name=key_field_name,
-            table_name=table_name):
+            table_name=table_name,
+            connection=cn):
         now: datetime.datetime = datetime.datetime.now()
         t = (obj_id, now)
-        cursor = __connection.cursor()
+        cursor = cn.cursor()
         cursor.execute(
             f"""INSERT INTO {table_name}(
                 {key_field_name},
@@ -1153,10 +1255,14 @@ def __add_to_listen_queue(
                 VALUES(?, ?)""",
             t)
         cursor.close()
-        __connection.commit()
+        cn.commit()
+        if connection is None:
+            cn.close()
         return True
     # already there
     msgproc.log(f"Object [{obj_id}] is already in {table_name}")
+    if connection is None:
+        cn.close()
     return False
 
 
@@ -1184,22 +1290,29 @@ def add_to_track_listen_queue(track_id: str) -> bool:
 def __remove_from_listen_queue(
         obj_id: str,
         table_name: str,
-        key_field_name: str) -> bool:
+        key_field_name: str,
+        connection: sqlite3.Connection = None) -> bool:
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
     if __is_in_listen_queue(
             obj_id=obj_id,
             table_name=table_name,
-            key_field_name=key_field_name):
+            key_field_name=key_field_name,
+            connection=cn):
         t = (obj_id, )
-        cursor = __connection.cursor()
+        cursor = cn.cursor()
         cursor.execute(
             f"""DELETE FROM {table_name}
                 WHERE {key_field_name} = ?""",
             t)
         cursor.close()
-        __connection.commit()
+        cn.commit()
+        if connection is None:
+            cn.close()
         return True
     # not there!
     msgproc.log(f"Object [{obj_id}] is not in {table_name}")
+    if connection is None:
+        cn.close()
     return False
 
 
@@ -1236,15 +1349,17 @@ def clean_image_url_starting_with(base_root: str, opposite: bool = False):
     msgproc.log(f"clean_image_url_starting_with update_str [{update_str}],"
                 f" base_root [{base_root}], "
                 f" value [{t[0]}]")
-    cursor = __connection.cursor()
+    connection: sqlite3.Connection = get_connection()
+    cursor = connection.cursor()
     cursor.execute(update_str, t)
     cursor.close()
-    __connection.commit()
+    connection.commit()
 
 
-def get_album_metadata(album_id: str) -> AlbumMetadata:
+def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
     t = (album_id, )
-    cursor = __connection.cursor()
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute(
         f"""
             SELECT
@@ -1262,6 +1377,10 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
                 {Column.ALBUM_DURATION.column_name},
                 {Column.NUM_VOLUMES.column_name},
                 {Column.NUM_TRACKS.column_name},
+                {Column.USER_DATE_ADDED.column_name},
+                {Column.ARTIST_ID_LIST.column_name},
+                {Column.ARTIST_NAME_LIST.column_name},
+                {Column.ARTIST_IMAGE_URL_LIST.column_name},
                 {__field_name_created_timestamp}
             FROM
                 {__table_name_album_metadata_cache_v1}
@@ -1289,12 +1408,22 @@ def get_album_metadata(album_id: str) -> AlbumMetadata:
     result.album_duration = row[11]
     result.num_volumes = row[12]
     result.num_tracks = row[13]
-    result.created_timestamp = row[14]
+    result.user_date_added = row[14]
+    artist_id_list: str = row[15]
+    if artist_id_list:
+        result.artist_id_list = artist_id_list.split(",")
+    artist_name_list: str = row[16]
+    if artist_name_list:
+        result.artist_name_list = artist_name_list.split(",")
+    artist_image_url_list: str = row[17]
+    if artist_image_url_list:
+        result.artist_image_url_list = artist_image_url_list.split(",")
+    result.created_timestamp = row[18]
     return result
 
 
-def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
-    t = (
+def __insert_album_metadata(album: AlbumMetadata, connection: sqlite3.Connection = None, commit: bool = False):
+    t: tuple[str] = tuple([
         album.album_id,
         album.album_name,
         album.artist_id,
@@ -1309,8 +1438,13 @@ def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
         album.album_duration,
         album.num_volumes,
         album.num_tracks,
-        album.created_timestamp)
-    cursor = __connection.cursor()
+        album.user_date_added,
+        ",".join([str(x) for x in album.artist_id_list]),
+        ",".join([x for x in album.artist_name_list]),
+        ",".join([x for x in album.artist_image_url_list]),
+        album.created_timestamp])
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute(
         f"""
             INSERT INTO {__table_name_album_metadata_cache_v1}(
@@ -1328,43 +1462,55 @@ def __insert_album_metadata(album: AlbumMetadata, commit: bool = False):
                 {Column.ALBUM_DURATION.column_name},
                 {Column.NUM_VOLUMES.column_name},
                 {Column.NUM_TRACKS.column_name},
+                {Column.USER_DATE_ADDED.column_name},
+                {Column.ARTIST_ID_LIST.column_name},
+                {Column.ARTIST_NAME_LIST.column_name},
+                {Column.ARTIST_IMAGE_URL_LIST.column_name},
                 {__field_name_created_timestamp}
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
         """,
         t)
     cursor.close()
     if commit:
-        __connection.commit()
+        cn.commit()
+    if connection is None:
+        cn.close()
 
 
-def __delete_album_metadata(album_id: str, commit: bool = False):
+def __delete_album_metadata(album_id: str, connection: sqlite3.Connection = None, commit: bool = False):
     t = (album_id, )
-    cursor = __connection.cursor()
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute(
         f"""DELETE FROM {__table_name_album_metadata_cache_v1}
             WHERE {__field_name_album_id} = ?""",
         t)
     cursor.close()
     if commit:
-        __connection.commit()
+        connection.commit()
+    if connection is None:
+        cn.close()
 
 
-def store_album_metadata(album_metadata: AlbumMetadata):
-    if get_album_metadata(album_id=album_metadata.album_id):
+def store_album_metadata(album_metadata: AlbumMetadata, connection: sqlite3.Connection = None):
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    if get_album_metadata(album_id=album_metadata.album_id, connection=cn):
         # we want to overwrite so we delete first
         __delete_album_metadata(
             album_id=album_metadata.album_id,
+            connection=cn,
             commit=False)
     # now we can always insert
     __insert_album_metadata(
         album=album_metadata,
+        connection=cn,
         commit=True)
-    pass
+    if connection == None:
+        cn.close()
 
 
-__connection: sqlite3.Connection = __get_connection()
 __prepare_table_db_version()
 
 current_db_version: str = get_db_version()
@@ -1458,7 +1604,19 @@ migrations: list[Migration] = [
     Migration(
         migration_name="add_duration_num_vol_num_tracks_to_album_metadata_v1",
         apply_on="16",
-        migration_function=migration_16)]
+        migration_function=migration_16),
+    Migration(
+        migration_name="add user date added to album_metadata_v1",
+        apply_on="17",
+        migration_function=migration_17),
+    Migration(
+        migration_name="add artist id and name lists to album_metadata_v1",
+        apply_on="18",
+        migration_function=migration_18),
+    Migration(
+        migration_name="add artist image url list to album_metadata_v1",
+        apply_on="19",
+        migration_function=migration_19)]
 
 current_migration: Migration
 for current_migration in migrations:

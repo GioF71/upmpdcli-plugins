@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cmdtalkplugin
 import upmplgutils
 import constants
 import config
@@ -23,6 +22,7 @@ import secrets
 import mimetypes
 import glob
 import pathlib
+import sqlite3
 
 import upmpdmeta
 import upnp_util
@@ -58,10 +58,9 @@ from album_sort_criteria import AlbumSortCriteria
 from album_adapter import AlbumAdapter
 from datetime import datetime
 
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+
+from msgproc_provider import msgproc
+
 
 log_unavailable_images_sizes: bool = (upmplgutils.getOptionValue(
     f"{constants.PluginConstant.PLUGIN_NAME.value}log_unavailable_images_sizes",
@@ -929,8 +928,10 @@ class PageLinkIdentifier:
         return self.__category_title
 
 
-def get_cached_audio_quality(album_id: str) -> CachedTidalQuality:
-    played_track_list: list[PlayedTrack] = persistence.get_played_album_entries(album_id)
+def get_cached_audio_quality(album_id: str, connection: sqlite3.Connection = None) -> CachedTidalQuality:
+    played_track_list: list[PlayedTrack] = persistence.get_played_album_entries(
+        album_id=album_id,
+        connection=connection)
     if not played_track_list or len(played_track_list) == 0:
         return None
     # get first

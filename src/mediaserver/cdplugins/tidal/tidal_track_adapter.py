@@ -18,14 +18,9 @@ from track_adapter import TrackAdapter
 from tidalapi.session import Session as TidalSession
 from tidalapi.media import Track as TidalTrack
 from tidalapi.album import Album as TidalAlbum
-import cmdtalkplugin
 import tidal_util
 
-
-# Func name to method mapper
-dispatcher = cmdtalkplugin.Dispatch()
-# Pipe message handler
-msgproc = cmdtalkplugin.Processor(dispatcher)
+from msgproc_provider import msgproc
 
 
 class TidalTrackAdapter(TrackAdapter):

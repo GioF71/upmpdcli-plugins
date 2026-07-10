@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ import lafv_matcher
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.8.12"
+    PLUGIN_RELEASE = "0.8.13"
     PLUGIN_NAME = "tidal"
     CACHED_IMAGES_DIRECTORY = "images"
     STATIC_IMAGES_DIRECTORY = "static-images"
@@ -153,9 +153,16 @@ class ConfigParam(Enum):
 
     PAGE_ITEMS_FOR_TILE_IMAGE = _ConfigParamData("pageitemsfortileimage", 1)
     ALLOW_SEARCH_IMAGE_FOR_PAGELINK = _ConfigParamData("allowsearchimageforpagelink", False)
-    ALLOW_SEARCH_IMAGE_FOR_PAGE = _ConfigParamData("allowsearchimageforpage", False)
+    ALLOW_SEARCH_IMAGE_FOR_PAGE = _ConfigParamData("allowsearchimageforpage", True)
 
     ENABLE_TILE_IMAGE_CACHE = _ConfigParamData("enabletileimagecache", False)
+
+    PRELOAD_INTERVAL = _ConfigParamData("preloadinterval", 3600)
+
+
+    LOG_WITH_TIMESTAMP = _ConfigParamData(
+        "logwithtimestamp",
+        True)
 
     @property
     def key(self) -> str:
