@@ -1,5 +1,9 @@
 # Tidal Plugin Release notes
 
+## 0.8.13.1
+
+- Revert accidental changes to subsonic plugin
+
 ## 0.8.13
 
 - Review tidal plugin initialization process

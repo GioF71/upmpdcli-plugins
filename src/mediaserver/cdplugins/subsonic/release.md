@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.15.1
+
+- Restored functionality after accidental changes done during work for Tidal Plugin
+
 ## Release 0.9.15
 
 - Execute vacuum is now disabled by default (slows down initialization)

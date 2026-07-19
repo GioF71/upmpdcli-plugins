@@ -458,11 +458,11 @@ def __get_sql_oldest_metadata(table_name: str) -> str:
 
 
 def __get_sqlite3_selector(connection: sqlite3.Connection = None) -> sqlhelper.SqlSelector:
-    return sqlite3util.get_sqlite3_selector(connection if connection is not None else get_connection())
+    return sqlite3util.get_sqlite3_selector(connection if connection is not None else __get_connection())
 
 
 def __get_sqlite3_executor(connection: sqlite3.Connection = None) -> sqlhelper.SqlExecutor:
-    return sqlite3util.get_sqlite3_executor(connection if connection is not None else get_connection())
+    return sqlite3util.get_sqlite3_executor(connection if connection is not None else __get_connection())
 
 
 def get_random_cover_art_by_artist_id(artist_id: str, connection: sqlite3.Connection = None) -> list[ArtistAlbumCoverArt]:
@@ -1211,7 +1211,7 @@ def get_kv_partition_count(
 def get_table_count(
         table_name: TableName,
         connection: sqlite3.Connection = None) -> int:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     q: str = sqlhelper.create_simple_count_sql(table_name=table_name.value)
     rows: list[Any] = sqlite3util.get_sqlite3_selector(the_connection)(sql=q, parameters=())
     if not rows:
@@ -1700,7 +1700,7 @@ def __save_song_metadata(
         force_insert: bool = False,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> tuple[SongMetadata, SaveMode]:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing_metadata: SongMetadata = (get_song_metadata(song_id=song_metadata.song_id, connection=the_connection)
                                        if not force_insert
                                        else None)
@@ -1930,7 +1930,7 @@ def save_song_contributor(
         artist_sub_role: str,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> int:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
         INSERT INTO {TableName.SONG_CONTRIBUTOR_V1.value}(
             {SongContributorMetaModel.SONG_ID.column_name.value},
@@ -1968,7 +1968,7 @@ def save_song_artist(
         song_artist_id: str,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> int:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
         INSERT INTO {TableName.SONG_ARTIST_V1.value}(
             {SongArtistMetaModel.SONG_ID.column_name.value},
@@ -2000,7 +2000,7 @@ def save_song_album_artist(
         song_album_artist_id: str,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> int:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
         INSERT INTO {TableName.SONG_ALBUM_ARTIST_V1.value}(
             {SongAlbumArtistMetaModel.SONG_ID.column_name.value},
@@ -2072,7 +2072,7 @@ def __save_album_metadata(
         force_insert: bool = False,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> tuple[AlbumMetadata, SaveMode]:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing_metadata: AlbumMetadata = (get_album_metadata(album_id=album_metadata.album_id, connection=the_connection)
                                         if not force_insert
                                         else None)
@@ -2121,7 +2121,7 @@ def save_artist_metadata(
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> ArtistMetadata:
     start: float = time.time()
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     result: ArtistMetadata = __save_artist_metadata(
         artist_metadata=artist_metadata,
         connection=the_connection,
@@ -2187,7 +2187,7 @@ def __save_artist_metadata(
         artist_metadata: ArtistMetadata,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> ArtistMetadata:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     if config.get_verbose_logging():
         msgproc.log(f"save_artist_metadata for artist_id: {artist_metadata.artist_id} "
                     f"name [{artist_metadata.artist_name}] "
@@ -2303,7 +2303,7 @@ def update_artist_roles(
         connection: sqlite3.Connection = None,
         do_commit: bool = True):
     # in the end, roles must match the provided roles
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing: list[ArtistRole] = __load_artist_roles(artist_id=artist_id, connection=the_connection)
     existing_roles: list[str] = list(map(lambda x: x.artist_role, existing))
     to_add: list[str] = list(filter(lambda r: r not in existing_roles, artist_roles))
@@ -2466,7 +2466,7 @@ def __insert_list(
         column_extractor: Callable[[Any], list[Any]],
         connection: sqlite3.Connection = None,
         do_commit: bool = True):
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     insert_sql: str = sqlhelper.create_simple_insert_sql(
         table_name=table_name.value,
         column_list=list(map(lambda x: x.value, column_list)))
@@ -3099,7 +3099,7 @@ def __execute_update(
         data: tuple,
         connection: sqlite3.Connection = None,
         do_commit: bool = True) -> int:
-    the_connection: sqlite3.Connection = connection if connection is not None else get_connection()
+    the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     update_count: int = sqlhelper.neutral_execute_update(
         sql_executor=sqlite3util.get_sqlite3_executor(the_connection),
         sql=sql,
@@ -3124,7 +3124,7 @@ def commit(connection: sqlite3.Connection):
 
 def do_vacuum():
     msgproc.log("Executing VACUUM ...")
-    connection: sqlite3.Connection = get_connection()
+    connection: sqlite3.Connection = __get_connection()
     cursor_obj = connection.cursor()
     cursor_obj.execute("VACUUM")
     cursor_obj.close()
@@ -3134,7 +3134,7 @@ def do_vacuum():
 
 def __do_delete_table(table_name: str):
     msgproc.log(f"Deleting table {table_name} ...")
-    connection: sqlite3.Connection = get_connection()
+    connection: sqlite3.Connection = __get_connection()
     cursor_obj = connection.cursor()
     cursor_obj.execute(f"DROP TABLE {table_name}")
     cursor_obj.close()
@@ -3144,7 +3144,7 @@ def __do_delete_table(table_name: str):
 
 def __do_create_table(table_name: str, sql: str):
     msgproc.log(f"Preparing table {table_name} ...")
-    connection: sqlite3.Connection = get_connection()
+    connection: sqlite3.Connection = __get_connection()
     cursor_obj = connection.cursor()
     cursor_obj.execute(sql)
     cursor_obj.close()
@@ -3186,7 +3186,7 @@ def __prepare_table_db_version():
         CREATE TABLE IF NOT EXISTS {TableName.DB_VERSION.value}(
         version VARCHAR(32) PRIMARY KEY)
     """
-    connection: sqlite3.Connection = get_connection()
+    connection: sqlite3.Connection = __get_connection()
     cursor_obj = connection.cursor()
     cursor_obj.execute(create_table)
     cursor_obj.close()
@@ -3194,7 +3194,7 @@ def __prepare_table_db_version():
 
 
 def get_db_version() -> str:
-    connection: sqlite3.Connection = get_connection()
+    connection: sqlite3.Connection = __get_connection()
     cursor = connection.cursor()
     cursor.execute(sqlhelper.create_simple_select_sql(
         table_name=TableName.DB_VERSION.value,
@@ -3212,7 +3212,7 @@ def __store_db_version(version: str):
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
         insert_tuple = tuple([version])
-        connection: sqlite3.Connection = get_connection()
+        connection: sqlite3.Connection = __get_connection()
         cursor = connection.cursor()
         insert_sql: str = sqlhelper.create_simple_insert_sql(
             table_name=TableName.DB_VERSION.value,
@@ -3224,7 +3224,7 @@ def __store_db_version(version: str):
     else:
         msgproc.log(f"Updating db version to [{version}] from [{db_version}] ...")
         update_tuple = (version, db_version)
-        connection: sqlite3.Connection = get_connection()
+        connection: sqlite3.Connection = __get_connection()
         cursor = connection.cursor()
         update_sql: str = sqlhelper.create_simple_update_sql(
             table_name=TableName.DB_VERSION.value,
