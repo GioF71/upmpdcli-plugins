@@ -77,6 +77,10 @@ public:
     }
 
     CDPlugin *pluginForApp(const string& appname) {
+        if (appname.empty()) {
+            // Can happen for, e.g. a search in root with rootalias not set
+            return nullptr;
+        }
         auto it = plugins.find(appname);
         if (it != plugins.end()) {
             return it->second;
