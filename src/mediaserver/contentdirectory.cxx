@@ -37,6 +37,8 @@ using namespace std;
 using namespace std::placeholders;
 using namespace UPnPProvider;
 
+static std::string autorootalias;
+
 class ContentDirectory::Internal {
 public:
     Internal (ContentDirectory *sv, MediaServer *dv)
@@ -65,6 +67,11 @@ public:
             }
             upnpport = usport;
             getOptionValue("msrootalias", rootalias);
+            if (rootalias.empty()) {
+                // If rootalias is not set, use autorootalias which will only be
+                // non-empty if there is only one plugin.
+                rootalias = autorootalias;
+            }
             LOGDEB("ContentDirectory: upnphost ["<< upnphost << "] upnpport [" << upnpport <<
                    "] rootalias [" << rootalias << "]\n");
         }
@@ -167,7 +174,10 @@ static bool makerootdir()
         return false;
     }
 
-    for (const auto& entry : entries) {
+    // Remember last or possibly unique plugin name. Later possibly used for
+    // autorootalias.
+    std::string theEntry;
+    for (const auto &entry : entries) {
         if (!entry.compare("pycommon")) {
             continue;
         }
@@ -181,6 +191,7 @@ static bool makerootdir()
             continue;
         }
 
+        theEntry = entry;
         // If the title parameter is not defined in the configuration,
         // we compute a title (to be displayed in the root directory)
         // from the plugin name.
@@ -198,10 +209,16 @@ static bool makerootdir()
         rootdir.push_back(UpSong::item("0$none$", "0", "No services found"));
         return false;
     } else {
+        if (rootdir.size() == 1) {
+            autorootalias = "0$" + theEntry + "$";
+        }
         return true;
     }
 }
 
+// Note: this is called very early in init, so that the autorootalias value
+// possibly set by makerootdir is certain to be set before the contentdirectory
+// is created.
 bool ContentDirectory::mediaServerNeeded()
 {
     return makerootdir();
