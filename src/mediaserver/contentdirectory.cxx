@@ -92,6 +92,14 @@ public:
         if (it != plugins.end()) {
             return it->second;
         } else {
+            // Check that the plugin is actually enabled, because the client could
+            // have got there without browsing root (e.g. through a rootalias).
+            string userkey = appname + "user";
+            std::string v;
+            if (!getOptionValue(userkey, v)) {
+                LOGINF("ContentDirectory: " << appname << " not enabled in config.\n");
+                return nullptr;
+            }
             return plugins[appname] = pluginFactory(appname);
         }
     }
@@ -392,11 +400,10 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
         string app = appForId(in_ObjectID);
         CDPlugin *plg = m->pluginForApp(app);
         if (plg) {
-            totalmatches = plg->browse(in_ObjectID, in_StartingIndex,
-                                       in_RequestedCount, entries,
+            totalmatches = plg->browse(in_ObjectID, in_StartingIndex, in_RequestedCount, entries,
                                        sortcrits, bf);
         } else {
-            LOGERR("ContentDirectory::Browse: unknown app: [" << app << "]\n");
+            LOGERR("ContentDirectory::Browse: unknown or disabled app: [" << app << "]\n");
             return UPNP_E_INVALID_PARAM;
         }
     }
