@@ -946,13 +946,15 @@ int NetconCli::openconn(const char *host, unsigned int port, int timeo)
         addrsize = sizeof(ip_addr);
         saddr = (sockaddr*)&ip_addr;
     } else {
-        memset(&unix_addr, 0, sizeof(unix_addr));
-        unix_addr.sun_family = AF_UNIX;
-        if (strlen(host) > UNIX_PATH_MAX - 1) {
+        auto hostlen = strlen(host);
+        // It's unclear if the target should be 0-terminated. Leave space for a 0 anyway.
+        if (hostlen >= sizeof(unix_addr.sun_path)) {
             LOGERR("NetconCli::openconn: name too long: " << host << "\n");
             return -1;
         }
-        strcpy(unix_addr.sun_path, host);
+        memset(&unix_addr, 0, sizeof(unix_addr));
+        unix_addr.sun_family = AF_UNIX;
+        memcpy(unix_addr.sun_path, host, hostlen);
 
         if ((m_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
             LOGSYSERR("NetconCli::openconn", "socket", "");
@@ -1080,20 +1082,20 @@ int NetconServLis::openservice(const char *serv, int backlog)
         port = (int)ntohs((short)servp->s_port);
         return openservice(port, backlog);
     } else {
-        if (strlen(serv) > UNIX_PATH_MAX - 1) {
-            LOGERR("NetconServLis::openservice: too long for AF_UNIX: " << 
-                   serv << "\n");
-            return -1;
-        }
-        int ret = -1;
         struct sockaddr_un  addr;
-        if ((m_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-            LOGSYSERR("NetconServLis", "socket", "");
+        auto servlen = strlen(serv);
+        if (servlen >= sizeof(addr.sun_path)) {
+            LOGERR("NetconServLis::openservice: too long for AF_UNIX: " <<  serv << "\n");
             return -1;
         }
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
-        strcpy(addr.sun_path, serv);
+        memcpy(addr.sun_path, serv, servlen);
+        int ret = -1;
+        if ((m_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+            LOGSYSERR("NetconServLis", "socket", "");
+            return -1;
+        }
 
         if (::bind(m_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
             LOGSYSERR("NetconServLis", "bind", "");
