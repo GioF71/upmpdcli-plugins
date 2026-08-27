@@ -513,8 +513,7 @@ int OHRadio::setPlaying()
 void OHRadio::setActive(bool onoff)
 {
     LOGDEB0("OHRadio::setActive: " << onoff << '\n');
-    m_active = onoff;
-    if (m_active) {
+    if (onoff) {
         if (m_id) {
             // Only restore state if it was saved
             if (m_mpdsavedstate.status.state != MpdStatus::MPDS_UNK) {
@@ -527,6 +526,7 @@ void OHRadio::setActive(bool onoff)
         m_dev->getmpdcli()->clearQueue();
         iStop();
     }
+    m_active = onoff;
 }
 
 int OHRadio::iPlay()
