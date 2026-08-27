@@ -133,14 +133,14 @@ bool SenderReceiver::start(const string& script, int seekms)
         args.push_back(SoapHelp::i2s(m->mpdport));
         args.push_back("-f");
         args.push_back(m->udev->getfriendlyname());
-    if (!m->scalestream)
+		if (!m->scalestream)
             args.push_back("-e");
-        if (!m->streamcodec.empty() &&
-            stringicmp(m->streamcodec, "PCM")) {
-            args.push_back("-C");
-            args.push_back(m->streamcodec);
-        }
-        m->isender->startExec(m->makeisendercmd, args, false, true);
+		if (!m->streamcodec.empty() &&
+			stringicmp(m->streamcodec, "PCM")) {
+			args.push_back("-C");
+			args.push_back(m->streamcodec);
+		}
+		m->isender->startExec(m->makeisendercmd, args, false, true);
     } else if (!script.empty()) {
         // External source. ssender should already be zero, we delete
         // it just in case
