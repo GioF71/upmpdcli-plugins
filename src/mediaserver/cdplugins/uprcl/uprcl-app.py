@@ -96,13 +96,19 @@ def _browsedispatch(objid, bflg, offset, count):
     raise Exception("Browse: dispatch: bad objid not in rootmap: [%s]" % objid)
 
 
+def _checkobjid(a):
+    if "objid" not in a:
+        raise Exception("No objid in args")
+    objid = a["objid"]
+    if not objid.startswith(uprclinit.getObjPrefix()):
+        raise Exception(f"Bad objid <{objid}>")
+    return objid
+
 @dispatcher.record("browse")
 def browse(a):
     msgproc.log(f"browse: httphp [{uprclinit.getHttphp()}]   ARGS {a}")
-    if "objid" not in a:
-        raise Exception("No objid in args")
+    objid = _checkobjid(a)
 
-    objid = a["objid"]
     bflg = a["flag"] if "flag" in a else "children"
 
     offset = 0
@@ -112,13 +118,18 @@ def browse(a):
     if "count" in a:
         count = int(a["count"])
 
-    if not objid.startswith(uprclinit.getObjPrefix()):
-        raise Exception("bad objid <%s>" % objid)
 
     idpath = objid.replace(uprclinit.getObjPrefix(), "", 1)
 
     entries = []
-    nocache = "1"
+
+    # 2026-08: cache used to be disabled (2018, c8031a0d) with comment "we're fast enough"
+    # However this does not hold true in the case where the client is reading small slices of a
+    # big result which we end up calculating each time, because we don't heed offset and count
+    # at the moment: none of the submodules (folders, tags, etc.) uses slices. It's not obvious
+    # anyway what performance gain we could obtain.
+    # So reenable caching in our c++ parent.
+    nocache = "0"
     try:
         if not uprclinit.initdone():
             # initdone() acquires the readlock
@@ -146,12 +157,15 @@ def browse(a):
     finally:
         uprclinit.g_dblock.release_read()
 
-    total = -1
-    resoffs = 0
+    # Note (2026-08): the provision for a partial list is not used (by
+    # any submodule) at the moment.
     if type(entries) == type(()):
         resoffs = entries[0]
         total = entries[1]
         entries = entries[2]
+    else:
+        resoffs = 0
+        total = len(entries)
     # msgproc.log("%s" % entries)
     encoded = json.dumps(entries)
     return {"entries": encoded, "nocache": nocache, "offset": str(resoffs), "total": str(total)}
@@ -160,12 +174,12 @@ def browse(a):
 @dispatcher.record("search")
 def search(a):
     msgproc.log("search: [%s]" % a)
-    objid = a["objid"]
-    if re.match(r"0\$uprcl\$", objid) is None:
-        raise Exception("bad objid [%s]" % objid)
+    objid = _checkobjid(a)
 
     upnps = a["origsearch"]
-    nocache = "1"
+
+    # 08/26: See comment in browse.
+    nocache = "0"
 
     try:
         if not uprclinit.initdone():
@@ -197,7 +211,7 @@ def search(a):
         uprclinit.g_dblock.release_read()
 
     encoded = json.dumps(entries)
-    return {"entries": encoded, "nocache": nocache}
+    return {"entries": encoded, "nocache": nocache, "offset": "0", "total": str(len(entries))}
 
 
 uprclinit.uprcl_init()
