@@ -133,12 +133,14 @@ def browse(a):
     try:
         if not uprclinit.initdone():
             # initdone() acquires the readlock
+            nocache = "1"
             entries = [
                 waitentry(objid + "notready", objid, uprclinit.getHttphp()),
             ]
         else:
             initstatus, initmessage = uprclinit.initstatus()
             if not initstatus:
+                nocache = "1"
                 entries = [
                     waitentry(
                         objid + "notready",
@@ -183,12 +185,14 @@ def search(a):
 
     try:
         if not uprclinit.initdone():
+            nocache = "1"
             entries = [
                 waitentry(objid + "notready", objid, uprclinit.getHttphp()),
             ]
         else:
             initstatus, initmessage = uprclinit.initstatus()
             if not initstatus:
+                nocache = "1"
                 entries = [
                     waitentry(
                         objid + "notready",
