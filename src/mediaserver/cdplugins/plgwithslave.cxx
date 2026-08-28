@@ -76,12 +76,23 @@ public:
     vector<UpSong> m_results;
 };
 
+// Storing previous results: we now only cache data from the worker when it is a
+// complete result: totalsize set and equal to the obtained size. This is 
+// tested by the cache users, not internally by the cache code.
 class ContentCache {
 public:
-    ContentCache(int retention_secs = 300)
+    ContentCache(int retention_secs = 120)
         : m_retention_secs(retention_secs) {}
+
     std::unique_ptr<ContentCacheEntry> get(const string& query);
+
     ContentCacheEntry& set(const string& query, ContentCacheEntry &entry);
+
+    void setRetentionSecs(int secs) {
+        if (secs > 0) {
+            m_retention_secs = secs;
+        }
+    }
 
 private:
     time_t m_lastpurge{time(0)};
@@ -105,6 +116,20 @@ public:
         if (getOptionValue("plgproxymethod", val) && !val.compare("proxy")) {
             doingproxy = true;
         }
+        if (getOptionValue("plgCacheRetentionSecs", val)) {
+            int secs = atoi(val.c_str());
+            scache.setRetentionSecs(secs);
+            bcache.setRetentionSecs(secs);
+        }
+        if (getOptionValue("plgBrowseCacheRetentionSecs", val)) {
+            int secs = atoi(val.c_str());
+            bcache.setRetentionSecs(secs);
+        }
+        if (getOptionValue("plgSearchCacheRetentionSecs", val)) {
+            int secs = atoi(val.c_str());
+            scache.setRetentionSecs(secs);
+        }
+            
 #ifdef ENABLE_SPOTIFY
         if (!plg->getname().compare("spotify")) {
             getOptionValue("spotifyuser", user);
@@ -137,9 +162,9 @@ public:
     // Cached uri translation
     StreamHandle laststream;
     // Cache for searches
-    ContentCache scache{300};
+    ContentCache scache;
     // Cache for browsing
-    ContentCache bcache{180};
+    ContentCache bcache;
 };
 
 // HTTP Proxy/Redirect handler
@@ -446,13 +471,13 @@ static void decodeResource(const Json::Value entry, UpSong::Res &res)
 
 #define JSONTOUPS(fld, nm) {catstring(song.fld, decod_i.get(#nm, "").asString());}
 
-static int resultToEntries(const string& encoded, vector<UpSong>& entries,
-                           const std::string& classfilter = std::string())
+static void jsonToUpSongs(const string& encoded, vector<UpSong>& entries,
+                            const std::string& classfilter = std::string())
 {
     Json::Value decoded;
     istringstream input(encoded);
     input >> decoded;
-    LOGDEB0("PlgWithSlave::results: got " << decoded.size() << " entries \n");
+    LOGDEB0("PlgWithSlave::jsonToUpSongs: got " << decoded.size() << " entries \n");
 
     entries.reserve(decoded.size());
     for (unsigned int i = 0; i < decoded.size(); i++) {
@@ -464,7 +489,7 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
             if (beginswith(it.key().asString(), "upmpd:")) {
                 if (song.upmpfields == nullptr)
                     song.upmpfields = new std::unordered_map<std::string, std::string>;
-                LOGDEB1("resultToEntries: "<<it.key().asString()<<" -> "<<(*it).asString()<<'\n');
+                LOGDEB1("jsonToUpSongs: "<<it.key().asString()<<" -> "<<(*it).asString()<<'\n');
                 auto& flds(*(song.upmpfields));
                 flds[it.key().asString()] = (*it).asString();
             }
@@ -516,24 +541,31 @@ static int resultToEntries(const string& encoded, vector<UpSong>& entries,
             continue;
         }
         if (!classfilter.empty() && song.upnpClass.find(classfilter) != 0) {
-            LOGDEB1("PlgWithSlave::resultToEntries: class mismatch " << classfilter << "\n");
+            LOGDEB1("PlgWithSlave::jsonToUpSongs: class mismatch " << classfilter << "\n");
             continue;
         }
-        LOGDEB1("PlgWithSlave::resultToEntries: pushing: " << song.dump() << "\n");
+        LOGDEB1("PlgWithSlave::jsonToUpSongs: pushing: " << song.dump() << "\n");
         entries.push_back(song);
     }
-    return decoded.size();
 }
 
 
+// Extract a result list as a slice from a cache entry (which may not be actually be from
+// the cache, we use this also with a bogus entry for fresh data).
+// @param stidx is the offset of the first requested entry. If this is below our
+//   own offset (usually 0), we fail.
+// @param cnt is the requested count. Can be -1, meaning return all we have. It
+//   we truncate the request if we have less entries than requested.
+// @return totalmatches (0 if undetermined, or a value), or -1 for error. The
+//   actual result count is implicit in the output vector size
 int ContentCacheEntry::toResult(int stidx, int cnt, vector<UpSong>& entries) const
 {
-    LOGDEB0("searchCacheEntryToResult: start " <<
-            stidx << " cnt " << cnt << " m_offset " << m_offset <<
-            " m_results.size " << m_results.size() << "\n");
+    LOGDEB0("searchCacheEntryToResult: start " << stidx << " cnt " << cnt <<
+            " m_offset " << m_offset << " m_size " << m_results.size() << "\n");
 
     if (stidx < m_offset) {
-        // we're missing a part
+        // We're missing a part, the request can't be answered at all. This should
+        // never happen any more because we now only cache complete responses
         LOGERR("ContentCacheEntry::toResult: stidx " << stidx << " < offset " << m_offset << "\n");
         return -1;
     }
@@ -548,9 +580,7 @@ int ContentCacheEntry::toResult(int stidx, int cnt, vector<UpSong>& entries) con
             break;
         }
     }
-    // We return the total size. The actual count of entries is
-    // communicated through entries.size()
-    return m_total == -1 ? m_results.size() : m_total;
+    return m_total == -1 ? 0 : m_total;
 }
 
 void ContentCache::purge()
@@ -587,8 +617,8 @@ std::unique_ptr<ContentCacheEntry> ContentCache::get(const string& key)
 
 ContentCacheEntry& ContentCache::set(const string& key, ContentCacheEntry &entry)
 {
-    LOGDEB0("ContentCache::set: " << key << " offset " << entry.m_offset <<
-            " count " << entry.m_results.size() << "\n");
+    LOGINF("ContentCache::set: " << key << " offset " << entry.m_offset
+           << " totalsize " << entry.m_total <<  " count " << entry.m_results.size() << "\n");
     m_cache[key] = entry;
     return m_cache[key];
 }
@@ -600,14 +630,25 @@ static int errorEntries(const string& pid, vector<UpSong>& entries)
     return 1;
 }
 
-int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>& entries,
+// @return the totalmatches value or -1 in case of error. Here is what UPnP says
+// about totalmatches:
+//   If BrowseMetadata is specified in the BrowseFlags then TotalMatches = 1,
+//   else if BrowseDirectChildren is specified in the BrowseFlags then
+//   TotalMatches = total number of objects in the container specified for the
+//   Browse() action (independent of the starting index specified by the
+//   StartingIndex argument).
+//   If the CDS cannot compute TotalMatches and NumberReturned is not equal to zero,
+//      then TotalMatches = 0.
+//   If the CDS cannot compute TotalMatches and NumberReturned is equal to zero,
+//     then the CDS should return an error code 720.
+int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>& retsongs,
                          const vector<string>& sortcrits, BrowseFlag flg)
 {
     std::unique_lock<std::mutex> lock(m->mutex);
     LOGDEB("PlgWithSlave::browse: offset " << stidx << " cnt " << cnt << "\n");
-    entries.clear();
+    retsongs.clear();
     if (!m->maybeStartCmd()) {
-        return errorEntries(objid, entries);
+        return errorEntries(objid, retsongs);
     }
     string sbflg;
     switch (flg) {
@@ -633,7 +674,8 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
             }
             if (cep->m_offset <= stidx &&
                 int(cep->m_results.size()) - (stidx - cep->m_offset) >= cnt) {
-                return cep->toResult(stidx, cnt, entries);
+                LOGDEB("PlgWithSlave::browse: returning cached data\n");
+                return cep->toResult(stidx, cnt, retsongs);
             }
         }
     }
@@ -644,13 +686,13 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
     if (!m->cmd.callproc("browse", {{"objid", objid}, {"flag", sbflg},
                                     {"offset", soffs}, {"count", scnt}}, res)) {
         LOGERR("PlgWithSlave::browse: slave failure\n");
-        return errorEntries(objid, entries);
+        return errorEntries(objid, retsongs);
     }
 
     auto ite = res.find("entries");
     if (ite == res.end()) {
         LOGERR("PlgWithSlave::browse: no entries returned\n");
-        return errorEntries(objid, entries);
+        return errorEntries(objid, retsongs);
     }
     bool nocache = false;
     auto itc = res.find("nocache");
@@ -671,14 +713,24 @@ int PlgWithSlave::browse(const string& objid, int stidx, int cnt, vector<UpSong>
     }
     
     if (flg == CDPlugin::BFChildren) {
+        vector<UpSong> results;
+        jsonToUpSongs(ite->second, results);
+        // Only store complete contents in the cache.
+        auto docache = !nocache && resoffs == 0 && total > 0 && (int)results.size() == total;
+        LOGDEB0("PlgWithSlave::browse: nocache " << nocache << " resoffs " << resoffs
+               << " total " << total << " count " << ite->second.size() << " docache " << 
+               docache << "\n");
         ContentCacheEntry entry;
-        ContentCacheEntry& e = nocache ? entry : m->bcache.set(cachekey, entry);
+        ContentCacheEntry &e = docache ? m->bcache.set(cachekey, entry) : entry;
+        e.m_results.swap(results);
         e.m_offset = resoffs;
         e.m_total = total;
-        resultToEntries(ite->second, e.m_results);
-        return e.toResult(stidx, cnt, entries);
+        return e.toResult(stidx, cnt, retsongs);
     } else {
-        return resultToEntries(ite->second, entries);
+        jsonToUpSongs(ite->second, retsongs);
+        if (retsongs.size() != 1)
+            return -1;
+        return 1;
     }
 }
 
@@ -753,27 +805,27 @@ static bool eli5(const std::string& searchstr, std::string& slavefield, std::str
 }
 
 
+// See note about totalmatches return value above
 int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& searchstr,
-                         vector<UpSong>& entries, const vector<string>& sortcrits)
+                         vector<UpSong>& retsongs, const vector<string>& sortcrits)
 {
     std::unique_lock<std::mutex> lock(m->mutex);
     LOGDEB("PlgWithSlave::search: [" << searchstr << "]\n");
-    entries.clear();
+    retsongs.clear();
     if (!m->maybeStartCmd()) {
-        return errorEntries(ctid, entries);
+        return errorEntries(ctid, retsongs);
     }
 
     string slavefield, value, classfilter, objkind;
     if (!eli5(searchstr, slavefield, value, classfilter, objkind)) {
-        return errorEntries(ctid, entries);
+        return errorEntries(ctid, retsongs);
     }        
 
     // In cache ?
     string cachekey(m_name + ":" + ctid + ":" + searchstr);
     auto cep = m->scache.get(cachekey);
     if (cep) {
-        int total = cep->toResult(stidx, cnt, entries);
-        return total;
+        return cep->toResult(stidx, cnt, retsongs);
     }
 
     // Run query
@@ -788,13 +840,13 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
                 {"value", value},
                 {"offset", soffs}, {"count", scnt} },  res)) {
         LOGERR("PlgWithSlave::search: slave failure\n");
-        return errorEntries(ctid, entries);
+        return errorEntries(ctid, retsongs);
     }
 
     auto ite = res.find("entries");
     if (ite == res.end()) {
         LOGERR("PlgWithSlave::search: no entries returned\n");
-        return errorEntries(ctid, entries);
+        return errorEntries(ctid, retsongs);
     }
     bool nocache = false;
     auto itc = res.find("nocache");
@@ -813,11 +865,16 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
         total = atoi(itc->second.c_str());
         LOGDEB("PlgWithSlave::search: got result total " << total << "\n");
     }
-    // Convert the whole set and store in cache
+
+    vector<UpSong> results;
+    jsonToUpSongs(ite->second, results);
+    // Only store complete contents in the cache.
+    auto docache = !nocache && resoffs == 0 && total > 0 && (int)results.size() == total;
     ContentCacheEntry entry;
-    ContentCacheEntry& e = nocache ? entry : m->scache.set(cachekey, entry);
+    ContentCacheEntry& e = docache ? m->scache.set(cachekey, entry) : entry;
+    e.m_results.swap(results);
     e.m_offset = resoffs;
     e.m_total = total;
-    resultToEntries(ite->second, e.m_results, classfilter);
-    return e.toResult(stidx, cnt, entries);
+    jsonToUpSongs(ite->second, e.m_results, classfilter);
+    return e.toResult(stidx, cnt, retsongs);
 }
