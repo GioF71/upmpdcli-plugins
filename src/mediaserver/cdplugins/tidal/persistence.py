@@ -1400,6 +1400,8 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection | None = No
     rows = cursor.fetchall()
     cursor.close()
     if not rows:
+        if connection == None:
+            cn.close()
         return None
     if len(rows) > 1:
         raise PersistenceException(f"Multiple {TableName.ALBUM_METADATA_CACHE_V1.value} records for [{album_id}]")
@@ -1430,6 +1432,8 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection | None = No
     if artist_image_url_list:
         result.artist_image_url_list = artist_image_url_list.split(",")
     result.created_timestamp = row[18]
+    if connection == None:
+        cn.close()
     return result
 
 
@@ -1701,12 +1705,14 @@ def store_album_metadata(
         __delete_album_metadata(
             album_id=album_metadata.album_id,
             connection=cn,
-            commit=commit)
+            commit=False)
     # now we can always insert
     __insert_album_metadata(
         album=album_metadata,
         connection=cn,
-        commit=commit)
+        commit=False)
+    if commit or connection == None:
+        cn.commit()
     if connection == None:
         cn.close()
 

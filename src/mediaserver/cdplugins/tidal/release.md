@@ -1,7 +1,8 @@
 # Tidal Plugin Release notes
 
-## 0.8.14
+## 0.8.15
 
+- Fix sqlite3 error when opening a new album
 - Review tidal plugin initialization process
 - Initial work for favorite album preloading
 - Rewrite handlers for favorite tracks

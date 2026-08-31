@@ -3181,7 +3181,6 @@ def handler_element_album_container(
         item_identifier: ItemIdentifier,
         entries: list) -> list:
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
-    connection: sqlite3.Connection = persistence.get_connection()
     # do we know the album already?
     album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
     msgproc.log(f"handler_element_album_container album [{album_id}] available as metadata "
@@ -3210,10 +3209,10 @@ def handler_element_album_container(
                 entries=entries))
             return entries
         else:
+            # create metadata
+            album_metadata = tidal_album_to_album_metadata(album=album)
             # store metadata
-            persistence.store_album_metadata(
-                album_metadata=tidal_album_to_album_metadata(album=album),
-                connection=connection)
+            persistence.store_album_metadata(album_metadata=album_metadata)
     if album:
         # force refresh of album cover
         tidal_util.get_image_url(album, refresh=True)
@@ -3227,13 +3226,9 @@ def handler_element_album_container(
     in_favorites: bool = album_metadata is not None and album_metadata.user_date_added is not None
     in_favorites_elapsed: float = time.time() - in_favorites_start
     msgproc.log(f"handler_element_album_container in favorites [{in_favorites}] (took [{in_favorites_elapsed:.3f}])")
-    in_listen_queue: bool = persistence.is_in_album_listen_queue(
-        album_id=album_id,
-        connection=connection)
+    in_listen_queue: bool = persistence.is_in_album_listen_queue(album_id=album_id)
     album_entry_title: str = "Album" if config.titleless_single_album_view else album_metadata.album_name
-    cached_tidal_quality: tidal_util.CachedTidalQuality = tidal_util.get_cached_audio_quality(
-        album_id=album_id,
-        connection=connection)
+    cached_tidal_quality: tidal_util.CachedTidalQuality = tidal_util.get_cached_audio_quality(album_id=album_id)
     badge: str = tidal_util.get_quality_badge_raw(
         audio_modes=album_metadata.audio_modes.split(",") if album_metadata.audio_modes else [],
         media_metadata_tags=album_metadata.media_metadata_tags.split(",") if album_metadata.media_metadata_tags else [],
