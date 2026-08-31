@@ -16,6 +16,10 @@
 from enum import Enum
 
 
+class TagTypeNotFoundError(Exception):
+    """Raised when a TIDAL tag type cannot be found by name."""
+
+
 class _TagTypeData:
 
     def __init__(self, name: str, title: str, prefer_non_static_icon: bool = False):
@@ -70,7 +74,7 @@ class TagType(Enum):
 
 
 def get_tidal_tag_type_by_name(tag_name: str) -> TagType:
-    for _, member in TagType.__members__.items():
+    for member in TagType.__members__.values():
         if tag_name == member.name:
             return member
-    raise Exception(f"get_tidal_tag_type_by_name with {tag_name} NOT found")
+    raise TagTypeNotFoundError(f"get_tidal_tag_type_by_name with {tag_name} NOT found")

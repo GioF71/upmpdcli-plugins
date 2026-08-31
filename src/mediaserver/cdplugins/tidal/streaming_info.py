@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import Any
+
 from tidalapi import Quality as TidalQuality
 
 
@@ -22,7 +24,7 @@ class StreamingInfo:
     def __init__(self):
         self._url: str = None
         self._mimetype: str = None
-        self._codec: any = None
+        self._codec: Any = None
         self._sample_rate: int = None
         self._bit_depth: int = None
         self._audio_quality: TidalQuality = None
@@ -45,11 +47,11 @@ class StreamingInfo:
         self._mimetype: str = value
 
     @property
-    def codecs(self) -> any:
+    def codecs(self) -> Any:
         return self._codec
 
     @codecs.setter
-    def codecs(self, value: any):
+    def codecs(self, value: Any):
         self._codec = value
 
     @property

@@ -13,16 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import copy
+import typing
+from datetime import datetime
+
+import cmdtalkplugin
 from tidalapi.album import Album as TidalAlbum
 from tidalapi.artist import Artist as TidalArtist
 
-from datetime import datetime
-from persistence import AlbumMetadata
-import tidal_util
 import persistence
-import copy
-import typing
-import cmdtalkplugin
+import tidal_util
+from persistence import AlbumMetadata
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()

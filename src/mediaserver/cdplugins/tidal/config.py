@@ -1,4 +1,4 @@
-# Copyright (C) 2024,2025 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,28 +13,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Any
+
 import upmplgutils
-import constants
 from tidalapi import Quality as TidalQuality
+
+import constants
+
+
+class ConfigException(Exception):
+    """Raised when an error occurs in the Config module."""
 
 
 def get_plugin_config_variable_name(name: str) -> str:
-    return f"{constants.PluginConstant.PLUGIN_NAME.value}{name}"
+    return f"{constants.PluginConstant.PLUGIN_NAME}{name}"
 
 
 def get_option_value_as_bool(nm: str, default_value: int) -> bool:
     return get_option_value(nm, default_value) == 1
 
 
-def get_option_value(nm, dflt: any = None):
+def get_option_value(nm, dflt: Any = None):
     return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
 def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> str:
     dv: str | None = configuration_parameter.default_value
     if dv is not None and not isinstance(dv, str):
-        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = get_option_value(configuration_parameter.key, dv)
+        raise ConfigException(f"Invalid default value for [{configuration_parameter.key}]")
+    v: Any = get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -47,8 +54,8 @@ def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> s
 def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> str:
     dv: int | None = configuration_parameter.default_value
     if dv is not None and not isinstance(dv, int):
-        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = get_option_value(configuration_parameter.key, dv)
+        raise ConfigException(f"Invalid default value for [{configuration_parameter.key}]")
+    v: Any = get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -60,7 +67,7 @@ def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> s
 
 def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> bool:
     default_value_as_int: int = 0
-    dv: any = configuration_parameter.default_value
+    dv: Any = configuration_parameter.default_value
     if isinstance(dv, int):
         default_value_as_int = 1 if dv == 1 else 0
     elif isinstance(dv, bool):
@@ -70,19 +77,18 @@ def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> 
         default_value_as_int)
 
 
-def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int = None) -> bool:
+def __getPluginOptionAsBool(plugin_param_name: str, default_value: bool | int | None = None) -> bool:
     sanitized_default_value: int | bool = 0 if not default_value else default_value
     if type(sanitized_default_value) is bool:
         sanitized_default_value = 1 if default_value else 0
-    elif type(sanitized_default_value) is int:
-        if sanitized_default_value not in [0, 1]:
-            raise Exception(f"Invalid boolean value for [{plugin_param_name}], should be 0 or 1")
+    elif type(sanitized_default_value) is int and sanitized_default_value not in [0, 1]:
+            raise ConfigException(f"Invalid boolean value for [{plugin_param_name}], should be 0 or 1")
     return (getPluginOptionValue(plugin_param_name, sanitized_default_value) == 1)
 
 
 def getPluginOptionValue(option_key: str, dflt=None):
     return upmplgutils.getOptionValue(
-        nm=f"{constants.PluginConstant.PLUGIN_NAME.value}{option_key}",
+        nm=f"{constants.PluginConstant.PLUGIN_NAME}{option_key}",
         dflt=dflt)
 
 
@@ -97,10 +103,6 @@ enable_assume_bitdepth: bool = __getPluginOptionAsBool(
     "enableassumebitdepth",
     constants.default_enable_assume_bitdepth)
 
-
-tracks_per_page: int = getPluginOptionValue(
-    "tracksperpage",
-    constants.default_tracks_per_page)
 
 
 mix_items_per_page: int = getPluginOptionValue(

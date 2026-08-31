@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from track_adapter import TrackAdapter
 from played_track import PlayedTrack
+from track_adapter import TrackAdapter
 
 
 class PlayedTrackAdapter(TrackAdapter):
@@ -59,7 +59,7 @@ class PlayedTrackAdapter(TrackAdapter):
         return self._track.image_url
 
     def explicit(self) -> bool:
-        return True if self._track.explicit == 1 else False
+        return self._track.explicit == 1
 
     def get_artist_name(self) -> str:
         return self._track.artist_name

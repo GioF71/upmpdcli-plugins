@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,20 +13,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
-from html import escape
 
-import codec
-from item_identifier import ItemIdentifier
+from enum import Enum
 
 
-def __escape_objid(value: str) -> str:
-    return escape(value, quote=True)
-
-
-def create_objid(objid, id: str) -> str:
-    return objid + "/" + __escape_objid(id)
-
-
-def create_id_from_identifier(identifier: ItemIdentifier) -> str:
-    return codec.encode(json.dumps(identifier.getDictionary()))
+class TableName(Enum):
+    ALBUM_METADATA_CACHE_V1 = "album_metadata_cache_v1"
+    TRACK_METADATA_CACHE_V1 = "track_metadata_cache_v1"
+    TILE_IMAGE_V1 = "tile_image_v1"
+    LISTEN_ALBUM_QUEUE_V1 = "listen_album_queue_v1"
+    LISTEN_ARTIST_QUEUE_V1 = "listen_artist_queue_v1"
+    LISTEN_TRACK_QUEUE_V1 = "listen_track_queue_v1"
+    PLAYED_TRACK_V1 = "played_track_v1"
+    DB_VERSION = "db_version"

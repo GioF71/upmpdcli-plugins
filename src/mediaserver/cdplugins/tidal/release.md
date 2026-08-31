@@ -1,15 +1,20 @@
 # Tidal Plugin Release notes
 
+## 0.8.14
+
+- Review tidal plugin initialization process
+- Initial work for favorite album preloading
+- Rewrite handlers for favorite tracks
+- Skip videos from Page items
+- Present favorite tracks with various sorting options
+- Misc code corrections, cleanup and refactoring
+
 ## 0.8.13.1
 
 - Revert accidental changes to subsonic plugin
 
 ## 0.8.13
 
-- Review tidal plugin initialization process
-- Favorite album preloading (speeds up showing album container especially if favorite actions are allowed)
-- Image for Page selection entries are now preloaded 
-- Misc code corrections, cleanup and refactoring
 - Performance improvements on initial view (does not load playlists twice)
 - Show container type and id (Album, Playlist, etc) in output from build_intermediate_url (if enabled)
 - Add timestamps in log entries
