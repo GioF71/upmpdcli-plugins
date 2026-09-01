@@ -4981,7 +4981,8 @@ def handler_element_category(objid, item_identifier: ItemIdentifier, entries: li
                 page_link_entry: dict = pagelink_to_entry(objid, category=category, page_link=item)
                 entries.append(page_link_entry)
                 # TODO maybe extract method for getting image for a PageLink
-                tile_image: TileImage = load_tile_image_unexpired(TileType.PAGE_LINK, page_link.api_path)
+                tile_image_cache_enabled: bool = config.get_config_param_as_bool(constants.ConfigParam.ENABLE_TILE_IMAGE_CACHE)
+                tile_image: TileImage = load_tile_image_unexpired(TileType.PAGE_LINK, page_link.api_path) if tile_image_cache_enabled else None
                 page_link_image_url: str = tile_image.tile_image if tile_image else None
                 if not page_link_image_url:
                     items_in_page: list = get_items_in_page_link(
@@ -5931,7 +5932,11 @@ def image_retriever_page(
     return image_url
 
 
-def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loader, obj_cache: dict[str, any]) -> str:
+def image_retriever_cached(
+        tidal_session: TidalSession,
+        tag_type: TagType,
+        loader,
+        obj_cache: dict[str, any]) -> str:
     # in tag image cache?
     if tag_type.name in tag_images:
         msgproc.log(f"image_retriever_cached cache hit for [{tag_type.name}] in tag_images!")
@@ -5960,9 +5965,12 @@ def image_retriever_cached(tidal_session: TidalSession, tag_type: TagType, loade
     # a static url might be available, but not preferred
     static_image_url: str = image_url
     # from tile image cache
-    tile_image: TileImage = load_tile_image_unexpired(
+    tile_image_cache_enabled: bool = config.get_config_param_as_bool(constants.ConfigParam.ENABLE_TILE_IMAGE_CACHE)
+    tile_image: TileImage = (load_tile_image_unexpired(
         tile_type=TileType.TAG,
         tile_id=tag_type.name)
+        if tile_image_cache_enabled
+        else None)
     image_url = tile_image.tile_image if tile_image else None
     # ignore cached images if caching is disabled
     if image_url:
@@ -6756,7 +6764,7 @@ def copy_static_images(path_static_images: list[str], static_images_dir: str):
 tag_images: dict[str, str] = {}
 
 
-def preload_albums(tidal_session: TidalSession, cn: sqlite3.Connection):
+def preload_albums(tidal_session: TidalSession, cn: sqlite3.Connection | None = None):
     def msgproc_log(msg: str):
         msgproc.log(f"preload_albums {msg}")
     item_list: list[TidalAlbum] = tidal_session.user.favorites.albums_paginated()
@@ -6782,7 +6790,7 @@ def preload_albums(tidal_session: TidalSession, cn: sqlite3.Connection):
     msgproc_log(f"processed [{len(load_item_elapsed)}] albums in [{sum(load_item_elapsed):.3f}] avg [{final_avg_elapsed:.3f}]")
 
 
-def preload_songs(tidal_session: TidalSession, cn: sqlite3.Connection):
+def preload_songs(tidal_session: TidalSession, cn: sqlite3.Connection | None = None):
     def msgproc_log(msg: str):
         msgproc.log(f"preload_songs {msg}")
     item_list: list[TidalTrack] = tidal_session.user.favorites.tracks_paginated()
@@ -6831,13 +6839,11 @@ def preloading():
     msgproc.log("preloading started ...")
     tidal_session: TidalSession = get_session()
     msgproc.log("preloading got a session")
-    cn: sqlite3.Connection = persistence.get_connection()
-    msgproc.log("preloading got a connection")
     # TODO load favorite artists
     # load favorite albums
-    preload_albums(tidal_session=tidal_session, cn=cn)
+    preload_albums(tidal_session=tidal_session)
     # TODO load favorite songs
-    preload_songs(tidal_session=tidal_session, cn=cn)
+    preload_songs(tidal_session=tidal_session)
     # get images for page selection
     page_selection_tags: list[TagType] = get_page_selection()
     obj_cache: dict[str, any] = {}
@@ -6869,9 +6875,6 @@ def preloading():
             page_selection_img: str = secrets.choice(list(page_selection_images.values()))
             tag_images[TagType.PAGE_SELECTION.name] = page_selection_img
             msgproc.log(f"preloading [{TagType.PAGE_SELECTION}] -> [{page_selection_img}]")
-    # commit and close
-    cn.commit()
-    cn.close()
     msgproc.log("preloading finished")
 
 

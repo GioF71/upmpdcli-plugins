@@ -27,7 +27,7 @@ class PluginConstant:
     def __init__(self):
         raise TypeError("PluginConstant is a namespace class and cannot be instantiated.")
 
-    PLUGIN_RELEASE: str = "0.8.15"
+    PLUGIN_RELEASE: str = "0.8.16"
     PLUGIN_NAME: str = "tidal"
     CACHED_IMAGES_DIRECTORY: str = "images"
     STATIC_IMAGES_DIRECTORY: str = "static-images"

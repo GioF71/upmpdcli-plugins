@@ -53,6 +53,9 @@ class Column(Enum):
     EXPLICIT = _ColumnData(column_name="explicit", column_type="INTEGER")
     TRACK_NUM = _ColumnData(column_name="track_num", column_type="INTEGER")
     VOLUME_NUM = _ColumnData(column_name="volume_num", column_type="INTEGER")
+    RELEASE_DATE = _ColumnData(column_name="release_date", column_type="TIMESTAMP")
+    AVAILABLE_RELEASE_DATE = _ColumnData(column_name="available_release_date", column_type="TIMESTAMP")
+    IMAGE_URL = _ColumnData(column_name="image_url", column_type="TEXT")
 
     @property
     def column_name(self) -> str:

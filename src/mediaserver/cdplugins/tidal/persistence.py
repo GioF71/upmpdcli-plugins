@@ -35,12 +35,6 @@ from tile_image import TileImage
 from tile_type import TileType
 from track_metadata import TrackMetadata
 
-__field_name_artist_id: str = "artist_id"
-__field_name_artist_name: str = "artist_name"
-__field_name_explicit: str = "explicit"
-__field_name_release_date: str = "release_date"
-__field_name_available_release_date: str = "available_release_date"
-__field_name_image_url: str = "image_url"
 __field_name_audio_modes: str = "audio_modes"
 __field_name_audio_quality: str = "audio_quality"
 __field_name_media_metadata_tags: str = "media_metadata_tags"
@@ -260,6 +254,7 @@ def load_tile_image(
         t)
     rows = cursor.fetchall()
     cursor.close()
+    connection.close()
     if not rows:
         return None
     if len(rows) > 1:
@@ -276,7 +271,6 @@ def save_tile_image(
         tile_type: TileType,
         tile_id: str,
         tile_image: str):
-    connection: sqlite3.Connection = get_connection()
     now: datetime.datetime = datetime.datetime.now()
     existing: TileImage = load_tile_image(tile_type=tile_type, tile_id=tile_id)
     if existing:
@@ -296,7 +290,9 @@ def save_tile_image(
             t)
         cursor.close()
         connection.commit()
+        connection.close()
     else:
+        connection: sqlite3.Connection = get_connection()
         t = (tile_type.tile_type_name, tile_id, tile_image, now)
         cursor = connection.cursor()
         cursor.execute(
@@ -311,6 +307,7 @@ def save_tile_image(
             t)
         cursor.close()
         connection.commit()
+        connection.close()
 
 
 def __alter_played_track_v1_add_album_id():
@@ -536,7 +533,7 @@ def do_migration_12():
 def do_migration_13():
     __do_migration_listen_queue(
         table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
-        field_name=__field_name_artist_id)
+        field_name=Column.ARTIST_ID.column_name)
 
 
 def do_migration_14():
@@ -550,12 +547,12 @@ def do_migration_15():
         CREATE TABLE IF NOT EXISTS {TableName.ALBUM_METADATA_CACHE_V1.value}(
         {Column.ALBUM_ID.column_name} VARCHAR(255) PRIMARY KEY,
         {Column.TRACK_NAME.column_name} VARCHAR(255),
-        {__field_name_artist_id} VARCHAR(255),
-        {__field_name_artist_name} VARCHAR(255),
-        {__field_name_explicit} INTEGER,
-        {__field_name_release_date} TIMESTAMP,
-        {__field_name_available_release_date} TIMESTAMP,
-        {__field_name_image_url} VARCHAR(255),
+        {Column.ARTIST_ID.column_name} VARCHAR(255),
+        {Column.ARTIST_NAME.column_name} VARCHAR(255),
+        {Column.EXPLICIT.column_name} INTEGER,
+        {Column.RELEASE_DATE.column_name} TIMESTAMP,
+        {Column.AVAILABLE_RELEASE_DATE.column_name} TIMESTAMP,
+        {Column.IMAGE_URL.column_name} VARCHAR(255),
         {__field_name_audio_modes} VARCHAR(255),
         {__field_name_audio_quality} VARCHAR(255),
         {__field_name_media_metadata_tags} VARCHAR(255),
@@ -1204,7 +1201,7 @@ def is_in_album_listen_queue(album_id: str, connection: sqlite3.Connection | Non
 def is_in_artist_listen_queue(artist_id: str, connection: sqlite3.Connection | None = None) -> bool:
     return __is_in_listen_queue(
         obj_id=artist_id,
-        key_field_name=__field_name_artist_id,
+        key_field_name=Column.ARTIST_ID.column_name,
         table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
         connection=connection)
 
@@ -1236,7 +1233,7 @@ def get_album_listen_queue() -> list[str]:
 def get_artist_listen_queue() -> list[str]:
     return __get_listen_queue(
         table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
-        key_field_name=__field_name_artist_id)
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def get_track_listen_queue() -> list[str]:
@@ -1288,7 +1285,7 @@ def add_to_artist_listen_queue(artist_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=artist_id,
         table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
-        key_field_name=__field_name_artist_id)
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def add_to_track_listen_queue(track_id: str) -> bool:
@@ -1338,7 +1335,7 @@ def remove_from_artist_listen_queue(artist_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=artist_id,
         table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
-        key_field_name=__field_name_artist_id)
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def remove_from_track_listen_queue(track_id: str) -> bool:
@@ -1376,12 +1373,12 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection | None = No
             SELECT
                 {Column.ALBUM_ID.column_name},
                 {Column.NAME.column_name},
-                {__field_name_artist_id},
-                {__field_name_artist_name},
-                {__field_name_explicit},
-                {__field_name_release_date},
-                {__field_name_available_release_date},
-                {__field_name_image_url},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.RELEASE_DATE.column_name},
+                {Column.AVAILABLE_RELEASE_DATE.column_name},
+                {Column.IMAGE_URL.column_name},
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
@@ -1514,12 +1511,12 @@ def __insert_album_metadata(
             INSERT INTO {TableName.ALBUM_METADATA_CACHE_V1.value}(
                 {Column.ALBUM_ID.column_name},
                 {Column.NAME.column_name},
-                {__field_name_artist_id},
-                {__field_name_artist_name},
-                {__field_name_explicit},
-                {__field_name_release_date},
-                {__field_name_available_release_date},
-                {__field_name_image_url},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.RELEASE_DATE.column_name},
+                {Column.AVAILABLE_RELEASE_DATE.column_name},
+                {Column.IMAGE_URL.column_name},
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
