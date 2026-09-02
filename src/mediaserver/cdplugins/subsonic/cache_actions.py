@@ -13,26 +13,27 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cache_type
-import cache_manager_provider
-import subsonic_util
-import config
-import persistence
-import album_util
+import sqlite3
 import time
-import metadata_converter
+from typing import Any
+
 from subsonic_connector.album import Album
 from subsonic_connector.song import Song
-from artist_from_album import ArtistFromAlbum
+
+import album_util
+import cache_manager_provider
+import cache_type
+import config
+import metadata_converter
+import persistence
+import subsonic_util
 from album_property_key import AlbumPropertyKey
-from song_data_structures import SongArtistType
-from song_data_structures import SongArtist
-from song_data_structures import SongContributor
-from table_name import TableName
+from artist_from_album import ArtistFromAlbum
 from metadata_model import SongMetadataModel
 from msgproc_provider import msgproc
-from typing import Any
-import sqlite3
+from song_data_structures import SongArtist, SongArtistType, SongContributor
+from table_name import TableName
+
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
     return cache_manager_provider.get().delete_cached_element(cache_type.cache_name, key)
@@ -51,7 +52,7 @@ def on_album(album: Album):
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
-def __on_album(album: Album, connection: sqlite3.Connection = None):
+def __on_album(album: Album, connection: sqlite3.Connection | None = None):
     if not album or not album.getId():
         # nothing to do
         return
@@ -76,7 +77,7 @@ def __on_album(album: Album, connection: sqlite3.Connection = None):
     # msgproc.log("delete_song_list_not_in")
     persistence.delete_song_list_not_in(
         album_id=album.getId(),
-        song_list=list(map(lambda x: x.getId(), song_list)),
+        song_list=[x.getId() for x in song_list],
         connection=the_connection,
         do_commit=False)
     # the_connection.commit()
@@ -157,7 +158,7 @@ def __on_album(album: Album, connection: sqlite3.Connection = None):
             parent_id_column_name=SongMetadataModel.SONG_ALBUM_ID.column_name,
             parent_id=album.getId(),
             id_column_name=SongMetadataModel.SONG_ID.column_name,
-            id_list=list(map(lambda x: x.getId(), song_list)),
+            id_list=[x.getId() for x in song_list],
             in_mode=persistence.InMode.NOT_IN,
             connection=the_connection,
             do_commit=False)

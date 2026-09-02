@@ -13,54 +13,50 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from subsonic_connector.album import Album
-from subsonic_connector.album_list import AlbumList
-from subsonic_connector.genre import Genre
-from subsonic_connector.song import Song
-from subsonic_connector.artist import Artist
-from subsonic_connector.playlist import Playlist
-from subsonic_connector.response import Response
-from subsonic_connector.list_type import ListType
-from subsonic_connector.playlist_entry import PlaylistEntry
-
-from item_identifier import ItemIdentifier
-from item_identifier_key import ItemIdentifierKey
-from element_type import ElementType
-
-from album_util import MultiCodecAlbum
-from album_util import AlbumTracks
-from album_util import strip_codec_from_album
-from album_util import get_last_path_element
-from album_util import has_year
-from album_util import get_album_year_str
-from album_util import get_dir_from_path
-from album_util import get_album_base_path
-import audio_codec
-
-import art_retriever
-import config
-import connector_provider
-import identifier_util
-import upnp_util
-import subsonic_util
-import codec
-import constants
-import metadata_converter
-from album_metadata import AlbumMetadata
-from metadata_model import AlbumMetadataModel
-
-from option_key import OptionKey
-from option_util import get_option
-
-import upmplgutils
-import upmpdmeta
-
-from msgproc_provider import msgproc
-
 import os
 from typing import Optional
 
+import upmpdmeta
+import upmplgutils
+from subsonic_connector.album import Album
+from subsonic_connector.album_list import AlbumList
+from subsonic_connector.artist import Artist
+from subsonic_connector.genre import Genre
+from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist import Playlist
+from subsonic_connector.playlist_entry import PlaylistEntry
+from subsonic_connector.response import Response
+from subsonic_connector.song import Song
+
+import art_retriever
+import audio_codec
+import codec
+import config
+import connector_provider
+import constants
+import identifier_util
+import metadata_converter
 import persistence
+import subsonic_util
+import upnp_util
+from album_metadata import AlbumMetadata
+from album_util import (
+    AlbumTracks,
+    MultiCodecAlbum,
+    get_album_base_path,
+    get_album_year_str,
+    get_dir_from_path,
+    get_last_path_element,
+    has_year,
+    strip_codec_from_album,
+)
+from element_type import ElementType
+from item_identifier import ItemIdentifier
+from item_identifier_key import ItemIdentifierKey
+from metadata_model import AlbumMetadataModel
+from msgproc_provider import msgproc
+from option_key import OptionKey
+from option_util import get_option
 
 
 def genre_artist_to_entry(

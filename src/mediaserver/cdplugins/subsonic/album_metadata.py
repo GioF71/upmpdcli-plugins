@@ -14,16 +14,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import datetime
+from typing import Any
+
 from metadata import Metadata
 from metadata_model import AlbumMetadataModel
-from typing import Optional
-from typing import Any
-import datetime
 
 
 class AlbumMetadata(Metadata):
 
-    def get_value(self, album_metadata_model: AlbumMetadataModel, dflt: Any = None) -> Optional[Any]:
+    def get_value(self, album_metadata_model: AlbumMetadataModel, dflt: Any = None) -> Any | None:
         v: Any = self._get(album_metadata_model.column_name)
         if v is None and dflt is not None:
             v = dflt

@@ -15,13 +15,17 @@
 
 # source: https://musicbrainz.org/doc/Release_Group/Type
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable
 
 
 class _ReleaseTypeDefinition:
 
-    def __init__(self, value_list: list[str], reference_value: str = None, display_value: str = None):
+    def __init__(
+            self,
+            value_list: list[str],
+            reference_value: str | None = None,
+            display_value: str | None = None):
         self.__value_list: list[str] = value_list
         self.__reference_value: str = reference_value if reference_value else value_list[0]
         self.__display_value: str = display_value if display_value else self.__reference_value.title()
@@ -160,10 +164,10 @@ def extract_release_types(value_list: list[str], type_matcher: Callable[[str], b
 def sanitize_release_types(
         value_list: list[str],
         fallback_primary: PrimaryReleaseType = PrimaryReleaseType.ALBUM,
-        print_function: Callable[[str], None] = None,
-        album_id: str = None,
-        album_title: str = None,
-        album_artist: str = None) -> list[str]:
+        print_function: Callable[[str], None] | None = None,
+        album_id: str | None = None,
+        album_title: str | None = None,
+        album_artist: str | None = None) -> list[str]:
     # correct some common errors.
     primaries: list[PrimaryReleaseType] = []
     secondaries: list[SecondaryReleaseType] = []
@@ -182,9 +186,8 @@ def sanitize_release_types(
         s: SecondaryReleaseType = not p and match_secondary_release_type(v)
         if s and s not in secondaries:
             secondaries.append(s)
-        if not (s or p):
-            # other!
-            if v not in others:
+        # not in others?
+        if not (s or p) and v not in others:
                 others.append(v)
     # only a secondary value, and maybe others?
     if len(primaries) == 0 and len(secondaries) > 0:
@@ -203,8 +206,8 @@ def sanitize_release_types(
             res.append(fallback_primary.reference_value)
     else:
         # push everything.
-        res.extend(map(lambda p: p.reference_value, primaries))
-        res.extend(map(lambda p: p.reference_value, secondaries))
+        res.extend(p.reference_value for p in primaries)
+        res.extend(p.reference_value for p in secondaries)
         res.extend(others)
     return res
 

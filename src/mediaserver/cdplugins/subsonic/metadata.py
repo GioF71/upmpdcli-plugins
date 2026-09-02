@@ -13,15 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Any, Protocol
+
 from column_name import ColumnName
-from typing import Any
-from typing import Optional
-from typing import Protocol
 
 
 # We still use a small Protocol just so the linter knows the Enum
 # members have a .column_name.value attribute.
 class MetadataMember(Protocol):
+
     @property
     def column_name(self) -> ColumnName: ...
 
@@ -38,7 +38,7 @@ class Metadata:
             return
         self.__data[key] = value
 
-    def _get(self, key: Any) -> Optional[Any]:
+    def _get(self, key: Any) -> Any | None:
         """Internal helper to retrieve values from the data dictionary."""
         return self.__data.get(key)
 

@@ -13,34 +13,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from subsonic_connector.response import Response
-from subsonic_connector.album_list import AlbumList
-from subsonic_connector.list_type import ListType
-from subsonic_connector.playlists import Playlists
-from subsonic_connector.playlist import Playlist
-from subsonic_connector.starred import Starred
-from subsonic_connector.artist import Artist
+import secrets
+from collections.abc import Callable
+
 from subsonic_connector.album import Album
+from subsonic_connector.album_list import AlbumList
+from subsonic_connector.artist import Artist
+from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist import Playlist
+from subsonic_connector.playlists import Playlists
+from subsonic_connector.response import Response
 from subsonic_connector.song import Song
+from subsonic_connector.starred import Starred
 
-from persistence_tuple import ArtistAlbumCoverArt
-from tag_type import TagType
-from retrieved_art import RetrievedArt
-
-from tag_to_entry_context import TagToEntryContext
-
+import cache_actions
+import config
 import connector_provider
+import constants
+import persistence
 import request_cache
 import subsonic_util
-import cache_actions
-import persistence
-import config
-import constants
-
-import secrets
-
-from typing import Callable
 from msgproc_provider import msgproc
+from persistence_tuple import ArtistAlbumCoverArt
+from retrieved_art import RetrievedArt
+from tag_to_entry_context import TagToEntryContext
+from tag_type import TagType
 
 
 def _get_cover_art_from_res_album_list(response: Response[AlbumList], random: bool = False) -> RetrievedArt:
@@ -86,7 +83,7 @@ def consume_random_album_for_cover_art(tag_to_entry_context: TagToEntryContext =
             msgproc.log(f"consume_random_album_for_cover_art skipping album [{select.getId()}] "
                         f"[{subsonic_util.get_album_title(select)}] "
                         f"from [{subsonic_util.get_album_display_artist(album=select)}] (no cover art)")
-    msgproc.log("consume_random_album_for_cover_art cannot not return an album")
+    msgproc.log("consume_random_album_for_cover_art cannot return an album")
     return None
 
 

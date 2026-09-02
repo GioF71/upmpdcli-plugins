@@ -14,9 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from metadata_model import AlbumPropertyMetaModel
-from typing import Any
 import datetime
+from typing import Any
+
+from metadata_model import AlbumPropertyMetaModel
 
 
 class AlbumPropertyMetadata:

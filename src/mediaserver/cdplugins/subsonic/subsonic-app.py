@@ -14,113 +14,98 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import subsonic_init
-import subsonic_util
-import request_cache
-
+import datetime
 import json
+import mimetypes
+import os
 import posixpath
 import re
-import upmplgutils
-import upmpdmeta
-import os
-import statistics
-
-from subsonic_connector.response import Response
-from subsonic_connector.album_list import AlbumList
-from subsonic_connector.album import Album
-from subsonic_connector.song import Song
-from subsonic_connector.genres import Genres
-from subsonic_connector.genre import Genre
-from subsonic_connector.list_type import ListType
-from subsonic_connector.search_result import SearchResult
-from subsonic_connector.artists import Artists
-from subsonic_connector.artists_initial import ArtistsInitial
-from subsonic_connector.artist import Artist
-from subsonic_connector.artist_list_item import ArtistListItem
-from subsonic_connector.playlists import Playlists
-from subsonic_connector.playlist import Playlist
-from subsonic_connector.playlist_entry import PlaylistEntry
-from subsonic_connector.internet_radio_stations import InternetRadioStations
-from subsonic_connector.internet_radio_station import InternetRadioStation
-from subsonic_connector.random_songs import RandomSongs
-from subsonic_connector.top_songs import TopSongs
-from subsonic_connector.similar_artist import SimilarArtist
-from subsonic_connector.artist_info import ArtistInfo
-from subsonic_connector.similar_songs import SimilarSongs
-from subsonic_connector.starred import Starred
-from persistence_tuple import ArtistAlbumCoverArt
-
-import config
-
-from tag_type import TagType, get_tag_type_by_name
-from element_type import ElementType, get_element_type_by_name
-from search_type import SearchType
-from search_type import KindType
-
-from item_identifier_key import ItemIdentifierKey
-from item_identifier import ItemIdentifier
-
-import codec
-import cache_actions
-import cache_manager_provider
-import identifier_util
-import upnp_util
-import entry_creator
-import constants
-import persistence
-import metadata_converter
-from artist_metadata import ArtistMetadata
-from album_metadata import AlbumMetadata
-from album_property_key import AlbumPropertyKey
-from album_property_key import AlbumPropertyKeyValue
-from album_property_key import AlbumPropertyKeyOccurrence
-from album_property_key import AlbumPropertyValueOccurrence
-from album_property_key import get_album_property_key
-from album_property_key import condition_list_contains_negative
-from album_property_key import condition_list_positive_count
-from album_property_key import condition_list_contains_positive
-from common_data_structures import ArtistIdNameCoverArt
-import search_result_rank
-
-from album_util import sort_song_list
-from album_util import get_album_base_path
-from album_util import get_dir_from_path
-from album_util import MultiCodecAlbum
-from album_util import AlbumTracks
-from album_util import get_album_year_str
-from album_util import has_year
-from artist_role import get_artist_role_display_value
-
-from value_holder import encode_value_holder
-from value_holder import decode_value_holder
-
-from tag_to_entry_context import TagToEntryContext
-
-import art_retriever
-from retrieved_art import RetrievedArt
-
-from subsonic_util import get_random_art_by_genre
-from subsonic_util import get_album_tracks
-
-from option_key import OptionKey
-import option_util
-
-import connector_provider
-
-from radio_entry_type import RadioEntryType
-
 import secrets
-import mimetypes
+import statistics
 import time
-import datetime
 from collections import defaultdict
-
-from typing import Callable
+from collections.abc import Callable
 from typing import Any
 
-from msgproc_provider import msgproc
-from msgproc_provider import dispatcher
+import upmpdmeta
+import upmplgutils
+from subsonic_connector.album import Album
+from subsonic_connector.album_list import AlbumList
+from subsonic_connector.artist import Artist
+from subsonic_connector.artist_info import ArtistInfo
+from subsonic_connector.artist_list_item import ArtistListItem
+from subsonic_connector.artists import Artists
+from subsonic_connector.artists_initial import ArtistsInitial
+from subsonic_connector.genre import Genre
+from subsonic_connector.genres import Genres
+from subsonic_connector.internet_radio_station import InternetRadioStation
+from subsonic_connector.internet_radio_stations import InternetRadioStations
+from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist import Playlist
+from subsonic_connector.playlist_entry import PlaylistEntry
+from subsonic_connector.playlists import Playlists
+from subsonic_connector.random_songs import RandomSongs
+from subsonic_connector.response import Response
+from subsonic_connector.search_result import SearchResult
+from subsonic_connector.similar_artist import SimilarArtist
+from subsonic_connector.similar_songs import SimilarSongs
+from subsonic_connector.song import Song
+from subsonic_connector.starred import Starred
+from subsonic_connector.top_songs import TopSongs
+
+import art_retriever
+import cache_actions
+import cache_manager_provider
+import codec
+import config
+import connector_provider
+import constants
+import entry_creator
+import identifier_util
+import metadata_converter
+import option_util
+import persistence
+import request_cache
+import search_result_rank
+import subsonic_init
+import subsonic_util
+import upnp_util
+from album_metadata import AlbumMetadata
+from album_property_key import (
+    AlbumPropertyKey,
+    AlbumPropertyKeyOccurrence,
+    AlbumPropertyKeyValue,
+    AlbumPropertyValueOccurrence,
+    condition_list_contains_negative,
+    condition_list_contains_positive,
+    condition_list_positive_count,
+    get_album_property_key,
+)
+from album_util import (
+    AlbumTracks,
+    MultiCodecAlbum,
+    get_album_base_path,
+    get_album_year_str,
+    get_dir_from_path,
+    has_year,
+    sort_song_list,
+)
+from artist_metadata import ArtistMetadata
+from artist_role import get_artist_role_display_value
+from common_data_structures import ArtistIdNameCoverArt
+from element_type import ElementType, get_element_type_by_name
+from item_identifier import ItemIdentifier
+from item_identifier_key import ItemIdentifierKey
+from msgproc_provider import dispatcher, msgproc
+from option_key import OptionKey
+from persistence_tuple import ArtistAlbumCoverArt
+from radio_entry_type import RadioEntryType
+from retrieved_art import RetrievedArt
+from search_type import KindType, SearchType
+from subsonic_util import get_album_tracks, get_random_art_by_genre
+from tag_to_entry_context import TagToEntryContext
+from tag_type import TagType, get_tag_type_by_name
+from value_holder import decode_value_holder, encode_value_holder
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = f"0${constants.PluginConstant.PLUGIN_NAME.value}$"
@@ -920,7 +905,7 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
         return entries
     except Exception as ex:
         msgproc.log(f"Cannot handle tag [{tag_type.tag_name}] [{type(ex)}] [{ex}]")
-        return list()
+        return []
 
 
 def handler_tag_recently_added_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -2769,7 +2754,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     # do other artist by the same name exist?
     by_same_name_list: list[Artist] = (subsonic_util.get_artists_by_same_name(artist)
                                        if artist_mb_id
-                                       else list())
+                                       else [])
     msgproc.log(f"Count of artists by same name: [{len(by_same_name_list)}]")
     if len(by_same_name_list) > 0:
         by_same_name: Artist
@@ -3119,10 +3104,10 @@ def albums_by_release_type(
         album_list: list[Album],
         release_types: subsonic_util.AlbumReleaseTypes) -> list[Album]:
     msgproc.log(f"albums_by_release_type with release_types=[{release_types.key}]")
-    result: list[Album] = list()
+    result: list[Album] = []
     rt_key: str = release_types.key
     current: Album
-    for current in album_list if album_list else list():
+    for current in album_list if album_list else []:
         # artist id must be among the album main artists, otherwise it's a contributor (shown separately)
         if not subsonic_util.artist_id_among_main_artists(artist_id=artist_id, album=current):
             continue
@@ -3422,7 +3407,7 @@ def handler_element_navigable_album(
                     f"name:[{curr_additional.artist_name}]")
     if inline_additional_artists_for_album and len(additional) > 0:
         msgproc.log(f"handler_element_navigable_album adding {len(additional)} additional artists "
-                    f"[{list(map(lambda c: c.artist_id, additional))}] "
+                    f"[{[c.artist_id for c in additional]}] "
                     f"skip_artist_id_set [{skip_artist_id_set}] ...")
         msgproc.log("before create_entries_for_album_additional_artists")
         additional_artist_entries: list[dict, str] = create_entries_for_album_additional_artists(
@@ -3672,7 +3657,7 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
 
 
 def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> list[dict[str, any]]:
-    result: list[dict[str, any]] = list()
+    result: list[dict[str, any]] = []
     res_top_songs: Response[TopSongs] = connector_provider.get().getTopSongs(artist_name)
     if not res_top_songs.isOk():
         raise Exception(f"Cannot load top songs for artist {artist_name}")
@@ -3761,7 +3746,7 @@ def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: 
         msgproc.log(f"handler_element_album_disc for album_id [{album_id}] missing disc number")
         return entries
     # split disc numbers
-    disc_number_str_list: list[str] = disc_num_str.split(constants.Separator.DISC_NUMBER_SEPARATOR.value)
+    disc_number_str_list: list[str] = disc_num_str.split(constants.Separator.DISC_NUMBER_SEPARATOR)
     disc_number_list: list[int] = list(map(int, disc_number_str_list))
     # get the album tracks
     album_version_path: str = codec.base64_decode(avp_enc) if avp_enc else None
@@ -4021,7 +4006,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
                 target=entry)
             entries.append(entry)
     # more entries ...
-    fav_artists: list[Artist] = list()
+    fav_artists: list[Artist] = []
     fav_res: Response[Starred] = request_cache.get_starred()
     fav_artists = fav_res.getObj().getArtists() if fav_res and fav_res.isOk() else None
     msgproc.log(f"handler_tag_group_artists favorite artists count: [{len(fav_artists)}]")
@@ -4155,7 +4140,7 @@ def tag_list_to_entries(
         objid,
         tag_list: list[TagType],
         context: TagToEntryContext = None) -> list[dict[str, any]]:
-    entry_list: list[dict[str, any]] = list()
+    entry_list: list[dict[str, any]] = []
     tag: TagType
     for tag in tag_list:
         entry: dict[str, any] = tag_to_entry(
@@ -4602,6 +4587,7 @@ def search(a):
     # msgproc.log(f"Searching for [{value}] as [{field}] objkind [{objkind}] origsearch [{origsearch}] ...")
     if not value:
         # required, we return nothing if not set
+        msgproc.log("search without a value results in an empty list")
         return _returnentries(entries, no_cache=without_cache)
     kind_specified: bool = objkind and len(objkind) > 0
     field_specified: bool = field and len(field) > 0
@@ -4860,7 +4846,7 @@ def search(a):
                     objid=objid,
                     artist=current_artist))
                 resultset_length += 1
-    msgproc.log(f"Search for [{value}] as [{field}] with objkind [{objkind}] returned [{resultset_length}] entries")
+    msgproc.log(f"Search for [{value}] as [{field}] with objkind [{objkind}] returned [{resultset_length}] entries -> [{len(entries)}]")
     return _returnentries(entries, no_cache=without_cache)
 
 

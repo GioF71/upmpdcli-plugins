@@ -13,42 +13,43 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import config
+import datetime
+import glob
+import os
+import pathlib
+import shutil
+import sqlite3
+import threading
+import time
+from collections.abc import Callable
+from typing import Any
 
-from subsonic_connector.response import Response
-from subsonic_connector.list_type import ListType
+import upmplgutils
+from subsonic_connector.album import Album
 from subsonic_connector.album_list import AlbumList
 from subsonic_connector.artist import Artist
-from subsonic_connector.album import Album
-from subsonic_connector.song import Song
 from subsonic_connector.internet_radio_stations import InternetRadioStations
-from subsonic_connector.search_result import SearchResult
-from subsonic_connector.music_folders import MusicFolders
+from subsonic_connector.list_type import ListType
 from subsonic_connector.music_folder import MusicFolder
-import metadata_converter
+from subsonic_connector.music_folders import MusicFolders
+from subsonic_connector.response import Response
+from subsonic_connector.search_result import SearchResult
+from subsonic_connector.song import Song
+
+import album_util
 import artist_from_album as artist_from_album
+import config
+import connector_provider
+import constants
+import metadata_converter
+import persistence
+import subsonic_util
+from album_metadata import AlbumMetadata
+from album_property_key import AlbumPropertyKey
+from metadata_model import AlbumMetadataModel
+from msgproc_provider import msgproc
 from song_data_structures import SongArtistType
 from table_name import TableName
-from album_metadata import AlbumMetadata
-from metadata_model import AlbumMetadataModel
-from album_property_key import AlbumPropertyKey
-from typing import Callable
-from typing import Any
-import subsonic_util
-import album_util
-import connector_provider
-from msgproc_provider import msgproc
-import constants
-import upmplgutils
-import persistence
-import sqlite3
-import shutil
-import time
-import datetime
-import os
-import glob
-import pathlib
-import threading
 
 
 def get_image_cache_path_for_pruning(www_image_path: list[str]) -> str:

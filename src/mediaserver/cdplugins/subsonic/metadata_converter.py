@@ -13,26 +13,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from artist_metadata import ArtistMetadata
-from album_metadata import AlbumMetadata
-from song_metadata import SongMetadata
-from subsonic_connector.artist import Artist
-from subsonic_connector.album import Album
-from subsonic_connector.song import Song
-from typing import Callable
-from typing import Any
-import subsonic_util
-import album_util
 import datetime
-from metadata_model import ArtistMetadataModel
-from metadata_model import AlbumMetadataModel
-from metadata_model import SongMetadataModel
-from release_date import ReleaseDate
-from constants import ItemKey
-from album_property_key import AlbumPropertyKey
-from disc_title import DiscTitle
-from song_info import SongInfo
+from collections.abc import Callable
+from typing import Any
+
+from subsonic_connector.album import Album
+from subsonic_connector.artist import Artist
+from subsonic_connector.song import Song
+
+import album_util
 import audio_codec
+import subsonic_util
+from album_metadata import AlbumMetadata
+from album_property_key import AlbumPropertyKey
+from artist_metadata import ArtistMetadata
+from constants import ItemKey
+from disc_title import DiscTitle
+from metadata_model import AlbumMetadataModel, ArtistMetadataModel, SongMetadataModel
+from release_date import ReleaseDate
+from song_info import SongInfo
+from song_metadata import SongMetadata
 
 
 def __prefer_data(
@@ -53,12 +53,7 @@ def prefer_data_simple(extractor: Callable[[Any], Any], obj_list: list[Any]) -> 
 
 
 def __simplest_checker(v: Any) -> bool:
-    if v is None:
-        return False
-    if isinstance(v, str):
-        if len(v) == 0:
-            return False
-    return True
+    return not (v is not None and isinstance(v, str) and len(v) == 0)
 
 
 def update_song_metadata(
@@ -144,8 +139,8 @@ def update_album_metadata(
 
 def build_artist_metadata(
         artist: Artist,
-        created_timestamp: datetime.datetime = None,
-        updated_timestamp: datetime.datetime = None) -> ArtistMetadata:
+        created_timestamp: datetime.datetime | None = None,
+        updated_timestamp: datetime.datetime | None = None) -> ArtistMetadata:
     updated_metadata: ArtistMetadata = ArtistMetadata()
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist.getId())
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_NAME, artist.getName())
@@ -172,9 +167,9 @@ def build_artist_metadata(
 
 def build_album_metadata(
         album: Album,
-        quality_badge: str = None,
-        song_quality_summary: str = None,
-        album_path: str = None,
+        quality_badge: str | None = None,
+        song_quality_summary: str | None = None,
+        album_path: str | None = None,
         created_timestamp: datetime.datetime = datetime.datetime.now(),
         updated_timestamp: datetime.datetime = datetime.datetime.now()) -> AlbumMetadata:
     updated_metadata: AlbumMetadata = AlbumMetadata()
@@ -290,8 +285,8 @@ def build_album_metadata(
 
 def build_song_metadata(
         song: Song,
-        created_timestamp: datetime.datetime = None,
-        updated_timestamp: datetime.datetime = None) -> SongMetadata:
+        created_timestamp: datetime.datetime | None = None,
+        updated_timestamp: datetime.datetime | None = None) -> SongMetadata:
     updated_metadata: SongMetadata = SongMetadata()
     updated_metadata.set_value(SongMetadataModel.SONG_ID, song.getId())
     updated_metadata.set_value(SongMetadataModel.SONG_TITLE, song.getTitle())
