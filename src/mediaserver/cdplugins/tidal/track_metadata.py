@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,20 +13,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
-from html import escape
 
-import codec
-from item_identifier import ItemIdentifier
+import datetime
 
 
-def __escape_objid(value: str) -> str:
-    return escape(value, quote=True)
+class TrackMetadata:
 
-
-def create_objid(objid, id: str) -> str:
-    return objid + "/" + __escape_objid(id)
-
-
-def create_id_from_identifier(identifier: ItemIdentifier) -> str:
-    return codec.encode(json.dumps(identifier.getDictionary()))
+    def __init__(self):
+        self.created_timestamp = datetime.datetime.now()
+        self.track_id: str = None
+        self.name: str = None
+        self.duration: int = None
+        self.explicit: bool = False
+        self.user_date_added: datetime = None
+        self.track_num: int = 1
+        self.volume_num: int = 1
+        self.artist_id: str = None
+        self.artist_name: str = None
+        self.album_id: str = None
+        self.album_name: str = None

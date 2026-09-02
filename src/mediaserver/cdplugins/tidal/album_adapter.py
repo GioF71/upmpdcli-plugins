@@ -13,16 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import copy
+import sqlite3
+import typing
+from datetime import datetime
+
+import cmdtalkplugin
 from tidalapi.album import Album as TidalAlbum
 from tidalapi.artist import Artist as TidalArtist
 
-from datetime import datetime
-from persistence import AlbumMetadata
-import tidal_util
 import persistence
-import copy
-import typing
-import cmdtalkplugin
+import tidal_util
+from persistence import AlbumMetadata
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -81,8 +83,14 @@ class AlbumAdapter:
         return self.available_release_date.year if self.available_release_date else None
 
 
-def tidal_album_to_adapter(tidal_album: TidalAlbum) -> AlbumAdapter:
-    persistence.store_album_metadata(tidal_album_to_album_metadata(tidal_album))
+def tidal_album_to_adapter(
+        tidal_album: TidalAlbum,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False) -> AlbumAdapter:
+    persistence.store_album_metadata(
+        album_metadata=tidal_album_to_album_metadata(tidal_album),
+        connection=connection,
+        commit=commit)
     album_adapter: AlbumAdapter = AlbumAdapter()
     album_adapter.id = tidal_album.id
     album_adapter.name = tidal_album.name

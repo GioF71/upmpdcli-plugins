@@ -13,94 +13,47 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import datetime
+import os
 import sqlite3
-
-from typing import Callable
+from collections.abc import Callable
 from enum import Enum
 
 import upmplgutils
-import constants
+
 import config
-
-from played_track import PlayedTrack
-from played_album import PlayedAlbum
-
-from tile_type import TileType
-from tile_image import TileImage
-
-from played_track_request import PlayedTrackRequest
-
+import constants
+import played_track_request
+from album_metadata import AlbumMetadata
+from column import Column
 from msgproc_provider import msgproc
+from played_album import PlayedAlbum
+from played_track import PlayedTrack
+from played_track_request import PlayedTrackRequest
+from table_name import TableName
+from tile_image import TileImage
+from tile_type import TileType
+from track_metadata import TrackMetadata
 
-__table_name_played_track_v1: str = "played_track_v1"
-
-__table_name_listen_album_queue_v1: str = "listen_album_queue_v1"
-__table_name_listen_artist_queue_v1: str = "listen_artist_queue_v1"
-__table_name_listen_track_queue_v1: str = "listen_track_queue_v1"
-
-__table_name_album_metadata_cache_v1: str = "album_metadata_cache_v1"
-__table_name_tile_image_v1: str = "tile_image_v1"
-
-__field_name_album_id: str = "album_id"
-__field_name_artist_id: str = "artist_id"
-__field_name_artist_name: str = "artist_name"
-__field_name_explicit: str = "explicit"
-__field_name_release_date: str = "release_date"
-__field_name_available_release_date: str = "available_release_date"
-__field_name_image_url: str = "image_url"
 __field_name_audio_modes: str = "audio_modes"
 __field_name_audio_quality: str = "audio_quality"
 __field_name_media_metadata_tags: str = "media_metadata_tags"
-__field_name_track_id: str = "track_id"
-__field_name_name: str = "name"
 __field_name_tile_image: str = "tile_image"
 
 __field_name_created_timestamp: str = "created_timestamp"
 
 
-class ColumnData:
-
-    def __init__(self, column_name: str, column_type: str):
-        self.__column_name: str = column_name
-        self.__column_type: str = column_type
-
-    @property
-    def column_name(self) -> str:
-        return self.__column_name
-
-    @property
-    def column_type(self) -> str:
-        return self.__column_type
+class PersistenceException(Exception):
+    """Raised when an error occurs in the persistence module."""
 
 
-class Column(Enum):
-
-    ALBUM_DURATION = ColumnData(column_name="duration", column_type="INTEGER")
-    NUM_VOLUMES = ColumnData(column_name="num_volumes", column_type="INTEGER")
-    NUM_TRACKS = ColumnData(column_name="num_tracks", column_type="INTEGER")
-    USER_DATE_ADDED = ColumnData(column_name="user_date_added", column_type="TIMESTAMP")
-    ARTIST_ID_LIST = ColumnData(column_name="artist_id_list", column_type="TEXT")
-    ARTIST_NAME_LIST = ColumnData(column_name="artist_name_list", column_type="TEXT")
-    ARTIST_IMAGE_URL_LIST = ColumnData(column_name="artist_image_url_list", column_type="TEXT")
-
-    @property
-    def column_name(self) -> str:
-        return self.value.column_name
-
-    @property
-    def column_type(self) -> str:
-        return self.value.column_type
-
-
-__most_played_albums_query: str = """
+__most_played_albums_query: str = f"""
     SELECT
         album_id,
         (SUM(CAST (play_count AS FLOAT) * (CAST (track_duration AS FLOAT) / CAST (album_duration AS FLOAT))))
             AS album_played_counter
     FROM
-        played_track_v1
+        {TableName.PLAYED_TRACK_V1.value}
     WHERE
         album_duration IS NOT NULL AND
         track_duration IS NOT NULL AND
@@ -111,34 +64,6 @@ __most_played_albums_query: str = """
     ORDER BY
         album_played_counter DESC, last_played DESC
     """
-
-
-class AlbumMetadata:
-
-    def __init__(self):
-        self.created_timestamp = datetime.datetime.now()
-
-    album_id: str = None
-    album_name: str = None
-    artist_id: str = None
-    artist_name: str = None
-    explicit: int = None
-    release_date: datetime = None
-    available_release_date: datetime = None
-    image_url: str = None
-    # comma separated values
-    audio_modes: str = None
-    audio_quality: str = None
-    # comma separated values
-    media_metadata_tags: str = None
-    album_duration: int = None
-    num_volumes: int = None
-    num_tracks: int = None
-    user_date_added: datetime = None
-    created_timestamp: datetime = None
-    artist_id_list: list[str] = []
-    artist_name_list: list[str] = []
-    artist_image_url_list: list[str] = []
 
 
 class PlayedTracksSorting(Enum):
@@ -167,12 +92,16 @@ class PlayedTracksSorting(Enum):
         return self.field_order
 
 
+def __create_qmark_list(num_qmark: int) -> str:
+    return ", ".join(["?"] * num_qmark)
+
+
 def __get_db_filename() -> str:
-    return f"{constants.PluginConstant.PLUGIN_NAME.value}.db"
+    return f"{constants.PluginConstant.PLUGIN_NAME}.db"
 
 
 def __get_db_full_path() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), __get_db_filename())
+    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME), __get_db_filename())
 
 
 def __adapt_flexible_timestamp(ts_bytes):
@@ -243,6 +172,30 @@ def __store_db_version(version: str):
     msgproc.log(f"Db version correctly set to [{version}]")
 
 
+def __prepare_table_track_metadata_cache_v1():
+    msgproc.log("Preparing table track_metadata_cache_v1 ...")
+    connection: sqlite3.Connection = get_connection()
+    cursor_obj = connection.cursor()
+    # Creating table
+    create_table: str = f"""
+        CREATE TABLE {TableName.TRACK_METADATA_CACHE_V1.value}(
+        {Column.TRACK_ID.column_name} {Column.TRACK_ID.column_type} PRIMARY KEY,
+        {Column.TRACK_NAME.column_name} {Column.TRACK_NAME.column_type},
+        {Column.TRACK_DURATION.column_name} {Column.TRACK_DURATION.column_type},
+        {Column.EXPLICIT.column_name} {Column.EXPLICIT.column_type},
+        {Column.USER_DATE_ADDED.column_name} {Column.USER_DATE_ADDED.column_type})
+    """
+    cursor_obj.execute(create_table)
+    # Creating index on user_date_added
+    msgproc.log("Preparing index track_metadata_cache_user_date_added ...")
+    create_index_user_date_added: str = f"""
+        CREATE INDEX track_metadata_cache_user_date_added
+        ON {TableName.TRACK_METADATA_CACHE_V1.value}({Column.USER_DATE_ADDED.column_name})"""
+    cursor_obj.execute(create_index_user_date_added)
+    cursor_obj.close()
+    msgproc.log("Prepared table track_metadata_cache_v1.")
+
+
 def __prepare_table_played_track_v1():
     msgproc.log("Preparing table played_track_v1 ...")
     connection: sqlite3.Connection = get_connection()
@@ -272,12 +225,12 @@ def __prepare_table_played_track_v1():
 
 
 def __prepare_table_tile_image_v1():
-    msgproc.log(f"Preparing table {__table_name_tile_image_v1} ...")
+    msgproc.log(f"Preparing table {TableName.TILE_IMAGE_V1.value} ...")
     connection: sqlite3.Connection = get_connection()
     cursor_obj = connection.cursor()
     # Creating table
     create_table: str = f"""
-        CREATE TABLE {__table_name_tile_image_v1}(
+        CREATE TABLE {TableName.TILE_IMAGE_V1.value}(
         tile_type VARCHAR(64) NOT NULL,
         tile_id VARCHAR(255) NOT NULL,
         {__field_name_tile_image} VARCHAR(255),
@@ -285,7 +238,7 @@ def __prepare_table_tile_image_v1():
     """
     cursor_obj.execute(create_table)
     cursor_obj.close()
-    msgproc.log(f"Prepared table {__table_name_tile_image_v1}.")
+    msgproc.log(f"Prepared table {TableName.TILE_IMAGE_V1.value}.")
 
 
 def load_tile_image(
@@ -296,15 +249,16 @@ def load_tile_image(
     cursor = connection.cursor()
     cursor.execute(
         f"SELECT {__field_name_tile_image}, update_time \
-          FROM {__table_name_tile_image_v1} \
+          FROM {TableName.TILE_IMAGE_V1.value} \
           WHERE tile_type = ? AND tile_id = ?",
         t)
     rows = cursor.fetchall()
     cursor.close()
+    connection.close()
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple tile_image records for tile_type [{tile_type.tile_type_name}], tile_id [{tile_id}]")
+        raise PersistenceException(f"Multiple tile_image records for tile_type [{tile_type.tile_type_name}], tile_id [{tile_id}]")
     tile_image: TileImage = TileImage()
     tile_image.tile_image = rows[0][0]
     tile_image.update_time = rows[0][1]
@@ -317,7 +271,6 @@ def save_tile_image(
         tile_type: TileType,
         tile_id: str,
         tile_image: str):
-    connection: sqlite3.Connection = get_connection()
     now: datetime.datetime = datetime.datetime.now()
     existing: TileImage = load_tile_image(tile_type=tile_type, tile_id=tile_id)
     if existing:
@@ -327,7 +280,7 @@ def save_tile_image(
         cursor.execute(
             f"""
             UPDATE
-                {__table_name_tile_image_v1}
+                {TableName.TILE_IMAGE_V1.value}
             SET
                 {__field_name_tile_image} = ?,
                 update_time = ?
@@ -337,12 +290,14 @@ def save_tile_image(
             t)
         cursor.close()
         connection.commit()
+        connection.close()
     else:
+        connection: sqlite3.Connection = get_connection()
         t = (tile_type.tile_type_name, tile_id, tile_image, now)
         cursor = connection.cursor()
         cursor.execute(
             f"INSERT INTO \
-            {__table_name_tile_image_v1}( \
+            {TableName.TILE_IMAGE_V1.value}( \
                 tile_type, \
                 tile_id, \
                 tile_image, \
@@ -352,6 +307,7 @@ def save_tile_image(
             t)
         cursor.close()
         connection.commit()
+        connection.close()
 
 
 def __alter_played_track_v1_add_album_id():
@@ -395,17 +351,17 @@ def __add_index_by_album_id_to_played_track_v1():
 
 
 def __alter_tile_image_v1_add_update_time():
-    msgproc.log(f"Updating table {__table_name_tile_image_v1} with new column update_time ...")
+    msgproc.log(f"Updating table {TableName.TILE_IMAGE_V1.value} with new column update_time ...")
     connection: sqlite3.Connection = get_connection()
     cursor_obj = connection.cursor()
     # Creating table
     alter: str = f"""
-        ALTER TABLE {__table_name_tile_image_v1}
+        ALTER TABLE {TableName.TILE_IMAGE_V1.value}
         ADD COLUMN update_time TIMESTAMP
     """
     cursor_obj.execute(alter)
     cursor_obj.close()
-    msgproc.log(f"Altered table {__table_name_tile_image_v1} with new column update_time.")
+    msgproc.log(f"Altered table {TableName.TILE_IMAGE_V1.value} with new column update_time.")
 
 
 def __alter_table_with_column(table_name: str, column_name: str, column_type: str):
@@ -475,7 +431,7 @@ def migration_4():
 
 def migration_5():
     msgproc.log("Creating db version 6 ...")
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_with_column(table_name, "track_name", "VARCHAR(4096)")
     __alter_table_with_column(table_name, "track_duration", "INTEGER")
     __alter_table_with_column(table_name, "track_num", "INTEGER")
@@ -498,7 +454,7 @@ def migration_template(new_version: str, migration_function: Callable):
 
 
 def do_migration_6():
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_with_column(table_name, "explicit", "INTEGER")
 
 
@@ -507,7 +463,7 @@ def migration_6():
 
 
 def do_migration_7():
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_with_column(table_name, "artist_name", "VARCHAR(4096)")
 
 
@@ -516,7 +472,7 @@ def migration_7():
 
 
 def do_migration_8():
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_drop_column(table_name, "is_multidisc_album")
 
 
@@ -525,7 +481,7 @@ def migration_8():
 
 
 def do_migration_9():
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_with_column(table_name, "album_duration", "INTEGER")
 
 
@@ -534,15 +490,15 @@ def migration_9():
 
 
 def do_migration_10():
-    msgproc.log(f"Adding index on tile_type, tile_id on table {__table_name_tile_image_v1} ...")
+    msgproc.log(f"Adding index on tile_type, tile_id on table {TableName.TILE_IMAGE_V1.value} ...")
     connection: sqlite3.Connection = get_connection()
     cursor_obj = connection.cursor()
     create_index: str = f"""
         CREATE INDEX tile_image_v1_idx_tile_type_and_id
-        ON {__table_name_tile_image_v1}(tile_type, tile_id)"""
+        ON {TableName.TILE_IMAGE_V1.value}(tile_type, tile_id)"""
     cursor_obj.execute(create_index)
     cursor_obj.close()
-    msgproc.log(f"Added index on tile_type, tile_id on table {__table_name_tile_image_v1}")
+    msgproc.log(f"Added index on tile_type, tile_id on table {TableName.TILE_IMAGE_V1.value}")
 
 
 def migration_10():
@@ -550,7 +506,7 @@ def migration_10():
 
 
 def do_migration_11():
-    table_name: str = __table_name_played_track_v1
+    table_name: str = TableName.PLAYED_TRACK_V1.value
     __alter_table_with_column(table_name, "bit_depth", "INTEGER")
     __alter_table_with_column(table_name, "sample_rate", "INTEGER")
 
@@ -570,33 +526,33 @@ def __do_migration_listen_queue(table_name: str, field_name: str):
 
 def do_migration_12():
     __do_migration_listen_queue(
-        table_name=__table_name_listen_album_queue_v1,
-        field_name=__field_name_album_id)
+        table_name=TableName.LISTEN_ALBUM_QUEUE_V1.value,
+        field_name=Column.ALBUM_ID.column_name)
 
 
 def do_migration_13():
     __do_migration_listen_queue(
-        table_name=__table_name_listen_artist_queue_v1,
-        field_name=__field_name_artist_id)
+        table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
+        field_name=Column.ARTIST_ID.column_name)
 
 
 def do_migration_14():
     __do_migration_listen_queue(
-        table_name=__table_name_listen_track_queue_v1,
-        field_name=__field_name_track_id)
+        table_name=TableName.LISTEN_TRACK_QUEUE_V1.value,
+        field_name=Column.TRACK_ID.column_name)
 
 
 def do_migration_15():
     create_table: str = f"""
-        CREATE TABLE IF NOT EXISTS {__table_name_album_metadata_cache_v1}(
-        {__field_name_album_id} VARCHAR(255) PRIMARY KEY,
-        {__field_name_name} VARCHAR(255),
-        {__field_name_artist_id} VARCHAR(255),
-        {__field_name_artist_name} VARCHAR(255),
-        {__field_name_explicit} INTEGER,
-        {__field_name_release_date} TIMESTAMP,
-        {__field_name_available_release_date} TIMESTAMP,
-        {__field_name_image_url} VARCHAR(255),
+        CREATE TABLE IF NOT EXISTS {TableName.ALBUM_METADATA_CACHE_V1.value}(
+        {Column.ALBUM_ID.column_name} VARCHAR(255) PRIMARY KEY,
+        {Column.TRACK_NAME.column_name} VARCHAR(255),
+        {Column.ARTIST_ID.column_name} VARCHAR(255),
+        {Column.ARTIST_NAME.column_name} VARCHAR(255),
+        {Column.EXPLICIT.column_name} INTEGER,
+        {Column.RELEASE_DATE.column_name} TIMESTAMP,
+        {Column.AVAILABLE_RELEASE_DATE.column_name} TIMESTAMP,
+        {Column.IMAGE_URL.column_name} VARCHAR(255),
         {__field_name_audio_modes} VARCHAR(255),
         {__field_name_audio_quality} VARCHAR(255),
         {__field_name_media_metadata_tags} VARCHAR(255),
@@ -610,42 +566,80 @@ def do_migration_15():
 
 def do_migration_16():
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.ALBUM_DURATION.column_name,
         column_type=Column.ALBUM_DURATION.column_type)
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.NUM_VOLUMES.column_name,
         column_type=Column.NUM_VOLUMES.column_type)
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.NUM_TRACKS.column_name,
         column_type=Column.NUM_TRACKS.column_type)
 
 
 def do_migration_17():
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.USER_DATE_ADDED.column_name,
         column_type=Column.USER_DATE_ADDED.column_type)
 
 
 def do_migration_18():
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.ARTIST_ID_LIST.column_name,
         column_type=Column.ARTIST_ID_LIST.column_type)
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.ARTIST_NAME_LIST.column_name,
         column_type=Column.ARTIST_NAME_LIST.column_type)
 
 
 def do_migration_19():
     __alter_table_with_column(
-        table_name=__table_name_album_metadata_cache_v1,
+        table_name=TableName.ALBUM_METADATA_CACHE_V1.value,
         column_name=Column.ARTIST_IMAGE_URL_LIST.column_name,
         column_type=Column.ARTIST_IMAGE_URL_LIST.column_type)
+
+
+def do_migration_20():
+    __prepare_table_track_metadata_cache_v1()
+
+
+def do_migration_21():
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.TRACK_NUM.column_name,
+        column_type=Column.TRACK_NUM.column_type)
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.VOLUME_NUM.column_name,
+        column_type=Column.VOLUME_NUM.column_type)
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.ARTIST_ID.column_name,
+        column_type=Column.ARTIST_ID.column_type)
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.ARTIST_NAME.column_name,
+        column_type=Column.ARTIST_NAME.column_type)
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.ALBUM_ID.column_name,
+        column_type=Column.ALBUM_ID.column_type)
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.ALBUM_NAME.column_name,
+        column_type=Column.ALBUM_NAME.column_type)
+
+
+def do_migration_22():
+    __alter_table_with_column(
+        table_name=TableName.TRACK_METADATA_CACHE_V1.value,
+        column_name=Column.CREATED_TIMESTAMP.column_name,
+        column_type=Column.CREATED_TIMESTAMP.column_type)
 
 
 def migration_11():
@@ -684,31 +678,43 @@ def migration_19():
     migration_template("20", do_migration_19)
 
 
+def migration_20():
+    migration_template("21", do_migration_20)
+
+
+def migration_21():
+    migration_template("22", do_migration_21)
+
+
+def migration_22():
+    migration_template("23", do_migration_22)
+
+
 def insert_playback(
-        played_track_request: PlayedTrackRequest,
+        req: PlayedTrackRequest,
         last_played: datetime.datetime):
     play_count: int = 1 if last_played else 0
     # msgproc.log(f"insert_playback [{played_track_request.track_id}] "
     #             f"with play_count [{play_count}] "
     #             f"last_played [{'NOT NULL' if last_played else 'NULL'}]")
     t = (
-        played_track_request.track_id,
-        played_track_request.album_id,
-        played_track_request.album_track_count,
-        played_track_request.track_name,
-        played_track_request.track_duration,
-        played_track_request.track_num,
-        played_track_request.volume_num,
-        played_track_request.album_num_volumes,
-        played_track_request.album_name,
-        played_track_request.audio_quality,
-        played_track_request.album_artist_name,
-        played_track_request.image_url,
-        played_track_request.explicit,
-        played_track_request.artist_name,
-        played_track_request.album_duration,
-        played_track_request.bit_depth,
-        played_track_request.sample_rate,
+        req.track_id,
+        req.album_id,
+        req.album_track_count,
+        req.track_name,
+        req.track_duration,
+        req.track_num,
+        req.volume_num,
+        req.album_num_volumes,
+        req.album_name,
+        req.audio_quality,
+        req.album_artist_name,
+        req.image_url,
+        req.explicit,
+        req.artist_name,
+        req.album_duration,
+        req.bit_depth,
+        req.sample_rate,
         play_count,
         last_played)
     connection: sqlite3.Connection = get_connection()
@@ -740,32 +746,32 @@ def insert_playback(
 
 
 def update_playback(
-        played_track_request: PlayedTrackRequest,
+        req: PlayedTrackRequest,
         last_played: datetime.datetime):
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"update_playback [{played_track_request.track_id}] "
+        msgproc.log(f"update_playback [{req.track_id}] "
                     f"with last_played [{'NOT NULL' if last_played else 'NULL'}]")
     if last_played:
         t = (
-            played_track_request.album_id,
-            played_track_request.album_track_count,
-            played_track_request.track_name,
-            played_track_request.track_duration,
-            played_track_request.track_num,
-            played_track_request.volume_num,
-            played_track_request.album_num_volumes,
-            played_track_request.album_name,
-            played_track_request.audio_quality,
-            played_track_request.album_artist_name,
-            played_track_request.image_url,
-            played_track_request.explicit,
-            played_track_request.artist_name,
-            played_track_request.album_duration,
-            played_track_request.bit_depth,
-            played_track_request.sample_rate,
-            played_track_request.track_id,
+            req.album_id,
+            req.album_track_count,
+            req.track_name,
+            req.track_duration,
+            req.track_num,
+            req.volume_num,
+            req.album_num_volumes,
+            req.album_name,
+            req.audio_quality,
+            req.album_artist_name,
+            req.image_url,
+            req.explicit,
+            req.artist_name,
+            req.album_duration,
+            req.bit_depth,
+            req.sample_rate,
+            req.track_id,
             last_played,
-            played_track_request.track_id)
+            req.track_id)
         connection: sqlite3.Connection = get_connection()
         cursor = connection.cursor()
         cursor.execute("UPDATE played_track_v1 set album_id = ?, \
@@ -867,8 +873,8 @@ def _get_played_tracks(sorting: PlayedTracksSorting, max_tracks: int) -> list[Pl
     rows = cursor.fetchall()
     cursor.close()
     if not rows:
-        return list()
-    played_list: list[PlayedTrack] = list()
+        return []
+    played_list: list[PlayedTrack] = []
     for row in rows:
         played: PlayedTrack = PlayedTrack()
         played.track_id = str(row[0])
@@ -906,10 +912,10 @@ def get_most_played_tracks(max_tracks: int = 100) -> list[PlayedTrack]:
         max_tracks=max_tracks)
 
 
-def get_played_track_entry(track_id: str) -> PlayedTrack:
+def get_played_track_entry(track_id: str, connection: sqlite3.Connection | None = None) -> PlayedTrack:
     t = (track_id,)
-    connection: sqlite3.Connection = get_connection()
-    cursor = connection.cursor()
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
     cursor.execute("SELECT \
                    play_count, \
                    last_played, \
@@ -934,6 +940,9 @@ def get_played_track_entry(track_id: str) -> PlayedTrack:
     rows = cursor.fetchall()
     cursor.close()
     if not rows:
+        # close connection if needed
+        if connection is None:
+            cn.close()
         return None
     result: PlayedTrack = PlayedTrack()
     result.track_id = track_id
@@ -955,11 +964,16 @@ def get_played_track_entry(track_id: str) -> PlayedTrack:
     result.album_duration = rows[0][15]
     result.bit_depth = rows[0][16]
     result.sample_rate = rows[0][17]
+    # close connection if needed
+    if connection is None:
+        cn.close()
     return result
 
 
-def get_played_album_entries(album_id: str, connection: sqlite3.Connection = None) -> list[PlayedTrack]:
-    t: tuple[str] = tuple([album_id])
+def get_played_album_entries(
+        album_id: str,
+        connection: sqlite3.Connection | None = None) -> list[PlayedTrack]:
+    t: tuple[str] = (album_id,)
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     cursor = cn.cursor()
     cursor.execute("SELECT \
@@ -986,10 +1000,8 @@ def get_played_album_entries(album_id: str, connection: sqlite3.Connection = Non
                 ORDER BY volume_num, track_num", t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows:
-        return list()
-    result: list[PlayedTrack] = list()
-    for row in rows:
+    result: list[PlayedTrack] = []
+    for row in rows if rows else []:
         played_track: PlayedTrack = PlayedTrack()
         played_track.album_id = album_id
         played_track.play_count = row[0]
@@ -1047,11 +1059,11 @@ def remove_album_from_played_tracks(album_id: str):
 
 
 def purge_album_from_played_tracks(album_id: str):
-    return __purge_album_from_table(album_id, __table_name_played_track_v1)
+    return __purge_album_from_table(album_id, TableName.PLAYED_TRACK_V1.value)
 
 
 def purge_album_from_metadata_cache(album_id: str):
-    return __purge_album_from_table(album_id, __table_name_album_metadata_cache_v1)
+    return __purge_album_from_table(album_id, TableName.ALBUM_METADATA_CACHE_V1.value)
 
 
 def __purge_album_from_table(album_id: str, table_name):
@@ -1060,7 +1072,7 @@ def __purge_album_from_table(album_id: str, table_name):
     cursor = connection.cursor()
     cursor.execute(
         f"DELETE FROM {table_name} "
-        f"WHERE {__field_name_album_id} = ?",
+        f"WHERE {Column.ALBUM_ID.column_name} = ?",
         t)
     cursor.close()
     connection.commit()
@@ -1079,12 +1091,12 @@ def remove_track_from_played_tracks(track_id: str):
 
 def is_album_in_played_tracks(
         album_id: str) -> bool:
-    return __is_album_id_in_table(album_id, __table_name_played_track_v1)
+    return __is_album_id_in_table(album_id, TableName.PLAYED_TRACK_V1.value)
 
 
 def is_album_in_metadata_cache(
         album_id: str) -> bool:
-    return __is_album_id_in_table(album_id, __table_name_album_metadata_cache_v1)
+    return __is_album_id_in_table(album_id, TableName.ALBUM_METADATA_CACHE_V1.value)
 
 
 def __is_album_id_in_table(
@@ -1096,13 +1108,11 @@ def __is_album_id_in_table(
     cursor.execute(
         f"SELECT * \
           FROM {table_name} \
-          WHERE {__field_name_album_id} = ?",
+          WHERE {Column.ALBUM_ID.column_name} = ?",
         t)
     rows = cursor.fetchall()
     cursor.close()
-    if not rows:
-        return False
-    return True
+    return rows and len(rows) > 0
 
 
 def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
@@ -1111,10 +1121,8 @@ def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
     cursor.execute(f"{__most_played_albums_query} LIMIT {max_albums}")
     rows = cursor.fetchall()
     cursor.close()
-    result: list[PlayedAlbum] = list()
-    if not rows:
-        return result
-    for row in rows:
+    result: list[PlayedAlbum] = []
+    for row in rows if rows else []:
         played: PlayedAlbum = PlayedAlbum()
         played.album_id = row[0]
         played.album_played_counter = row[1]
@@ -1128,33 +1136,33 @@ def get_most_played_albums(max_albums: int = 100) -> list[PlayedAlbum]:
 def track_ghost_playback(played_track_request: PlayedTrackRequest):
     if not track_has_been_played(track_id=played_track_request.track_id):
         insert_playback(
-            played_track_request=played_track_request,
+            req=played_track_request,
             last_played=None)
 
 
-def track_playback(played_track_request: PlayedTrackRequest):
+def track_playback(req: PlayedTrackRequest):
     now: datetime.datetime = datetime.datetime.now()
     # we try inserting first
     track_action: str = "insert"
-    try:
+    if not track_has_been_played(track_id=req.track_id):
         insert_playback(
-            played_track_request=played_track_request,
+            req=req,
             last_played=now)
-    except sqlite3.IntegrityError:
+    else:
         track_action: str = "update"
         update_playback(
-            played_track_request=played_track_request,
+            req=req,
             last_played=now)
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
-        msgproc.log(f"Track playback for {played_track_request.track_id} completed [{track_action}].")
+        msgproc.log(f"Track playback for {req.track_id} completed [{track_action}].")
 
 
 def __is_in_listen_queue(
         obj_id: str,
         key_field_name: str,
         table_name: str,
-        connection: sqlite3.Connection = None) -> bool:
-    t: tuple[str] = tuple([obj_id])
+        connection: sqlite3.Connection | None = None) -> bool:
+    t: tuple[str] = (obj_id,)
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     cursor = cn.cursor()
     cursor.execute(
@@ -1167,34 +1175,34 @@ def __is_in_listen_queue(
     if not rows:
         return False
     if len(rows) > 1:
-        raise Exception(f"Multiple {table_name} records for id [{obj_id}]")
+        raise PersistenceException(f"Multiple {table_name} records for id [{obj_id}]")
     # only one record, yes, it's in listen queue
     if connection == None:
         cn.close()
     return True
 
 
-def is_in_track_listen_queue(track_id: str, connection: sqlite3.Connection = None) -> bool:
+def is_in_track_listen_queue(track_id: str, connection: sqlite3.Connection | None = None) -> bool:
     return __is_in_listen_queue(
         obj_id=track_id,
-        key_field_name=__field_name_track_id,
-        table_name=__table_name_listen_track_queue_v1,
+        key_field_name=Column.TRACK_ID.column_name,
+        table_name=TableName.LISTEN_TRACK_QUEUE_V1.value,
         connection=connection)
 
 
-def is_in_album_listen_queue(album_id: str, connection: sqlite3.Connection = None) -> bool:
+def is_in_album_listen_queue(album_id: str, connection: sqlite3.Connection | None = None) -> bool:
     return __is_in_listen_queue(
         obj_id=album_id,
-        key_field_name=__field_name_album_id,
-        table_name=__table_name_listen_album_queue_v1,
+        key_field_name=Column.ALBUM_ID.column_name,
+        table_name=TableName.LISTEN_ALBUM_QUEUE_V1.value,
         connection=connection)
 
 
-def is_in_artist_listen_queue(artist_id: str, connection: sqlite3.Connection = None) -> bool:
+def is_in_artist_listen_queue(artist_id: str, connection: sqlite3.Connection | None = None) -> bool:
     return __is_in_listen_queue(
         obj_id=artist_id,
-        key_field_name=__field_name_artist_id,
-        table_name=__table_name_listen_artist_queue_v1,
+        key_field_name=Column.ARTIST_ID.column_name,
+        table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
         connection=connection)
 
 
@@ -1209,8 +1217,8 @@ def __get_listen_queue(
           ORDER BY {__field_name_created_timestamp}")
     rows = cursor.fetchall()
     cursor.close()
-    result: list[str] = list()
-    for row in rows if rows else list():
+    result: list[str] = []
+    for row in rows if rows else []:
         id: str = row[0]
         result.append(id)
     return result
@@ -1218,27 +1226,27 @@ def __get_listen_queue(
 
 def get_album_listen_queue() -> list[str]:
     return __get_listen_queue(
-        table_name=__table_name_listen_album_queue_v1,
-        key_field_name=__field_name_album_id)
+        table_name=TableName.LISTEN_ALBUM_QUEUE_V1.value,
+        key_field_name=Column.ALBUM_ID.column_name)
 
 
 def get_artist_listen_queue() -> list[str]:
     return __get_listen_queue(
-        table_name=__table_name_listen_artist_queue_v1,
-        key_field_name=__field_name_artist_id)
+        table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def get_track_listen_queue() -> list[str]:
     return __get_listen_queue(
-        table_name=__table_name_listen_track_queue_v1,
-        key_field_name=__field_name_track_id)
+        table_name=TableName.LISTEN_TRACK_QUEUE_V1.value,
+        key_field_name=Column.TRACK_ID.column_name)
 
 
 def __add_to_listen_queue(
         obj_id: str,
         table_name: str,
         key_field_name: str,
-        connection: sqlite3.Connection = None) -> bool:
+        connection: sqlite3.Connection | None = None) -> bool:
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     if not __is_in_listen_queue(
             obj_id=obj_id,
@@ -1269,29 +1277,29 @@ def __add_to_listen_queue(
 def add_to_album_listen_queue(album_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=album_id,
-        table_name=__table_name_listen_album_queue_v1,
-        key_field_name=__field_name_album_id)
+        table_name=TableName.LISTEN_ALBUM_QUEUE_V1.value,
+        key_field_name=Column.ALBUM_ID.column_name)
 
 
 def add_to_artist_listen_queue(artist_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=artist_id,
-        table_name=__table_name_listen_artist_queue_v1,
-        key_field_name=__field_name_artist_id)
+        table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def add_to_track_listen_queue(track_id: str) -> bool:
     return __add_to_listen_queue(
         obj_id=track_id,
-        table_name=__table_name_listen_track_queue_v1,
-        key_field_name=__field_name_track_id)
+        table_name=TableName.LISTEN_TRACK_QUEUE_V1.value,
+        key_field_name=Column.TRACK_ID.column_name)
 
 
 def __remove_from_listen_queue(
         obj_id: str,
         table_name: str,
         key_field_name: str,
-        connection: sqlite3.Connection = None) -> bool:
+        connection: sqlite3.Connection | None = None) -> bool:
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     if __is_in_listen_queue(
             obj_id=obj_id,
@@ -1319,22 +1327,22 @@ def __remove_from_listen_queue(
 def remove_from_album_listen_queue(album_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=album_id,
-        table_name=__table_name_listen_album_queue_v1,
-        key_field_name=__field_name_album_id)
+        table_name=TableName.LISTEN_ALBUM_QUEUE_V1.value,
+        key_field_name=Column.ALBUM_ID.column_name)
 
 
 def remove_from_artist_listen_queue(artist_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=artist_id,
-        table_name=__table_name_listen_artist_queue_v1,
-        key_field_name=__field_name_artist_id)
+        table_name=TableName.LISTEN_ARTIST_QUEUE_V1.value,
+        key_field_name=Column.ARTIST_ID.column_name)
 
 
 def remove_from_track_listen_queue(track_id: str) -> bool:
     return __remove_from_listen_queue(
         obj_id=track_id,
-        table_name=__table_name_listen_track_queue_v1,
-        key_field_name=__field_name_track_id)
+        table_name=TableName.LISTEN_TRACK_QUEUE_V1.value,
+        key_field_name=Column.TRACK_ID.column_name)
 
 
 def clean_image_url_starting_with(base_root: str, opposite: bool = False):
@@ -1342,7 +1350,7 @@ def clean_image_url_starting_with(base_root: str, opposite: bool = False):
     operator_left: str = "NOT(" if opposite else ""
     operator_right: str = ")" if opposite else ""
     update_str: str = f"""
-            UPDATE {__table_name_tile_image_v1}
+            UPDATE {TableName.TILE_IMAGE_V1.value}
             SET {__field_name_tile_image} = null
             WHERE {operator_left}{__field_name_tile_image} LIKE ?{operator_right}
     """
@@ -1356,21 +1364,21 @@ def clean_image_url_starting_with(base_root: str, opposite: bool = False):
     connection.commit()
 
 
-def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def get_album_metadata(album_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     t = (album_id, )
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     cursor = cn.cursor()
     cursor.execute(
         f"""
             SELECT
-                {__field_name_album_id},
-                {__field_name_name},
-                {__field_name_artist_id},
-                {__field_name_artist_name},
-                {__field_name_explicit},
-                {__field_name_release_date},
-                {__field_name_available_release_date},
-                {__field_name_image_url},
+                {Column.ALBUM_ID.column_name},
+                {Column.NAME.column_name},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.RELEASE_DATE.column_name},
+                {Column.AVAILABLE_RELEASE_DATE.column_name},
+                {Column.IMAGE_URL.column_name},
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
@@ -1383,15 +1391,17 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> 
                 {Column.ARTIST_IMAGE_URL_LIST.column_name},
                 {__field_name_created_timestamp}
             FROM
-                {__table_name_album_metadata_cache_v1}
-            WHERE {__field_name_album_id} = ?""",
+                {TableName.ALBUM_METADATA_CACHE_V1.value}
+            WHERE {Column.ALBUM_ID.column_name} = ?""",
         t)
     rows = cursor.fetchall()
     cursor.close()
     if not rows:
+        if connection == None:
+            cn.close()
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple {__table_name_album_metadata_cache_v1} records for [{album_id}]")
+        raise PersistenceException(f"Multiple {TableName.ALBUM_METADATA_CACHE_V1.value} records for [{album_id}]")
     row = rows[0]
     result: AlbumMetadata = AlbumMetadata()
     result.album_id = row[0]
@@ -1419,11 +1429,62 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> 
     if artist_image_url_list:
         result.artist_image_url_list = artist_image_url_list.split(",")
     result.created_timestamp = row[18]
+    if connection == None:
+        cn.close()
     return result
 
 
-def __insert_album_metadata(album: AlbumMetadata, connection: sqlite3.Connection = None, commit: bool = False):
-    t: tuple[str] = tuple([
+def get_track_metadata(track_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
+    t = (track_id, )
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
+    cursor.execute(
+        f"""
+            SELECT
+                {Column.TRACK_ID.column_name},
+                {Column.TRACK_NAME.column_name},
+                {Column.TRACK_DURATION.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.USER_DATE_ADDED.column_name},
+                {Column.TRACK_NUM.column_name},
+                {Column.VOLUME_NUM.column_name},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.ALBUM_ID.column_name},
+                {Column.ALBUM_NAME.column_name},
+                {__field_name_created_timestamp}
+            FROM
+                {TableName.TRACK_METADATA_CACHE_V1.value}
+            WHERE {Column.TRACK_ID.column_name} = ?""",
+        t)
+    rows = cursor.fetchall()
+    cursor.close()
+    if not rows:
+        return None
+    if len(rows) > 1:
+        raise PersistenceException(f"Multiple {TableName.TRACK_METADATA_CACHE_V1.value} records for [{track_id}]")
+    row = rows[0]
+    result: TrackMetadata = TrackMetadata()
+    result.track_id = row[0]
+    result.name = row[1]
+    result.duration = row[2]
+    result.explicit = row[3]
+    result.user_date_added = row[4]
+    result.track_num = row[5]
+    result.volume_num = row[6]
+    result.artist_id = row[7]
+    result.artist_name = row[8]
+    result.album_id = row[9]
+    result.album_name = row[10]
+    result.created_timestamp = row[11]
+    return result
+
+
+def __insert_album_metadata(
+        album: AlbumMetadata,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    t: tuple[str] = (
         album.album_id,
         album.album_name,
         album.artist_id,
@@ -1442,20 +1503,20 @@ def __insert_album_metadata(album: AlbumMetadata, connection: sqlite3.Connection
         ",".join([str(x) for x in album.artist_id_list]),
         ",".join([x for x in album.artist_name_list]),
         ",".join([x for x in album.artist_image_url_list]),
-        album.created_timestamp])
+        album.created_timestamp)
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     cursor = cn.cursor()
     cursor.execute(
         f"""
-            INSERT INTO {__table_name_album_metadata_cache_v1}(
-                {__field_name_album_id},
-                {__field_name_name},
-                {__field_name_artist_id},
-                {__field_name_artist_name},
-                {__field_name_explicit},
-                {__field_name_release_date},
-                {__field_name_available_release_date},
-                {__field_name_image_url},
+            INSERT INTO {TableName.ALBUM_METADATA_CACHE_V1.value}(
+                {Column.ALBUM_ID.column_name},
+                {Column.NAME.column_name},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.RELEASE_DATE.column_name},
+                {Column.AVAILABLE_RELEASE_DATE.column_name},
+                {Column.IMAGE_URL.column_name},
                 {__field_name_audio_modes},
                 {__field_name_audio_quality},
                 {__field_name_media_metadata_tags},
@@ -1473,28 +1534,168 @@ def __insert_album_metadata(album: AlbumMetadata, connection: sqlite3.Connection
         """,
         t)
     cursor.close()
-    if commit:
+    if commit or connection is None:
         cn.commit()
     if connection is None:
         cn.close()
 
 
-def __delete_album_metadata(album_id: str, connection: sqlite3.Connection = None, commit: bool = False):
-    t = (album_id, )
+def __insert_track_metadata(
+        track: TrackMetadata,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    t: tuple[str] = (
+        track.track_id,
+        track.name,
+        track.duration,
+        track.explicit,
+        track.user_date_added,
+        track.track_num,
+        track.volume_num,
+        track.artist_id,
+        track.artist_name,
+        track.album_id,
+        track.album_name,
+        track.created_timestamp)
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     cursor = cn.cursor()
     cursor.execute(
-        f"""DELETE FROM {__table_name_album_metadata_cache_v1}
-            WHERE {__field_name_album_id} = ?""",
+        f"""
+            INSERT INTO
+                {TableName.TRACK_METADATA_CACHE_V1.value}(
+                {Column.TRACK_ID.column_name},
+                {Column.TRACK_NAME.column_name},
+                {Column.TRACK_DURATION.column_name},
+                {Column.EXPLICIT.column_name},
+                {Column.USER_DATE_ADDED.column_name},
+                {Column.TRACK_NUM.column_name},
+                {Column.VOLUME_NUM.column_name},
+                {Column.ARTIST_ID.column_name},
+                {Column.ARTIST_NAME.column_name},
+                {Column.ALBUM_ID.column_name},
+                {Column.ALBUM_NAME.column_name},
+                {Column.CREATED_TIMESTAMP.column_name}
+            ) VALUES (
+                {__create_qmark_list(12)}
+            )
+        """,
         t)
     cursor.close()
-    if commit:
-        connection.commit()
+    if commit or connection is None:
+        cn.commit()
     if connection is None:
         cn.close()
 
 
-def store_album_metadata(album_metadata: AlbumMetadata, connection: sqlite3.Connection = None):
+def __update_track_metadata(
+        track_metadata: TrackMetadata,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    t: tuple[str] = (
+        track_metadata.name,
+        track_metadata.duration,
+        track_metadata.explicit,
+        track_metadata.user_date_added,
+        track_metadata.track_num,
+        track_metadata.volume_num,
+        track_metadata.artist_id,
+        track_metadata.artist_name,
+        track_metadata.album_id,
+        track_metadata.album_name,
+        track_metadata.created_timestamp,
+        track_metadata.track_id)
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
+    cursor.execute(
+        f"""
+            UPDATE {TableName.TRACK_METADATA_CACHE_V1.value} SET
+                {Column.TRACK_NAME.column_name} = ?,
+                {Column.TRACK_DURATION.column_name} = ?,
+                {Column.EXPLICIT.column_name} = ?,
+                {Column.USER_DATE_ADDED.column_name} = ?,
+                {Column.TRACK_NUM.column_name} = ?,
+                {Column.VOLUME_NUM.column_name} = ?,
+                {Column.ARTIST_ID.column_name} = ?,
+                {Column.ARTIST_NAME.column_name} = ?,
+                {Column.ALBUM_ID.column_name} = ?,
+                {Column.ALBUM_NAME.column_name} = ?,
+                {Column.CREATED_TIMESTAMP.column_name} = ?
+            WHERE
+                {Column.TRACK_ID.column_name} = ?
+        """,
+        t)
+    cursor.close()
+    if commit or connection is None:
+        cn.commit()
+    if connection is None:
+        cn.close()
+
+
+def unfavorite_tracks(
+        track_id_list: list[str],
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    sql: str = f"""
+        UPDATE {TableName.TRACK_METADATA_CACHE_V1.value}
+        SET {Column.USER_DATE_ADDED.column_name} = NULL
+        WHERE
+            {Column.TRACK_ID.column_name}
+            NOT IN ({__create_qmark_list(len(track_id_list))})
+    """
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
+    cursor.execute(sql, tuple([x for x in track_id_list]))
+    cursor.close()
+    if commit or connection is None:
+        cn.commit()
+    if connection is None:
+        cn.close()
+
+
+def __delete_album_metadata(
+        album_id: str,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    t = (album_id, )
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    cursor = cn.cursor()
+    cursor.execute(
+        f"""DELETE FROM {TableName.ALBUM_METADATA_CACHE_V1.value}
+            WHERE {Column.ALBUM_ID.column_name} = ?""",
+        t)
+    cursor.close()
+    if commit or connection is None:
+        cn.commit()
+    if connection is None:
+        cn.close()
+
+
+def store_track_metadata(
+        track_metadata: TrackMetadata,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
+    cn: sqlite3.Connection = get_connection() if connection is None else connection
+    if get_track_metadata(track_id=track_metadata.track_id, connection=cn):
+        # update
+        __update_track_metadata(
+            track_metadata=track_metadata,
+            connection=cn,
+            commit=commit)
+    # now we can always insert
+    else:
+        # insert
+        __insert_track_metadata(
+            track=track_metadata,
+            connection=cn,
+            commit=commit)
+    if connection == None:
+        cn.close()
+
+
+def store_album_metadata(
+        album_metadata: AlbumMetadata,
+        connection: sqlite3.Connection | None = None,
+        commit: bool = False):
     cn: sqlite3.Connection = get_connection() if connection is None else connection
     if get_album_metadata(album_id=album_metadata.album_id, connection=cn):
         # we want to overwrite so we delete first
@@ -1506,7 +1707,9 @@ def store_album_metadata(album_metadata: AlbumMetadata, connection: sqlite3.Conn
     __insert_album_metadata(
         album=album_metadata,
         connection=cn,
-        commit=True)
+        commit=False)
+    if commit or connection == None:
+        cn.commit()
     if connection == None:
         cn.close()
 
@@ -1616,7 +1819,26 @@ migrations: list[Migration] = [
     Migration(
         migration_name="add artist image url list to album_metadata_v1",
         apply_on="19",
-        migration_function=migration_19)]
+        migration_function=migration_19),
+    Migration(
+        migration_name=f"create table {TableName.TRACK_METADATA_CACHE_V1.value}",
+        apply_on="20",
+        migration_function=migration_20),
+    Migration(
+        migration_name=f"alter table {TableName.TRACK_METADATA_CACHE_V1.value} add "
+                        f"{Column.TRACK_NUM.column_name}, "
+                        f"{Column.VOLUME_NUM.column_name}, "
+                        f"{Column.ARTIST_ID.column_name}, "
+                        f"{Column.ARTIST_NAME.column_name}, "
+                        f"{Column.ALBUM_ID.column_name}, "
+                        f"{Column.ALBUM_NAME.column_name}",
+        apply_on="21",
+        migration_function=migration_21),
+    Migration(
+        migration_name=f"alter table {TableName.TRACK_METADATA_CACHE_V1.value} add "
+                        f"{Column.CREATED_TIMESTAMP.column_name}",
+        apply_on="22",
+        migration_function=migration_22)]
 
 current_migration: Migration
 for current_migration in migrations:

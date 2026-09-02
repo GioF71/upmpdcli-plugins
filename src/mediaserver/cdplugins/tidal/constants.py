@@ -13,19 +13,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable
+from typing import Any
+
 from tidalapi import Quality as TidalQuality
+
 import lafv_matcher
 
 
-class PluginConstant(Enum):
+class PluginConstant:
 
-    PLUGIN_RELEASE = "0.8.13.1"
-    PLUGIN_NAME = "tidal"
-    CACHED_IMAGES_DIRECTORY = "images"
-    STATIC_IMAGES_DIRECTORY = "static-images"
-    PLUGIN_IMAGES_DIRECTORY = "static-images"
+    def __init__(self):
+        raise TypeError("PluginConstant is a namespace class and cannot be instantiated.")
+
+    PLUGIN_RELEASE: str = "0.8.17"
+    PLUGIN_NAME: str = "tidal"
+    CACHED_IMAGES_DIRECTORY: str = "images"
+    STATIC_IMAGES_DIRECTORY: str = "static-images"
+    PLUGIN_IMAGES_DIRECTORY: str = "static-images"
 
 
 class PluginImageDirectory(Enum):
@@ -111,9 +117,9 @@ class EnvironmentVariableName(Enum):
 
 class _ConfigParamData:
 
-    def __init__(self, key: str, default_value: any):
+    def __init__(self, key: str, default_value: Any):
         self.__key: str = key
-        self.__default_value: any = default_value
+        self.__default_value: Any = default_value
 
     @property
     def key(self) -> str:
@@ -137,16 +143,21 @@ class ConfigParam(Enum):
     ENABLE_CACHED_IMAGE_AGE_LIMIT = _ConfigParamData("enablecachedimageagelimit", False)
     CACHED_IMAGE_MAX_AGE_DAYS = _ConfigParamData("cachedimagemaxagedays", 60)
 
+    TRACKS_PER_PAGE = _ConfigParamData("tracksperpage", 25)
+    FAVORITE_TRACKS_PER_PAGE = _ConfigParamData("favoritetracksperpage", 30)
+
     TRACK_URI_ENTRY_EXPIRATION_SEC = _ConfigParamData("trackurientryexpirationsec", 240)
 
     TRACK_ID_REGEX = _ConfigParamData("trackidregex", "^[0-9]+$")
     VERBOSE_LOGGING = _ConfigParamData("verboselogging", False)
     SEARCH_LIMIT = _ConfigParamData("searchlimit", 15)
 
+    LOAD_STATIC_IMAGES = _ConfigParamData("loadstaticimages", True)
+
     ALLOW_NAMED_STATIC_IMAGES = _ConfigParamData("allownamedstaticimages", True)
     ALLOW_GENERIC_STATIC_IMAGES = _ConfigParamData("allowgenericstaticimages", True)
 
-    # ALLOW_STATIC_IMAGES_FOR_PAGES = _ConfigParamData("allowstaticimagesforpages", True)
+    ALLOW_STATIC_IMAGES_FOR_PAGES = _ConfigParamData("allowstaticimagesforpages", False)
 
     SEARCH_RESULT_TRACK_AS_CONTAINER = _ConfigParamData("searchresulttrackascontainer", True)
     ALLOW_NEXT_IN_SEARCH_RESULT = _ConfigParamData("allownextinsearchresult", True)
@@ -155,10 +166,11 @@ class ConfigParam(Enum):
     ALLOW_SEARCH_IMAGE_FOR_PAGELINK = _ConfigParamData("allowsearchimageforpagelink", False)
     ALLOW_SEARCH_IMAGE_FOR_PAGE = _ConfigParamData("allowsearchimageforpage", True)
 
+    ALLOW_REMOVE_MISSING_FAVORITE_TRACKS = _ConfigParamData("allowremovemissingfavoritetracks", True)
+
     ENABLE_TILE_IMAGE_CACHE = _ConfigParamData("enabletileimagecache", False)
 
-    PRELOAD_INTERVAL = _ConfigParamData("preloadinterval", 3600)
-
+    PRELOAD_INTERVAL = _ConfigParamData("preloadinterval", 300)
 
     LOG_WITH_TIMESTAMP = _ConfigParamData(
         "logwithtimestamp",
@@ -228,6 +240,7 @@ tile_image_expiration_time_sec: int = 86400
 
 oauth2_credentials_file_name: str = "oauth2.credentials.json"
 pkce_credentials_file_name: str = "pkce.credentials.json"
+
 # remove if not really used
 default_max_album_tracks_per_page: int = 30
 
@@ -235,7 +248,6 @@ default_max_playlist_or_mix_items_per_page: int = 25
 
 default_enable_assume_bitdepth: int = 1
 default_playlist_items_per_page: int = 25
-default_tracks_per_page: int = 25
 default_mix_items_per_page: int = 25
 default_albums_per_page: int = 25
 default_artists_per_page: int = 25

@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+
+
+class TileTypeException(Exception):
+    """Raised when an error occurs in the TileType module."""
 
 
 class TileType(Enum):
@@ -40,10 +44,10 @@ class TileType(Enum):
 
 
 def get_tile_type_by_name(tile_type_name: str) -> TileType:
-    for _, member in TileType.__members__.items():
+    for member in TileType.__members__.values():
         if tile_type_name == member.tile_type_name:
             return member
-    raise Exception(f"get_tile_type_by_name with {tile_type_name} NOT found")
+    raise TileTypeException(f"get_tile_type_by_name with {tile_type_name} NOT found")
 
 
 # duplicate check
@@ -51,8 +55,8 @@ name_checker_set: set[str] = set()
 id_checker_set: set[int] = set()
 for v in TileType:
     if v.tile_type_name in name_checker_set:
-        raise Exception(f"Duplicated name [{v.tile_type_name}]")
+        raise TileTypeException(f"Duplicated name [{v.tile_type_name}]")
     if v.tile_type_num in id_checker_set:
-        raise Exception(f"Duplicated id [{v.tile_type_num}]")
+        raise TileTypeException(f"Duplicated id [{v.tile_type_num}]")
     name_checker_set.add(v.tile_type_name)
     id_checker_set.add(v.tile_type_num)
