@@ -13,8 +13,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, List, TypeVar
+from typing import TypeVar
 
 from artist_metadata import ArtistMetadata
 from search_util import simplify
@@ -97,8 +98,8 @@ T = TypeVar("T")
 
 def sort_obj_by_rank(
         search_value: str,
-        obj_list: List[T],
-        key: Callable[[T], List[str]]) -> List[T]:
+        obj_list: list[T],
+        key: Callable[[T], list[str]]) -> list[T]:
     if not obj_list or len(obj_list) == 0:
         return []
     # Pre-calculate search variants once

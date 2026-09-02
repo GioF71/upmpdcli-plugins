@@ -13,26 +13,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import copy
 import os
 import re
+import time
 from enum import Enum
 from functools import cmp_to_key
-import copy
-import time
 
-from subsonic_connector.song import Song
 from subsonic_connector.album import Album
+from subsonic_connector.song import Song
 
-from album_metadata import AlbumMetadata
-from metadata_model import AlbumMetadataModel
-
-from codec_delimiter_style import CodecDelimiterStyle
-import constants
 import config
+import constants
 import persistence_constants
-from release_date import ReleaseDate
+from album_metadata import AlbumMetadata
+from codec_delimiter_style import CodecDelimiterStyle
+from metadata_model import AlbumMetadataModel
 from msgproc_provider import msgproc
-
+from release_date import ReleaseDate
 
 __split_characters: list[str] = [' ', '-', '_']
 
@@ -63,15 +61,14 @@ def __is_int(value: str) -> bool:
 
 def _ignorable(last_path: str) -> bool:
     # first case: start with a starter, then there is a number without a splitter
-    for name, member in Starter.__members__.items():
-        if last_path.upper().startswith(name):
-            # is there a number after that?
-            if len(last_path) > len(name):
-                potential_discnumber: str = last_path[len(name)]
-                if __is_int(potential_discnumber):
-                    return True
+    for name in Starter.__members__:
+        # does it start with name, and is there a number after that?
+        if last_path.upper().startswith(name) and len(last_path) > len(name):
+            potential_discnumber: str = last_path[len(name)]
+            if __is_int(potential_discnumber):
+                return True
     # second case: start with a starter, then there is a number after a splitter
-    for name, member in Starter.__members__.items():
+    for name in Starter.__members__:
         if last_path.upper().startswith(name):
             splitted: list = split_string(last_path, __split_characters)
             if splitted is not None and len(splitted) >= 2:
@@ -235,7 +232,7 @@ def _get_album_release_year(album: Album, item_key: constants.ItemKey) -> int:
     if ord_dict is None:
         return None
     # just return year.
-    return ord_dict["year"] if "year" in ord_dict else None
+    return ord_dict.get("year", None)
 
 
 def sort_song_list(song_list: list[Song]) -> SortSongListResult:
@@ -347,7 +344,7 @@ def strip_codec_from_album(album_title: str, codecs: set[str]) -> str:
     stripped_title: str = album_title
     if len(codecs) == 1:
         # get first and only codec
-        codecs_str: str = list(codecs)[0]
+        codecs_str: str = next(iter(codecs))
         style: CodecDelimiterStyle
         for style in CodecDelimiterStyle:
             codec_pattern: str = to_codec_pattern(
@@ -382,7 +379,14 @@ def get_album_year_str(album: Album) -> str:
 a1d1: str = "Disc 1 - Studio Album"
 a1d2: str = "Disc 2 Live Album"
 
+
+class TestException(Exception):
+
+    def __init__(self, message):
+        super().__init__(message)
+
+
 if not _ignorable(a1d1):
-    raise Exception(f"Ignorable not working properly, [{a1d1}] should be ignorable")
+    raise TestException(f"Ignorable not working properly, [{a1d1}] should be ignorable")
 if not _ignorable(a1d2):
-    raise Exception(f"Ignorable not working properly, [{a1d2}] should be ignorable")
+    raise TestException(f"Ignorable not working properly, [{a1d2}] should be ignorable")

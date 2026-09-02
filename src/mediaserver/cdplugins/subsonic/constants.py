@@ -18,7 +18,7 @@ from enum import Enum
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.15.1"
+    PLUGIN_RELEASE = "0.9.16"
     PLUGIN_NAME = "subsonic"
 
 
@@ -38,39 +38,27 @@ class ItemKey(Enum):
     EXPLICIT_STATUS = "explicitStatus"
     DISC_TITLES = "discTitles"
     COVER_ART = "coverArt"
-    ALBUM_VERSION = "version"
-    ALBUM_RECORD_LABELS = "recordLabels"
+    VERSION = "version"
+    RECORD_LABELS = "recordLabels"
     IS_COMPILATION = "isCompilation"
     ROLES = "roles"
     MOODS = "moods"
-    SONG_ALBUM_ARTISTS = "albumArtists"
-    SONG_ARTISTS = "artists"
-    ALBUM_PLAYED = "played"
-    ALBUM_DISPLAY_ARTIST = "displayArtist"
-    SONG_DISPLAY_ARTIST = "displayArtist"
-    SONG_DISPLAY_ALBUM_ARTIST = "displayAlbumArtist"
-    PLAYLIST_ENTRY_DISPLAY_ARTIST = "displayArtist"
+    PLAYED = "played"
+    DISPLAY_ARTIST = "displayArtist"
+    DISPLAY_ALBUM_ARTIST = "displayAlbumArtist"
     ITEM_SIZE = "size"
-    ARTIST_SORT_NAME = "sortName"
-    ALBUM_SONG_COUNT = "songCount"
-    ALBUM_CREATED = "created"
-    ALBUM_USER_RATING = "userRating"
-    ALBUM_IS_COMPILATION = "isCompilation"
-    ALBUM_PLAY_COUNT = "playCount"
-    ALBUM_SORT_NAME = "sortName"
-    ALBUM_GENRES = "genres"
+    SORT_NAME = "sortName"
+    SONG_COUNT = "songCount"
+    CREATED = "created"
+    USER_RATING = "userRating"
+    PLAY_COUNT = "playCount"
+    GENRES = "genres"
     SONG_COMMENT = "comment"
-    SONG_CREATED = "created"
     SONG_IS_DIR = "isDir"
-    SONG_PLAY_COUNT = "playCount"
-    SONG_PLAYED = "played"
     SONG_YEAR = "year"
     SONG_TYPE = "type"
-    SONG_DISPLAY_COMPOSER = "displayComposer"
-    SONG_SORT_NAME = "sortName"
-    SONG_STARRED = "starred"
-    ALBUM_STARRED = "starred"
-    ARTIST_STARRED = "starred"
+    DISPLAY_COMPOSER = "displayComposer"
+    STARRED = "starred"
     SONG_REPLAYGAIN = "replayGain"
 
 
@@ -779,10 +767,13 @@ class MetadataMaxLength(Enum):
     ALBUM_PATH = 128
 
 
-class Separator(Enum):
+class Separator:
 
-    DISC_NUMBER_SEPARATOR = ","
-    GENRE_FOR_ARTIST_SEPARATOR = ","
+    DISC_NUMBER_SEPARATOR: str = ","
+    GENRE_FOR_ARTIST_SEPARATOR: str = ","
+
+    def __init__(self):
+        raise TypeError("Separator is a namespace class and cannot be instantiated.")
 
 
 class _SupportedImageTypeData:

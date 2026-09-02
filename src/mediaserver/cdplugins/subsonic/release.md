@@ -1,5 +1,11 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.16
+
+- Notify user of a search with an empty value
+- Fix downloading of cover art using custom headers
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.15.1
 
 - Restored functionality after accidental changes done during work for Tidal Plugin

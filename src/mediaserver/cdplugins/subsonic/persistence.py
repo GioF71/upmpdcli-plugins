@@ -13,66 +13,67 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import sqlite3
-import sqlite3util
-from search_util import simplify
 import datetime
-import time
+import os
 import secrets
-
-from typing import Callable
+import sqlite3
+import time
+from collections.abc import Callable
+from enum import Enum
 from typing import Any
 
-import upmplgutils
-
-from persistence_tuple import CoverSource
-from persistence_tuple import get_cover_source_by_name
-from persistence_tuple import ArtistAlbumCoverArt
-from persistence_tuple import AlbumPropertyValueSelection
-from keyvaluecaching import KeyValueItem
-from keyvaluecaching import KeyValueTableName
-from keyvaluecaching import build_create_v1_sql as build_create_cache_v1_sql
-from keyvaluecaching import get_key_value_item
-from keyvaluecaching import put_key_value_item
-from keyvaluecaching import load_kv_item_v1
-from keyvaluecaching import insert_kv_item_v1
-from keyvaluecaching import update_kv_item_v1
-from keyvaluecaching import delete_kv_item_v1
-from keyvaluecaching import KeyValueCacheColumnName
-from cache_type import CacheType
 import sqlhelper
+import sqlite3util
+import upmplgutils
+from keyvaluecaching import (
+    KeyValueCacheColumnName,
+    KeyValueItem,
+    KeyValueTableName,
+    delete_kv_item_v1,
+    get_key_value_item,
+    insert_kv_item_v1,
+    load_kv_item_v1,
+    put_key_value_item,
+    update_kv_item_v1,
+)
+from keyvaluecaching import build_create_v1_sql as build_create_cache_v1_sql
 
-import constants
 import config
+import constants
 import metadata_converter
-
-from column_name import ColumnName
-from metadata_model import ArtistMetadataModel
-from metadata_model import AlbumMetadataModel
-from metadata_model import AlbumArtistMetaModel
-from metadata_model import SongMetadataModel
-from metadata_model import SongAlbumArtistMetaModel
-from metadata_model import SongArtistMetaModel
-from metadata_model import SongContributorMetaModel
-from metadata_model import AlbumPropertyMetaModel
-from artist_metadata import ArtistMetadata
 from album_metadata import AlbumMetadata
+from album_property_key import (
+    AlbumPropertyKeyOccurrence,
+    AlbumPropertyKeyValue,
+    AlbumPropertyValueOccurrence,
+)
 from album_property_metadata import AlbumPropertyMetadata
-from song_metadata import SongMetadata
-from table_name import TableName
-from table_name import DeletedTableName
-from enum import Enum
 from artist_from_album import ArtistFromAlbum
+from artist_metadata import ArtistMetadata
+from cache_type import CacheType
+from column_name import ColumnName
 from disc_title import DiscTitle
-from song_data_structures import SongArtist
-from song_data_structures import SongContributor
-
-from album_property_key import AlbumPropertyKeyValue
-from album_property_key import AlbumPropertyKeyOccurrence
-from album_property_key import AlbumPropertyValueOccurrence
-
+from metadata_model import (
+    AlbumArtistMetaModel,
+    AlbumMetadataModel,
+    AlbumPropertyMetaModel,
+    ArtistMetadataModel,
+    SongAlbumArtistMetaModel,
+    SongArtistMetaModel,
+    SongContributorMetaModel,
+    SongMetadataModel,
+)
 from msgproc_provider import msgproc
+from persistence_tuple import (
+    AlbumPropertyValueSelection,
+    ArtistAlbumCoverArt,
+    CoverSource,
+    get_cover_source_by_name,
+)
+from search_util import simplify
+from song_data_structures import SongArtist, SongContributor
+from song_metadata import SongMetadata
+from table_name import DeletedTableName, TableName
 
 
 def __create_qmark_list(num_qmark: int) -> str:
@@ -112,16 +113,9 @@ __artist_metadata_model_non_pk_list: list[ArtistMetadataModel] = list(filter(
     lambda x: not x.primary_key,
     __artist_metadata_model_list))
 
-__artist_metadata_model_all_column_names: list[str] = list(map(
-    lambda x: x.column_name.value,
-    __artist_metadata_model_list))
-
-__artist_metadata_model_pk_column_names: list[str] = list(map(
-    lambda x: x.column_name.value,
-    __artist_metadata_model_pk_list))
-__artist_metadata_model_non_pk_column_names: list[str] = list(map(
-    lambda x: x.column_name.value,
-    __artist_metadata_model_non_pk_list))
+__artist_metadata_model_all_column_names: list[str] = [x.column_name.value for x in __artist_metadata_model_list]
+__artist_metadata_model_pk_column_names: list[str] = [x.column_name.value for x in __artist_metadata_model_pk_list]
+__artist_metadata_model_non_pk_column_names: list[str] = [x.column_name.value for x in __artist_metadata_model_non_pk_list]
 
 
 __album_metadata_model_list: list[AlbumMetadataModel] = list(AlbumMetadataModel)
@@ -132,11 +126,9 @@ __album_metadata_model_non_pk_list: list[AlbumMetadataModel] = list(filter(
     lambda x: not x.primary_key,
     __album_metadata_model_list))
 
-__album_metadata_model_all_column_names: list[str] = list(map(lambda x: x.column_name.value, __album_metadata_model_list))
-
-__album_metadata_model_pk_column_names: list[str] = list(map(lambda x: x.column_name.value, __album_metadata_model_pk_list))
-__album_metadata_model_non_pk_column_names: list[str] = list(map(lambda x: x.column_name.value, __album_metadata_model_non_pk_list))
-
+__album_metadata_model_all_column_names: list[str] = [x.column_name.value for x in __album_metadata_model_list]
+__album_metadata_model_pk_column_names: list[str] = [x.column_name.value for x in __album_metadata_model_pk_list]
+__album_metadata_model_non_pk_column_names: list[str] = [x.column_name.value for x in __album_metadata_model_non_pk_list]
 
 __song_metadata_model_list: list[SongMetadataModel] = list(SongMetadataModel)
 __song_metadata_model_pk_list: list[SongMetadataModel] = list(filter(
@@ -146,10 +138,10 @@ __song_metadata_model_non_pk_list: list[SongMetadataModel] = list(filter(
     lambda x: not x.primary_key,
     __song_metadata_model_list))
 
-__song_metadata_model_all_column_names: list[str] = list(map(lambda x: x.column_name.value, __song_metadata_model_list))
+__song_metadata_model_all_column_names: list[str] = [x.column_name.value for x in __song_metadata_model_list]
 
-__song_metadata_model_pk_column_names: list[str] = list(map(lambda x: x.column_name.value, __song_metadata_model_pk_list))
-__song_metadata_model_non_pk_column_names: list[str] = list(map(lambda x: x.column_name.value, __song_metadata_model_non_pk_list))
+__song_metadata_model_pk_column_names: list[str] = [x.column_name.value for x in __song_metadata_model_pk_list]
+__song_metadata_model_non_pk_column_names: list[str] = [x.column_name.value for x in __song_metadata_model_non_pk_list]
 
 
 def __song_metadata_by_row(row) -> AlbumMetadata:
@@ -441,7 +433,7 @@ def __get_sql_alter_table_add_column(table_name: TableName, column_name: ColumnN
 
 def create_index_on_columns(table_name: str, index_name: str, column_name_list: list[ColumnName]) -> str:
     return (f"CREATE INDEX idx_{table_name}_{index_name} "
-            f"ON {table_name}({', '.join(list(map(lambda x: x.value, column_name_list)))})")
+            f"ON {table_name}({', '.join([x.value for x in column_name_list])})")
 
 
 def create_index_on_single_column(table_name: str, column_name: str) -> str:
@@ -457,15 +449,15 @@ def __get_sql_oldest_metadata(table_name: str) -> str:
     """
 
 
-def __get_sqlite3_selector(connection: sqlite3.Connection = None) -> sqlhelper.SqlSelector:
+def __get_sqlite3_selector(connection: sqlite3.Connection | None = None) -> sqlhelper.SqlSelector:
     return sqlite3util.get_sqlite3_selector(connection if connection is not None else __get_connection())
 
 
-def __get_sqlite3_executor(connection: sqlite3.Connection = None) -> sqlhelper.SqlExecutor:
+def __get_sqlite3_executor(connection: sqlite3.Connection | None = None) -> sqlhelper.SqlExecutor:
     return sqlite3util.get_sqlite3_executor(connection if connection is not None else __get_connection())
 
 
-def get_random_cover_art_by_artist_id(artist_id: str, connection: sqlite3.Connection = None) -> list[ArtistAlbumCoverArt]:
+def get_random_cover_art_by_artist_id(artist_id: str, connection: sqlite3.Connection | None = None) -> list[ArtistAlbumCoverArt]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     art_list: list[ArtistAlbumCoverArt] = []
     sql: str = f"""
@@ -602,7 +594,7 @@ class ArtistRoleInitialEntry:
         return self.__random_artist_cover_art
 
 
-def get_artist_roles(connection: sqlite3.Connection = None) -> list[ArtistRoleEntry]:
+def get_artist_roles(connection: sqlite3.Connection | None = None) -> list[ArtistRoleEntry]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     sql: str = f"""
         SELECT
@@ -653,7 +645,7 @@ def get_artist_roles(connection: sqlite3.Connection = None) -> list[ArtistRoleEn
     return res
 
 
-def get_artist_role_initials(artist_role: str, connection: sqlite3.Connection = None) -> list[ArtistRoleInitialEntry]:
+def get_artist_role_initials(artist_role: str, connection: sqlite3.Connection | None = None) -> list[ArtistRoleInitialEntry]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     sql: str = f"""
         SELECT
@@ -711,7 +703,7 @@ def get_artist_by_role_and_initial(
         initial: str,
         offset: int,
         limit: int,
-        connection: sqlite3.Connection = None) -> list[ArtistEntry]:
+        connection: sqlite3.Connection | None = None) -> list[ArtistEntry]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     sql: str = f"""
         SELECT
@@ -748,7 +740,9 @@ def get_artist_by_role_and_initial(
     return res
 
 
-def get_artist_id_list_by_display_name(artist_display_name: str, connection: sqlite3.Connection = None) -> list[str]:
+def get_artist_id_list_by_display_name(
+        artist_display_name: str,
+        connection: sqlite3.Connection | None = None) -> list[str]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     res: list[str] = []
     sql: str = f"""
@@ -783,7 +777,9 @@ def get_artist_id_list_by_display_name(artist_display_name: str, connection: sql
     return res
 
 
-def get_random_album_by_genre(genre_name: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def get_random_album_by_genre(
+        genre_name: str,
+        connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     verbose: bool = config.get_verbose_logging()
     the_connection: sqlite3.Connection = get_working_connection(connection)
     album_metadata: AlbumMetadata = None
@@ -865,16 +861,18 @@ def choose_artist_album_cover_art(lst: list[ArtistAlbumCoverArt]) -> ArtistAlbum
     return secrets.choice(lst)
 
 
-def get_cover_art_list_by_artist_id(artist_id: str, connection: sqlite3.Connection = None) -> list[ArtistAlbumCoverArt]:
+def get_cover_art_list_by_artist_id(
+        artist_id: str,
+        connection: sqlite3.Connection | None = None) -> list[ArtistAlbumCoverArt]:
     d: dict[str, list[ArtistAlbumCoverArt]] = get_cover_art_list_by_artist_id_list(
         artist_id_list=[artist_id],
         connection=connection)
-    return d[artist_id] if artist_id in d else []
+    return d.get(artist_id, [])
 
 
 def get_cover_art_list_by_artist_id_list(
         artist_id_list: list[str],
-        connection: sqlite3.Connection = None) -> dict[str, list[ArtistAlbumCoverArt]]:
+        connection: sqlite3.Connection | None = None) -> dict[str, list[ArtistAlbumCoverArt]]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     res: dict[str, list[ArtistAlbumCoverArt]] = {}
     qmark_list: str = __create_qmark_list(len(artist_id_list))
@@ -982,7 +980,7 @@ def get_cover_art_list_by_artist_id_list(
             cover_source=get_cover_source_by_name(row[1]),
             object_id=object_id,
             cover_art=cover_art)
-        entry_list: list[ArtistAlbumCoverArt] = res[entry.artist_id] if entry.artist_id in res else None
+        entry_list: list[ArtistAlbumCoverArt] = res.get(entry.artist_id, None)
         if not entry_list:
             entry_list = []
             res[entry.artist_id] = entry_list
@@ -992,7 +990,9 @@ def get_cover_art_list_by_artist_id_list(
     return res
 
 
-def get_genre_list_by_artist_id(artist_id: str, connection: sqlite3.Connection = None) -> list[str]:
+def get_genre_list_by_artist_id(
+        artist_id: str,
+        connection: sqlite3.Connection | None = None) -> list[str]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     genre_list: list[str] = []
     # use album metadata
@@ -1040,7 +1040,9 @@ def get_genre_list_by_artist_id(artist_id: str, connection: sqlite3.Connection =
     return genre_list
 
 
-def get_oldest_metadata(table_name: TableName, connection: sqlite3.Connection = None) -> datetime.datetime | None:
+def get_oldest_metadata(
+        table_name: TableName,
+        connection: sqlite3.Connection | None = None) -> datetime.datetime | None:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     rows: list[Any] = __get_sqlite3_selector(the_connection)(
         sql=__get_sql_oldest_metadata(table_name=table_name.value),
@@ -1055,7 +1057,7 @@ def get_oldest_metadata(table_name: TableName, connection: sqlite3.Connection = 
     return rows[0][0]
 
 
-def get_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def get_song_metadata(song_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     start: float = time.time()
     result: SongMetadata = __load_song_metadata(song_id=song_id, connection=connection)
     elapsed: float = time.time() - start
@@ -1066,7 +1068,7 @@ def get_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> Al
     return result
 
 
-def get_album_metadata_dict(album_id_list: list[str], connection: sqlite3.Connection = None) -> dict[str, AlbumMetadata]:
+def get_album_metadata_dict(album_id_list: list[str], connection: sqlite3.Connection | None = None) -> dict[str, AlbumMetadata]:
     start: float = time.time()
     result: dict[str, AlbumMetadata] = __load_album_metadata_list(album_id_list=album_id_list, connection=connection)
     elapsed: float = time.time() - start
@@ -1077,7 +1079,7 @@ def get_album_metadata_dict(album_id_list: list[str], connection: sqlite3.Connec
     return result
 
 
-def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def get_album_metadata(album_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     start: float = time.time()
     result: AlbumMetadata = __load_album_metadata(album_id=album_id, connection=connection)
     elapsed: float = time.time() - start
@@ -1088,11 +1090,11 @@ def get_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> 
     return result
 
 
-def get_artist_metadata(artist_id: str, connection: sqlite3.Connection = None) -> ArtistMetadata:
+def get_artist_metadata(artist_id: str, connection: sqlite3.Connection | None = None) -> ArtistMetadata:
     return __load_artist_metadata(artist_id=artist_id, connection=connection)
 
 
-def find_artist_metadata_by_name(artist_name: str, connection: sqlite3.Connection = None) -> list[ArtistMetadata]:
+def find_artist_metadata_by_name(artist_name: str, connection: sqlite3.Connection | None = None) -> list[ArtistMetadata]:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     select_column_list: list[str] = [m.column_name.value for m in ArtistMetadataModel]
     select_columns: str = ", ".join(select_column_list)
@@ -1141,7 +1143,7 @@ def find_artist_metadata_by_name(artist_name: str, connection: sqlite3.Connectio
 def get_kv_item(
         partition: str,
         key: str,
-        connection: sqlite3.Connection = None) -> KeyValueItem:
+        connection: sqlite3.Connection | None = None) -> KeyValueItem:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     res: KeyValueItem = get_key_value_item(
         partition=partition,
@@ -1158,7 +1160,7 @@ def get_kv_item(
 def get_kv_items_by_value(
         partition: str,
         value: str,
-        connection: sqlite3.Connection = None) -> list[KeyValueItem]:
+        connection: sqlite3.Connection | None = None) -> list[KeyValueItem]:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     sql: str = f"""
         SELECT
@@ -1189,7 +1191,7 @@ def get_kv_items_by_value(
 
 def get_kv_partition_count(
         partition: str,
-        connection: sqlite3.Connection = None) -> int:
+        connection: sqlite3.Connection | None = None) -> int:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     sql: str = f"""
         SELECT COUNT(*)
@@ -1210,7 +1212,7 @@ def get_kv_partition_count(
 
 def get_table_count(
         table_name: TableName,
-        connection: sqlite3.Connection = None) -> int:
+        connection: sqlite3.Connection | None = None) -> int:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     q: str = sqlhelper.create_simple_count_sql(table_name=table_name.value)
     rows: list[Any] = sqlite3util.get_sqlite3_selector(the_connection)(sql=q, parameters=())
@@ -1224,11 +1226,11 @@ def get_table_count(
     return res
 
 
-def get_working_connection(provided: sqlite3.Connection = None, timeout_seconds: float = 5.0) -> sqlite3.Connection:
+def get_working_connection(provided: sqlite3.Connection | None = None, timeout_seconds: float = 5.0) -> sqlite3.Connection:
     return provided if provided is not None else __get_connection(timeout_seconds=timeout_seconds)
 
 
-def __load_song_metadata(song_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def __load_song_metadata(song_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     t = (tuple([song_id]))
     q: str = sqlhelper.create_simple_select_sql(
@@ -1250,14 +1252,14 @@ def __load_song_metadata(song_id: str, connection: sqlite3.Connection = None) ->
     return result
 
 
-def __load_album_metadata(album_id: str, connection: sqlite3.Connection = None) -> AlbumMetadata:
+def __load_album_metadata(album_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     res: dict[str, AlbumMetadata] = __load_album_metadata_list(album_id_list=[album_id], connection=connection)
     if res and len(res) > 1:
         raise Exception(f"__load_album_metadata only one record is expected for [{album_id}]")
     return res[album_id] if res and album_id in res else None
 
 
-def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Connection = None) -> dict[str, AlbumMetadata]:
+def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Connection | None = None) -> dict[str, AlbumMetadata]:
     if len(album_id_list if album_id_list else []) == 0:
         # just return an empty dict
         return {}
@@ -1305,7 +1307,7 @@ def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> Ar
     return result
 
 
-def __load_artist_roles(artist_id: str, connection: sqlite3.Connection = None) -> list[ArtistRole]:
+def __load_artist_roles(artist_id: str, connection: sqlite3.Connection | None = None) -> list[ArtistRole]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     t = tuple([artist_id])
     q: str = sqlhelper.create_simple_select_sql(
@@ -1336,7 +1338,7 @@ def __update_kv_item(
         key: str,
         value: str,
         update_timestamp: datetime.datetime,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> None:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     update_kv_item_v1(
@@ -1351,7 +1353,10 @@ def __update_kv_item(
         the_connection.close()
 
 
-def __load_key_value_item(partition: str, key: str, connection: sqlite3.Connection = None) -> KeyValueItem:
+def __load_key_value_item(
+        partition: str,
+        key: str,
+        connection: sqlite3.Connection | None = None) -> KeyValueItem:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     res: KeyValueItem = load_kv_item_v1(
         sql_selector=__get_sqlite3_selector(connection),
@@ -1364,7 +1369,7 @@ def __load_key_value_item(partition: str, key: str, connection: sqlite3.Connecti
 
 def delete_album_metadata(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     __delete_album_metadata_from_db(
         album_id=album_id,
@@ -1381,7 +1386,7 @@ class InMode(Enum):
 def delete_song_list_not_in(
         album_id: str,
         song_list: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return delete_by_parent_id_and_id_in_list(
         table_name=TableName.SONG_METADATA_V1,
@@ -1401,7 +1406,7 @@ def delete_by_parent_id_and_id_in_list(
         id_column_name: ColumnName,
         id_list: list[str],
         in_mode: InMode,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     if not in_mode or in_mode not in [InMode.IN, InMode.NOT_IN]:
         raise Exception("delete_by_parent_id_and_id_in_list in_mode must be specified")
@@ -1429,7 +1434,7 @@ def delete_by_parent_id_and_id_in_list(
 
 def delete_artist_metadata(
         artist_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False):
     __delete_artist_metadata_from_db(
         artist_id=artist_id,
@@ -1439,7 +1444,7 @@ def delete_artist_metadata(
 
 def __delete_album_metadata_from_db(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     the_connection: sqlite3.Connection = get_working_connection(connection)
     q: str = sqlhelper.create_simple_delete_sql(
@@ -1460,7 +1465,7 @@ def delete_by_key(
         table_name: TableName,
         column_list: list[ColumnName],
         values: list[Any],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     if column_list is None or values is None:
         raise Exception("delete_by_key invalid arguments "
@@ -1473,7 +1478,7 @@ def delete_by_key(
     the_connection: sqlite3.Connection = get_working_connection(connection)
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=table_name.value,
-        where_column_list=list(map(lambda x: x.value, column_list)))
+        where_column_list=[x.value for x in column_list])
     t = tuple(values)
     res: int = __get_sqlite3_executor(the_connection)(
         sql=q,
@@ -1491,7 +1496,7 @@ def delete_by_key(
 
 def __delete_album_artists(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_ARTIST_V1,
@@ -1503,7 +1508,7 @@ def __delete_album_artists(
 
 def __delete_album_discs(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_DISC_V1,
@@ -1515,7 +1520,7 @@ def __delete_album_discs(
 
 def __delete_album_genres(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_GENRE_V1,
@@ -1527,7 +1532,7 @@ def __delete_album_genres(
 
 def __delete_album_record_labels(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_RECORD_LABEL_V1,
@@ -1539,7 +1544,7 @@ def __delete_album_record_labels(
 
 def __delete_album_moods(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_MOOD_V1,
@@ -1551,7 +1556,7 @@ def __delete_album_moods(
 
 def __delete_album_release_types(
         album_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     return __delete_from_table(
         table_name=TableName.ALBUM_RELEASE_TYPE_V1,
@@ -1565,12 +1570,12 @@ def __delete_from_table(
         table_name: TableName,
         column_list: list[ColumnName],
         data_list: list[any],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=table_name.value,
-        where_column_list=list(map(lambda x: x.value, column_list)))
+        where_column_list=[x.value for x in column_list])
     t = tuple(data_list)
     delete_count: int = __get_sqlite3_executor(the_connection)(
         sql=q,
@@ -1589,7 +1594,7 @@ def __delete_from_table(
 
 def __delete_artist_metadata_from_db(
         artist_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = False):
     the_connection: sqlite3.Connection = get_working_connection(connection)
     q: str = sqlhelper.create_simple_delete_sql(
@@ -1610,7 +1615,9 @@ def __delete_artist_metadata_from_db(
             commit(connection=connection)
 
 
-def _delete_kv_item_from_db(partition: str, key: str, connection: sqlite3.Connection = None):
+def _delete_kv_item_from_db(
+        partition: str,
+        key: str, connection: sqlite3.Connection | None = None):
     the_connection: sqlite3.Connection = get_working_connection(connection)
     delete_kv_item_v1(
         sql_executor=__get_sqlite3_executor(the_connection),
@@ -1624,7 +1631,7 @@ def save_album_properties(
         album_id: str,
         properties: dict[str, list[Any]],
         delete_all: bool = False,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     res: int = 0
@@ -1673,9 +1680,9 @@ def save_album_properties(
 
 def save_song_metadata(
         song_metadata: SongMetadata,
-        context: str = None,
+        context: str | None = None,
         force_insert: bool = False,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> tuple[SongMetadata, SaveMode]:
     start: float = time.time()
     result: SongMetadata
@@ -1698,7 +1705,7 @@ def save_song_metadata(
 def __save_song_metadata(
         song_metadata: SongMetadata,
         force_insert: bool = False,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> tuple[SongMetadata, SaveMode]:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing_metadata: SongMetadata = (get_song_metadata(song_id=song_metadata.song_id, connection=the_connection)
@@ -1709,8 +1716,8 @@ def __save_song_metadata(
         updated_metadata: SongMetadata = metadata_converter.update_song_metadata(
             existing_metadata=existing_metadata,
             song_metadata=song_metadata)
-        set_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __song_metadata_model_non_pk_list))
-        where_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __song_metadata_model_pk_list))
+        set_values: list[Any] = [updated_metadata.get_value(x) for x in __song_metadata_model_non_pk_list]
+        where_values: list[Any] = [updated_metadata.get_value(x) for x in __song_metadata_model_pk_list]
         update_sql: str = sqlhelper.create_simple_update_sql(
             table_name=TableName.SONG_METADATA_V1.value,
             set_column_list=__song_metadata_model_non_pk_column_names,
@@ -1748,9 +1755,9 @@ def __save_song_metadata(
 def delete_song_contributors_not_in(
         song_id: str,
         song_contributor_list: list[SongContributor],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
-    id_list: list[str] = list(map(lambda x: x.artist_id, song_contributor_list))
+    id_list: list[str] = [x.artist_id for x in song_contributor_list]
     return delete_song_contributor_not_in(
         table_name=TableName.SONG_CONTRIBUTOR_V1,
         song_id=song_id,
@@ -1764,9 +1771,9 @@ def delete_song_contributors_not_in(
 def delete_song_artists_not_in(
         song_id: str,
         song_artist_list: list[SongArtist],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
-    id_list: list[str] = list(map(lambda x: x.artist_id, song_artist_list))
+    id_list: list[str] = [x.artist_id for x in song_artist_list]
     return delete_song_contributor_not_in(
         table_name=TableName.SONG_ARTIST_V1,
         song_id=song_id,
@@ -1780,9 +1787,9 @@ def delete_song_artists_not_in(
 def delete_song_album_artists_not_in(
         song_id: str,
         song_album_artist_list: list[SongArtist],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
-    id_list: list[str] = list(map(lambda x: x.artist_id, song_album_artist_list))
+    id_list: list[str] = [x.artist_id for x in song_album_artist_list]
     return delete_song_contributor_not_in(
         table_name=TableName.SONG_ALBUM_ARTIST_V1,
         song_id=song_id,
@@ -1799,7 +1806,7 @@ def delete_song_contributor_not_in(
         id_list: list[str],
         song_id_column_name: ColumnName,
         contributor_id_column_name: ColumnName,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     qmark_list: str = __create_qmark_list(len(id_list))
@@ -1823,7 +1830,7 @@ def delete_song_contributor_not_in(
 
 def delete_song_artists(
         song_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return delete_by_key(
         table_name=TableName.SONG_ARTIST_V1,
@@ -1837,7 +1844,7 @@ def save_song_contributor_list(
         song_id,
         album_id: str,
         song_contributor_list: list[SongContributor],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     delete_song_contributors_not_in(
@@ -1868,7 +1875,7 @@ def save_song_artist_list(
         song_id,
         album_id: str,
         song_artist_list: list[SongArtist],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     delete_song_artists_not_in(
@@ -1897,7 +1904,7 @@ def save_song_album_artist_list(
         song_id,
         album_id: str,
         song_album_artist_list: list[SongArtist],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     delete_song_album_artists_not_in(
@@ -1928,7 +1935,7 @@ def save_song_contributor(
         song_artist_id: str,
         artist_role: str,
         artist_sub_role: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
@@ -1966,7 +1973,7 @@ def save_song_artist(
         song_id: str,
         album_id: str,
         song_artist_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
@@ -1998,7 +2005,7 @@ def save_song_album_artist(
         song_id: str,
         album_id: str,
         song_album_artist_id: str,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     sql: str = f"""
@@ -2028,9 +2035,9 @@ def save_song_album_artist(
 
 def save_album_metadata(
         album_metadata: AlbumMetadata,
-        context: str = None,
+        context: str | None = None,
         force_insert: bool = False,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> tuple[AlbumMetadata, SaveMode]:
     start: float = time.time()
     result: AlbumMetadata
@@ -2053,11 +2060,11 @@ def save_album_metadata(
 def update_album_metadata_table(
         album_id: str,
         values: dict[AlbumMetadataModel, Any],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     sql: str = sqlhelper.create_simple_update_sql(
         table_name=TableName.ALBUM_METADATA_V1.value,
-        set_column_list=[x.column_name.value for x in values.keys()],
+        set_column_list=[x.column_name.value for x in values],
         where_column_list=[AlbumMetadataModel.ALBUM_ID.column_name.value])
     data: tuple[Any] = tuple(list(values.values()) + [album_id])
     return __execute_update(
@@ -2070,7 +2077,7 @@ def update_album_metadata_table(
 def __save_album_metadata(
         album_metadata: AlbumMetadata,
         force_insert: bool = False,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> tuple[AlbumMetadata, SaveMode]:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing_metadata: AlbumMetadata = (get_album_metadata(album_id=album_metadata.album_id, connection=the_connection)
@@ -2081,8 +2088,8 @@ def __save_album_metadata(
         updated_metadata: AlbumMetadata = metadata_converter.update_album_metadata(
             existing_metadata=existing_metadata,
             album_metadata=album_metadata)
-        set_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __album_metadata_model_non_pk_list))
-        where_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __album_metadata_model_pk_list))
+        set_values: list[Any] = [updated_metadata.get_value(x) for x in __album_metadata_model_non_pk_list]
+        where_values: list[Any] = [updated_metadata.get_value(x) for x in __album_metadata_model_pk_list]
         update_sql: str = sqlhelper.create_simple_update_sql(
             table_name=TableName.ALBUM_METADATA_V1.value,
             set_column_list=__album_metadata_model_non_pk_column_names,
@@ -2118,7 +2125,7 @@ def __save_album_metadata(
 
 def save_artist_metadata(
         artist_metadata: ArtistMetadata,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> ArtistMetadata:
     start: float = time.time()
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
@@ -2152,7 +2159,7 @@ def prune_metadata(
 
 def prune_artist_metadata(
         update_timestamp: datetime.datetime,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return prune_metadata(
         table_name=TableName.ARTIST_METADATA_V1,
@@ -2163,7 +2170,7 @@ def prune_artist_metadata(
 
 def prune_album_metadata(
         update_timestamp: datetime.datetime,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return prune_metadata(
         table_name=TableName.ALBUM_METADATA_V1,
@@ -2174,7 +2181,7 @@ def prune_album_metadata(
 
 def prune_song_metadata(
         update_timestamp: datetime.datetime,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return prune_metadata(
         table_name=TableName.SONG_METADATA_V1,
@@ -2185,7 +2192,7 @@ def prune_song_metadata(
 
 def __save_artist_metadata(
         artist_metadata: ArtistMetadata,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> ArtistMetadata:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     if config.get_verbose_logging():
@@ -2200,8 +2207,8 @@ def __save_artist_metadata(
         updated_metadata: ArtistMetadata = metadata_converter.update_artist_metadata(
             existing_metadata=existing_metadata,
             artist_metadata=artist_metadata)
-        set_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __artist_metadata_model_non_pk_list))
-        where_values: list[Any] = list(map(lambda x: updated_metadata.get_value(x), __artist_metadata_model_pk_list))
+        set_values: list[Any] = [updated_metadata.get_value(x) for x in __artist_metadata_model_non_pk_list]
+        where_values: list[Any] = [updated_metadata.get_value(x) for x in __artist_metadata_model_pk_list]
         update_sql: str = sqlhelper.create_simple_update_sql(
             table_name=TableName.ARTIST_METADATA_V1.value,
             set_column_list=__artist_metadata_model_non_pk_column_names,
@@ -2228,7 +2235,7 @@ def __save_artist_metadata(
 
 def save_kv_item(
         key_value_item: KeyValueItem,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     the_connection: sqlite3.Connection = get_working_connection(provided=connection)
     put_key_value_item(
@@ -2254,9 +2261,9 @@ def save_kv_item(
 
 def __insert_song_metadata(
         song_metadata: SongMetadata,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
-    insert_values = tuple(list(map(lambda x: song_metadata.get_value(x), __song_metadata_model_list)))
+    insert_values = tuple([song_metadata.get_value(x) for x in __song_metadata_model_list])
     insert_sql: str = sqlhelper.create_simple_insert_sql(
         table_name=TableName.SONG_METADATA_V1.value,
         column_list=__song_metadata_model_all_column_names)
@@ -2269,9 +2276,9 @@ def __insert_song_metadata(
 
 def __insert_album_metadata(
         album_metadata: AlbumMetadata,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
-    insert_values = tuple(list(map(lambda x: album_metadata.get_value(x), __album_metadata_model_list)))
+    insert_values = tuple([album_metadata.get_value(x) for x in __album_metadata_model_list])
     insert_sql: str = sqlhelper.create_simple_insert_sql(
         table_name=TableName.ALBUM_METADATA_V1.value,
         column_list=__album_metadata_model_all_column_names)
@@ -2284,9 +2291,9 @@ def __insert_album_metadata(
 
 def __insert_artist_metadata(
         artist_metadata: ArtistMetadata,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
-    insert_values = tuple(list(map(lambda x: artist_metadata.get_value(x), __artist_metadata_model_list)))
+    insert_values = tuple([artist_metadata.get_value(x) for x in __artist_metadata_model_list])
     insert_sql: str = sqlhelper.create_simple_insert_sql(
         table_name=TableName.ARTIST_METADATA_V1.value,
         column_list=__artist_metadata_model_all_column_names)
@@ -2300,12 +2307,12 @@ def __insert_artist_metadata(
 def update_artist_roles(
         artist_id: str,
         artist_roles: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     # in the end, roles must match the provided roles
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     existing: list[ArtistRole] = __load_artist_roles(artist_id=artist_id, connection=the_connection)
-    existing_roles: list[str] = list(map(lambda x: x.artist_role, existing))
+    existing_roles: list[str] = [x.artist_role for x in existing]
     to_add: list[str] = list(filter(lambda r: r not in existing_roles, artist_roles))
     to_delete: list[str] = list(filter(lambda r: r not in artist_roles, existing_roles))
     total_op: int = len(to_add) + len(to_delete)
@@ -2346,7 +2353,7 @@ def update_artist_roles(
 def __insert_album_discs(
         album_id: str,
         album_discs: list[DiscTitle],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_DISC_V1,
@@ -2368,7 +2375,7 @@ def __insert_album_discs(
 def __insert_album_genres(
         album_id: str,
         album_genres: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_GENRE_V1,
@@ -2386,7 +2393,7 @@ def __insert_album_genres(
 def __insert_album_moods(
         album_id: str,
         album_moods: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_MOOD_V1,
@@ -2404,7 +2411,7 @@ def __insert_album_moods(
 def __insert_album_release_types(
         album_id: str,
         album_release_types: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_RELEASE_TYPE_V1,
@@ -2422,7 +2429,7 @@ def __insert_album_release_types(
 def __insert_album_record_labels(
         album_id: str,
         album_record_labels: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_RECORD_LABEL_V1,
@@ -2440,7 +2447,7 @@ def __insert_album_record_labels(
 def __insert_album_artists(
         album_id: str,
         album_artists: list[ArtistFromAlbum],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     return __insert_list(
         table_name=TableName.ALBUM_ARTIST_V1,
@@ -2464,18 +2471,16 @@ def __insert_list(
         column_list: list[ColumnName],
         data_list: list[Any],
         column_extractor: Callable[[Any], list[Any]],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True):
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     insert_sql: str = sqlhelper.create_simple_insert_sql(
         table_name=table_name.value,
-        column_list=list(map(lambda x: x.value, column_list)))
+        column_list=[x.value for x in column_list])
     ins_count: int = 0
-    op_counter: int = 0
     curr: ArtistFromAlbum
     for curr in data_list:
         # insert
-        op_counter += 1
         data_list: list[Any] = column_extractor(curr)
         ins_count += __execute_update(
             sql=insert_sql,
@@ -2496,7 +2501,7 @@ def __insert_list(
 def update_album_discs(
         album_id: str,
         album_discs: list[DiscTitle],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2511,7 +2516,7 @@ def update_album_discs(
 def update_album_artists(
         album_id: str,
         album_artists: list[ArtistFromAlbum],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2526,7 +2531,7 @@ def update_album_artists(
 def update_album_genres(
         album_id: str,
         album_genres: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2541,7 +2546,7 @@ def update_album_genres(
 def update_album_record_labels(
         album_id: str,
         album_record_labels: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2556,7 +2561,7 @@ def update_album_record_labels(
 def update_album_moods(
         album_id: str,
         album_moods: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2571,7 +2576,7 @@ def update_album_moods(
 def update_album_release_types(
         album_id: str,
         album_release_types: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     return update_album_multivalue_table(
         album_id=album_id,
@@ -2588,9 +2593,9 @@ def update_album_multivalue_table(
         values: list[Any],
         delete_f: Callable[[str, sqlite3.Connection, bool], None],
         insert_f: Callable[[str, list[Any], sqlite3.Connection, bool], None],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True,
-        context: str = None) -> int:
+        context: str | None = None) -> int:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     try:
         delete_f(album_id, connection, False)
@@ -2623,7 +2628,7 @@ def update_album_multivalue_table(
 
 def purge_unknown_album_properties(
         valid_property_key_list: list[str],
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     qmarks: str = __create_qmark_list(len(valid_property_key_list))
     sql: str = f"""
@@ -2650,7 +2655,7 @@ def __on_meta(x: AlbumPropertyMetadata, res: list[AlbumPropertyMetadata]):
 
 def get_album_property_dataset(
         property_key_list: list[str],
-        connection: sqlite3.Connection = None) -> list[AlbumPropertyMetadata]:
+        connection: sqlite3.Connection | None = None) -> list[AlbumPropertyMetadata]:
     res: list[AlbumPropertyMetadata] = []
     load_album_property_dataset(
         property_key_list=property_key_list,
@@ -2674,7 +2679,7 @@ def __create_album_property_except() -> str:
 
 def get_album_property_matching_count(
         condition_list: list[AlbumPropertyKeyValue],
-        connection: sqlite3.Connection = None) -> int:
+        connection: sqlite3.Connection | None = None) -> int:
     values: list[str] = []
     intersections: str = ""
     curr_condition: AlbumPropertyKeyValue
@@ -2712,7 +2717,7 @@ def get_album_property_matching_count(
 
 def get_one_random_album_property_matching(
         condition_list: list[AlbumPropertyKeyValue],
-        connection: sqlite3.Connection = None) -> str:
+        connection: sqlite3.Connection | None = None) -> str:
     values: list[str] = []
     intersections: str = ""
     curr_condition: AlbumPropertyKeyValue
@@ -2752,7 +2757,7 @@ def get_one_random_album_property_matching(
 
 def get_album_property_matching(
         condition_list: list[AlbumPropertyKeyValue],
-        connection: sqlite3.Connection = None) -> list[str]:
+        connection: sqlite3.Connection | None = None) -> list[str]:
     values: list[str] = []
     intersections: str = ""
     curr_condition: AlbumPropertyKeyValue
@@ -2787,7 +2792,7 @@ def get_album_property_matching(
 
 def get_album_property_key_occurence_list(
         condition_list: list[AlbumPropertyKeyValue],
-        connection: sqlite3.Connection = None) -> list[AlbumPropertyKeyOccurrence]:
+        connection: sqlite3.Connection | None = None) -> list[AlbumPropertyKeyOccurrence]:
     values: list[str] = []
     # Track which keys are currently active in the filter
     active_keys = [c.key for c in condition_list] if condition_list else []
@@ -2872,7 +2877,7 @@ def get_album_property_key_occurence_list(
 def get_album_property_value_occurence_list(
         condition_list: list[AlbumPropertyKeyValue],
         property_key: str,
-        connection: sqlite3.Connection = None) -> list[AlbumPropertyValueOccurrence]:
+        connection: sqlite3.Connection | None = None) -> list[AlbumPropertyValueOccurrence]:
     values: list[str] = []
     intersections: str = ""
     curr_condition: AlbumPropertyKeyValue
@@ -2950,7 +2955,7 @@ def get_album_property_value_occurence_list(
 def load_album_property_dataset(
         property_key_list: list[str],
         on_meta: Callable[[AlbumPropertyMetadata], None],
-        connection: sqlite3.Connection = None) -> int:
+        connection: sqlite3.Connection | None = None) -> int:
     if (len(property_key_list) if property_key_list else 0) == 0:
         raise Exception("get_album_property_dataset requires a list of property keys")
     qmarks: str = __create_qmark_list(len(property_key_list))
@@ -2989,8 +2994,8 @@ def load_album_property_dataset(
 
 
 def get_album_property_values(
-        condition_list: list[AlbumPropertyKeyValue] = None,
-        connection: sqlite3.Connection = None) -> list[AlbumPropertyValueSelection]:
+        condition_list: list[AlbumPropertyKeyValue] | None = None,
+        connection: sqlite3.Connection | None = None) -> list[AlbumPropertyValueSelection]:
     # msgproc.log(f"get_album_property_values condition count [{len(condition_list) if condition_list else 0}]")
     sql_initial: str = f"""
         SELECT
@@ -3082,7 +3087,7 @@ def purge_id_cache():
 def _insert_key_value_item(
         key_value_item: KeyValueItem,
         creation_timestamp: datetime.datetime,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> None:
     the_connection: sqlite3.Connection = get_working_connection(connection)
     insert_kv_item_v1(
@@ -3097,7 +3102,7 @@ def _insert_key_value_item(
 def __execute_update(
         sql: str,
         data: tuple,
-        connection: sqlite3.Connection = None,
+        connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     the_connection: sqlite3.Connection = connection if connection is not None else __get_connection()
     update_count: int = sqlhelper.neutral_execute_update(
@@ -4357,8 +4362,8 @@ def __init():
                             f"adding {AlbumMetadataModel.ALBUM_REPLAY_GAIN.column_name.value}"),
             migration_function=do_migration_72)]
     current_migration: Migration
-    migration_counter: int = 0
-    for current_migration in migrations:
+    migration_counter: int
+    for migration_counter, current_migration in enumerate(migrations):
         db_version: str = get_db_version()
         if verbose:
             msgproc.log(f"Current db version is [{db_version}] -> "
@@ -4372,7 +4377,6 @@ def __init():
         else:
             if verbose:
                 msgproc.log(f"Migration [{current_migration.migration_name}] skipped.")
-        migration_counter += 1
     migrated_db_version: str = get_db_version()
     msgproc.log(f"Current db version is [{migrated_db_version}]")
 

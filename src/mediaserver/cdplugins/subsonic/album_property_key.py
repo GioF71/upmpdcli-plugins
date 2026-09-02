@@ -14,9 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from enum import Enum
-from typing import Callable
 import copy
+from collections.abc import Callable
+from enum import Enum
 
 
 class KeySortType(Enum):
@@ -57,17 +57,17 @@ class _AlbumPropertyKeyData:
 
     def __init__(
             self,
-            property_key: str = None,
-            display_value: str = None,
+            property_key: str | None = None,
+            display_value: str | None = None,
             unique_value: bool = False,
             max_items: int = 100,
-            key_value_formatter: Callable[[str], str] = None,
+            key_value_formatter: Callable[[str], str] | None = None,
             key_sort_mode: KeySortMode = KeySortMode.SORT_NONE):
         self.__property_key: str = property_key
         self.__display_value: str = display_value
         self.__unique_value: bool = unique_value
         self.__max_items: int = max_items
-        self.__key_value_formatter: Callable[[str], str] = key_value_formatter
+        self.__key_value_formatter: Callable[[str], str] | None = key_value_formatter
         self.__key_sort_mode: KeySortMode = key_sort_mode
 
     @property
@@ -109,7 +109,7 @@ class _BitDepthPropertyKeyHelper:
     def format_value(self, v: str) -> str:
         if not v:
             return None
-        return self.__d[v] if v in self.__d else ""
+        return self.__d.get(v, "")
 
 
 def _bit_depth_formatter(v: str) -> str:
