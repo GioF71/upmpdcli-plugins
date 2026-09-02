@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,9 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import upmplgmodels
 import datetime
+from typing import Any
+
 import upmpdmeta
+import upmplgmodels
 
 
 def set_track_number(track_number: str, target: dict):
@@ -115,7 +117,7 @@ def set_raw_metadata(raw_metadata_name: str, metadata_value: str, target: dict):
         target[raw_metadata_name] = metadata_value
 
 
-def set_upmpd_meta(metadata_name: upmpdmeta.UpMpdMeta, metadata_value: any, target: dict):
+def set_upmpd_meta(metadata_name: upmpdmeta.UpMpdMeta, metadata_value: Any, target: dict):
     v: str = ""
     if metadata_value:
         if isinstance(metadata_value, str):

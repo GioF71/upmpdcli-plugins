@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,63 +13,53 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import upmplgutils
-import constants
-import config
-import requests
-import os
-import secrets
-import mimetypes
 import glob
+import mimetypes
+import os
 import pathlib
+import secrets
 import sqlite3
+from collections.abc import Callable
+from datetime import datetime
 
+import requests
 import upmpdmeta
-import upnp_util
-
+import upmplgutils
 from tidalapi import Quality as TidalQuality
-from tidalapi.session import Session as TidalSession
-from tidalapi.artist import Artist as TidalArtist
 from tidalapi.album import Album as TidalAlbum
-from tidalapi.playlist import Playlist as TidalPlaylist
-from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
-from tidalapi.mix import Mix as TidalMix
-from tidalapi.mix import MixV2 as TidalMixV2
+from tidalapi.artist import Artist as TidalArtist
+from tidalapi.exceptions import ObjectNotFound
+from tidalapi.media import AudioMode as TidalAudioMode
 from tidalapi.media import MediaMetadataTags as TidalMediaMetadataTags
 from tidalapi.media import Track as TidalTrack
 from tidalapi.media import Video as TidalVideo
-from tidalapi.media import AudioMode as TidalAudioMode
-from tidalapi.exceptions import ObjectNotFound
+from tidalapi.mix import Mix as TidalMix
+from tidalapi.mix import MixV2 as TidalMixV2
+from tidalapi.playlist import Playlist as TidalPlaylist
+from tidalapi.playlist import UserPlaylist as TidalUserPlaylist
+from tidalapi.session import Session as TidalSession
 
-from typing import Callable
-from typing import Union
-
-from element_type import ElementType
-from element_type import get_element_type_by_name
-
-from item_identifier import ItemIdentifier
-from item_identifier_key import ItemIdentifierKey
-
+import config
+import constants
 import identifier_util
 import persistence
+import upnp_util
+from album_adapter import AlbumAdapter
+from album_sort_criteria import AlbumSortCriteria
+from element_type import ElementType, get_element_type_by_name
+from item_identifier import ItemIdentifier
+from item_identifier_key import ItemIdentifierKey
+from msgproc_provider import msgproc
 from played_track import PlayedTrack
 
-from album_sort_criteria import AlbumSortCriteria
-from album_adapter import AlbumAdapter
-from datetime import datetime
-
-
-from msgproc_provider import msgproc
-
-
 log_unavailable_images_sizes: bool = (upmplgutils.getOptionValue(
-    f"{constants.PluginConstant.PLUGIN_NAME.value}log_unavailable_images_sizes",
+    f"{constants.PluginConstant.PLUGIN_NAME}log_unavailable_images_sizes",
     "0") == "1")
 log_unavailable_image: bool = (upmplgutils.getOptionValue(
-                                f"{constants.PluginConstant.PLUGIN_NAME.value}log_unavailable_image",
+                                f"{constants.PluginConstant.PLUGIN_NAME}log_unavailable_image",
                                 "0") == "1")
 
-default_image_sz_by_type: dict[str, int] = dict()
+default_image_sz_by_type: dict[str, int] = {}
 default_image_sz_by_type[TidalArtist.__name__] = [750, 480, 320, 160]
 default_image_sz_by_type[TidalAlbum.__name__] = [1280, 640, 320, 160, 80]
 default_image_sz_by_type[TidalPlaylist.__name__] = [1080, 750, 640, 480, 320, 160]
@@ -118,7 +108,7 @@ class FavoriteAlbumsMode:
 
 def __get_image_dimension_list(obj: any) -> list[int]:
     key = type(obj).__name__
-    return default_image_sz_by_type[key] if key in default_image_sz_by_type else list()
+    return default_image_sz_by_type.get(key, [])
 
 
 def get_name_or_title(obj: any) -> str:
@@ -131,8 +121,8 @@ def get_name_or_title(obj: any) -> str:
 
 def get_cached_image_subdir_list(image_type: str) -> list[str]:
     return [
-        constants.PluginConstant.PLUGIN_NAME.value,
-        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
+        constants.PluginConstant.PLUGIN_NAME,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY,
         image_type]
 
 
@@ -141,7 +131,7 @@ def cached_images_exist(album_id: str) -> list[str]:
     if document_root_dir:
         sub_dir_list: list[str] = get_cached_image_subdir_list(image_type=TidalAlbum.__name__)
         image_dir: str = ensure_directory(base_dir=document_root_dir, sub_dir_list=sub_dir_list)
-        cached_file_name_no_ext: str = f"{str(album_id)}"
+        cached_file_name_no_ext: str = f"{album_id!s}"
         cached_files: list[str] = glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*")
         return cached_files if cached_files else []
     return []
@@ -174,10 +164,10 @@ def get_album_art_url_by_album_id(
         # msgproc.log(f"About to touch file [{cached_file}] ...")
         pathlib.Path(cached_file).touch()
         # use cached file
-        path: list[str] = list()
+        path: list[str] = []
         sub_dir_list: list[str] = get_cached_image_subdir_list(image_type=TidalAlbum.__name__)
         path.extend(sub_dir_list)
-        path.append(f"{str(album_id)}{cached_file_name_ext}")
+        path.append(f"{album_id!s}{cached_file_name_ext}")
         cached_image_url: str = compose_docroot_url(os.path.join(*path))
         if config.get_dump_image_caching():
             msgproc.log(f"get_album_art_url_by_album_id [{album_id}] -> [{cached_image_url}]")
@@ -197,7 +187,7 @@ def get_album_art_url_by_album_id(
 def get_web_document_root_file_url(dir_list: list[str], file_name: str) -> str:
     if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
         msgproc.log(f"get_web_document_root_file_url for [{dir_list}] [{file_name}]")
-    path: list[str] = list()
+    path: list[str] = []
     path.extend(dir_list)
     path.append(file_name)
     file_url: str = compose_docroot_url(os.path.join(*path))
@@ -223,8 +213,8 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
     if type(obj) not in [TidalAlbum, TidalArtist, TidalPlaylist, TidalMix]:
         return __get_image_url(obj)
     sub_dir_list: list[str] = [
-        constants.PluginConstant.PLUGIN_NAME.value,
-        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value,
+        constants.PluginConstant.PLUGIN_NAME,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY,
         type(obj).__name__]
     image_dir: str = ensure_directory(document_root_dir, sub_dir_list)
     cached_file_names: list[str] = __get_cached_file_names(image_dir, str(obj.id))
@@ -248,7 +238,7 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
         file_types: list[str] = mimetypes.guess_all_extensions(content_type)
         if file_types and len(file_types) > 0:
             # file_types include the "."
-            cached_file: str = os.path.join(image_dir, f"{str(obj.id)}{file_types[0].lower()}")
+            cached_file: str = os.path.join(image_dir, f"{obj.id!s}{file_types[0].lower()}")
             if config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING):
                 msgproc.log(f"get_image_url got mimetype for [{image_url}] -> "
                             f"[{file_types}] -> "
@@ -258,15 +248,15 @@ def get_image_url(obj: any, refresh: bool = False) -> str:
                 handler.write(img_data)
             cached_image_url: str = get_web_document_root_file_url(
                 dir_list=sub_dir_list,
-                file_name=f"{str(obj.id)}{file_types[0].lower()}")
+                file_name=f"{obj.id!s}{file_types[0].lower()}")
             return cached_image_url
         else:
-            msgproc.log(f"Cannot understand file type for item id [{str(obj.id)}], cannot cache.")
+            msgproc.log(f"Cannot understand file type for item id [{obj.id!s}], cannot cache.")
             return None
     elif cached_file_name:
         return get_web_document_root_file_url(
                 dir_list=sub_dir_list,
-                file_name=f"{str(obj.id)}{cached_file_name_ext}")
+                file_name=f"{obj.id!s}{cached_file_name_ext}")
 
 
 def __get_cached_file_names(cache_dir: str, item_id: str) -> list[str]:
@@ -311,7 +301,7 @@ def __get_image_url(obj: any) -> str:
         msgproc.log(f"Type [{type(obj).__name__}] does not have an image sizes list!")
         return None
     current: int
-    for current in dimension_list if dimension_list else list():
+    for current in dimension_list if dimension_list else []:
         try:
             return obj.image(dimensions=current)
         except ValueError:
@@ -382,7 +372,7 @@ class CachedTidalQuality:
             bit_depth: int,
             sample_rate: int,
             audio_quality: TidalQuality,
-            audio_mode: str = None):
+            audio_mode: str | None = None):
         self._bit_depth: int = bit_depth
         self._sample_rate: int = sample_rate
         self._audio_quality: TidalQuality = audio_quality
@@ -431,7 +421,7 @@ def get_playlist_by_name(
     # if it does not exist, we create it, if we are allowed to
     listen_queue: TidalUserPlaylist = None
     current: TidalUserPlaylist
-    for current in user_playlists if user_playlists else list():
+    for current in user_playlists if user_playlists else []:
         # msgproc.log(f"get_playlist_by_name processing [{current.name}]")
         if current.name == config.listen_queue_playlist_name:
             listen_queue = current
@@ -465,7 +455,7 @@ def is_album_in_playlist(
             # msgproc.log(f"No more items from offset [{offset}], we are finished")
             break
         count: int = 0
-        for current in item_list if item_list else list():
+        for current in item_list if item_list else []:
             count += 1
             # must be a track
             if not isinstance(current, TidalTrack):
@@ -491,7 +481,7 @@ def album_playlist_action(
         playlist_name=playlist_name,
         create_if_missing=True)
     # remove anyway, add to the end if action is add
-    remove_list: list[str] = list()
+    remove_list: list[str] = []
     offset: int = 0
     limit: int = 100
     while True:
@@ -522,7 +512,7 @@ def album_playlist_action(
     # add if needed
     if constants.ListeningQueueAction.ADD.value == action:
         # add the album tracks
-        media_id_list: list[str] = list()
+        media_id_list: list[str] = []
         t: TidalTrack
         for t in album.tracks():
             media_id_list.append(t.id)
@@ -583,7 +573,7 @@ def __get_best_quality(media_metadata_tags: list[str]) -> str:
 
 
 def try_get_all_favorites(tidal_session: TidalSession) -> list[TidalAlbum]:
-    favorite_list: list[TidalAlbum] = list()
+    favorite_list: list[TidalAlbum] = []
     offset: int = 0
     limit: int = 100
     while True:
@@ -678,10 +668,10 @@ def get_mix_or_playlist_items(
     elif underlying_type == ElementType.MIX:
         mix: TidalMix = tidal_session.mix(tidal_obj_id)
         items: list[any] = mix.items()
-        items = items if items else list()
+        items = items if items else []
         sz: int = len(items)
         if offset >= sz:
-            return list()
+            return []
         if offset + limit > sz:
             # reduce limit
             limit = sz - offset
@@ -696,7 +686,7 @@ def load_unique_ids_from_mix_or_playlist(
         tidal_obj_type: str,
         id_extractor: Callable[[any], str],
         max_id_list_length: int,
-        previous_page_last_found_id: str = None,
+        previous_page_last_found_id: str | None = None,
         item_filter: Callable[[any], any] = lambda x: track_only(x),
         initial_offset: int = 0,
         max_slice_size: int = 100) -> tuple[list[str], list[any], int, bool, str]:
@@ -705,8 +695,8 @@ def load_unique_ids_from_mix_or_playlist(
                     f"tidal_obj_type [{tidal_obj_type}] "
                     f"initial_offset [{initial_offset}] max_slice_size [{max_slice_size}]")
     last_offset: int = initial_offset
-    id_list: list[str] = list()
-    obj_list: list[any] = list()
+    id_list: list[str] = []
+    obj_list: list[any] = []
     load_count: int = 0
     skip_count: int = 0
     finished: bool = False
@@ -758,22 +748,22 @@ def load_unique_ids_from_mix_or_playlist(
 
 def get_webserver_cached_images_path() -> list[str]:
     return [
-        constants.PluginConstant.PLUGIN_NAME.value,
-        constants.PluginConstant.CACHED_IMAGES_DIRECTORY.value]
+        constants.PluginConstant.PLUGIN_NAME,
+        constants.PluginConstant.CACHED_IMAGES_DIRECTORY]
 
 
 def get_webserver_static_images_path() -> list[str]:
     return [
-        constants.PluginConstant.PLUGIN_NAME.value,
-        constants.PluginConstant.STATIC_IMAGES_DIRECTORY.value]
+        constants.PluginConstant.PLUGIN_NAME,
+        constants.PluginConstant.STATIC_IMAGES_DIRECTORY]
 
 
 def get_plugin_code_subpath() -> list[str]:
-    return ["cdplugins", constants.PluginConstant.PLUGIN_NAME.value]
+    return ["cdplugins", constants.PluginConstant.PLUGIN_NAME]
 
 
 def get_plugin_code_static_images_subpath() -> list[str]:
-    return get_plugin_code_subpath() + [constants.PluginConstant.PLUGIN_IMAGES_DIRECTORY.value]
+    return get_plugin_code_subpath() + [constants.PluginConstant.PLUGIN_IMAGES_DIRECTORY]
 
 
 def get_plugin_static_images_abs_path() -> str:
@@ -818,7 +808,7 @@ def compose_docroot_url(right: str) -> str:
 
 
 def get_oauth2_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), constants.oauth2_credentials_file_name)
+    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME), constants.oauth2_credentials_file_name)
 
 
 def oauth2_credential_file_exists() -> bool:
@@ -826,7 +816,7 @@ def oauth2_credential_file_exists() -> bool:
 
 
 def get_pkce_credentials_file_name() -> str:
-    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value), constants.pkce_credentials_file_name)
+    return os.path.join(upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME), constants.pkce_credentials_file_name)
 
 
 def pkce_credential_file_exists() -> bool:
@@ -835,19 +825,21 @@ def pkce_credential_file_exists() -> bool:
 
 def is_instance_of_any(obj: any, type_list: list[type]) -> bool:
     t: type
-    for t in type_list if type_list else list():
+    for t in type_list if type_list else []:
         if isinstance(obj, t):
             return True
     return False
 
 
-def get_all_mix_or_playlist_tracks(mix_or_playlist: Union[TidalPlaylist, TidalMix]) -> list[TidalTrack]:
+def get_all_mix_or_playlist_tracks(mix_or_playlist: TidalPlaylist | TidalMix) -> list[TidalTrack]:
     return (get_all_playlist_tracks(playlist=mix_or_playlist)
             if isinstance(mix_or_playlist, TidalPlaylist)
             else get_all_mix_tracks(mix=mix_or_playlist))
 
 
-def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> list[TidalTrack]:
+def get_all_playlist_tracks(
+        playlist: TidalPlaylist,
+        max_tracks: int | None = None) -> list[TidalTrack]:
     result: list[TidalTrack] = []
     offset: int = 0
     default_limit: int = 100
@@ -858,7 +850,7 @@ def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> 
         slice_len: int = len(slice) if slice else 0
         offset += slice_len
         finished = slice_len < limit
-        item: Union[TidalTrack, TidalVideo]
+        item: TidalTrack | TidalVideo
         for item in slice if slice else []:
             if isinstance(item, TidalTrack):
                 result.append(item)
@@ -868,17 +860,17 @@ def get_all_playlist_tracks(playlist: TidalPlaylist, max_tracks: int = None) -> 
 
 
 def get_albums_from_tracks(track_list: list[TidalTrack]) -> list[TidalAlbum]:
-    return list(map(lambda t: t.album, track_list))
+    return [t.album for t in track_list]
 
 
 def get_artists_from_tracks(track_list: list[TidalTrack]) -> list[TidalArtist]:
-    return list(map(lambda t: t.artist, track_list))
+    return [t.artist for t in track_list]
 
 
 def get_all_mix_tracks(mix: TidalMix) -> list[TidalTrack]:
     result: list[TidalTrack] = []
     items: list[TidalTrack] = mix.items()
-    item: Union[TidalTrack, TidalVideo]
+    item: TidalTrack | TidalVideo
     for item in items:
         if isinstance(item, TidalTrack):
             result.append(item)
@@ -889,7 +881,7 @@ def create_mix_or_playlist_all_tracks_entry(
         objid: any,
         element_type: ElementType,
         thing_id: str,
-        thing: Union[TidalPlaylist, TidalMix],
+        thing: TidalPlaylist | TidalMix,
         all_tracks: list[TidalTrack]) -> dict[str, any]:
     all_tracks_identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALL_TRACKS_IN_PLAYLIST_OR_MIX.getName(),
@@ -899,7 +891,7 @@ def create_mix_or_playlist_all_tracks_entry(
         objid=objid,
         id=identifier_util.create_id_from_identifier(all_tracks_identifier))
     all_tracks_entry = upmplgutils.direntry(all_tracks_id, objid, "All Tracks")
-    select_item: Union[TidalTrack | TidalVideo] = secrets.choice(all_tracks) if all_tracks else None
+    select_item: TidalTrack | TidalVideo = secrets.choice(all_tracks) if all_tracks else None
     msgproc.log(f"create_mix_or_playlist_all_tracks_entry select [{select_item is not None}] "
                 f"type [{type(select_item) if select_item else None}]")
     upnp_util.set_album_art_from_uri(

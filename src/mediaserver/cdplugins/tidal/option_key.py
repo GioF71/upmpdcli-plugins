@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,20 +14,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+from typing import Any
 
 
 class _OptionKeyData:
 
-    def __init__(self, name: str, default_value: any = None):
+    def __init__(self, name: str, default_value: Any = None):
         self.__name: str = name
-        self.__default_value: any = default_value
+        self.__default_value: Any = default_value
 
     @property
     def name(self) -> str:
         return self.__name
 
     @property
-    def default_value(self) -> any:
+    def default_value(self) -> Any:
         return self.__default_value
 
 
@@ -50,11 +51,12 @@ class OptionKey(Enum):
     INITIAL_TRACK_NUMBER = _OptionKeyData("ntl-trkn", 1)
     TRACK_AS_NAVIGABLE = _OptionKeyData("nvgbl-trk", False)
     TRACK_CONTAINER_SET_CLASS = _OptionKeyData("trkc-sclzz", False)
+    TRACK_CONTAINER_ADD_ALBUM = _OptionKeyData("trkc-ddlbm", False)
 
     @property
     def name(self) -> str:
         return self.value.name
 
     @property
-    def default_value(self) -> any:
+    def default_value(self) -> Any:
         return self.value.default_value

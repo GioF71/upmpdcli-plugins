@@ -44,8 +44,7 @@ class ElementType(Enum):
     RECENTLY_PLAYED_TRACKS_LIST = 24, "rcntlptrkslst",
     MOST_PLAYED_TRACKS_NAVIGABLE = 25, "mptrks",
     MOST_PLAYED_TRACKS_LIST = 26, "mptrkslst",
-    FAVORITE_TRACKS_NAVIGABLE = 27, "fvrttrksn",
-    FAVORITE_TRACKS_LIST = 28, "fvrttrksl",
+    FAVORITE_TRACKS = 28, "fvrttrksl",
     PAGE = 29, "pg",
     RECENTLY_PLAYED_ALBUMS = 30, "rcntpllbms",
     MOST_PLAYED_ALBUMS = 31, "mplbms",
@@ -79,7 +78,7 @@ class ElementType(Enum):
     BOOKMARK_TRACKS = 60, "snglstnq"
     BOOKMARK_TRACK_ACTION = 61, "snglstnqctn"
     MISSING_ALBUM = 62, "msnglbm"
-    MISSING_TRACK = 63, "msngtrk"
+    MISSING_FAVORITE_TRACK = 63, "msngtrk"
     MISSING_ARTIST = 65, "msngrtst"
     ALL_TRACKS_IN_PLAYLIST_OR_MIX = 64, "lltrksmxplst"
     TRACK = 101, "trk"

@@ -25,7 +25,6 @@ class ItemIdentifierKey(Enum):
     TAG_TYPE = 6, 't',
     ALBUM_PAGE = 7, 'ap'
     CATEGORY_TITLE = 10, 'catt'
-    PAGE_LIST = 11, 'pglst'
     PAGE_LINK_API_PATH = 12, "pglnkppth"
     CATEGORY_KEY = 13, "catk"
     MAX_ITEMS = 14, "mxtms"
@@ -38,6 +37,9 @@ class ItemIdentifierKey(Enum):
     RANDOM_VALUE = 21, "rnd"
     SEARCH_FIELD = 22, "srchfld"
     SEARCH_KIND = 23, "srchknd"
+    TIDAL_ITEM_ORDER = 24, "rdr"
+    TIDAL_DIRECTION = 25, "drctn"
+    TRACK_NAVIGABLE = 26, "trknvgbl"
 
     def __init__(
             self,

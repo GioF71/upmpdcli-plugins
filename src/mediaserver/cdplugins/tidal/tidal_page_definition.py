@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Giovanni Fulco
+# Copyright (C) 2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+from typing import Any
 
 
 class TidalPageDefinition(Enum):
@@ -30,7 +31,7 @@ class TidalPageDefinition(Enum):
 
     def __init__(
             self,
-            _: any,
+            _: Any,
             page_path: str,
             page_title: str):
         self.__page_path: str = page_path
