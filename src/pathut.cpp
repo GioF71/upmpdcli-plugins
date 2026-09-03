@@ -1230,9 +1230,8 @@ bool path_streamopen(const std::string& path, int mode, std::fstream& outstream)
     // MSC STL has support for using wide chars in fstream
     // constructor. We need this if, e.g. the user name/home directory
     // is not ASCII. Actually don't know how to do this with gcc
-    wchar_t wpath[MAX_PATH + 1];
-    utf8towchar(path, wpath, MAX_PATH);
-    outstream.open(wpath, std::ios_base::openmode(mode));
+    auto wpath = utf8towchar(path);
+    outstream.open(wpath.get(), std::ios_base::openmode(mode));
 #else
     outstream.open(path, std::ios_base::openmode(mode));
 #endif

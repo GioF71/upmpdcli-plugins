@@ -129,7 +129,8 @@ bool utf8towchar(const std::string& in, wchar_t *out, int obytescap)
     }
     if (wcharcnt + 1 >  int(wcharsavail)) {
 #ifdef LOGERR
-        LOGERR("utf8towchar: not enough space\n");
+        LOGERR("utf8towchar: not enough space: avail " << wcharsavail <<
+               " needed " << wcharcnt << "\n");
 #endif
         return false;
     }
