@@ -867,7 +867,7 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
     }
 
     vector<UpSong> results;
-    jsonToUpSongs(ite->second, results);
+    jsonToUpSongs(ite->second, results, classfilter);
     // Only store complete contents in the cache.
     auto docache = !nocache && resoffs == 0 && total > 0 && (int)results.size() == total;
     ContentCacheEntry entry;
@@ -875,6 +875,5 @@ int PlgWithSlave::search(const string& ctid, int stidx, int cnt, const string& s
     e.m_results.swap(results);
     e.m_offset = resoffs;
     e.m_total = total;
-    jsonToUpSongs(ite->second, e.m_results, classfilter);
     return e.toResult(stidx, cnt, retsongs);
 }
