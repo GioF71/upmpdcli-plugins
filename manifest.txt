@@ -223,6 +223,7 @@ src/mediaserver/cdplugins/subsonic/persistence_tuple.py
 src/mediaserver/cdplugins/subsonic/radio_entry_type.py
 src/mediaserver/cdplugins/subsonic/release.md
 src/mediaserver/cdplugins/subsonic/release_date.py
+src/mediaserver/cdplugins/subsonic/replay_gain.py
 src/mediaserver/cdplugins/subsonic/request_cache.py
 src/mediaserver/cdplugins/subsonic/retrieved_art.py
 src/mediaserver/cdplugins/subsonic/search_result_rank.py
@@ -241,11 +242,14 @@ src/mediaserver/cdplugins/subsonic/upnp_util.py
 src/mediaserver/cdplugins/subsonic/value_holder.py
 src/mediaserver/cdplugins/tidal/
 src/mediaserver/cdplugins/tidal/album_adapter.py
+src/mediaserver/cdplugins/tidal/album_metadata.py
 src/mediaserver/cdplugins/tidal/album_sort_criteria.py
 src/mediaserver/cdplugins/tidal/artist_sort_criteria.py
 src/mediaserver/cdplugins/tidal/codec.py
+src/mediaserver/cdplugins/tidal/column.py
 src/mediaserver/cdplugins/tidal/config.py
 src/mediaserver/cdplugins/tidal/constants.py
+src/mediaserver/cdplugins/tidal/container_type.py
 src/mediaserver/cdplugins/tidal/context.py
 src/mediaserver/cdplugins/tidal/context_key.py
 src/mediaserver/cdplugins/tidal/element_type.py
@@ -264,6 +268,7 @@ src/mediaserver/cdplugins/tidal/played_track_request.py
 src/mediaserver/cdplugins/tidal/release.md
 src/mediaserver/cdplugins/tidal/search_type.py
 src/mediaserver/cdplugins/tidal/streaming_info.py
+src/mediaserver/cdplugins/tidal/table_name.py
 src/mediaserver/cdplugins/tidal/tag_type.py
 src/mediaserver/cdplugins/tidal/tidal-app.py
 src/mediaserver/cdplugins/tidal/tidal_page_definition.py
@@ -272,6 +277,7 @@ src/mediaserver/cdplugins/tidal/tidal_util.py
 src/mediaserver/cdplugins/tidal/tile_image.py
 src/mediaserver/cdplugins/tidal/tile_type.py
 src/mediaserver/cdplugins/tidal/track_adapter.py
+src/mediaserver/cdplugins/tidal/track_metadata.py
 src/mediaserver/cdplugins/tidal/upnp_util.py
 src/mediaserver/cdplugins/upradios/
 src/mediaserver/cdplugins/upradios/upradios-app.py
