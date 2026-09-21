@@ -148,7 +148,7 @@ std::string g_npupnpwebdocroot{"1"};
 
 static void onsig(int)
 {
-    LOGDEB("Got sig" << endl);
+    LOGDEB("Got sig" << '\n');
     g_mainShouldExit = true;
     for (auto& dev : devs) {
         // delete has a tendancy to crash (it works most of the time though). Anyway, we're exiting,
@@ -196,7 +196,7 @@ bool startMediaServer(bool enable)
     }
     
     devs.push_back(mediaserver);
-    LOGDEB("Media server event loop" << endl);
+    LOGDEB("Media server event loop" << '\n');
     // msonly && !enableMediaServer is possible if we're just using
     // the "mediaserver" to redirect URLs for ohcredentials/Kazoo
     if (enable) {
@@ -313,7 +313,7 @@ int main(int argc, char *argv[])
         g_config = new ConfSimple(
             ConfSimple::CFSF_NOCASE|ConfSimple::CFSF_RO|ConfSimple::CFSF_TILDEXP, g_configfilename);
         if (!g_config || !g_config->ok()) {
-            cerr << "Could not open config: " << g_configfilename << endl;
+            cerr << "Could not open config: " << g_configfilename << '\n';
             return 1;
         }
     }  else {
@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
     if (geteuid() == 0) {
         if (runas == 0) {
             LOGFAT("upmpdcli won't run as root and user " << upmpdcliuser <<
-                   " does not exist " << endl);
+                   " does not exist " << '\n');
             return 1;
         }
         runas = pass->pw_uid;
@@ -496,11 +496,11 @@ int main(int argc, char *argv[])
         pid_t pid;
         if ((pid = pidfile.open()) != 0) {
             LOGFAT("Can't open pidfile: " << pidfile.getreason() << 
-                   ". Return (other pid?): " << pid << endl);
+                   ". Return (other pid?): " << pid << '\n');
             return 1;
         }
         if (pidfile.write_pid() != 0) {
-            LOGFAT("Can't write pidfile: " << pidfile.getreason() << endl);
+            LOGFAT("Can't write pidfile: " << pidfile.getreason() << '\n');
             return 1;
         }
         if (opts.cachedir.empty())
@@ -520,14 +520,16 @@ int main(int argc, char *argv[])
         if (opts.cachedir.empty())
             opts.cachedir = "/var/cache/upmpdcli";
     } else {
-        if (opts.cachedir.empty())
-            opts.cachedir = path_cat(path_tildexpand("~") , "/.cache/upmpdcli");
+        // Running as regular user.
+        if (opts.cachedir.empty()) {
+            opts.cachedir = path_cat(path_cachedir(), "upmpdcli");
+        }
     }
 
     g_cachedir = opts.cachedir;
     if (!path_makepath(opts.cachedir, 0755)) {
-        LOGERR("makepath("<< opts.cachedir << ") : errno : " << errno << endl);
-        cerr << "Can't create " << opts.cachedir << endl;
+        LOGERR("makepath("<< opts.cachedir << ") : errno : " << errno << '\n');
+        cerr << "Can't create " << opts.cachedir << '\n';
         return 1;
     }
 
@@ -550,7 +552,7 @@ int main(int argc, char *argv[])
         opts.cachefn = path_cat(opts.cachedir, "/metacache");
         int fd;
         if ((fd = open(opts.cachefn.c_str(), O_CREAT|O_RDWR, 0644)) < 0) {
-            LOGERR("creat("<< opts.cachefn << ") : errno : " << errno << endl);
+            LOGERR("creat("<< opts.cachefn << ") : errno : " << errno << '\n');
         } else {
             close(fd);
         }
@@ -558,7 +560,7 @@ int main(int argc, char *argv[])
     
     if ((op_flags & OPT_D)) {
         if (daemon(1, 0)) {
-            LOGFAT("Daemon failed: errno " << errno << endl);
+            LOGFAT("Daemon failed: errno " << errno << '\n');
             return 1;
         }
     }
@@ -569,18 +571,18 @@ int main(int argc, char *argv[])
         pidfile.write_pid();
         if (!logfilename.empty() && logfilename.compare("stderr")) {
             if (chown(logfilename.c_str(), runas, -1) < 0 && errno != ENOENT) {
-                LOGERR("chown("<<logfilename<<") : errno : " << errno << endl);
+                LOGERR("chown("<<logfilename<<") : errno : " << errno << '\n');
             }
         }
         if (chown(opts.cachedir.c_str(), runas, -1) != 0) {
-            LOGERR("chown("<< opts.cachedir << ") : errno : " << errno << endl);
+            LOGERR("chown("<< opts.cachedir << ") : errno : " << errno << '\n');
         }
         if (chown(statefn.c_str(), runas, -1) != 0) {
-            LOGERR("chown("<< statefn << ") : errno : " << errno << endl);
+            LOGERR("chown("<< statefn << ") : errno : " << errno << '\n');
         }
         if (!opts.cachefn.empty()) {
             if (chown(opts.cachefn.c_str(), runas, -1) != 0) {
-                LOGERR("chown("<< opts.cachefn << ") : errno : " << errno << endl);
+                LOGERR("chown("<< opts.cachefn << ") : errno : " << errno << '\n');
             }
         }
         if (!g_configfilename.empty()) {
@@ -588,7 +590,7 @@ int main(int argc, char *argv[])
         }
 
         if (initgroups(upmpdcliuser.c_str(), runasg) < 0) {
-            LOGERR("initgroup failed. Errno: " << errno << endl);
+            LOGERR("initgroup failed. Errno: " << errno << '\n');
         }
 
         if (setgid(runasg) < 0) {
@@ -606,7 +608,7 @@ int main(int argc, char *argv[])
         for (int i = 0; i < ng; i++) {
             cerr << int(list[i]) << " ";
         }
-        cerr << endl;
+        cerr << '\n';
 #endif
     }
 
@@ -687,7 +689,7 @@ int main(int argc, char *argv[])
     }
     mylib = LibUPnP::getLibUPnP();
     if (!mylib || !mylib->ok()) {
-        LOGFAT("Lib init failed: " << mylib->errAsString("main", mylib->getInitError()) << endl);
+        LOGFAT("Lib init failed: " << mylib->errAsString("main", mylib->getInitError()) << '\n');
         return 1;
     }
     hwaddr = mylib->hwaddr();
@@ -722,7 +724,7 @@ int main(int argc, char *argv[])
         for (;;) {
             mpdclip = new MPDCli(mpdhost, mpdport, mpdpassword);
             if (mpdclip == 0) {
-                LOGFAT("Can't allocate MPD client object" << endl);
+                LOGFAT("Can't allocate MPD client object" << '\n');
                 return 1;
             }
             if (!mpdclip->ok()) {
@@ -794,12 +796,12 @@ int main(int argc, char *argv[])
             rootdevice = av;
             devs.push_back(av);
         }
-        LOGDEB("Renderer event loop" << endl);
+        LOGDEB("Renderer event loop" << '\n');
         mediarenderer->startnoloops();
     }
 
     pause();
-    LOGDEB("Event loop returned" << endl);
+    LOGDEB("Event loop returned" << '\n');
     return 0;
 }
 
@@ -809,7 +811,7 @@ bool readLibFile(const std::string& name, std::string& contents)
     string path = path_cat(g_datadir, name);
     string reason;
     if (!file_to_string(path, contents, &reason)) {
-        LOGERR("readLibFile: error reading " << name << " : " << reason << endl);
+        LOGERR("readLibFile: error reading " << name << " : " << reason << '\n');
         return false;
     }
     return true;
