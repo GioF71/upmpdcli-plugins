@@ -30,6 +30,7 @@ from xbmcplug import *
 
 # Using kodi routing module
 from routing import Plugin
+from plugin_icon import publish_icon
 
 plugin = Plugin("")
 
@@ -488,5 +489,6 @@ def search(a):
 
 
 msgproc.log("Qobuz running")
+publish_icon(plugin_name="qobuz")
 maybelogin()
 msgproc.mainloop()

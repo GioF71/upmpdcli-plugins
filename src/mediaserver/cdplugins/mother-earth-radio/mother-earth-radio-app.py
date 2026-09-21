@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 import json
 import os
+from plugin_icon import publish_icon
 
 from typing import Callable
 
@@ -35,7 +36,6 @@ from tag_type import TagType, get_tag_type_by_name
 from element_type import ElementType
 
 from radio_station_entry import RadioStationEntry
-
 import constants
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
@@ -262,7 +262,6 @@ __tag_action_dict: dict = {
     TagType.BY_CODEC.getTagName(): handler_tag_by_codec,
     TagType.BY_TITLE.getTagName(): handler_tag_by_name,
 }
-
 __elem_action_dict: dict = {
     ElementType.ENTRY_BY_TITLE.getName(): handler_element_by_title,
     ElementType.ENTRY_BY_CODEC.getName(): handler_element_by_codec,
@@ -343,4 +342,5 @@ def search(a):
     return _returnentries(entries)
 
 
+publish_icon(plugin_name="mother-earth-radio")
 msgproc.mainloop()
