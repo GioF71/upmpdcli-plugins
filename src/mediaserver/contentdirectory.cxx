@@ -41,8 +41,10 @@ static std::string autorootalias;
 
 class ContentDirectory::Internal {
 public:
-    Internal (ContentDirectory *sv, MediaServer *dv)
-        : service(sv), msdev(dv), updateID("1") {}
+    Internal(ContentDirectory *sv, MediaServer *dv)
+    : service(sv), msdev(dv), updateID("1") {
+        maybeInitConfig();
+    }
 
     ~Internal() {
         for (auto& it : plugins) {
@@ -53,7 +55,7 @@ public:
     // Start plugins which have long init so that the user has less to wait on first access
     void maybeStartSomePlugins(bool enabled);
 
-    void maybeInit() {
+    void maybeInitConfig() {
         if (upnphost.empty()) {
             UpnpDevice *dev;
             if (!service || !(dev = service->getDevice())) {
@@ -80,7 +82,7 @@ public:
     
     CDPlugin *pluginFactory(const string& appname) {
         LOGDEB("ContentDirectory::pluginFactory: for " << appname << "\n");
-        maybeInit();
+        maybeInitConfig();
         return new PlgWithSlave(appname, service);
     }
 
@@ -109,7 +111,7 @@ public:
     MediaServer *msdev;
     unordered_map<string, CDPlugin *> plugins;
     string upnphost;
-    int upnpport;
+    int upnpport{0};
     string rootalias;
     string updateID;
 };
@@ -607,7 +609,7 @@ string ContentDirectory::microhttphost()
         LOGDEB("ContentDirectory::microhttphost: from config:" << host << "\n");
         return host;
     }
-    m->maybeInit();
+    m->maybeInitConfig();
     return m->upnphost;
 }
 
