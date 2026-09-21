@@ -76,6 +76,7 @@ public:
                    "] rootalias [" << rootalias << "]\n");
         }
     }
+    size_t readroot(int offs, int cnt, vector<UpSong>& out);
     
     CDPlugin *pluginFactory(const string& appname) {
         LOGDEB("ContentDirectory::pluginFactory: for " << appname << "\n");
@@ -224,21 +225,58 @@ static bool makerootdir()
     }
 }
 
-// Note: this is called very early in init, so that the autorootalias value
-// possibly set by makerootdir is certain to be set before the contentdirectory
-// is created.
+// Note: this is called very early in init, so that the autorootalias value possibly set by our
+// calling makerootdir() is certain to be set before the actual ContentDirectory is created.
 bool ContentDirectory::mediaServerNeeded()
 {
     return makerootdir();
 }
 
-// Returns totalmatches
-static size_t readroot(int offs, int cnt, vector<UpSong>& out)
+// Take an object id (0$plugname$...) and extract the plugin name 
+static string appForId(const string& id)
+{
+    string app;
+    string::size_type dol0 = id.find_first_of("$");
+    if (dol0 == string::npos) {
+        LOGERR("ContentDirectory::appForId: bad id [" << id << "]\n");
+        return string();
+    } 
+    string::size_type dol1 = id.find_first_of("$", dol0 + 1);
+    if (dol1 == string::npos) {
+        LOGERR("ContentDirectory::appForId: bad id [" << id << "]\n");
+        return string();
+    } 
+    return id.substr(dol0 + 1, dol1 - dol0 -1);
+}
+
+// Browse the root directory (list of plugins).
+// @return totalmatches
+size_t ContentDirectory::Internal::readroot(int offs, int cnt, vector<UpSong>& out)
 {
     //LOGDEB("readroot: offs " << offs << " cnt " << cnt << "\n");
     if (rootdir.empty()) {
         makerootdir();
     }
+
+    // We could not build possible icon urls for the plugins in makerootdir
+    // because the upnp host and port values are not available in there (called
+    // too early). Do it now.
+    // The icons are stored in the webserverdocumentroot location if this is
+    // set, and must be named [plugname]-icon.jpg or [plugname]-icon.png
+    if (!g_npupnpwebdocroot.empty()) {
+        for (auto &dirent : rootdir) {
+            auto plugname = appForId(dirent.id);
+            for (const auto &ext : std::vector<std::string>{".jpg", ".png"}) {
+                auto iconname = plugname + "-icon" + ext;
+                auto iconpath = path_cat(g_npupnpwebdocroot, iconname);
+                if (path_exists(iconpath)) {
+                    dirent.artUri = std::string("http://") + upnphost + ":" +
+                                    std::to_string(upnpport) + "/" + iconname;
+                }
+            }
+        }
+    }
+    
     out.clear();
     if (cnt <= 0)
         cnt = rootdir.size();
@@ -256,22 +294,6 @@ static size_t readroot(int offs, int cnt, vector<UpSong>& out)
     }
     //LOGDEB("readroot: returning " << out.size() << " entries\n");
     return rootdir.size();
-}
-
-static string appForId(const string& id)
-{
-    string app;
-    string::size_type dol0 = id.find_first_of("$");
-    if (dol0 == string::npos) {
-        LOGERR("ContentDirectory::appForId: bad id [" << id << "]\n");
-        return string();
-    } 
-    string::size_type dol1 = id.find_first_of("$", dol0 + 1);
-    if (dol1 == string::npos) {
-        LOGERR("ContentDirectory::appForId: bad id [" << id << "]\n");
-        return string();
-    } 
-    return id.substr(dol0 + 1, dol1 - dol0 -1);
 }
 
 std::string CDPluginServices::pluginRootFromObjid(const std::string& objid)
@@ -390,7 +412,7 @@ int ContentDirectory::actBrowse(const SoapIncoming& sc, SoapOutgoing& data)
     if (!in_ObjectID.compare("0")) {
         // Root directory: we do this ourselves
         if (bf == CDPlugin::BFChildren) {
-            totalmatches = readroot(in_StartingIndex, in_RequestedCount, entries);
+            totalmatches = m->readroot(in_StartingIndex, in_RequestedCount, entries);
         } else {
             entries.push_back(UpSong::container("0", "0", ""));
             totalmatches = 1;
