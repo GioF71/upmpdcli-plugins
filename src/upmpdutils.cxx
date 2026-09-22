@@ -52,6 +52,7 @@
 
 #include "smallut.h"
 #include "main.hxx"
+#include "readfile.h"
 
 using namespace std;
 using namespace UPnPP;
@@ -475,3 +476,26 @@ out:
     return ret;
 }
 
+bool copyfile(const std::string &src, const std::string &dst)
+{
+    std::string data, reason;
+    if (!file_to_string(src, data, &reason)) {
+        LOGERR("makeroot: could not read " << src << " : " << reason << "\n");
+        return false;
+    } 
+    int fd = open(dst.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0644);
+    if (fd < 0) {
+        LOGSYSERR("makeroot", "open/creat", dst);
+        return false;
+    }
+    bool ok = true;
+    if (write(fd, data.c_str(), data.size()) != (ssize_t)data.size()) {
+        LOGSYSERR("makeroot", "write", dst);
+        ok = false;
+    }
+    if (close(fd) < 0) {
+        LOGSYSERR("makeroot", "close", dst);
+        ok = false;
+    }
+    return ok;
+}

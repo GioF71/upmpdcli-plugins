@@ -205,4 +205,8 @@ extern std::string upmpdcliVersionInfo();
 
 extern bool mimeToCodec(const std::string& mime, std::string& codec, bool *lossless);
 
+// Copy src to dst if the latter does not exist (fail if dst exists). Only use this for small files
+// (e.g. icons) as it reads the whole data to memory.
+extern bool copyfile(const std::string &src, const std::string &dst);
+
 #endif /* _UPMPDUTILS_H_X_INCLUDED_ */
