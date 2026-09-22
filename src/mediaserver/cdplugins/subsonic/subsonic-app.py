@@ -98,7 +98,6 @@ from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
 from msgproc_provider import dispatcher, msgproc
 from option_key import OptionKey
-from plugin_icon import publish_icon
 from radio_entry_type import RadioEntryType
 from retrieved_art import RetrievedArt
 from search_type import KindType, SearchType
@@ -4850,7 +4849,6 @@ def search(a):
     return _returnentries(entries, no_cache=without_cache)
 
 
-publish_icon(plugin_name=constants.PluginConstant.PLUGIN_NAME.value)
 subsonic_init.subsonic_init()
 msgproc.log("Subsonic running")
 msgproc.mainloop()

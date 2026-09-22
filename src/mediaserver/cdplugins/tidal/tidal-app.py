@@ -92,7 +92,6 @@ from tile_image import TileImage
 from tile_type import TileType
 from track_adapter import TrackAdapter
 from track_metadata import TrackMetadata
-from plugin_icon import publish_icon
 
 class TidalAppException(Exception):
     """Raised when an error occurs in the Tidal app."""
@@ -6936,7 +6935,6 @@ def preloading_worker():
         time.sleep(preload_interval)
 
 
-publish_icon(plugin_name="tidal")
 _inittidal()
 # preloading
 thread = threading.Thread(target=preloading_worker, args=())

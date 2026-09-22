@@ -17,7 +17,6 @@
 
 import json
 import os
-from plugin_icon import publish_icon
 
 from typing import Callable
 
@@ -342,5 +341,4 @@ def search(a):
     return _returnentries(entries)
 
 
-publish_icon(plugin_name="mother-earth-radio")
 msgproc.mainloop()
