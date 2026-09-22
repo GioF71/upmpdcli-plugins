@@ -441,7 +441,9 @@ int main(int argc, char *argv[])
     // line option (see the enum comments near the top of the file):
     bool inprocessms{false};
     bool msonly{false};
-    bool enableMediaServer = ContentDirectory::mediaServerNeeded();
+    // Call with testonly=false: no FS modifications (the necessary data is not
+    // there yet), just check if there are enabled plugins.
+    bool enableMediaServer = ContentDirectory::mediaServerNeeded(true);
     switch (arg_msmode) {
     case MSOnly:
         inprocessms = true;
@@ -545,6 +547,11 @@ int main(int argc, char *argv[])
         } else {
             g_npupnpwebdocroot.clear();
         }
+    }
+    if (enableMediaServer) {
+        // Now that we have the webdocroot, call mediaServerNeeded() again, with testonly=false, 
+        // this will perform webroot creation and icon copies as needed.
+        (void)ContentDirectory::mediaServerNeeded(false);
     }
     
     opts.cachefn.clear();
