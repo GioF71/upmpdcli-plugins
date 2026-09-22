@@ -176,6 +176,7 @@ int ContentDirectory::actGetSystemUpdateID(const SoapIncoming& sc, SoapOutgoing&
 static vector<UpSong> rootdir;
 static bool makerootdir(bool testonly)
 {
+    LOGDEB1("makerootdir: testonly " << testonly << '\n');
     rootdir.clear();
     string pathplg = path_cat(g_datadir, "cdplugins");
     string reason;
@@ -187,7 +188,6 @@ static bool makerootdir(bool testonly)
     if (!testonly) {
         if (!path_makepath(g_npupnpwebdocroot, 0700)) {
             LOGSYSERR("makerootdir", "mkdir", g_npupnpwebdocroot);
-        } else {
             testonly = true;
         }
     }
@@ -215,17 +215,21 @@ static bool makerootdir(bool testonly)
                 auto iconname = entry + "-icon" + ext;
                 auto srcicon = path_cat(pathplg, {entry, iconname});
                 auto dsticon = path_cat(g_npupnpwebdocroot, iconname);
+                LOGDEB1("makerootdir: srcicon [" << srcicon << "] dsticon [ " << dsticon << '\n');
                 if (path_exists(srcicon)) {
                     iconfound = true;
                 }
                 if (iconfound && !path_exists(dsticon)) {
+                    LOGDEB1("makerootdir: COPYING plugin icon\n");
                     copyfile(srcicon, dsticon);
                 }
                 if (iconfound)
                     break;
             }
             if (!iconfound) {
-                copyfile(path_cat(g_datadir, "icon.png"), path_cat(g_npupnpwebdocroot, entry + "-icon.png"));
+                LOGDEB1("makerootdir: COPYING generic icon\n");
+                copyfile(path_cat(g_datadir, "icon.png"),
+                         path_cat(g_npupnpwebdocroot, entry + "-icon.png"));
             }
         }
 
