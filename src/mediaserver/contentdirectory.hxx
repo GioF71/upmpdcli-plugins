@@ -73,9 +73,9 @@ public:
 
     ~ContentDirectory();
 
-    /// Check if the configuration indicates that the media server
-    /// needs to be started.
-    static bool mediaServerNeeded();
+    /// Check if the configuration indicates that the media server needs to be started.
+    /// @param testonly if false also perform fs modifications (possibly create www root, copy icons, etc.
+    static bool mediaServerNeeded(bool testonly);
 
     /////////// CDPluginServices methods
 

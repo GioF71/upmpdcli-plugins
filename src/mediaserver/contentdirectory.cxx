@@ -174,7 +174,7 @@ int ContentDirectory::actGetSystemUpdateID(const SoapIncoming& sc, SoapOutgoing&
 }
 
 static vector<UpSong> rootdir;
-static bool makerootdir()
+static bool makerootdir(bool testonly)
 {
     rootdir.clear();
     string pathplg = path_cat(g_datadir, "cdplugins");
@@ -183,6 +183,13 @@ static bool makerootdir()
     if (!listdir(pathplg, reason, entries)) {
         LOGERR("ContentDirectory::makerootdir: can't read " << pathplg << " : " << reason << "\n");
         return false;
+    }
+    if (!testonly) {
+        if (!path_makepath(g_npupnpwebdocroot, 0700)) {
+            LOGSYSERR("makerootdir", "mkdir", g_npupnpwebdocroot);
+        } else {
+            testonly = true;
+        }
     }
 
     // Remember last or possibly unique plugin name. Later possibly used for
@@ -200,6 +207,26 @@ static bool makerootdir()
                    " because neither " << userkey << " nor " << autostartkey <<
                    " are defined in the configuration\n");
             continue;
+        }
+
+        if (!testonly) {
+            bool iconfound = false;
+            for (const auto &ext : std::vector<std::string>{".jpg", ".png"}) {
+                auto iconname = entry + "-icon" + ext;
+                auto srcicon = path_cat(pathplg, {entry, iconname});
+                auto dsticon = path_cat(g_npupnpwebdocroot, iconname);
+                if (path_exists(srcicon)) {
+                    iconfound = true;
+                }
+                if (iconfound && !path_exists(dsticon)) {
+                    copyfile(srcicon, dsticon);
+                }
+                if (iconfound)
+                    break;
+            }
+            if (!iconfound) {
+                copyfile(path_cat(g_datadir, "icon.png"), path_cat(g_npupnpwebdocroot, entry + "-icon.png"));
+            }
         }
 
         theEntry = entry;
@@ -229,9 +256,9 @@ static bool makerootdir()
 
 // Note: this is called very early in init, so that the autorootalias value possibly set by our
 // calling makerootdir() is certain to be set before the actual ContentDirectory is created.
-bool ContentDirectory::mediaServerNeeded()
+bool ContentDirectory::mediaServerNeeded(bool testonly)
 {
-    return makerootdir();
+    return makerootdir(testonly);
 }
 
 // Take an object id (0$plugname$...) and extract the plugin name 
@@ -257,21 +284,22 @@ size_t ContentDirectory::Internal::readroot(int offs, int cnt, vector<UpSong>& o
 {
     //LOGDEB("readroot: offs " << offs << " cnt " << cnt << "\n");
     if (rootdir.empty()) {
-        makerootdir();
+        makerootdir(false);
     }
 
     // We could not build possible icon urls for the plugins in makerootdir
     // because the upnp host and port values are not available in there (called
     // too early). Do it now.
     // The icons are stored in the webserverdocumentroot location if this is
-    // set, and must be named [plugname]-icon.jpg or [plugname]-icon.png
+    // set, and must be named [plugname]-icon.jpg or [plugname]-icon.png. They
+    // were created earlier in makerootdir()
     if (!g_npupnpwebdocroot.empty()) {
         for (auto &dirent : rootdir) {
             auto plugname = appForId(dirent.id);
             for (const auto &ext : std::vector<std::string>{".jpg", ".png"}) {
                 auto iconname = plugname + "-icon" + ext;
-                auto iconpath = path_cat(g_npupnpwebdocroot, iconname);
-                if (path_exists(iconpath)) {
+                auto webiconpath = path_cat(g_npupnpwebdocroot, iconname);
+                if (path_exists(webiconpath)) {
                     dirent.artUri = std::string("http://") + upnphost + ":" +
                                     std::to_string(upnpport) + "/" + iconname;
                 }
