@@ -6,7 +6,7 @@ Implementing a Media Server plugin.
 
 The upmpdcli Media Server subsystem has multiple functions: proxying for external media services
 (Qobuz, Tidal etc.), or non-UPnP servers (Subsonic), serving local media files, giving access to
-external radio catalogs or services (bbc, radio-browser, radio-paradise, mother-earth-radio).
+external radio catalogs or services (bbc, radio-browser, radio-paradise).
 
 The main process does nothing itself, beyond implementing the UPnP Media Server protocol. All the
 actual work is performed by plugins, running as separate processes and communicating through pipes

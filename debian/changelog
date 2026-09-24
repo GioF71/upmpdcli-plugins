@@ -22,7 +22,7 @@ upmpdcli (1.9.17-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
 upmpdcli (1.9.15-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
-  * Media server: plugins updates: subsonic, mother earth.
+  * Media server: plugins updates: subsonic.
   * OpenHome: Playlist: Improve compat with Linn version.
   * OpenHome: Radio: use album title if available in radio metadata.
 

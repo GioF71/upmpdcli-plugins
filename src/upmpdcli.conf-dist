@@ -254,13 +254,6 @@ upradiostitle = Upmpdcli Radio List
 # Plugin Title.
 #radio-paradisetitle = Radio Paradise
 
-# Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters
-
-# Bogus user name variable.
-#mother-earth-radiouser = bugsbunny
-# Plugin Title.
-#mother-earth-radiotitle = Mother Earth Radio
-
 # SubSonic plugin parameters
 
 # SubSonic User name.

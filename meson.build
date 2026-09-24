@@ -219,7 +219,6 @@ install_subdir(
     'uprcl/testrunuprcl.sh',
     'bbc/__pycache__',
     'hra/__pycache__',
-    'mother-earth-radio/__pycache__',
     'pycommon/__pycache__',
     'qobuz/__pycache__',
     'qobuz/api/__pycache__',

@@ -562,16 +562,6 @@ radio-paradisetitle:: Plugin Title. This
 will be displayed as the plugin entry in the Media Server root
 directory.
 
-=== Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters 
-
-[[mother-earth-radiouser]]
-mother-earth-radiouser:: Bogus user name variable. Decides if the service should be started. Set it to any arbitrary value.
-
-[[mother-earth-radiotitle]]
-mother-earth-radiotitle:: Plugin Title. This
-will be displayed as the plugin entry in the Media Server root
-directory.
-
 === SubSonic plugin parameters 
 
 [[subsonicuser]]

@@ -661,16 +661,6 @@ upradiostitle = Upmpdcli Radio List
 # directory.</descr></var>
 #radio-paradisetitle = Radio Paradise
 
-# <grouptitle>Mother Earth Radio (https://www.motherearthradio.de/) plugin parameters</grouptitle>
-
-# <var name="mother-earth-radiouser" type="string"><brief>Bogus user name variable.</brief>
-# <descr>Decides if the service should be started. Set it to any arbitrary value.</descr></var>
-#mother-earth-radiouser = bugsbunny
-# <var name="mother-earth-radiotitle" type="string"> <brief>Plugin Title.</brief><descr>This
-# will be displayed as the plugin entry in the Media Server root
-# directory.</descr></var>
-#mother-earth-radiotitle = Mother Earth Radio
-
 # <grouptitle>SubSonic plugin parameters</grouptitle>
 
 # <var name="subsonicuser" type="string"><brief>SubSonic User name.</brief>
