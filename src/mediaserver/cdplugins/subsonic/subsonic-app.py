@@ -3802,7 +3802,13 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
                 msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> "
                             f"adding song [{curr.getTitle()}] ...")
             clean_title: str = curr.getTitle().upper().replace("’", "'")
-            song_dict[(curr.getDiscNumber(), curr.getTrack(), clean_title)].append(curr)
+            # msgproc.log(f"handler_element_album adding tuple({curr.getDiscNumber()}, {curr.getTrack()}, {clean_title}) ...")
+            dn: int | None = curr.getDiscNumber()
+            tn: int | None = curr.getTrack()
+            song_dict[(
+                dn if dn else 1,
+                tn if tn else 1,
+                clean_title if clean_title else "")].append(curr)
         # present songs.
         key_list: list[tuple[int, int, str]] = sorted(song_dict.keys())
         curr_key: tuple[int, int, str]

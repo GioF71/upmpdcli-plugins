@@ -1,5 +1,9 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.16.1
+
+- This *should* fix issue [#172](https://framagit.org/medoc92/upmpdcli/-/work_items/172): avoid to put None in tuple
+
 ## Release 0.9.16
 
 - Notify user of a search with an empty value
