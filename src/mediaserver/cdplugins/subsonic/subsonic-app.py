@@ -329,7 +329,11 @@ def song_trackuri(track_id: str):
 
 def _returnentries(entries, no_cache: bool = False):
     """Helper function: build plugin browse or search return value from items list"""
-    return {"entries": json.dumps(entries), "nocache": "1" if no_cache else "0"}
+    return {
+        "entries": json.dumps(entries),
+        "nocache": "1" if no_cache else "0",
+        "offset": "0",
+        "total": str(len(entries if entries else []))}
 
 
 def _station_to_entry(

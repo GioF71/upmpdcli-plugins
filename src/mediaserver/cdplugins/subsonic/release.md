@@ -1,8 +1,12 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.16.2
+
+- This fixes issue [#173](https://framagit.org/medoc92/upmpdcli/-/work_items/173): add "offset" and "total"
+
 ## Release 0.9.16.1
 
-- This *should* fix issue [#172](https://framagit.org/medoc92/upmpdcli/-/work_items/172): avoid to put None in tuple
+- This fixes issue [#172](https://framagit.org/medoc92/upmpdcli/-/work_items/172): avoid to put None in tuple
 
 ## Release 0.9.16
 
