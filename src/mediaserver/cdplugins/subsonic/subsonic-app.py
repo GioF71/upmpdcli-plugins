@@ -4254,13 +4254,16 @@ def browse(a):
     entries = []
     curr_path: str
     last_decoded_path: str = None
-    for curr_path in path_list:
-        if not _g_myprefix == curr_path:
-            try:
-                last_decoded_path = codec.decode(curr_path)
-            except Exception as ex:
-                msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
-                # respond with a tile showing the error
+    curr_idx: int
+    for curr_idx, curr_path in enumerate(path_list):
+        if _g_myprefix == curr_path:
+            continue
+        try:
+            last_decoded_path = codec.decode(curr_path)
+        except Exception as ex:
+            msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
+            # respond with a tile showing the error if we are at the last path item, otherwise we just skip it
+            if curr_idx == len(path_list) - 1:
                 entries.append(create_missing_objid_entry(objid))
                 return _returnentries(entries, no_cache=without_cache)
     last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
