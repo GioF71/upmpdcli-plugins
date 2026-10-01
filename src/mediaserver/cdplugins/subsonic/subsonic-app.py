@@ -4226,6 +4226,20 @@ def show_tag_entries(objid, entries: list) -> list:
     return entries
 
 
+def create_missing_objid_entry(objid: Any) -> dict[str, any]:
+    entry_identifier: ItemIdentifier = ItemIdentifier(
+        ElementType.INVALID_OBJECT_ID.element_name,
+        codec.base64_encode(ElementType.INVALID_OBJECT_ID.element_name))
+    entry_id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(entry_identifier))
+    entry: dict[str, any] = upmplgutils.direntry(
+        entry_id,
+        objid,
+        title=f"Missing or invalid object id [{objid}]")
+    return entry
+
+
 @dispatcher.record('browse')
 def browse(a):
     start: float = time.time()
@@ -4246,6 +4260,8 @@ def browse(a):
                 last_decoded_path = codec.decode(curr_path)
             except Exception as ex:
                 msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
+                # respond with a tile showing the error
+                entries.append(create_missing_objid_entry(objid))
                 return _returnentries(entries, no_cache=without_cache)
     last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
     if len(path_list) == 1 and _g_myprefix == last_path_item:

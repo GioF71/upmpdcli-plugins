@@ -15,7 +15,9 @@
 
 
 from enum import Enum
+
 import idgenerator
+
 import config
 import constants
 
@@ -80,6 +82,7 @@ class ElementType(Enum):
     ARTIST_ALBUMS_WITH_DUPLICATE_TITLE_VERSION_PAIR = _ElementTypeData()
     ARTIST_ALBUMS_FILTERED_BY_TITLE = _ElementTypeData()
     ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION = _ElementTypeData()
+    INVALID_OBJECT_ID = _ElementTypeData()
 
     @property
     def element_name(self) -> str:
