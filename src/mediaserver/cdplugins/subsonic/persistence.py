@@ -40,6 +40,7 @@ from keyvaluecaching import build_create_v1_sql as build_create_cache_v1_sql
 
 import config
 import constants
+import datetime_util
 import metadata_converter
 from album_metadata import AlbumMetadata
 from album_property_key import (
@@ -68,12 +69,18 @@ from persistence_tuple import (
     AlbumPropertyValueSelection,
     ArtistAlbumCoverArt,
     CoverSource,
+    DuplicateAlbumInfo,
+    DuplicateAlbumOccurrence,
     get_cover_source_by_name,
 )
 from search_util import simplify
 from song_data_structures import SongArtist, SongContributor
 from song_metadata import SongMetadata
 from table_name import DeletedTableName, TableName
+
+
+class PersistenceException(Exception):
+    """Raised when a Persistence error occurs."""
 
 
 def __create_qmark_list(num_qmark: int) -> str:
@@ -480,8 +487,8 @@ def get_random_cover_art_by_artist_id(artist_id: str, connection: sqlite3.Connec
                         WHERE {ColumnName.ALBUM_ARTIST_ID.value} = ?))
     """
     # msgproc.log(sql)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=(artist_id, artist_id))
-    # any?
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=(artist_id, artist_id))
+    # Any?
     for row in rows if rows else []:
         album_id: str = row[0]
         cover_art: str = row[1]
@@ -624,10 +631,10 @@ def get_artist_roles(connection: sqlite3.Connection | None = None) -> list[Artis
         WHERE rank = 1
         ORDER BY {ColumnName.ARTIST_ROLE.value};
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=())
-    # any?
+    # Any?
     res: list[str] = []
     for row in rows if rows else []:
         role_name: str = row[0]
@@ -676,10 +683,10 @@ def get_artist_role_initials(artist_role: str, connection: sqlite3.Connection | 
         WHERE rank = 1
         ORDER BY initial;
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=(artist_role,))
-    # any?
+    # Any?
     res: list[str] = []
     for row in rows if rows else []:
         artist_initial: str = row[0]
@@ -719,10 +726,10 @@ def get_artist_by_role_and_initial(
         LIMIT ? OFFSET ?;
     """
     t = (artist_role, f"{initial}%", limit, offset)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=t)
-    # any?
+    # Any?
     res: list[str] = []
     for row in rows if rows else []:
         artist_id: str = row[0]
@@ -761,13 +768,13 @@ def get_artist_id_list_by_display_name(
                     {ColumnName.ARTIST_SORT_NAME.value} = ?
                     or {ColumnName.ARTIST_NAME.value} = ?)
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=(
             artist_display_name,
             artist_display_name,
             artist_display_name))
-    # any?
+    # Any?
     for row in rows if rows else []:
         artist_id: str = row[0]
         if artist_id is not None and len(artist_id) > 0 and artist_id not in res:
@@ -792,16 +799,16 @@ def get_random_album_by_genre(
             ORDER BY RANDOM()
             LIMIT 1
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql_direct,
-        parameters=(tuple([genre_name])))
+        parameters=((genre_name,)))
     if verbose:
         msgproc.log(f"get_random_album_by_genre query #1 for [{genre_name}] "
                     f"row_count [{len(rows) if rows else 0}]")
     if rows is not None and len(rows) > 0:
         if len(rows) > 1:
-            raise Exception(f"get_random_album_by_genre query #1 for [{genre_name}] should select a single record")
-        row: any = rows[0]
+            raise PersistenceException(f"get_random_album_by_genre query #1 for [{genre_name}] should select a single record")
+        row: Any = rows[0]
         album_metadata = __album_metadata_by_row(row=row)
     else:
         if verbose:
@@ -821,14 +828,14 @@ def get_random_album_by_genre(
         """
         rows = __get_sqlite3_selector(connection=the_connection)(
             sql=sql_sec,
-            parameters=(tuple([genre_name])))
+            parameters=((genre_name,)))
         if verbose:
             msgproc.log(f"get_random_album_by_genre query #2 for [{genre_name}] "
                         f"row_count [{len(rows) if rows else 0}]")
         if rows is not None and len(rows) > 0:
             if len(rows) > 1:
-                raise Exception(f"get_random_album_by_genre query #2 for [{genre_name}] should select a single record")
-            row: any = rows[0]
+                raise PersistenceException(f"get_random_album_by_genre query #2 for [{genre_name}] should select a single record")
+            row: Any = rows[0]
             album_metadata = __album_metadata_by_row(row=row)
         else:
             if verbose:
@@ -962,10 +969,10 @@ def get_cover_art_list_by_artist_id_list(
             sav3.{SongContributorMetaModel.SONG_ARTIST_ID.column_name.value} IN ({qmark_list})
             AND sm3.{SongMetadataModel.SONG_COVER_ART.column_name.value} IS NOT NULL
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=tuple(artist_id_list * 7))
-    # any?
+    # Any?
     occ_set: set[tuple[str, str]] = set()
     for row in rows if rows else []:
         artist_id: str = row[0]
@@ -1009,8 +1016,8 @@ def get_genre_list_by_artist_id(
                         FROM {TableName.ALBUM_METADATA_V1.value}
                         WHERE {ColumnName.ALBUM_ARTIST_ID.value} = ?))
     """
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql_meta, parameters=(artist_id, artist_id))
-    # any?
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql_meta, parameters=(artist_id, artist_id))
+    # Any?
     for row in rows if rows else []:
         genre: str = row[0]
         if genre is not None and len(genre) > 0 and genre not in genre_list:
@@ -1030,7 +1037,7 @@ def get_genre_list_by_artist_id(
                         WHERE {ColumnName.ALBUM_ARTIST_ID.value} = ?))
     """
     rows = __get_sqlite3_selector(connection=the_connection)(sql=sql_genre, parameters=(artist_id, artist_id))
-    # any?
+    # Any?
     for row in rows if rows else []:
         genre: str = row[0]
         if genre is not None and len(genre) > 0 and genre not in genre_list:
@@ -1052,9 +1059,10 @@ def get_oldest_metadata(
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"get_oldest_metadata on {table_name.value} should retrieve only one record")
+        raise PersistenceException(f"get_oldest_metadata on {table_name.value} should retrieve only one record")
     # just return first column of first row
-    return rows[0][0]
+    oldest: datetime.datetime = rows[0][0]
+    return oldest.replace(tzinfo=datetime_util.get_default_timezone()) if oldest is not None and oldest.tzinfo is None else oldest
 
 
 def get_song_metadata(song_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
@@ -1203,9 +1211,9 @@ def get_kv_partition_count(
         sql=sql,
         parameters=t)
     if not rows:
-        raise Exception(f"get_kv_partition_count cannot get count for [{partition}]")
+        raise PersistenceException(f"get_kv_partition_count cannot get count for [{partition}]")
     if len(rows) == 0 or len(rows) > 1:
-        raise Exception(f"get_kv_partition_count count should return 1 row for [{partition}] (we got [{len(rows)}])")
+        raise PersistenceException(f"get_kv_partition_count count should return 1 row for [{partition}] (we got [{len(rows)}])")
     cnt: int = rows[0][0]
     return cnt
 
@@ -1217,9 +1225,9 @@ def get_table_count(
     q: str = sqlhelper.create_simple_count_sql(table_name=table_name.value)
     rows: list[Any] = sqlite3util.get_sqlite3_selector(the_connection)(sql=q, parameters=())
     if not rows:
-        raise Exception(f"get_table_count for [{table_name.value}] did not return any result")
+        raise PersistenceException(f"get_table_count for [{table_name.value}] did not return any result")
     if len(rows) > 1:
-        raise Exception(f"get_table_count multiple results not allowed when requesting a count for [{table_name.value}]")
+        raise PersistenceException(f"get_table_count multiple results not allowed when requesting a count for [{table_name.value}]")
     res: int = rows[0][0]
     if connection is None:
         the_connection.close()
@@ -1232,7 +1240,7 @@ def get_working_connection(provided: sqlite3.Connection | None = None, timeout_s
 
 def __load_song_metadata(song_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = (tuple([song_id]))
+    t = ((song_id,))
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.SONG_METADATA_V1.value,
         select_column_list=[m.column_name.value for m in SongMetadataModel],
@@ -1246,7 +1254,7 @@ def __load_song_metadata(song_id: str, connection: sqlite3.Connection | None = N
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple {TableName.SONG_METADATA_V1.value} records for [{song_id}]")
+        raise PersistenceException(f"Multiple {TableName.SONG_METADATA_V1.value} records for [{song_id}]")
     row = rows[0]
     result: SongMetadata = __song_metadata_by_row(row=row)
     return result
@@ -1255,7 +1263,7 @@ def __load_song_metadata(song_id: str, connection: sqlite3.Connection | None = N
 def __load_album_metadata(album_id: str, connection: sqlite3.Connection | None = None) -> AlbumMetadata:
     res: dict[str, AlbumMetadata] = __load_album_metadata_list(album_id_list=[album_id], connection=connection)
     if res and len(res) > 1:
-        raise Exception(f"__load_album_metadata only one record is expected for [{album_id}]")
+        raise PersistenceException(f"__load_album_metadata only one record is expected for [{album_id}]")
     return res[album_id] if res and album_id in res else None
 
 
@@ -1274,13 +1282,14 @@ def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Con
     WHERE
         {AlbumMetadataModel.ALBUM_ID.column_name.value} IN ({qmarks})
     """
+    # msgproc.log(f"__load_album_metadata_list query [{q}] with parameters [{t}]")
     rows: list[Any] = __get_sqlite3_selector(the_connection)(
         sql=q,
         parameters=t)
     if connection is None:
         the_connection.close()
     res: dict[str, AlbumMetadata] = {}
-    for row in rows if rows else []:
+    for row in (rows if rows else []):
         curr: AlbumMetadata = __album_metadata_by_row(row=row)
         res[curr.album_id] = curr
     return res
@@ -1288,7 +1297,7 @@ def __load_album_metadata_list(album_id_list: list[str], connection: sqlite3.Con
 
 def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> ArtistMetadata:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = tuple([artist_id])
+    t = (artist_id,)
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.ARTIST_METADATA_V1.value,
         select_column_list=[m.column_name.value for m in ArtistMetadataModel],
@@ -1301,7 +1310,7 @@ def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> Ar
     if not rows:
         return None
     if len(rows) > 1:
-        raise Exception(f"Multiple {TableName.ARTIST_METADATA_V1.value} records for [{artist_id}]")
+        raise PersistenceException(f"Multiple {TableName.ARTIST_METADATA_V1.value} records for [{artist_id}]")
     row = rows[0]
     result: ArtistMetadata = __artist_metadata_by_row(row=row)
     return result
@@ -1309,7 +1318,7 @@ def __load_artist_metadata(artist_id: str, connection: sqlite3.Connection) -> Ar
 
 def __load_artist_roles(artist_id: str, connection: sqlite3.Connection | None = None) -> list[ArtistRole]:
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    t = tuple([artist_id])
+    t = (artist_id,)
     q: str = sqlhelper.create_simple_select_sql(
         table_name=TableName.ARTIST_ROLE_V1.value,
         select_column_list=[
@@ -1409,7 +1418,7 @@ def delete_by_parent_id_and_id_in_list(
         connection: sqlite3.Connection | None = None,
         do_commit: bool = True) -> int:
     if not in_mode or in_mode not in [InMode.IN, InMode.NOT_IN]:
-        raise Exception("delete_by_parent_id_and_id_in_list in_mode must be specified")
+        raise PersistenceException("delete_by_parent_id_and_id_in_list in_mode must be specified")
     the_connection: sqlite3.Connection = get_working_connection(connection)
     res: int = 0
     if len(id_list) > 0:
@@ -1450,7 +1459,7 @@ def __delete_album_metadata_from_db(
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=TableName.ALBUM_METADATA_V1.value,
         where_column_list=[ColumnName.ALBUM_ID.value])
-    t = tuple([album_id])
+    t = (album_id,)
     __get_sqlite3_executor(the_connection)(
         sql=q,
         data=t,
@@ -1468,11 +1477,11 @@ def delete_by_key(
         connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     if column_list is None or values is None:
-        raise Exception("delete_by_key invalid arguments "
+        raise PersistenceException("delete_by_key invalid arguments "
                         f"column_list empty [{column_list is None or len(column_list) == 0}] "
                         f"values empty [{values is None or len(values) == 0}]")
     if (len(column_list) if column_list else 0) != (len(values) if values else 0):
-        raise Exception("delete_by_key invalid arguments "
+        raise PersistenceException("delete_by_key invalid arguments "
                         f"len(column_list) [{len(column_list) if column_list else 0}] "
                         f"len(values) [{len(values) if values else 0}]")
     the_connection: sqlite3.Connection = get_working_connection(connection)
@@ -1569,7 +1578,7 @@ def __delete_album_release_types(
 def __delete_from_table(
         table_name: TableName,
         column_list: list[ColumnName],
-        data_list: list[any],
+        data_list: list[Any],
         connection: sqlite3.Connection | None = None,
         do_commit: bool = False) -> int:
     the_connection: sqlite3.Connection = get_working_connection(connection)
@@ -1600,7 +1609,7 @@ def __delete_artist_metadata_from_db(
     q: str = sqlhelper.create_simple_delete_sql(
         table_name=TableName.ARTIST_METADATA_V1.value,
         where_column_list=[ColumnName.ARTIST_ID.value])
-    t = tuple([artist_id])
+    t = (artist_id,)
     __get_sqlite3_executor(the_connection)(
         sql=q,
         data=t,
@@ -1667,7 +1676,7 @@ def save_album_properties(
         for p in set(v):
             res += __execute_update(
                 sql=ins_sql,
-                data=tuple([album_id, k, p]),
+                data=(album_id, k, p),
                 connection=the_connection,
                 do_commit=False)
     # final checks
@@ -1737,8 +1746,8 @@ def __save_song_metadata(
         return (updated_metadata, SaveMode.UPDATED)
     else:
         # set timestamps
-        song_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, datetime.datetime.now())
-        song_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, datetime.datetime.now())
+        song_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, datetime_util.now())
+        song_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, datetime_util.now())
         # insert
         ins_res: int = __insert_song_metadata(
             song_metadata=song_metadata,
@@ -2104,12 +2113,13 @@ def __save_album_metadata(
             msgproc.log(f"__save_album_metadata could not update with album_id [{album_metadata.album_id}] "
                         f"upd_res [{upd_res}]")
         if connection is None:
+            the_connection.commit()
             the_connection.close()
         return (updated_metadata, SaveMode.UPDATED)
     else:
         # set timestamps
-        album_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, datetime.datetime.now())
-        album_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, datetime.datetime.now())
+        album_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, datetime_util.now())
+        album_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, datetime_util.now())
         # insert
         ins_res: int = __insert_album_metadata(
             album_metadata=album_metadata,
@@ -2119,6 +2129,7 @@ def __save_album_metadata(
             msgproc.log(f"__save_album_metadata could not insert with album_id [{album_metadata.album_id}] "
                         f"ins_res [{ins_res}]")
         if connection is None:
+            the_connection.commit()
             the_connection.close()
         return (album_metadata, SaveMode.INSERTED)
 
@@ -2329,7 +2340,7 @@ def update_artist_roles(
                 sql=insert_sql,
                 data=(artist_id, i),
                 connection=the_connection,
-                do_commit=True if do_commit and op_counter == total_op else False)
+                do_commit=bool(do_commit and op_counter == total_op))
     # delete removed
     if len(to_delete) > 0:
         delete_sql: str = sqlhelper.create_simple_delete_sql(
@@ -2345,7 +2356,7 @@ def update_artist_roles(
                 sql=delete_sql,
                 data=(artist_id, i),
                 connection=the_connection,
-                do_commit=True if do_commit and op_counter == total_op else False)
+                do_commit=bool(do_commit and op_counter == total_op))
     if connection is None:
         the_connection.close()
 
@@ -2367,7 +2378,7 @@ def __insert_album_discs(
             album_id,
             x.disc_num,
             x.title,
-            datetime.datetime.now()],
+            datetime_util.now()],
         connection=connection,
         do_commit=do_commit)
 
@@ -2461,7 +2472,7 @@ def __insert_album_artists(
             album_id,
             x.artist_id,
             x.artist_name,
-            datetime.datetime.now()],
+            datetime_util.now()],
         connection=connection,
         do_commit=do_commit)
 
@@ -2604,7 +2615,7 @@ def update_album_multivalue_table(
                     f"context [{context}] "
                     f"for inserting values [{values}] "
                     f"due to [{type(ex)}] [{ex}]")
-        raise ex
+        raise
     ins_count: int = 0
     if values and len(values) > 0:
         try:
@@ -2614,7 +2625,7 @@ def update_album_multivalue_table(
                         f"context [{context}] "
                         f"with values [{values}] "
                         f"due to [{type(ex)}] [{ex}]")
-            raise ex
+            raise
     if connection is None:
         # we must commit and close
         commit(connection=the_connection)
@@ -2703,9 +2714,9 @@ def get_album_property_matching_count(
                     DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
                     FROM {TableName.ALBUM_PROPERTY_V1.value}
         {intersections})
-    """        
+    """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
     # there must be a row
     res: int = None
     if rows and len(rows) == 1:
@@ -2740,12 +2751,12 @@ def get_one_random_album_property_matching(
                 DISTINCT {AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
             FROM
                 {TableName.ALBUM_PROPERTY_V1.value}
-            {intersections}) 
-        ORDER BY RANDOM() 
+            {intersections})
+        ORDER BY RANDOM()
         LIMIT 1
-    """        
+    """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
     # there must be a row
     res: str = None
     if rows and len(rows) == 1:
@@ -2778,9 +2789,9 @@ def get_album_property_matching(
         FROM
             {TableName.ALBUM_PROPERTY_V1.value}
         {intersections}
-    """        
+    """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
     # load rows and get list of album id
     res: list[str] = []
     for row in rows if rows else []:
@@ -2817,16 +2828,16 @@ def get_album_property_key_occurence_list(
             SELECT COUNT(*) as total_count FROM FilteredUniverse
         ),
         RankedMetadata AS (
-            SELECT 
+            SELECT
                 apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} as p_key,
                 apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} as p_value,
                 apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} as p_id,
                 ROW_NUMBER() OVER (
-                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} 
+                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}
                     ORDER BY RANDOM()
                 ) as random_rank,
                 COUNT(*) OVER(
-                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value}, 
+                    PARTITION BY apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value},
                                  apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value}
                 ) as val_freq
             FROM
@@ -2834,25 +2845,25 @@ def get_album_property_key_occurence_list(
             JOIN
                 FilteredUniverse fu ON apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
         )
-        SELECT 
+        SELECT
             p_key,
             COUNT(DISTINCT p_value) AS unique_value_count,
-            CASE 
-                WHEN COUNT(DISTINCT p_id) < (SELECT total_count FROM UniverseStats) THEN 1 
-                ELSE 0 
+            CASE
+                WHEN COUNT(DISTINCT p_id) < (SELECT total_count FROM UniverseStats) THEN 1
+                ELSE 0
             END AS is_missing_for_some,
             MAX(CASE WHEN random_rank = 1 THEN p_id END) AS representative_album_id
         FROM RankedMetadata
         GROUP BY p_key
-        HAVING 
+        HAVING
             -- 1. Basics: Not a single-value constant
             (unique_value_count > 1 OR is_missing_for_some = 1)
             -- 2. Basics: Not a unique ID
             AND unique_value_count < (SELECT total_count FROM UniverseStats)
-            -- 3. THE REFINED FIX: 
+            -- 3. THE REFINED FIX:
             -- Hide if redundant (max_freq == total), UNLESS the key is already active in the filter.
             AND (
-                MAX(val_freq) < (SELECT total_count FROM UniverseStats) 
+                MAX(val_freq) < (SELECT total_count FROM UniverseStats)
                 OR p_key IN ({sql_active_keys_placeholder})
             )
         ORDER BY p_key;
@@ -2905,21 +2916,21 @@ def get_album_property_value_occurence_list(
         ),
         KeyStats AS (
             -- Check once if this specific key is missing from any albums in our universe
-            SELECT 
-                CASE 
-                    WHEN COUNT(DISTINCT fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) > 
-                            COUNT(DISTINCT apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) THEN 1 
-                    ELSE 0 
+            SELECT
+                CASE
+                    WHEN COUNT(DISTINCT fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) >
+                            COUNT(DISTINCT apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) THEN 1
+                    ELSE 0
                 END as has_missing
             FROM FilteredUniverse fu
             LEFT JOIN
-                {TableName.ALBUM_PROPERTY_V1.value} apv 
+                {TableName.ALBUM_PROPERTY_V1.value} apv
             ON
-                fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} = 
-                    apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} 
+                fu.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value} =
+                    apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}
                 AND apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} = ?
         )
-        SELECT 
+        SELECT
             apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value},
             COUNT(apv.{AlbumPropertyMetaModel.ALBUM_ID.column_name.value}) AS album_count,
             -- Jackpot: A representative ID for THIS SPECIFIC value (e.g., a sample for '1994')
@@ -2939,7 +2950,7 @@ def get_album_property_value_occurence_list(
             apv.{AlbumPropertyMetaModel.ALBUM_PROPERTY_VALUE.column_name.value} ASC
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(values))
     res: list[AlbumPropertyValueOccurrence] = []
     for row in rows if rows else []:
         res.append(AlbumPropertyValueOccurrence(
@@ -2957,7 +2968,7 @@ def load_album_property_dataset(
         on_meta: Callable[[AlbumPropertyMetadata], None],
         connection: sqlite3.Connection | None = None) -> int:
     if (len(property_key_list) if property_key_list else 0) == 0:
-        raise Exception("get_album_property_dataset requires a list of property keys")
+        raise PersistenceException("get_album_property_dataset requires a list of property keys")
     qmarks: str = __create_qmark_list(len(property_key_list))
     sql: str = f"""
         SELECT
@@ -2972,7 +2983,7 @@ def load_album_property_dataset(
             {AlbumPropertyMetaModel.ALBUM_PROPERTY_KEY.column_name.value} IN ({qmarks})
     """
     the_connection: sqlite3.Connection = get_working_connection(connection)
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(property_key_list))
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=tuple(property_key_list))
     cnt: int = 0
     for row in rows if rows else []:
         album_id: str = row[0]
@@ -2991,6 +3002,118 @@ def load_album_property_dataset(
     if connection is None:
         the_connection.close()
     return cnt
+
+
+def get_duplicate_albums(
+        offset: int,
+        limit: int,
+        use_version: bool = False,
+        connection: sqlite3.Connection | None = None) -> list[DuplicateAlbumInfo]:
+    column_list: list[str] = [
+        "COUNT(*) AS occurrence_count",
+        f"MAX({AlbumMetadataModel.ALBUM_COVER_ART.column_name.value}) AS album_cover_art",
+        f"{AlbumMetadataModel.ALBUM_ARTIST.column_name.value} AS album_artist",
+        f"{AlbumMetadataModel.ALBUM_NAME.column_name.value} AS album_title"]
+    where_conditions: list[str] = [
+        "album_artist IS NOT NULL",
+        "album_title IS NOT NULL"]
+    group_by_columns: list[str] = [
+        "album_artist",
+        "album_name"]
+    order_by_columns: list[str] = [
+        "occurrence_count DESC",
+        "album_artist",
+        "album_title"]
+    if use_version:
+        column_list.append(f"COALESCE(NULLIF(TRIM({AlbumMetadataModel.ALBUM_VERSION.column_name.value}), ''), 'None') AS album_version")
+        where_conditions.append("album_version IS NOT NULL")
+        group_by_columns.append("album_version")
+        order_by_columns.append("album_version")
+    parameters: tuple[str] = (limit, offset)
+    sql: str = f"""
+        SELECT
+            {', '.join(column_list)}
+        FROM
+            {TableName.ALBUM_METADATA_V1.value}
+        WHERE
+            {" AND ".join(where_conditions)}
+        GROUP BY
+            {', '.join(group_by_columns)}
+        HAVING
+            COUNT(*) >= 2
+        ORDER BY
+            {', '.join(order_by_columns)}
+        LIMIT ? OFFSET ?
+    """
+    # msgproc.log(f"get_duplicate_albums sql [{sql}] parameters [{parameters}]")
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=parameters)
+    duplicate_albums: list[DuplicateAlbumInfo] = []
+    for row in rows if rows else []:
+        # msgproc.log(f"get_duplicate_albums row [{row}]")
+        duplicate_albums.append(DuplicateAlbumInfo(
+            occurrence_count=row[0],
+            album_cover_art=row[1],
+            album_artist=row[2],
+            album_title=row[3],
+            album_version=row[4] if use_version else None))
+    if connection is None:
+        the_connection.close()
+    return duplicate_albums
+
+
+def get_duplicate_album_occurrences(
+        album_artist: str,
+        album_title: str,
+        album_version: str | None = None,
+        connection: sqlite3.Connection | None = None) -> list[DuplicateAlbumOccurrence]:
+    param_list: list[str] = [album_artist, album_title]
+    where_conditions: list[str] = [
+        f"{AlbumMetadataModel.ALBUM_ARTIST.column_name.value} = ?",
+        f"{AlbumMetadataModel.ALBUM_NAME.column_name.value} = ?"]
+    if album_version is not None:
+        param_list.append(album_version)
+        where_conditions.append(f"{AlbumMetadataModel.ALBUM_VERSION.column_name.value} = ?")
+    parameters: tuple[str] = tuple(param_list)
+    sql: str = f"""
+        SELECT
+            {AlbumMetadataModel.ALBUM_ID.column_name.value},
+            {AlbumMetadataModel.ALBUM_ARTIST.column_name.value},
+            {AlbumMetadataModel.ALBUM_NAME.column_name.value},
+            {AlbumMetadataModel.ALBUM_VERSION.column_name.value},
+            {AlbumMetadataModel.ALBUM_COVER_ART.column_name.value},
+            {AlbumMetadataModel.ALBUM_LOSSLESS_STATUS.column_name.value},
+            {AlbumMetadataModel.QUALITY_BADGE.column_name.value},
+            {AlbumMetadataModel.ALBUM_RELEASE_DATE_YEAR.column_name.value},
+            {AlbumMetadataModel.ALBUM_RELEASE_DATE_MONTH.column_name.value},
+            {AlbumMetadataModel.ALBUM_RELEASE_DATE_DAY.column_name.value}
+        FROM
+            {TableName.ALBUM_METADATA_V1.value}
+        WHERE
+            {" AND ".join(where_conditions)}
+        ORDER BY
+            {AlbumMetadataModel.ALBUM_ID.column_name.value}
+    """
+    # msgproc.log(f"get_duplicate_album_occurrences sql [{sql}] parameters [{parameters}]")
+    the_connection: sqlite3.Connection = get_working_connection(connection)
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(sql=sql, parameters=parameters)
+    duplicate_albums: list[DuplicateAlbumOccurrence] = []
+    for row in rows if rows else []:
+        # msgproc.log(f"get_duplicate_album_occurrences row [{row}]")
+        duplicate_albums.append(DuplicateAlbumOccurrence(
+            album_id=row[0],
+            album_artist=row[1],
+            album_title=row[2],
+            album_version=row[3],
+            album_cover_art=row[4],
+            lossless_status=row[5],
+            quality_badge=row[6],
+            album_release_date_year=row[7],
+            album_release_date_month=row[8],
+            album_release_date_day=row[9]))
+    if connection is None:
+        the_connection.close()
+    return duplicate_albums
 
 
 def get_album_property_values(
@@ -3040,7 +3163,7 @@ def get_album_property_values(
         parameters.extend([curr.key, curr.value])
     the_connection: sqlite3.Connection = get_working_connection(connection)
     result: list[AlbumPropertyValueSelection] = []
-    rows: list[any] = __get_sqlite3_selector(connection=the_connection)(
+    rows: list[Any] = __get_sqlite3_selector(connection=the_connection)(
         sql=sql,
         parameters=tuple(parameters))
     for row in rows if rows else []:
@@ -3182,7 +3305,7 @@ def __get_connection(timeout_seconds: float = 5.0) -> sqlite3.Connection | None:
     except sqlite3.OperationalError as e:
         if "database is locked" in str(e):
             msgproc.log("Database is locked")
-        raise e # Re-raise
+        raise # Re-raise
 
 
 def __prepare_table_db_version():
@@ -3216,7 +3339,7 @@ def __store_db_version(version: str):
     db_version: str = get_db_version()
     if not db_version:
         msgproc.log(f"Setting db version to [{version}] ...")
-        insert_tuple = tuple([version])
+        insert_tuple = (version,)
         connection: sqlite3.Connection = __get_connection()
         cursor = connection.cursor()
         insert_sql: str = sqlhelper.create_simple_insert_sql(
@@ -3259,7 +3382,7 @@ def do_migration_71():
     """
     __execute_update(
         sql=sql,
-        data=tuple([]))
+        data=())
 
 
 def do_migration_70():

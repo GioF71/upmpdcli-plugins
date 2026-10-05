@@ -38,7 +38,7 @@ class ArtistIdNameCoverArt(ArtistIdName):
             self,
             artist_id: str,
             artist_name: str,
-            cover_art: str = None):
+            cover_art: str | None = None):
         super().__init__(
             artist_id=artist_id,
             artist_name=artist_name)

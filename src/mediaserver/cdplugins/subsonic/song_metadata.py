@@ -14,16 +14,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import datetime
+from typing import Any
+
 from metadata import Metadata
 from metadata_model import SongMetadataModel
-from typing import Optional
-from typing import Any
-import datetime
 
 
 class SongMetadata(Metadata):
 
-    def get_value(self, song_metadata_model: SongMetadataModel) -> Optional[Any]:
+    def get_value(self, song_metadata_model: SongMetadataModel) -> Any | None:
         return self._get(song_metadata_model.column_name)
 
     def set_value(self, song_metadata_model: SongMetadataModel, value: Any):

@@ -60,6 +60,7 @@ import codec
 import config
 import connector_provider
 import constants
+import datetime_util
 import entry_creator
 import identifier_util
 import metadata_converter
@@ -98,7 +99,11 @@ from item_identifier import ItemIdentifier
 from item_identifier_key import ItemIdentifierKey
 from msgproc_provider import dispatcher, msgproc
 from option_key import OptionKey
-from persistence_tuple import ArtistAlbumCoverArt
+from persistence_tuple import (
+    ArtistAlbumCoverArt,
+    DuplicateAlbumInfo,
+    DuplicateAlbumOccurrence,
+)
 from radio_entry_type import RadioEntryType
 from retrieved_art import RetrievedArt
 from search_type import KindType, SearchType
@@ -106,6 +111,10 @@ from subsonic_util import get_album_tracks, get_random_art_by_genre
 from tag_to_entry_context import TagToEntryContext
 from tag_type import TagType, get_tag_type_by_name
 from value_holder import decode_value_holder, encode_value_holder
+
+
+class AppException(Exception):
+    """Raised when an Application error occurs."""
 
 # Prefix for object Ids. This must be consistent with what contentdirectory.cxx does
 _g_myprefix = f"0${constants.PluginConstant.PLUGIN_NAME.value}$"
@@ -135,7 +144,9 @@ __tag_initial_page_enabled_default: dict[str, bool] = {
     TagType.FAVORITE_SONGS_LIST.tag_name: False,
     TagType.RECENTLY_PLAYED_SONGS.tag_name: False,
     TagType.INTERNET_RADIOS.tag_name: False,
-    TagType.ALBUM_BROWSER.tag_name: False
+    TagType.ALBUM_BROWSER.tag_name: False,
+    TagType.DUPLICATE_ALBUMS_BY_TITLE.tag_name: False,
+    TagType.DUPLICATE_ALBUMS_BY_TITLE_VERSION.tag_name: False
 }
 
 
@@ -154,9 +165,7 @@ __tag_show_precondition: dict[str, Callable[[], bool]] = {
 
 
 def tag_enabled_in_initial_page(tag_type: TagType) -> bool:
-    enabled_default: bool = (__tag_initial_page_enabled_default[tag_type.tag_name]
-                             if tag_type.tag_name in __tag_initial_page_enabled_default
-                             else True)
+    enabled_default: bool = (__tag_initial_page_enabled_default.get(tag_type.tag_name, True))
     enabled_int: int = (int(upmplgutils.getOptionValue(
         f"{config.get_plugin_config_variable_name('taginitialpageenabled')}{tag_type.tag_name}",
         "1" if enabled_default else "0")))
@@ -189,7 +198,7 @@ def build_streaming_url(track_id: str) -> str:
 
 def __resource_id_from_urlpath(pathprefix, a, resource_name, id_name):
     if "path" not in a:
-        raise Exception("coverartid_from_urlpath: no 'path' in args")
+        raise AppException("coverartid_from_urlpath: no 'path' in args")
     path = a["path"]
     # Updated to use dynamic resource_name and id_name
     # Pattern 1: pathprefix/resource_name/version/1/id_name/value
@@ -200,7 +209,7 @@ def __resource_id_from_urlpath(pathprefix, a, resource_name, id_name):
         exp_old = posixpath.join(pathprefix, rf"{resource_name}\?version=1&{id_name}=(.+)$")
         m = re.match(exp_old, path)
     if m is None:
-        raise Exception(f"coverartid_from_urlpath: path [{path}] does not match expected patterns")
+        raise AppException(f"coverartid_from_urlpath: path [{path}] does not match expected patterns")
     return m.group(1)
 
 
@@ -218,7 +227,7 @@ def trackuri(a):
     if verbose:
         msgproc.log(f"trackuri --- {a} ---")
     upmpd_pathprefix = os.environ["UPMPD_PATHPREFIX"]
-    path: str = a["path"] if "path" in a else None
+    path: str = a.get("path", None)
     if not path:
         msgproc.log("trackuri: path is missing!")
         return {}
@@ -320,7 +329,7 @@ def song_trackuri(track_id: str):
                 f"source samplingRate [{subsonic_util.get_song_sampling_rate(song=song)}] "
                 f"duration [{duration}] "
                 f"scrobble [{scrobble_msg}]")
-    result: dict[str, str] = dict()
+    result: dict[str, str] = {}
     # only media_url is necessary
     # anything else would be ignored
     result["media_url"] = media_url
@@ -346,7 +355,7 @@ def _station_to_entry(
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    entry: dict[str, any] = {}
+    entry: dict[str, Any] = {}
     entry['id'] = id
     entry['pid'] = station.getId()
     upnp_util.set_class('object.item.audioItem.audioBroadcast', entry)
@@ -367,7 +376,7 @@ def _song_data_to_entry(objid, entry_id: str, song: Song) -> dict:
     verbose: bool = config.get_verbose_logging()
     if verbose:
         msgproc.log(f"entering _song_data_to_entry for song id [{song.getId()}] ...")
-    entry: dict[str, any] = {}
+    entry: dict[str, Any] = {}
     entry['id'] = entry_id
     entry['pid'] = song.getId()
     upnp_util.set_class_music_track(entry)
@@ -399,7 +408,7 @@ def present_album_version(
         album_id: str,
         album_version_path: str,
         entries: list,
-        album_and_tracks: tuple[Album, AlbumTracks] = None) -> list:
+        album_and_tracks: tuple[Album, AlbumTracks] | None = None) -> list:
     album: Album
     album_tracks: AlbumTracks
     album, album_tracks = album_and_tracks if album_and_tracks else get_album_tracks(album_id)
@@ -421,7 +430,7 @@ def present_album_version(
         songs_by_disc_number: dict[int, list[Song]] = subsonic_util.get_songs_by_album_disc_numbers(album)
         dn: int
         for dn in discnumber_list:
-            disc_title: str = disc_title_dict[dn] if dn in disc_title_dict else ""
+            disc_title: str = disc_title_dict.get(dn, "")
             entry_name: str = f"Disc {dn}/{len(discnumber_list)}{': ' + disc_title if disc_title else ''}"
             # create disc entry.
             disc_identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_DISC.element_name, album_id)
@@ -431,11 +440,11 @@ def present_album_version(
             disc_id: str = identifier_util.create_objid(
                 objid=objid,
                 id=identifier_util.create_id_from_identifier(disc_identifier))
-            entry: dict[str, any] = upmplgutils.direntry(
+            entry: dict[str, Any] = upmplgutils.direntry(
                 disc_id,
                 objid,
                 title=entry_name)
-            cover_art_songs: list[Song] = songs_by_disc_number[dn] if dn in songs_by_disc_number else []
+            cover_art_songs: list[Song] = songs_by_disc_number.get(dn, [])
             cover_art_song: Song = cover_art_songs[0] if len(cover_art_songs) > 0 else None
             upnp_util.set_album_art_from_uri(
                 album_art_uri=subsonic_util.get_cover_art_url_by_song(cover_art_song),
@@ -457,16 +466,16 @@ def present_album_version(
             album_path_set.add(song_path)
         if album_version_path is None or album_version_path == song_path:
             new_base_path: str = get_album_base_path(get_dir_from_path(current_song.getPath()))
-            if not current_base_path:
+            if current_base_path is None:
                 track_num = 1
             elif current_base_path == new_base_path:
                 track_num += 1
             # maybe incorporate this in first condition in or
             # Wait for a test case to make sure it still works...
-            elif not (current_base_path == new_base_path):
+            elif current_base_path != new_base_path:
                 track_num = 1
             current_base_path = new_base_path
-            options: dict[str, any] = {}
+            options: dict[str, Any] = {}
             option_util.set_option(
                 options=options,
                 option_key=OptionKey.FORCE_TRACK_NUMBER,
@@ -500,14 +509,14 @@ def present_album_version(
 
 
 def _load_albums_by_type(
-        objid: any,
+        objid: Any,
         entries: list,
         tag_type: TagType,
         offset: int = 0,
         size: int = config.get_items_per_page(),
-        fromYear: any = None,
-        toYear: any = None,
-        options: dict[str, any] = dict()) -> list:
+        fromYear: Any | None = None,
+        toYear: Any | None = None,
+        options: dict[str, Any] | None = None) -> list:
     roundtrip_start: float = time.time()
     use_last_for_next: bool = option_util.get_option(options=options, option_key=OptionKey.USE_LAST_FOR_NEXT)
     request_size: int = size + 1 if use_last_for_next else size
@@ -516,8 +525,8 @@ def _load_albums_by_type(
         tag_type.query_type,
         size=request_size,
         offset=str(offset),
-        fromYear=fromYear if not tag_type == TagType.OLDEST_ALBUMS else toYear,
-        toYear=toYear if not tag_type == TagType.OLDEST_ALBUMS else fromYear)
+        fromYear=fromYear if tag_type != TagType.OLDEST_ALBUMS else toYear,
+        toYear=toYear if tag_type != TagType.OLDEST_ALBUMS else fromYear)
     req_elapsed: float = time.time() - req_start
     msgproc.log(f"Requested [{request_size}] albums from offset [{offset}] -> received [{len(albumList)}] in [{req_elapsed:.3f}]")
     current_album: Album
@@ -527,13 +536,16 @@ def _load_albums_by_type(
     add_next: bool = len(albumList) == request_size
     total_elapsed_list: list[float] = []
     caching_elapsed_list: list[float] = []
+    out_options: dict[str, Any] = {}
+    if options:
+        out_options.update(options)
     for current_album in to_show:
         try:
             current_total_start: float = time.time()
             counter += 1
             if config.get_config_param_as_bool(constants.ConfigParam.PREPEND_NUMBER_IN_ALBUM_LIST):
                 option_util.set_option(
-                    options=options,
+                    options=out_options,
                     option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                     option_value=counter)
             current_caching_start: float = time.time()
@@ -550,12 +562,12 @@ def _load_albums_by_type(
                 entries.append(entry_creator.album_to_entry(
                     objid=objid,
                     album=current_album,
-                    options=options))
+                    options=out_options))
             else:
                 entries.append(entry_creator.album_to_navigable_entry(
                     objid=objid,
                     album=current_album,
-                    options=options))
+                    options=out_options))
         except Exception as add_entry_ex:
             msgproc.log(f"_load_albums_by_type [{tag_type.query_type}] "
                         f"cannot add album with album_id [{current_album.getId()}] "
@@ -567,7 +579,7 @@ def _load_albums_by_type(
         next_start: float = time.time()
         for_next: Album = albumList[len(albumList) - 1]
         try:
-            next_page: dict[str, any] = _create_tag_next_entry(
+            next_page: dict[str, Any] = _create_tag_next_entry(
                 objid=objid,
                 tag=tag_type,
                 offset=offset + len(entries))
@@ -597,7 +609,7 @@ def _load_albums_by_type(
 def _load_albums_by_artist(artist_id: str, release_types: subsonic_util.AlbumReleaseTypes) -> list[Album]:
     artist_response: Response[Artist] = connector_provider.get().getArtist(artist_id)
     if not artist_response.isOk():
-        raise Exception(f"Cannot get albums for artist_id {artist_id}")
+        raise AppException(f"Cannot get albums for artist_id {artist_id}")
     album_list: list[Album] = artist_response.getObj().getAlbumList()
     msgproc.log(f"_load_albums_by_artist [{artist_id}] -> [{len(album_list)}] albums")
     if release_types:
@@ -606,22 +618,24 @@ def _load_albums_by_artist(artist_id: str, release_types: subsonic_util.AlbumRel
 
 
 def _albums_by_artist_to_entries(
-        objid: any,
+        objid: Any,
         artist_id: str,
         album_list: list[Album],
         offset: int,
         entries: list) -> list:
     current_album: Album
+    # load existing metadata upfront
+    album_metadata_list: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=[a.getId() for a in album_list])
     counter: int = offset
     for current_album in album_list if album_list else []:
         counter += 1
-        if current_album.getArtistId():
-            cache_actions.on_album(album=current_album)
+        # if current_album.getArtistId():
+        #    cache_actions.on_album(album=current_album)
         genre_list: list[str] = current_album.getGenres()
         for curr in genre_list:
             # TODO what do I do with these genres?
             pass
-        options: dict[str, any] = {}
+        options: dict[str, Any] = {}
         option_util.set_option(
             options=options,
             option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE,
@@ -644,6 +658,7 @@ def _albums_by_artist_to_entries(
             entries.append(entry_creator.album_to_navigable_entry(
                 objid=objid,
                 album=current_album,
+                album_metadata=album_metadata_list.get(current_album.getId()),
                 options=options))
     return entries
 
@@ -653,7 +668,7 @@ def __load_artists_by_initial(
         artist_initial: str,
         entries: list,
         element_type: ElementType,
-        options: dict[str, any] = {}) -> list:
+        options: dict[str, Any] | None = None) -> list:
     offset: int = option_util.get_option(options=options, option_key=OptionKey.OFFSET)
     counter: int = 0
     artists_response: Response[Artists] = request_cache.get_artists()
@@ -670,7 +685,7 @@ def __load_artists_by_initial(
                 found_initial = True
             current_artist: ArtistListItem
             for current_artist in current_artists_initial.getArtistListItems():
-                entry: dict[str, any] = entry_creator.artist_to_entry(
+                entry: dict[str, Any] = entry_creator.artist_to_entry(
                     objid=objid,
                     artist=current_artist)
                 # if artist has art, set that art for artists by initial tile
@@ -694,7 +709,7 @@ def __load_artists_by_initial(
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -713,7 +728,7 @@ def create_entries_for_genres(objid, entries: list) -> list:
     current_genre: Genre
     for current_genre in genre_list:
         msgproc.log(f"create_entries_for_genres creating entry for [{current_genre.getName()}] ...")
-        entry: dict[str, any] = entry_creator.genre_to_entry(
+        entry: dict[str, Any] = entry_creator.genre_to_entry(
             objid,
             current_genre)
         entries.append(entry)
@@ -724,7 +739,7 @@ def __load_artists(
         objid,
         entries: list,
         tag: TagType,
-        options: dict[str, any] = {}) -> list:
+        options: dict[str, Any] | None = None) -> list:
     offset: int = option_util.get_option(options=options, option_key=OptionKey.OFFSET)
     all_artist: list[Artist] = request_cache.get_all_artists()
     msgproc.log(f"Sorting [{len(all_artist)}] artists ...")
@@ -745,7 +760,7 @@ def __load_artists(
             options=options))
     # show next?
     if last_artist:
-        next_entry: dict[str, any] = _create_tag_next_entry(
+        next_entry: dict[str, Any] = _create_tag_next_entry(
             objid=objid,
             tag=tag,
             offset=offset + config.get_items_per_page())
@@ -764,7 +779,7 @@ def _create_list_of_playlist(objid, entries: list) -> list:
     playlists: Playlists = response.getObj()
     playlist: Playlist
     for playlist in playlists.getPlaylists():
-        entry: dict[str, any] = entry_creator.playlist_to_entry(
+        entry: dict[str, Any] = entry_creator.playlist_to_entry(
             objid,
             playlist)
         entries.append(entry)
@@ -778,7 +793,7 @@ def _create_list_of_internet_radio(objid, entries: list) -> list:
     stations: InternetRadioStations = response.getObj()
     station: InternetRadioStation
     for station in stations.getStations():
-        entry: dict[str, any] = _station_to_entry(
+        entry: dict[str, Any] = _station_to_entry(
             objid,
             station)
         entries.append(entry)
@@ -831,11 +846,10 @@ def _create_list_of_playlist_entries(objid, playlist_id: str, entries: list) -> 
                 f"api call took [{get_playlist_elapsed:.3f}]")
     start_time = time.time()
     playlist_entry: PlaylistEntry
-    counter: int = 0
-    for playlist_entry in entry_list:
-        counter += 1
+    counter: int
+    for counter, playlist_entry in enumerate(entry_list, start=1):
         entry_start_time: float = time.time()
-        entry: dict[str, any] = _playlist_entry_to_entry(
+        entry: dict[str, Any] = _playlist_entry_to_entry(
             objid,
             playlist_entry)
         entries.append(entry)
@@ -850,18 +864,16 @@ def _create_list_of_playlist_entries(objid, playlist_id: str, entries: list) -> 
 
 def _create_list_of_artist_initials(
         objid,
-        entries: list,
-        options: dict[str, any] = dict()) -> list:
+        entries: list) -> list:
     artists_response: Response[Artists] = request_cache.get_artists()
     if not artists_response.isOk():
         return entries
     artists_initial: list[ArtistsInitial] = artists_response.getObj().getArtistListInitials()
     current_artists_initial: ArtistsInitial
     for current_artists_initial in artists_initial:
-        entry: dict[str, any] = entry_creator.artist_initial_to_entry(
+        entry: dict[str, Any] = entry_creator.artist_initial_to_entry(
             objid=objid,
-            artist_initial=current_artists_initial.getName(),
-            options=options)
+            artist_initial=current_artists_initial.getName())
         entries.append(entry)
         # populate cache of artist by initial
     return entries
@@ -876,7 +888,7 @@ def _create_tag_next_entry(
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    tag_entry: dict[str, any] = upmplgutils.direntry(
+    tag_entry: dict[str, Any] = upmplgutils.direntry(
         id=id,
         pid=objid,
         title="Next")
@@ -888,7 +900,7 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
     counter: int = offset
     try:
         counter += 1
-        options: dict[str, any] = dict()
+        options: dict[str, Any] = {}
         if config.get_config_param_as_bool(constants.ConfigParam.PREPEND_NUMBER_IN_ALBUM_LIST):
             option_util.set_option(
                 options=options,
@@ -903,7 +915,7 @@ def __handler_tag_album_listype(objid, item_identifier: ItemIdentifier, tag_type
             entries=entries,
             tag_type=tag_type,
             offset=offset,
-            fromYear=datetime.datetime.now().year,
+            fromYear=datetime_util.now().year,
             toYear=0,
             options=options)
         return entries
@@ -971,14 +983,14 @@ def handler_tag_random_songs_list(objid, item_identifier: ItemIdentifier, entrie
         msgproc.log(f"Cannot load random songs [{type(ex)}] [{ex}]")
         return entries
     # good to go
-    song_options: dict[str, any] = dict()
+    song_options: dict[str, Any] = {}
     song: Song
     for song in res.getObj().getSongs():
         option_util.set_option(
             options=song_options,
             option_key=OptionKey.FORCE_TRACK_NUMBER,
             option_value=len(entries) + 1)
-        song_entry: dict[str, any] = entry_creator.song_to_entry(
+        song_entry: dict[str, Any] = entry_creator.song_to_entry(
             objid=objid,
             song=song,
             options=song_options)
@@ -1024,7 +1036,7 @@ def handler_element_favorite_songs_as_containers(objid, item_identifier: ItemIde
     max_songs_in_displayed_containers: int = container_count * max_fav_song_containers_per_page
     msgproc.log(f"handler_element_favorite_songs_as_containers [{container_count}] to show")
     # ok, let's show them!
-    for i in range(0, container_count):
+    for i in range(container_count):
         item_offset: int = offset + (i * max_fav_songs_per_page)
         msgproc.log(f"handler_element_favorite_songs_as_containers showing container [{i + 1}] -> "
                     f"offset [{item_offset}]")
@@ -1035,7 +1047,7 @@ def handler_element_favorite_songs_as_containers(objid, item_identifier: ItemIde
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        entry: dict[str, any] = upmplgutils.direntry(
+        entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"Favorite songs [{item_offset + 1} to "
@@ -1055,7 +1067,7 @@ def handler_element_favorite_songs_as_containers(objid, item_identifier: ItemIde
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             id=next_id,
             pid=objid,
             title="Next")
@@ -1088,7 +1100,7 @@ def handler_element_favorite_songs_container(objid, item_identifier: ItemIdentif
     to_display: list[Song] = song_list[offset:offset + (min(len(song_list[offset:]), max_fav_songs_per_page))]
     song: Song
     for song in to_display:
-        song_entry: dict[str, any] = __create_favorite_song_entry(
+        song_entry: dict[str, Any] = __create_favorite_song_entry(
             objid=objid,
             song=song,
             track_number=len(entries) + 1)
@@ -1258,11 +1270,11 @@ def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, ent
         #     options=song_options,
         #     option_key=OptionKey.FORCE_TRACK_NUMBER,
         #     option_value=len(entries) + 1)
-        # song_entry: dict[str, any] = entry_creator.song_to_entry(
+        # song_entry: dict[str, Any] = entry_creator.song_to_entry(
         #     objid=objid,
         #     song=song,
         #     options=song_options)
-        song_entry: dict[str, any] = __create_favorite_song_entry(
+        song_entry: dict[str, Any] = __create_favorite_song_entry(
             objid=objid,
             song=song,
             track_number=len(entries) + 1)
@@ -1271,18 +1283,146 @@ def handler_tag_favourite_songs_list(objid, item_identifier: ItemIdentifier, ent
     return entries
 
 
-def __create_favorite_song_entry(objid, song: Song, track_number: int = None) -> dict[str, any]:
-    song_options: dict[str, any] = {}
+def __create_favorite_song_entry(
+        objid,
+        song: Song,
+        track_number: int | None = None) -> dict[str, Any]:
+    song_options: dict[str, Any] = {}
     if track_number:
         option_util.set_option(
             options=song_options,
             option_key=OptionKey.FORCE_TRACK_NUMBER,
             option_value=track_number)
-    song_entry: dict[str, any] = entry_creator.song_to_entry(
+    song_entry: dict[str, Any] = entry_creator.song_to_entry(
         objid=objid,
         song=song,
         options=song_options)
     return song_entry
+
+
+def handler_tag_duplicate_albums_by_title(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    item_identifier.set(ItemIdentifierKey.INCLUDE_ALBUM_VERSION, 0)
+    return handle_tag_duplicate_albums(objid, item_identifier, entries)
+
+
+def handler_tag_duplicate_albums_by_title_version(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    item_identifier.set(ItemIdentifierKey.INCLUDE_ALBUM_VERSION, 1)
+    return handle_tag_duplicate_albums(objid, item_identifier, entries)
+
+
+def handle_tag_duplicate_albums(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    items_per_page: int = config.get_config_param_as_int(constants.ConfigParam.ITEMS_PER_PAGE)
+    offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
+    limit: int = item_identifier.get(ItemIdentifierKey.LIMIT, items_per_page)
+    include_version: bool = item_identifier.get(ItemIdentifierKey.INCLUDE_ALBUM_VERSION, 0) == 1
+    msgproc.log(f"handler_tag_duplicate_albums_by_title offset [{offset}] limit [{limit}] include_version [{include_version}]")
+    duplicate_albums: list[DuplicateAlbumInfo] = persistence.get_duplicate_albums(
+        offset=offset,
+        limit=limit + 1,
+        use_version=include_version)
+    msgproc.log(f"handler_tag_duplicate_albums_by_title offset [{offset}] limit [{limit}] include_version [{include_version}] -> "
+                f"got [{len(duplicate_albums)}] duplicate albums")
+    next: DuplicateAlbumInfo = duplicate_albums[limit] if len(duplicate_albums) > limit else None
+    to_display: list[DuplicateAlbumInfo] = duplicate_albums[0:min(len(duplicate_albums), limit)]
+    curr: DuplicateAlbumInfo
+    for curr in to_display:
+        identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.DUPLICATE_ALBUM.element_name,
+            curr.album_title)
+        identifier.set(ItemIdentifierKey.ALBUM_ARTIST, curr.album_artist)
+        if include_version:
+            identifier.set(ItemIdentifierKey.ALBUM_VERSION, curr.album_version)
+        id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(identifier))
+        title: str = f"{curr.album_artist} - {curr.album_title}"
+        if include_version and curr.album_version:
+            title = f"{title} [{curr.album_version}]"
+        entry: dict[str, Any] = upmplgutils.direntry(
+            id=id,
+            pid=objid,
+            title=f"{title} [{curr.occurrence_count}]")
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=curr.album_cover_art),
+            target=entry)
+        entries.append(entry)
+    if next:
+        # add next button
+        next_tag: TagType = (TagType.DUPLICATE_ALBUMS_BY_TITLE_VERSION if include_version else TagType.DUPLICATE_ALBUMS_BY_TITLE)
+        next_identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.TAG.element_name,
+            next_tag.tag_name)
+        if include_version:
+            next_identifier.set(ItemIdentifierKey.ALBUM_VERSION, next.album_version)
+        next_identifier.set(ItemIdentifierKey.OFFSET, offset + config.get_items_per_page())
+        next_identifier.set(ItemIdentifierKey.LIMIT, config.get_items_per_page())
+        next_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(next_identifier))
+        next_entry: dict[str, Any] = upmplgutils.direntry(
+            id=next_id,
+            pid=objid,
+            title="Next")
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=next.album_cover_art),
+            target=next_entry)
+        entries.append(next_entry)
+    return entries
+
+
+def handler_element_duplicate_album(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    album_title: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    album_artist: str = item_identifier.get(ItemIdentifierKey.ALBUM_ARTIST)
+    album_version: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION, None)
+    msgproc.log(f"handler_element_duplicate_album title [{album_title}] artist [{album_artist}] version [{album_version}]")
+    occ_list: list[DuplicateAlbumOccurrence] = persistence.get_duplicate_album_occurrences(
+        album_artist=album_artist,
+        album_title=album_title,
+        album_version=album_version)
+    msgproc.log(f"handler_element_duplicate_album title [{album_title}] artist [{album_artist}] version [{album_version}] ->"
+                f"got [{len(occ_list)}] albums")
+    # Show occurrences
+    md_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=[x.album_id for x in occ_list])
+    msgproc.log(f"handler_element_duplicate_album metadata list size [{len(md_dict)}]")
+    curr: DuplicateAlbumOccurrence
+    for curr in occ_list:
+        # add entry for the occurrence
+        album_identifier: ItemIdentifier = ItemIdentifier(
+            ElementType.ALBUM.element_name,
+            curr.album_id)
+        album_id: str = identifier_util.create_objid(
+            objid=objid,
+            id=identifier_util.create_id_from_identifier(album_identifier))
+        entry_title: str = curr.album_title
+        # version
+        if curr.album_version:
+            entry_title = f"{entry_title} [{curr.album_version}]"
+        # do we have a release date? If so, we can add it to the title
+        ard_year: int | None = curr.album_release_date_year
+        if ard_year is not None:
+            rd: str = f"{int(ard_year):04d}"
+            if curr.album_release_date_month is not None:
+                rd += f"-{int(curr.album_release_date_month):02d}"
+                if curr.album_release_date_day is not None:
+                    rd += f"-{int(curr.album_release_date_day):02d}"
+            entry_title = f"{entry_title} [{rd}]"
+        # show quality badge if available
+        if curr.quality_badge is not None:
+            entry_title = f"{entry_title} [{curr.quality_badge}]"
+        album_entry: dict[str, Any] = upmplgutils.direntry(
+            id=album_id,
+            pid=objid,
+            title=entry_title)
+        # upnp_util.set_artist(artist=curr.album_display_artist, target=album_entry)
+        upnp_util.set_class_album(target=album_entry)
+        upnp_util.set_album_art_from_uri(
+            album_art_uri=subsonic_util.build_cover_art_url(item_id=curr.album_cover_art),
+            target=album_entry)
+        subsonic_util.set_album_metadata(
+            album_metadata=md_dict.get(curr.album_id),
+            target=album_entry)
+        entries.append(album_entry)
+    return entries
 
 
 def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -1316,7 +1456,7 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
             id=identifier_util.create_id_from_identifier(identifier))
         # value count for the specified key
         count: int = occurrence.property_value_count + (1 if occurrence.is_missing_for_some else 0)
-        entry: dict[str, any] = upmplgutils.direntry(
+        entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"{curr_key.display_value} [{count}]")
@@ -1345,7 +1485,7 @@ def convert_selection_list(selection_list: list[list[str]]) -> list[AlbumPropert
     curr_selection: list[str]
     for curr_selection in selection_list if selection_list else []:
         if len(curr_selection if curr_selection else []) != 2:
-            raise Exception("convert_selection_list every list must contain two items")
+            raise AppException("convert_selection_list every list must contain two items")
         condition: AlbumPropertyKeyValue = AlbumPropertyKeyValue(
             key=curr_selection[0],
             value=curr_selection[1])
@@ -1383,7 +1523,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     # keep track of the album id to load
     album_id_set: set[str] = set()
     # keep track of entries by value
-    entry_list_dict_by_album_id: dict[str, list[dict[str, any]]] = defaultdict(list)
+    entry_list_dict_by_album_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
     # none is needed in the first page (offset == 0) and if any element has "missing" set to True
     none_entry_needed: bool = offset == 0 and occ_list[0].is_missing_for_some
     values_to_show: list[AlbumPropertyValueOccurrence] = ([None] + occ_list) if none_entry_needed else occ_list
@@ -1417,7 +1557,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             representative_album_id: str = persistence.get_one_random_album_property_matching(condition_list=none_condition_list)
             msgproc.log(f"handler_album_browse_filter_key [None] -> repr [{representative_album_id}]")
         title: str = f"{album_property_key_matched.format_key_value(curr_value.property_value) if curr_value else '[None]'} [{match_count}]"
-        entry: dict[str, any] = upmplgutils.direntry(
+        entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"{title}")
@@ -1438,7 +1578,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             id=next_id,
             pid=objid,
             title="Next")
@@ -1450,11 +1590,11 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=list(album_id_set))
     # cycle through entries
     entry_album_id: str
-    entry_value_list: list[dict[str, any]]
+    entry_value_list: list[dict[str, Any]]
     # set cover art to entries
     for entry_album_id, entry_value_list in entry_list_dict_by_album_id.items():
         # do we have a cover?
-        entry_value: dict[str, any]
+        entry_value: dict[str, Any]
         for entry_value in entry_value_list:
             # set cover art if available
             entry_album: AlbumMetadata = album_dict.get(entry_album_id)
@@ -1512,9 +1652,8 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
                 condition_list=condition_list,
                 album_property_key=curr_key.property_key)
         # if missing is false and we have the same number of positives, we do not need to show the key
-        if not occurrence.is_missing_for_some:
-            if occurrence.property_value_count == pos_filter_count:
-                continue
+        if not occurrence.is_missing_for_some and occurrence.property_value_count == pos_filter_count:
+            continue
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
             occurrence.property_key)
@@ -1526,7 +1665,7 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
         property_size_to_display: int = occurrence.property_value_count - pos_filter_count
         # none?
         property_size_to_display += (1 if occurrence.is_missing_for_some else 0)
-        entry: dict[str, any] = upmplgutils.direntry(
+        entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"{curr_key.display_value} [{property_size_to_display}]")
@@ -1545,7 +1684,7 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
         id=identifier_util.create_id_from_identifier(matching_identifier))
     matching_album_random_id: str = persistence.get_one_random_album_property_matching(condition_list=condition_list)
     random_album: AlbumMetadata = persistence.get_album_metadata(album_id=matching_album_random_id) if matching_album_random_id else None
-    matching_entry: dict[str, any] = upmplgutils.direntry(
+    matching_entry: dict[str, Any] = upmplgutils.direntry(
         id=matching_id,
         pid=objid,
         title=f"Matching albums [{matching_album_count}]")
@@ -1652,7 +1791,7 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
             entry_title = f"{entry_title} [{curr.album_year}]"
         if append_title:
             entry_title = f"{entry_title} - {curr.album_display_artist}"
-        album_entry: dict[str, any] = upmplgutils.direntry(
+        album_entry: dict[str, Any] = upmplgutils.direntry(
             id=album_id,
             pid=objid,
             title=entry_title)
@@ -1676,7 +1815,7 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             id=next_id,
             pid=objid,
             title="Next")
@@ -1709,7 +1848,7 @@ def handler_radio(objid, item_identifier: ItemIdentifier, entries: list) -> list
     msgproc.log(f"handler_radio iid {iid}")
     res: Response[SimilarSongs] = connector_provider.get().getSimilarSongs(iid)
     if not res.isOk():
-        raise Exception(f"Cannot get similar songs for iid {iid}")
+        raise AppException(f"Cannot get similar songs for iid {iid}")
     song: Song
     for song in res.getObj().getSongs():
         entries.append(_song_to_song_entry(
@@ -1725,17 +1864,16 @@ def handler_radio_song_list(objid, item_identifier: ItemIdentifier, entries: lis
     msgproc.log(f"handler_radio_song_list iid {iid}")
     res: Response[SimilarSongs] = connector_provider.get().getSimilarSongs(iid)
     if not res.isOk():
-        raise Exception(f"Cannot get similar songs for iid {iid}")
+        raise AppException(f"Cannot get similar songs for iid {iid}")
     song: Song
-    cnt: int = 0
-    options: dict[str, any] = {}
-    for song in res.getObj().getSongs():
-        cnt += 1
+    cnt: int
+    options: dict[str, Any] = {}
+    for cnt, song in enumerate(res.getObj().getSongs(), start=1):
         option_util.set_option(
             options=options,
             option_key=OptionKey.FORCE_TRACK_NUMBER,
             option_value=cnt)
-        song_entry: dict[str, any] = entry_creator.song_to_entry(
+        song_entry: dict[str, Any] = entry_creator.song_to_entry(
             objid=objid,
             song=song,
             options=options)
@@ -1769,22 +1907,21 @@ def _handler_element_artist_top_songs_common(
     msgproc.log(f"_handler_element_artist_top_songs_common artist_id {artist_id}")
     res: Response[Artist] = connector_provider.get().getArtist(artist_id)
     if not res.isOk():
-        raise Exception(f"Cannot find artist by artist_id {artist_id}")
+        raise AppException(f"Cannot find artist by artist_id {artist_id}")
     artist: Artist = res.getObj()
     top_song_res: Response[TopSongs] = connector_provider.get().getTopSongs(artist.getName())
     if not top_song_res.isOk():
-        raise Exception(f"Cannot get top songs for artist {artist.getName()}")
+        raise AppException(f"Cannot get top songs for artist {artist.getName()}")
     song: Song
-    cnt: int = 0
-    options: dict[str, any] = {}
-    for song in top_song_res.getObj().getSongs():
-        cnt += 1
+    cnt: int
+    options: dict[str, Any] = {}
+    for cnt, song in enumerate(top_song_res.getObj().getSongs(), start=1):
         if list_mode:
             option_util.set_option(
                 options=options,
                 option_key=OptionKey.FORCE_TRACK_NUMBER,
                 option_value=cnt)
-            song_entry: dict[str, any] = entry_creator.song_to_entry(
+            song_entry: dict[str, Any] = entry_creator.song_to_entry(
                 objid=objid,
                 song=song,
                 options=options)
@@ -1849,7 +1986,7 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
     entries.append(song_entry)
     msgproc.log(f"handler_element_song_entry start song_id {song_id} go on with album")
     album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId(), propagate_fail=True)
-    options: dict[str, any] = dict()
+    options: dict[str, Any] = {}
     option_util.set_option(
         options=options,
         option_key=OptionKey.FORCE_RELOAD_ALBUM_QUALITY_INFO,
@@ -1887,14 +2024,14 @@ def __handle_favourite_songs_paginated(
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     response: Response[Starred] = request_cache.get_starred()
     if not response.isOk():
-        raise Exception("Cannot retrieve starred items")
+        raise AppException("Cannot retrieve starred items")
     song_list: list[Song] = response.getObj().getSongs()
     need_next: bool = song_list and len(song_list) > (offset + config.get_items_per_page())
     song_slice: list[Song] = song_list[offset:min(len(song_list), offset + config.get_items_per_page())]
     next_song: Song = song_list[offset + config.get_items_per_page()] if need_next else None
     current_song: Song
     for current_song in song_slice if song_slice and len(song_slice) > 0 else []:
-        entry: dict[str, any] = _song_to_song_entry(
+        entry: dict[str, Any] = _song_to_song_entry(
             objid=objid,
             song=current_song,
             song_navigable=song_as_navigable_entry)
@@ -1907,7 +2044,7 @@ def __handle_favourite_songs_paginated(
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -1925,7 +2062,7 @@ def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> 
         size=req_song_count,
         musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
     if not response.isOk():
-        raise Exception("Cannot get random songs")
+        raise AppException("Cannot get random songs")
     song_list: list[Song] = response.getObj().getSongs()
     next_song: Song = song_list[len(song_list) - 1] if len(song_list) == req_song_count else None
     to_display: list[Song] = song_list[0:config.get_items_per_page()] if next_song else song_list
@@ -1943,7 +2080,7 @@ def _get_random_songs(objid, item_identifier: ItemIdentifier, entries: list) -> 
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             id=next_id,
             pid=objid,
             title="Next")
@@ -2040,7 +2177,7 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
     for current in to_display:
         # load artist if it has an id
         if current.artist_id:
-            artist_entry: dict[str, any] = entry_creator.genre_artist_to_entry(
+            artist_entry: dict[str, Any] = entry_creator.genre_artist_to_entry(
                 objid=objid,
                 genre=genre,
                 artist_id=current.artist_id,
@@ -2073,7 +2210,7 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2090,7 +2227,7 @@ def handler_element_genre_artist_albums(objid, item_identifier: ItemIdentifier, 
     genre_name: str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
     artist_res: Response[Artist] = connector_provider.get().getArtist(artist_id)
     if not artist_res.isOk():
-        raise Exception(f"Cannot get artist for id {artist_id}")
+        raise AppException(f"Cannot get artist for id {artist_id}")
     artist: Artist = artist_res.getObj()
     album_list: list[Album] = subsonic_util.get_album_list_by_artist_genre(artist, genre_name)
     need_next: bool = album_list and len(album_list) > (offset + config.get_items_per_page())
@@ -2099,7 +2236,7 @@ def handler_element_genre_artist_albums(objid, item_identifier: ItemIdentifier, 
     counter: int = offset
     for current_album in album_slice if album_slice and len(album_slice) > 0 else []:
         counter += 1
-        options: dict[str, any] = {}
+        options: dict[str, Any] = {}
         if config.get_config_param_as_bool(constants.ConfigParam.PREPEND_NUMBER_IN_ALBUM_LIST):
             option_util.set_option(
                 options=options,
@@ -2109,7 +2246,7 @@ def handler_element_genre_artist_albums(objid, item_identifier: ItemIdentifier, 
             options=options,
             option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE,
             option_value=False)
-        entry: dict[str, any] = entry_creator.album_to_entry(
+        entry: dict[str, Any] = entry_creator.album_to_entry(
             objid=objid,
             album=current_album,
             options=options)
@@ -2121,7 +2258,7 @@ def handler_element_genre_artist_albums(objid, item_identifier: ItemIdentifier, 
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2150,7 +2287,7 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
                             if len(album_list) > 0 else [])
     for current_album in to_show:
         counter += 1
-        options: dict[str, any] = dict()
+        options: dict[str, Any] = {}
         if config.get_config_param_as_bool(constants.ConfigParam.PREPEND_NUMBER_IN_ALBUM_LIST):
             option_util.set_option(
                 options=options,
@@ -2175,7 +2312,7 @@ def handler_element_genre_album_list(objid, item_identifier: ItemIdentifier, ent
         next_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2192,7 +2329,7 @@ def handle_tag_all_artists_unsorted_by_role(
         item_identifier: ItemIdentifier,
         tag_type: TagType,
         entries: list,
-        role_filter: Callable[[Artist], True] = None) -> list:
+        role_filter: Callable[[Artist], True] | None = None) -> list:
     verbose: bool = config.get_verbose_logging()
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     initial_offset: int = offset
@@ -2252,7 +2389,7 @@ def handle_tag_all_artists_unsorted_by_role(
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2320,7 +2457,7 @@ def handler_tag_artist_roles(objid, item_identifier: ItemIdentifier, entries: li
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        entry: dict[str, any] = upmplgutils.direntry(id=id, pid=objid, title=get_artist_role_display_value(role_entry.artist_role))
+        entry: dict[str, Any] = upmplgutils.direntry(id=id, pid=objid, title=get_artist_role_display_value(role_entry.artist_role))
         artist_cover_art: str = role_entry.random_artist_cover_art
         if not artist_cover_art:
             if verbose:
@@ -2341,7 +2478,7 @@ def handler_tag_artist_roles(objid, item_identifier: ItemIdentifier, entries: li
 def handler_tag_all_artists(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     # all album artists, paginated -> no skip art
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
-    options: dict[str, any] = dict()
+    options: dict[str, Any] = {}
     option_util.set_option(
         options=options,
         option_key=OptionKey.SKIP_ART,
@@ -2365,7 +2502,7 @@ def handler_tag_favourite_artists(objid, item_identifier: ItemIdentifier, entrie
     artist_slice: list[Artist] = artist_list[offset:min(len(artist_list), offset + config.get_items_per_page())]
     current_artist: Artist
     for current_artist in artist_slice if artist_slice and len(artist_slice) > 0 else []:
-        entry: dict[str, any] = entry_creator.artist_to_entry(
+        entry: dict[str, Any] = entry_creator.artist_to_entry(
             objid=objid,
             artist=current_artist)
         entries.append(entry)
@@ -2378,7 +2515,7 @@ def handler_tag_favourite_artists(objid, item_identifier: ItemIdentifier, entrie
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2392,8 +2529,7 @@ def handler_tag_favourite_artists(objid, item_identifier: ItemIdentifier, entrie
 
 
 def handler_tag_all_artists_indexed(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    options: dict[str, any] = dict()
-    return _create_list_of_artist_initials(objid, entries, options=options)
+    return _create_list_of_artist_initials(objid, entries)
 
 
 def handler_tag_playlists(objid, item_identifier: ItemIdentifier, entries: list) -> list:
@@ -2414,7 +2550,7 @@ def handler_element_artists_by_initial(objid, item_identifier: ItemIdentifier, e
     artist_initial: str = codec.base64_decode(encoded_artist_initial)
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     # load album artists only flag from identifier and put in options
-    options: dict[str, any] = dict()
+    options: dict[str, Any] = {}
     option_util.set_option(
         options=options,
         option_key=OptionKey.OFFSET,
@@ -2476,7 +2612,7 @@ def handler_element_artist_albums(objid, item_identifier: ItemIdentifier, entrie
         next_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2527,7 +2663,7 @@ def handler_artist_appearances(objid, item_identifier: ItemIdentifier, entries: 
         next_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2557,7 +2693,7 @@ def handler_element_artist_role(objid, item_identifier: ItemIdentifier, entries:
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(identifier))
-        entry: dict[str, any] = upmplgutils.direntry(id=id, pid=objid, title=role_initial_entry.artist_initial)
+        entry: dict[str, Any] = upmplgutils.direntry(id=id, pid=objid, title=role_initial_entry.artist_initial)
         artist_cover_art: str = role_initial_entry.random_artist_cover_art
         if not artist_cover_art:
             if verbose:
@@ -2616,9 +2752,7 @@ def handler_element_artist_role_initial(objid, item_identifier: ItemIdentifier, 
     curr_artist_id_missing_cover: str
     for curr_artist_id_missing_cover in artist_id_list_missing_cover:
         # cover art list if available
-        lst: list[ArtistAlbumCoverArt] = (cover_list_dict[curr_artist_id_missing_cover]
-                                          if curr_artist_id_missing_cover in cover_list_dict
-                                          else None)
+        lst: list[ArtistAlbumCoverArt] = (cover_list_dict.get(curr_artist_id_missing_cover, None))
         if lst is None or len(lst) == 0:
             if verbose:
                 msgproc.log(f"handler_element_artist_role_initial still no cover art for [{curr_artist_id_missing_cover}]")
@@ -2648,9 +2782,7 @@ def handler_element_artist_role_initial(objid, item_identifier: ItemIdentifier, 
                     f"has_next [{has_next}]")
     curr_artist: persistence.ArtistEntry
     for curr_artist in artists[0:display_size]:
-        cover_art: str = (cover_arts_by_artist_id[curr_artist.artist_id]
-                          if curr_artist.artist_id in cover_arts_by_artist_id
-                          else None)
+        cover_art: str = (cover_arts_by_artist_id.get(curr_artist.artist_id, None))
         if verbose:
             msgproc.log(f"handler_element_artist_role_initial for [{artist_role}] "
                         f"should add [{curr_artist.artist_id}] [{curr_artist.artist_name}] "
@@ -2675,7 +2807,7 @@ def handler_element_artist_role_initial(objid, item_identifier: ItemIdentifier, 
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -2712,7 +2844,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
                          if ref_album else False)
         msgproc.log(f"Show song selection if partial: [{partial}]")
         if ref_album and partial:
-            songsel_entry: dict[str, any] = upmplgutils.direntry(
+            songsel_entry: dict[str, Any] = upmplgutils.direntry(
                 songsel_id,
                 objid,
                 f"Song selection in [{subsonic_util.get_album_with_version(ref_album)}]")
@@ -2762,12 +2894,11 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     msgproc.log(f"Count of artists by same name: [{len(by_same_name_list)}]")
     if len(by_same_name_list) > 0:
         by_same_name: Artist
-        cnt: int = 0
-        for by_same_name in by_same_name_list:
-            cnt += 1
+        cnt: int
+        for cnt, by_same_name in enumerate(by_same_name_list, start=1):
             msgproc.log(f"Found artist #{cnt} by same name: [{by_same_name.getId()}]")
             bsn_entry_name: str = f"{by_same_name.getName()} [{by_same_name.getId()}] [{by_same_name.getAlbumCount()}]"
-            bsn_entry: dict[str, any] = entry_creator.artist_to_entry(
+            bsn_entry: dict[str, Any] = entry_creator.artist_to_entry(
                 objid=objid,
                 artist=by_same_name,
                 entry_name=bsn_entry_name)
@@ -2797,7 +2928,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     else:
         # choose randomly in all albums
         cover_art_album = secrets.choice(album_list) if album_list and len(album_list) > 0 else None
-    albums_entry: dict[str, any] = create_artist_albums_entry(
+    albums_entry: dict[str, Any] = create_artist_albums_entry(
         objid=objid,
         artist_id=artist_id,
         cover_art_album=cover_art_album,
@@ -2809,7 +2940,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     if not one_release_type:
         # add by release type.
         current_rt_str: str
-        for current_rt_str in artist_release_types.keys():
+        for current_rt_str in artist_release_types:
             release_types: subsonic_util.AlbumReleaseTypes = subsonic_util.AlbumReleaseTypes(current_rt_str.split("/"))
             msgproc.log(f"Processing release type [{release_types.key}] [{release_types.display_name}] ...")
             by_rt_list: list[Album] = albums_by_release_type(artist_id, album_list, release_types)
@@ -2823,7 +2954,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             by_type_entry_name: str = subsonic_util.release_type_to_album_list_label(
                 release_type=release_types.display_name,
                 album_count=by_type_album_count)
-            rt_entry: dict[str, any] = create_artist_albums_entry(
+            rt_entry: dict[str, Any] = create_artist_albums_entry(
                 objid=objid,
                 artist_id=artist_id,
                 cover_art_album=by_type_album,
@@ -2834,7 +2965,7 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     if has_appearances:
         # we have appearances
         msgproc.log(f"We add the \"Appears on\" entry as we have [{len(albums_as_appears_on)}] appearances")
-        appearances_entry: dict[str, any] = create_artist_albums_entry_for_appearances(
+        appearances_entry: dict[str, Any] = create_artist_albums_entry_for_appearances(
             objid=objid,
             artist_id=artist_id,
             album_entry_name=f"Appearances [{len(albums_as_appears_on)}]",
@@ -2890,7 +3021,7 @@ def __add_artist_albums_by_title(
         objid,
         artist_id: str,
         album_list: list[Album],
-        entries: list[any]) -> list[any]:
+        entries: list[Any]) -> list[Any]:
     if not config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE):
         return entries
     by_title: dict[str, Album] = __get_albums_by_title(album_list=album_list)
@@ -2905,7 +3036,7 @@ def __add_artist_albums_by_title(
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(item_identifier))
-        albums_w_dupl_titles_entry: dict[str, any] = upmplgutils.direntry(
+        albums_w_dupl_titles_entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"Albums with same title [{len(titles_with_duplicates)}]")
@@ -2923,7 +3054,7 @@ def __add_artist_albums_by_title_version(
         objid,
         artist_id: str,
         album_list: list[Album],
-        entries: list[any]) -> list[any]:
+        entries: list[Any]) -> list[Any]:
     if not config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_DUPLICATE_ALBUM_TITLE_VERSION):
         return entries
     by_title_and_version: dict[tuple[str, str], Album] = __get_albums_by_title_and_version(album_list=album_list)
@@ -2938,7 +3069,7 @@ def __add_artist_albums_by_title_version(
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(item_identifier))
-        albums_w_dupl_titles_entry: dict[str, any] = upmplgutils.direntry(
+        albums_w_dupl_titles_entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"Albums with same title/version [{len(titles_with_duplicates)}]")
@@ -2979,7 +3110,7 @@ def handler_element_albums_with_duplicate_titles(objid, item_identifier: ItemIde
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(item_identifier))
-        curr_entry: dict[str, any] = upmplgutils.direntry(
+        curr_entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"{curr} [{len(by_title[curr])}]")
@@ -3021,7 +3152,7 @@ def handler_element_albums_with_duplicate_title_version(objid, item_identifier: 
         id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(item_identifier))
-        curr_entry: dict[str, any] = upmplgutils.direntry(
+        curr_entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
             pid=objid,
             title=f"{curr[0]} ({curr[1]}) [{len(by_title_version[curr])}]")
@@ -3077,7 +3208,7 @@ def __add_artist_focus_entry(
         artist_id: str,
         album_list: list[Album],
         albums_as_main_artist: list[Album],
-        entries: list[any]) -> list[any]:
+        entries: list[Any]) -> list[Any]:
     artist_focus_entry = entry_creator.artist_id_to_artist_focus(objid, artist_id)
     # possibly select another album for artist focus, preferring albums as main artist
     focus_select_album = (secrets.choice(albums_as_main_artist)
@@ -3124,11 +3255,11 @@ def albums_by_release_type(
 
 
 def create_artist_albums_entry(
-        objid: any,
+        objid: Any,
         artist_id: str,
         cover_art_album: Album,
         album_entry_name: str,
-        release_types: subsonic_util.AlbumReleaseTypes = None) -> dict[str, any]:
+        release_types: subsonic_util.AlbumReleaseTypes = None) -> dict[str, Any]:
     msgproc.log(f"create_artist_albums_entry for [{artist_id}] "
                 f"release_types [{release_types.key if release_types else None}] "
                 f"album_entry_name [{album_entry_name}]")
@@ -3140,7 +3271,7 @@ def create_artist_albums_entry(
     artist_album_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(item_identifier))
-    albums_entry: dict[str, any] = upmplgutils.direntry(
+    albums_entry: dict[str, Any] = upmplgutils.direntry(
         id=artist_album_id,
         pid=objid,
         title=album_entry_name)
@@ -3151,10 +3282,10 @@ def create_artist_albums_entry(
 
 
 def create_artist_albums_entry_for_appearances(
-        objid: any,
+        objid: Any,
         artist_id: str,
         cover_art_album: Album,
-        album_entry_name: str) -> dict[str, any]:
+        album_entry_name: str) -> dict[str, Any]:
     msgproc.log(f"create_artist_albums_entry_for_appearances for [{artist_id}]")
     item_identifier: ItemIdentifier = ItemIdentifier(
         name=ElementType.ARTIST_APPEARANCES.element_name,
@@ -3162,7 +3293,7 @@ def create_artist_albums_entry_for_appearances(
     artist_album_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(item_identifier))
-    albums_entry: dict[str, any] = upmplgutils.direntry(
+    albums_entry: dict[str, Any] = upmplgutils.direntry(
         id=artist_album_id,
         pid=objid,
         title=album_entry_name)
@@ -3178,25 +3309,21 @@ def handler_element_artist_focus(objid, item_identifier: ItemIdentifier, entries
     if artist is None:
         return entries
     try:
-        top_songs_entry_list: list[dict[str, any]] = create_artist_top_songs_entry(
+        top_songs_entry_list: list[dict[str, Any]] = create_artist_top_songs_entry(
             objid=objid,
             artist_id=artist_id,
             artist_name=artist.getName())
-        top_songs_entry: dict[str, any]
-        for top_songs_entry in top_songs_entry_list:
-            entries.append(top_songs_entry)
+        entries.extend(top_songs_entry_list)
     except Exception as ex:
         msgproc.log(f"Cannot get top songs for artist_id [{artist_id}] [{type(ex)}] [{ex}]")
-    similar_artists_entry: dict[str, any] = create_similar_artists_entry(objid, artist_id)
+    similar_artists_entry: dict[str, Any] = create_similar_artists_entry(objid, artist_id)
     if similar_artists_entry:
         entries.append(similar_artists_entry)
-    radio_entry_list: list[dict[str, any]] = create_artist_radio_entry(
+    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entry(
         objid=objid,
         iid=artist.getId(),
         radio_entry_type=RadioEntryType.ARTIST_RADIO)
-    radio_entry: dict[str, any]
-    for radio_entry in radio_entry_list if radio_entry_list else []:
-        entries.append(radio_entry)
+    entries.append(radio_entry_list)
     return entries
 
 
@@ -3205,10 +3332,10 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     genre: str = item_identifier.get(ItemIdentifierKey.GENRE_NAME)
     artist_response: Response[Artist] = connector_provider.get().getArtist(artist_id)
     if not artist_response.isOk():
-        raise Exception(f"handler_element_genre_artist cannot retrieve artist by id {artist_id}")
+        raise AppException(f"handler_element_genre_artist cannot retrieve artist by id {artist_id}")
     artist: Artist = artist_response.getObj()
     album_list: list[Album] = subsonic_util.get_album_list_by_artist_genre(artist, genre)
-    artist_entry: dict[str, any] = entry_creator.artist_to_entry(
+    artist_entry: dict[str, Any] = entry_creator.artist_to_entry(
         objid=objid,
         artist=artist)
     # select first cover from album selection for artist within genre
@@ -3226,7 +3353,7 @@ def handler_element_genre_artist(objid, item_identifier: ItemIdentifier, entries
     album_list_id: str = identifier_util.create_objid(
         objid,
         identifier_util.create_id_from_identifier(album_list_identifier))
-    album_list_entry: dict[str, any] = upmplgutils.direntry(
+    album_list_entry: dict[str, Any] = upmplgutils.direntry(
         album_list_id,
         objid,
         title=f"Albums for genre: [{genre}]")
@@ -3254,14 +3381,12 @@ def handler_element_album_focus(
     get_top_songs_elapsed_time: float = None
     if album.getArtistId():
         try:
-            top_songs_entry_list: list[dict[str, any]] = create_artist_top_songs_entry(
+            top_songs_entry_list: list[dict[str, Any]] = create_artist_top_songs_entry(
                 objid=objid,
                 artist_id=album.getArtistId(),
                 artist_name=subsonic_util.get_album_display_artist(album=album))
-            top_songs_entry: dict[str, any]
             get_top_songs_elapsed_time = time.time() - get_top_songs_start_time
-            for top_songs_entry in top_songs_entry_list:
-                entries.append(top_songs_entry)
+            entries.extend(top_songs_entry_list)
         except Exception as ex:
             msgproc.log(f"handler_element_album_focus cannot add top songs entry [{type(ex)}] [{ex}]")
     else:
@@ -3271,7 +3396,7 @@ def handler_element_album_focus(
     get_similar_artists_start_time: float = time.time()
     get_similar_artists_elapsed_time: float = None
     if album.getArtistId():
-        similar_artist_entry: dict[str, any] = create_similar_artists_entry(objid, album.getArtistId())
+        similar_artist_entry: dict[str, Any] = create_similar_artists_entry(objid, album.getArtistId())
         get_similar_artists_elapsed_time = time.time() - get_similar_artists_start_time
         if similar_artist_entry:
             entries.append(similar_artist_entry)
@@ -3281,14 +3406,12 @@ def handler_element_album_focus(
                     "not creating similar artists entry")
     get_radio_entry_list_start_time: float = time.time()
     get_radio_entry_list_elapsed_time: float = None
-    _radio_entry_list: list[dict[str, any]] = create_artist_radio_entry(
+    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entry(
         objid=objid,
         iid=album.getId(),
         radio_entry_type=RadioEntryType.ALBUM_RADIO)
     get_radio_entry_list_elapsed_time = time.time() - get_radio_entry_list_start_time
-    radio_entry: dict[str, any]
-    for radio_entry in _radio_entry_list if _radio_entry_list else []:
-        entries.append(radio_entry)
+    entries.extend(radio_entry_list)
     elapsed_time: float = time.time() - start_time
     msgproc.log(f"handler_element_album_focus for album_id {album_id} took [{elapsed_time:.3f}] seconds")
     if get_top_songs_elapsed_time:
@@ -3325,7 +3448,7 @@ def handler_element_navigable_album(
             quality_badge=quality_badge,
             song_quality_summary=song_quality_summary),
         context="handler_element_navigable_album",
-        force_insert=True if album_metadata is None else False)
+        force_insert=album_metadata is None)
     clean_title: str = subsonic_util.get_album_title(album)
     album_mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
     media_type: str = subsonic_util.get_media_type(album)
@@ -3343,7 +3466,7 @@ def handler_element_navigable_album(
         msgproc.log(f"handler_element_navigable_album album [{album_id}] -> version [{album_version}]")
         msgproc.log(f"handler_element_navigable_album album [{album_id}] -> last played [{album_last_played}]")
         msgproc.log(f"handler_element_navigable_album album [{album_id}] -> record label names [{record_label_names}]")
-    album_entry: dict[str, any] = entry_creator.album_to_entry(
+    album_entry: dict[str, Any] = entry_creator.album_to_entry(
         objid=objid,
         album=album,
         album_metadata=album_metadata)
@@ -3441,7 +3564,7 @@ def handler_element_navigable_album(
         additional_album_artists_identifier_id: str = identifier_util.create_objid(
                 objid=objid,
                 id=identifier_util.create_id_from_identifier(additional_album_artists_identifier))
-        additional_album_artists_entry: dict[str, any] = upmplgutils.direntry(
+        additional_album_artists_entry: dict[str, Any] = upmplgutils.direntry(
             id=additional_album_artists_identifier_id,
             pid=objid,
             title="Additional Artists")
@@ -3455,10 +3578,9 @@ def handler_element_navigable_album(
             album_art_uri=random_artist_cover_art_uri,
             target=additional_album_artists_entry)
         entries.append(additional_album_artists_entry)
-        pass
-    entry: dict[str, any] = entry_creator.album_id_to_album_focus(objid=objid, album=album)
+    entry: dict[str, Any] = entry_creator.album_id_to_album_focus(objid=objid, album=album)
     entries.append(entry)
-    cache_actions.on_album(album=album)
+    cache_actions.on_album(album=album, album_metadata=album_metadata)
     return entries
 
 
@@ -3493,7 +3615,7 @@ def handler_additional_album_artists(
         entry_name = subsonic_util.append_cached_mb_id_to_artist_entry_name_if_allowed(
             entry_name=entry_name,
             artist_id=current.artist_id)
-        curr_entry: dict[str, any] = entry_creator.artist_to_entry_raw(
+        curr_entry: dict[str, Any] = entry_creator.artist_to_entry_raw(
             objid=objid,
             artist_id=current.artist_id,
             artist_entry_name=current.artist_name,
@@ -3517,7 +3639,7 @@ def handler_additional_album_artists(
         next_id: str = identifier_util.create_objid(
             objid=objid,
             id=identifier_util.create_id_from_identifier(next_identifier))
-        next_entry: dict[str, any] = upmplgutils.direntry(
+        next_entry: dict[str, Any] = upmplgutils.direntry(
             next_id,
             objid,
             title="Next")
@@ -3528,11 +3650,11 @@ def handler_additional_album_artists(
 
 
 def create_entries_for_album_additional_artists(
-        objid: any,
+        objid: Any,
         album_id: str,
         additional: list[subsonic_util.ArtistsOccurrence],
-        skip_artist_id_set: set[str]) -> list[dict[str, any]]:
-    artist_entries: list[dict[str, any]] = []
+        skip_artist_id_set: set[str]) -> list[dict[str, Any]]:
+    artist_entries: list[dict[str, Any]] = []
     artist_id_list: list[str] = [x.artist_id for x in additional]
     cover_dict: dict[str, list[ArtistAlbumCoverArt]] = persistence.get_cover_art_list_by_artist_id_list(
         artist_id_list=artist_id_list)
@@ -3563,12 +3685,11 @@ def create_entries_for_album_additional_artists(
                     if config.get_config_param_as_bool(constants.ConfigParam.DUMP_ACTION_ON_MB_ALBUM_CACHE):
                         msgproc.log(f"Cannot find mbid for artist_id [{curr_artist.artist_id}]")
             msgproc.log(f"Adding artist entry: [{entry_name}] for artist_id: [{curr_artist.artist_id}] ...")
-            additional_identifier_properties: dict[ItemIdentifierKey, any] = {}
+            additional_identifier_properties: dict[ItemIdentifierKey, Any] = {}
             if curr_artist.artist_id not in skip_artist_id_set:
                 additional_identifier_properties[ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST] = album_id
             # load the artist
-            cover_lst: list[ArtistAlbumCoverArt] = (cover_dict[curr_artist.artist_id]
-                                                    if curr_artist.artist_id in cover_dict else [])
+            cover_lst: list[ArtistAlbumCoverArt] = (cover_dict.get(curr_artist.artist_id, []))
             artist_cover_art: ArtistAlbumCoverArt = persistence.choose_artist_album_cover_art(cover_lst)
             cover_art: str = artist_cover_art.cover_art if artist_cover_art else None
             artist_entries.append(entry_creator.artist_to_entry_raw(
@@ -3585,13 +3706,13 @@ def create_entries_for_album_additional_artists(
     return artist_entries
 
 
-def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, any]]:
+def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, Any]]:
     msgproc.log(f"create_artist_radio_entry for {iid} [{radio_entry_type}]")
     radio_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO.element_name, iid)
     radio_id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(radio_identifier))
-    radio_entry: dict[str, any] = upmplgutils.direntry(
+    radio_entry: dict[str, Any] = upmplgutils.direntry(
         radio_id,
         objid,
         title="Radio")
@@ -3599,7 +3720,7 @@ def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType)
     radio_song_list_id: str = identifier_util.create_objid(
         objid,
         identifier_util.create_id_from_identifier(radio_song_list_identifier))
-    radio_song_list_entry: dict[str, any] = upmplgutils.direntry(
+    radio_song_list_entry: dict[str, Any] = upmplgutils.direntry(
         radio_song_list_id,
         objid,
         title="Radio (List)")
@@ -3626,11 +3747,11 @@ def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType)
     return [radio_entry, radio_song_list_entry]
 
 
-def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
+def create_similar_artists_entry(objid, artist_id: str) -> dict[str, Any]:
     verbose: bool = config.get_verbose_logging()
     res_artist_info: Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
     if not res_artist_info.isOk():
-        raise Exception(f"Cannot get artist info for artist_id {artist_id}")
+        raise AppException(f"Cannot get artist info for artist_id {artist_id}")
     similar_artists: list[SimilarArtist] = res_artist_info.getObj().getSimilarArtists()
     if len(similar_artists if similar_artists else []) > 0:
         # ok to add similar artists entry
@@ -3638,7 +3759,7 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
         similar_artist_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(similar_artist_identifier))
-        similar_artists_entry: dict[str, any] = upmplgutils.direntry(
+        similar_artists_entry: dict[str, Any] = upmplgutils.direntry(
             similar_artist_id,
             objid,
             title="Similar Artists")
@@ -3660,18 +3781,18 @@ def create_similar_artists_entry(objid, artist_id: str) -> dict[str, any]:
         msgproc.log(f"Similar artists not available for [{artist_id}]")
 
 
-def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> list[dict[str, any]]:
-    result: list[dict[str, any]] = []
+def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
     res_top_songs: Response[TopSongs] = connector_provider.get().getTopSongs(artist_name)
     if not res_top_songs.isOk():
-        raise Exception(f"Cannot load top songs for artist {artist_name}")
+        raise AppException(f"Cannot load top songs for artist {artist_name}")
     if len(res_top_songs.getObj().getSongs()) > 0:
         # ok to create top songs entry, else None
         top_songs_identifier: ItemIdentifier = ItemIdentifier(ElementType.ARTIST_TOP_SONGS.element_name, artist_id)
         top_songs_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(top_songs_identifier))
-        top_songs_entry: dict[str, any] = upmplgutils.direntry(
+        top_songs_entry: dict[str, Any] = upmplgutils.direntry(
             top_songs_id,
             objid,
             title=f"Top Songs by {artist_name}")
@@ -3688,7 +3809,7 @@ def create_artist_top_songs_entry(objid, artist_id: str, artist_name: str) -> li
         top_songs_list_id: str = identifier_util.create_objid(
             objid,
             identifier_util.create_id_from_identifier(top_songs_list_identifier))
-        top_songs_list_entry: dict[str, any] = upmplgutils.direntry(
+        top_songs_list_entry: dict[str, Any] = upmplgutils.direntry(
             top_songs_list_id,
             objid,
             title=f"Top Songs (List) by {artist_name}")
@@ -3705,7 +3826,7 @@ def handler_element_similar_artists(objid, item_identifier: ItemIdentifier, entr
     msgproc.log(f"handler_element_similar_artists for artist_id {artist_id}")
     res: Response[ArtistInfo] = connector_provider.get().getArtistInfo(artist_id)
     if not res.isOk():
-        raise Exception(f"Cannot get artist info for artist_id {artist_id}")
+        raise AppException(f"Cannot get artist info for artist_id {artist_id}")
     sim_artist_list: list[SimilarArtist] = res.getObj().getSimilarArtists()
     sim_artist: SimilarArtist
     for sim_artist in sim_artist_list:
@@ -3732,7 +3853,7 @@ def handler_album_song_selection_by_artist(objid, item_identifier: ItemIdentifie
     curr: Song
     # display the song selection
     for curr in song_selection:
-        song_entry: dict[str, any] = entry_creator.song_to_entry(
+        song_entry: dict[str, Any] = entry_creator.song_to_entry(
             objid=objid,
             song=curr)
         if song_entry:
@@ -3770,7 +3891,7 @@ def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: 
     for song in to_display:
         if song.getDiscNumber() in disc_number_list:
             # add to entries ...
-            song_entry: dict[str, any] = entry_creator.song_to_entry(
+            song_entry: dict[str, Any] = entry_creator.song_to_entry(
                 objid=objid,
                 song=song)
             if song_entry:
@@ -3793,6 +3914,9 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
         msgproc.log(f"Album [{album_id}] not found")
         persistence.delete_album_metadata(album_id=album_id)
         return entries
+    # update metadata
+    album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
+    cache_actions.on_album(album=album, album_metadata=album_metadata)
     # mix tracks?
     if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_MIX_ALBUM_VERSIONS):
         # we always present tracks, otherwise we fall back to presenting versions (if there are multiple versions)
@@ -3816,9 +3940,8 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
         # present songs.
         key_list: list[tuple[int, int, str]] = sorted(song_dict.keys())
         curr_key: tuple[int, int, str]
-        track_count: int = 0
-        for curr_key in key_list:
-            track_count += 1
+        track_count: int
+        for track_count, curr_key in enumerate(key_list, start=1):
             song_versions: list[Song] = song_dict[curr_key]
             best_version: Song = subsonic_util.choose_best_track_by_format(song_versions)
             if len(song_versions) > 1:
@@ -3838,21 +3961,20 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
         return entries
     if album_tracks and album_tracks.getAlbumVersionCount() > 1:
         msgproc.log(f"handler_element_album for album_id [{album_id}] -> [{album_tracks.getAlbumVersionCount()}] versions")
-        version_counter: int = 0
+        version_counter: int
         album_version_path: str
         codec_set: set[str]
-        for album_version_path in album_tracks.getCodecSetByPath().keys():
+        for version_counter, album_version_path in enumerate(album_tracks.getCodecSetByPath()):
             msgproc.log(f"Presenting version [{version_counter + 1}/{album_tracks.getAlbumVersionCount()}] "
                         f"album_version_path [{album_version_path}]...")
             codec_set: set[str] = album_tracks.getCodecSetByPath()[album_version_path]
-            album_version_entry: dict[str, any] = entry_creator.album_version_to_entry(
+            album_version_entry: dict[str, Any] = entry_creator.album_version_to_entry(
                 objid=objid,
                 current_album=album_tracks.getAlbum(),
                 version_number=version_counter + 1,
                 album_version_path=album_version_path,
                 codec_set=codec_set)
             entries.append(album_version_entry)
-            version_counter += 1
         return entries
     # one version only
     if album:
@@ -3888,14 +4010,14 @@ def handler_element_radio_station(objid, item_identifier: ItemIdentifier, entrie
     station_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     response: Response[InternetRadioStations] = connector_provider.get().getInternetRadioStations()
     if not response.isOk():
-        raise Exception("Cannot get the internet radio stations")
+        raise AppException("Cannot get the internet radio stations")
     select_station: InternetRadioStation
     station: InternetRadioStation
     for station in response.getObj().getStations():
         if station.getId() == station_id:
             select_station = station
             break
-    station_entry: dict[str, any] = _station_to_entry(objid, select_station)
+    station_entry: dict[str, Any] = _station_to_entry(objid, select_station)
     entries.append(station_entry)
     return entries
 
@@ -3905,12 +4027,12 @@ def handler_element_song(objid, item_identifier: ItemIdentifier, entries: list) 
     msgproc.log(f"handler_element_song should serve song_id {song_id}")
     song_response: Response[Song] = connector_provider.get().getSong(song_id)
     if not song_response.isOk():
-        raise Exception(f"Cannot find song with id {song_id}")
+        raise AppException(f"Cannot find song with id {song_id}")
     identifier: ItemIdentifier = ItemIdentifier(ElementType.SONG.element_name, song_id)
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    song_entry: dict[str, any] = _song_data_to_entry(objid, id, song_response.getObj())
+    song_entry: dict[str, Any] = _song_data_to_entry(objid, id, song_response.getObj())
     entries.append(song_entry)
     return entries
 
@@ -3926,8 +4048,6 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
         TagType.ALPHABETICAL_BY_NAME_ALBUMS,
         TagType.ALPHABETICAL_BY_ARTIST_ALBUMS,
         TagType.RANDOM]
-    if config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ALBUMS):
-        tag_list.append(TagType.ALBUM_BROWSER)
     add_fav: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
     if not add_fav:
         msgproc.log("handler_tag_group_albums loading favorites ...")
@@ -3940,6 +4060,11 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
                 add_fav = True
     if add_fav:
         tag_list.append(TagType.FAVORITE_ALBUMS)
+    if config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ALBUMS):
+        tag_list.append(TagType.ALBUM_BROWSER)
+        if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_DUPLICATE_ALBUMS):
+            tag_list.append(TagType.DUPLICATE_ALBUMS_BY_TITLE)
+            tag_list.append(TagType.DUPLICATE_ALBUMS_BY_TITLE_VERSION)
     # add maintenance features
     if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_MAINTENANCE_FEATURES):
         tag_list.extend([])
@@ -3948,7 +4073,7 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
     for current in tag_list:
         if config.is_tag_supported(current):
             try:
-                entry: dict[str, any] = tag_to_entry(
+                entry: dict[str, Any] = tag_to_entry(
                     objid=objid,
                     tag=current,
                     context=context)
@@ -3959,14 +4084,6 @@ def handler_tag_group_albums(objid, item_identifier: ItemIdentifier, entries: li
         else:
             msgproc.log(f"handler_tag_group_albums skipping unsupported [{current}]")
     return entries
-
-
-def get_first_cover_art_from_song_list(song_list: list[Song]) -> str:
-    song: Song
-    for song in song_list if song_list else []:
-        if song.getCoverArt():
-            return song.getCoverArt()
-    return None
 
 
 def get_group_artists_item_list() -> list[Any]:
@@ -4005,7 +4122,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
     for current_tag in tag_list:
         if isinstance(current_tag, TagType):
             msgproc.log(f"handler_tag_group_artists current_tag [{current_tag.tag_name}] ...")
-            entry: dict[str, any] = create_entry_for_tag(objid, current_tag)
+            entry: dict[str, Any] = create_entry_for_tag(objid, current_tag)
             in_set: bool = len(unique_cover_art_set) > 0
             select_cover_art: str = unique_cover_art_set.pop() if in_set else None
             if not select_cover_art:
@@ -4024,7 +4141,7 @@ def handler_tag_group_artists(objid, item_identifier: ItemIdentifier, entries: l
     add_fav: bool = (config.get_config_param_as_bool(constants.ConfigParam.SHOW_EMPTY_FAVORITES)
                      or select_fav is not None)
     if add_fav:
-        fav_artist_entry: dict[str, any] = create_entry_for_tag(objid, TagType.FAVORITE_ARTISTS)
+        fav_artist_entry: dict[str, Any] = create_entry_for_tag(objid, TagType.FAVORITE_ARTISTS)
         if select_fav:
             msgproc.log(f"handler_tag_group_artists fav_artist [{select_fav.getId()}] "
                         f"[{select_fav.getName() if select_fav else None}]")
@@ -4064,7 +4181,7 @@ def handler_tag_group_songs(objid, item_identifier: ItemIdentifier, entries: lis
             tag_list.append(TagType.FAVORITE_SONGS)
     # add recently played songs
     tag_list.append(TagType.RECENTLY_PLAYED_SONGS)
-    entry_list: list[dict[str, any]] = tag_list_to_entries(
+    entry_list: list[dict[str, Any]] = tag_list_to_entries(
         objid,
         tag_list)
     entries.extend(entry_list)
@@ -4100,7 +4217,9 @@ __tag_action_dict: dict = {
     TagType.FAVORITE_SONGS.tag_name: handler_tag_favourite_songs,
     TagType.FAVORITE_SONGS_LIST.tag_name: handler_tag_favourite_songs_list,
     TagType.RECENTLY_PLAYED_SONGS.tag_name: handler_tag_recently_played_songs,
-    TagType.ALBUM_BROWSER.tag_name: handler_tag_album_browser
+    TagType.ALBUM_BROWSER.tag_name: handler_tag_album_browser,
+    TagType.DUPLICATE_ALBUMS_BY_TITLE.tag_name: handler_tag_duplicate_albums_by_title,
+    TagType.DUPLICATE_ALBUMS_BY_TITLE_VERSION.tag_name: handler_tag_duplicate_albums_by_title_version
 }
 
 __elem_action_dict: dict = {
@@ -4142,18 +4261,19 @@ __elem_action_dict: dict = {
     ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLES.element_name: handler_element_albums_with_duplicate_titles,
     ElementType.ARTIST_ALBUMS_WITH_DUPLICATE_TITLE_VERSION_PAIR.element_name: handler_element_albums_with_duplicate_title_version,
     ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE.element_name: handler_element_artist_albums_filtered_by_title,
-    ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION.element_name: handler_element_artist_albums_filtered_by_title_version
+    ElementType.ARTIST_ALBUMS_FILTERED_BY_TITLE_VERSION.element_name: handler_element_artist_albums_filtered_by_title_version,
+    ElementType.DUPLICATE_ALBUM.element_name: handler_element_duplicate_album
 }
 
 
 def tag_list_to_entries(
         objid,
         tag_list: list[TagType],
-        context: TagToEntryContext = None) -> list[dict[str, any]]:
-    entry_list: list[dict[str, any]] = []
+        context: TagToEntryContext = None) -> list[dict[str, Any]]:
+    entry_list: list[dict[str, Any]] = []
     tag: TagType
     for tag in tag_list:
-        entry: dict[str, any] = tag_to_entry(
+        entry: dict[str, Any] = tag_to_entry(
             objid=objid,
             tag=tag,
             context=context)
@@ -4161,13 +4281,13 @@ def tag_list_to_entries(
     return entry_list
 
 
-def create_entry_for_tag(objid, tag: TagType) -> dict[str, any]:
+def create_entry_for_tag(objid, tag: TagType) -> dict[str, Any]:
     tagname: str = tag.tag_name
     identifier: ItemIdentifier = ItemIdentifier(ElementType.TAG.element_name, tagname)
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    entry: dict[str, any] = upmplgutils.direntry(
+    entry: dict[str, Any] = upmplgutils.direntry(
         id=id,
         pid=objid,
         title=get_tag_type_by_name(tag.tag_name).tag_title)
@@ -4177,8 +4297,8 @@ def create_entry_for_tag(objid, tag: TagType) -> dict[str, any]:
 def tag_to_entry(
         objid,
         tag: TagType,
-        context: TagToEntryContext = None) -> dict[str, any]:
-    entry: dict[str, any] = create_entry_for_tag(objid, tag)
+        context: TagToEntryContext = None) -> dict[str, Any]:
+    entry: dict[str, Any] = create_entry_for_tag(objid, tag)
     retrieved_art: RetrievedArt = art_retriever.execute_art_retriever(
         tag=tag,
         context=context)
@@ -4200,11 +4320,9 @@ def show_tag_entries(objid, entries: list) -> list:
                     msgproc.log(f"show_tag_entries adding tag [{tag}] ...")
                 start_time: float = time.time()
                 # is there a precondition?
-                precondition: Callable[[], bool] = (
-                    __tag_show_precondition[tag.tag_name]
-                    if tag.tag_name in __tag_show_precondition
-                    else None)
-                do_show: bool = not precondition or precondition()
+                precondition: Callable[[], bool] = (__tag_show_precondition.get(tag.tag_name, None))
+                # we show if there is no precondition or if the precondition returns True
+                do_show: bool = (precondition is None) or precondition()
                 if do_show:
                     if verbose:
                         msgproc.log(f"show_tag_entries actually showing tag [{tag}] ...")
@@ -4226,6 +4344,20 @@ def show_tag_entries(objid, entries: list) -> list:
     return entries
 
 
+def create_missing_objid_entry(objid: Any) -> dict[str, any]:
+    identifier: ItemIdentifier = ItemIdentifier(
+        ElementType.INVALID_OBJECT_ID.element_name,
+        codec.base64_encode(ElementType.INVALID_OBJECT_ID.element_name))
+    id: str = identifier_util.create_objid(
+        objid=objid,
+        id=identifier_util.create_id_from_identifier(identifier))
+    entry: dict[str, any] = upmplgutils.direntry(
+        pid=objid,
+        id=id,
+        title=f"Missing or invalid object id [{objid}]")
+    return entry
+
+
 @dispatcher.record('browse')
 def browse(a):
     start: float = time.time()
@@ -4234,18 +4366,23 @@ def browse(a):
     # possibly remove this
     _initsubsonic()
     if 'objid' not in a:
-        raise Exception("No objid in args")
+        raise AppException("No objid in args")
     objid = a['objid']
     path_list: list[str] = objid.split("/")
     entries = []
     curr_path: str
     last_decoded_path: str = None
-    for curr_path in path_list:
-        if not _g_myprefix == curr_path:
-            try:
-                last_decoded_path = codec.decode(curr_path)
-            except Exception as ex:
-                msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
+    curr_idx: int
+    for curr_idx, curr_path in enumerate(path_list):
+        if _g_myprefix == curr_path:
+            continue
+        try:
+            last_decoded_path = codec.decode(curr_path)
+        except codec.CodecException as ex:
+            msgproc.log(f"Could not decode [{curr_path}] [{type(ex)}] [{ex}]")
+            # respond with a tile showing the error if we are at the last path item, otherwise we just skip it
+            if curr_idx == len(path_list) - 1:
+                entries.append(create_missing_objid_entry(objid))
                 return _returnentries(entries, no_cache=without_cache)
     last_path_item: str = path_list[len(path_list) - 1] if path_list and len(path_list) > 0 else None
     if len(path_list) == 1 and _g_myprefix == last_path_item:
@@ -4257,14 +4394,14 @@ def browse(a):
     else:
         # decode
         decoded_path: str = last_decoded_path
-        item_dict: dict[str, any] = json.loads(decoded_path)
+        item_dict: dict[str, Any] = json.loads(decoded_path)
         item_identifier: ItemIdentifier = ItemIdentifier.from_dict(item_dict)
         thing_name: str = item_identifier.get(ItemIdentifierKey.THING_NAME)
         thing_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
         msgproc.log(f"browse: item_identifier name: [{thing_name}] value: [{thing_value}]")
         if ElementType.TAG.element_name == thing_name:
             msgproc.log(f"browse: should serve tag: [{thing_value}]")
-            tag_handler = __tag_action_dict[thing_value] if thing_value in __tag_action_dict else None
+            tag_handler = __tag_action_dict.get(thing_value, None)
             if tag_handler:
                 current_tag: TagType = get_tag_type_by_name(thing_value)
                 msgproc.log(f"browse: found tag handler for [{thing_value}]: [{current_tag}]")
@@ -4278,7 +4415,7 @@ def browse(a):
                 return _returnentries(entries, no_cache=without_cache)
         else:  # it's an element
             msgproc.log(f"browse: should serve element: [{thing_name}] [{thing_value}]")
-            elem_handler = __elem_action_dict[thing_name] if thing_name in __elem_action_dict else None
+            elem_handler = __elem_action_dict.get(thing_name, None)
             if elem_handler:
                 curr_element: ElementType = get_element_type_by_name(thing_name)
                 msgproc.log(f"browse: found elem handler for [{thing_name}]: [{curr_element}]")
@@ -4294,7 +4431,7 @@ def browse(a):
 
 def _objidtopath(objid):
     if objid.find(_g_myprefix) != 0:
-        raise Exception(f"subsonic: bad objid {objid}: bad prefix")
+        raise AppException(f"subsonic: bad objid {objid}: bad prefix")
     return objid[len(_g_myprefix):].lstrip("/")
 
 
@@ -4580,7 +4717,7 @@ def search_albums_by_artist(artist_name: str) -> list[Album]:
 @dispatcher.record('search')
 def search(a):
     without_cache: bool = config.get_config_param_as_bool(constants.ConfigParam.SEARCH_WITHOUT_CACHE)
-    msgproc.log("search: [%s]" % a)
+    msgproc.log(f"search: [{a}]")
     _initsubsonic()
     objid = a["objid"]
     entries = []
@@ -4588,8 +4725,8 @@ def search(a):
     # ../radio-browser/radiotoentry for an example
     value: str = a["value"]
     field: str = a["field"]
-    objkind: str = a["objkind"] if "objkind" in a else None
-    origsearch: str = a["origsearch"] if "origsearch" in a else None
+    objkind: str = a.get("objkind", None)
+    origsearch: str = a.get("origsearch", None)
     msgproc.log(f"origsearch: [{origsearch}]")
     msgproc.log(f"value: [{value}]")
     msgproc.log(f"field: [{field}]")
@@ -4604,7 +4741,7 @@ def search(a):
     value_specified: bool = value and len(value) > 0
     album_as_container: bool = (config.get_config_param_as_bool(constants.ConfigParam.SEARCH_RESULT_ALBUM_AS_CONTAINER)
                                 and not config.get_config_param_as_bool(constants.ConfigParam.DISABLE_NAVIGABLE_ALBUM))
-    album_entry_options: dict[str, any] = {}
+    album_entry_options: dict[str, Any] = {}
     option_util.set_option(
         options=album_entry_options,
         option_key=OptionKey.APPEND_ARTIST_IN_ALBUM_TITLE,

@@ -1,5 +1,18 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.17
+
+- BREAKING: Changed default for `purgeidentifiercache` to False
+- Improve album metadata retrieval and updating
+- Log ConfigParam values at plugin startup
+- Review ElementType and avoid style warnings
+- Avoid naive datetime instances
+- Add new entries on albums to search duplicates by title and title/version
+- The new duplicate search entries can be disabled using `allowduplicatealbums`
+- Refresh album metadata when loading ElementType.ALBUM
+- Defaults for missing discnumber and tracknumber are set to 1
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.16.2
 
 - This fixes issue [#173](https://framagit.org/medoc92/upmpdcli/-/work_items/173): add "offset" and "total"

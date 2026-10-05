@@ -23,6 +23,7 @@ from subsonic_connector.song import Song
 
 import album_util
 import audio_codec
+import datetime_util
 import subsonic_util
 from album_metadata import AlbumMetadata
 from album_property_key import AlbumPropertyKey
@@ -64,8 +65,8 @@ def update_song_metadata(
         list(SongMetadataModel)))
     created_timestamp: datetime.datetime = (existing_metadata.created_timestamp
                                             if existing_metadata.created_timestamp
-                                            else datetime.datetime.now())
-    updated_timestamp: datetime.datetime = datetime.datetime.now()
+                                            else datetime_util.now())
+    updated_timestamp: datetime.datetime = datetime_util.now()
     updated_metadata: SongMetadata = SongMetadata()
     updated_metadata.set_value(SongMetadataModel.SONG_ID, song_metadata.song_id)
     current: SongMetadataModel
@@ -76,7 +77,7 @@ def update_song_metadata(
             # for example, an ALBUM_VERSION can be changed and become empty
             updated_metadata.set_value(current, song_metadata.get_value(current))
         else:
-            latest_value: any = prefer_data_simple(lambda x: x.get_value(current), prefer_list)
+            latest_value: Any = prefer_data_simple(lambda x, current=current: x.get_value(current), prefer_list)
             updated_metadata.set_value(current, latest_value)
     updated_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, created_timestamp)
     updated_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, updated_timestamp)
@@ -91,8 +92,8 @@ def update_artist_metadata(
         list(ArtistMetadataModel)))
     created_timestamp: datetime.datetime = (existing_metadata.created_timestamp
                                             if existing_metadata.created_timestamp
-                                            else datetime.datetime.now())
-    updated_timestamp: datetime.datetime = datetime.datetime.now()
+                                            else datetime_util.now())
+    updated_timestamp: datetime.datetime = datetime_util.now()
     updated_metadata: ArtistMetadata = ArtistMetadata()
     updated_metadata.set_value(ArtistMetadataModel.ARTIST_ID, artist_metadata.artist_id)
     current: ArtistMetadataModel
@@ -103,7 +104,7 @@ def update_artist_metadata(
             # for example, an ALBUM_VERSION can be changed and become empty
             updated_metadata.set_value(current, artist_metadata.get_value(current))
         else:
-            latest_value: any = prefer_data_simple(lambda x: x.get_value(current), prefer_list)
+            latest_value: Any = prefer_data_simple(lambda x, current=current: x.get_value(current), prefer_list)
             updated_metadata.set_value(current, latest_value)
     updated_metadata.set_value(ArtistMetadataModel.CREATED_TIMESTAMP, created_timestamp)
     updated_metadata.set_value(ArtistMetadataModel.UPDATED_TIMESTAMP, updated_timestamp)
@@ -118,8 +119,8 @@ def update_album_metadata(
         list(AlbumMetadataModel)))
     created_timestamp: datetime.datetime = (existing_metadata.created_timestamp
                                             if existing_metadata.created_timestamp
-                                            else datetime.datetime.now())
-    updated_timestamp: datetime.datetime = datetime.datetime.now()
+                                            else datetime_util.now())
+    updated_timestamp: datetime.datetime = datetime_util.now()
     updated_metadata: AlbumMetadata = AlbumMetadata()
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ID, album_metadata.album_id)
     current: AlbumMetadataModel
@@ -130,7 +131,7 @@ def update_album_metadata(
             # for example, an ALBUM_VERSION can be changed and become empty
             updated_metadata.set_value(current, album_metadata.get_value(current))
         else:
-            latest_value: any = prefer_data_simple(lambda x: x.get_value(current), prefer_list)
+            latest_value: Any = prefer_data_simple(lambda x, current=current: x.get_value(current), prefer_list)
             updated_metadata.set_value(current, latest_value)
     updated_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, created_timestamp)
     updated_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, updated_timestamp)
@@ -158,10 +159,10 @@ def build_artist_metadata(
         value=subsonic_util.get_artist_starred(artist=artist))
     updated_metadata.set_value(
         ArtistMetadataModel.CREATED_TIMESTAMP,
-        created_timestamp if created_timestamp else datetime.datetime.now())
+        created_timestamp if created_timestamp else datetime_util.now())
     updated_metadata.set_value(
         ArtistMetadataModel.UPDATED_TIMESTAMP,
-        updated_timestamp if updated_timestamp else datetime.datetime.now())
+        updated_timestamp if updated_timestamp else datetime_util.now())
     return updated_metadata
 
 
@@ -170,11 +171,12 @@ def build_album_metadata(
         quality_badge: str | None = None,
         song_quality_summary: str | None = None,
         album_path: str | None = None,
-        created_timestamp: datetime.datetime = datetime.datetime.now(),
-        updated_timestamp: datetime.datetime = datetime.datetime.now()) -> AlbumMetadata:
+        created_timestamp: datetime.datetime | None = None,
+        updated_timestamp: datetime.datetime | None = None) -> AlbumMetadata:
     updated_metadata: AlbumMetadata = AlbumMetadata()
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ID, album.getId())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MEDIA_TYPE, subsonic_util.get_media_type(album))
+    # quality badge to initial value
     updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, quality_badge)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY, song_quality_summary)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MB_ID, subsonic_util.get_album_musicbrainz_id(album))
@@ -249,13 +251,13 @@ def build_album_metadata(
             else None)
         if lossless_status:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS, lossless_status.value)
-        # quality badge
-        quality_badge: str = (
+        # quality badge from properties if available
+        prop_quality_badge: str | None = (
             prop_dict[AlbumPropertyKey.QUALITY_BADGE.property_key][0]
             if AlbumPropertyKey.QUALITY_BADGE.property_key in prop_dict
             else None)
-        if quality_badge:
-            updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, quality_badge)
+        if prop_quality_badge:
+            updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, prop_quality_badge)
         album_path_joined: str = album_util.get_album_path_list_joined(song_list=song_list)
         if album_path_joined:
             updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, album_path_joined)
@@ -278,8 +280,8 @@ def build_album_metadata(
     updated_metadata.set_value(
         album_metadata_model=AlbumMetadataModel.ALBUM_STARRED,
         value=subsonic_util.get_album_starred(album=album))
-    updated_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, created_timestamp)
-    updated_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, updated_timestamp)
+    updated_metadata.set_value(AlbumMetadataModel.CREATED_TIMESTAMP, created_timestamp if created_timestamp else datetime_util.now())
+    updated_metadata.set_value(AlbumMetadataModel.UPDATED_TIMESTAMP, updated_timestamp if updated_timestamp else datetime_util.now())
     return updated_metadata
 
 
@@ -328,8 +330,8 @@ def build_song_metadata(
     updated_metadata.set_value(SongMetadataModel.SONG_TYPE, subsonic_util.get_song_type(song=song))
     updated_metadata.set_value(
         SongMetadataModel.CREATED_TIMESTAMP,
-        created_timestamp if created_timestamp else datetime.datetime.now())
+        created_timestamp if created_timestamp else datetime_util.now())
     updated_metadata.set_value(
         SongMetadataModel.UPDATED_TIMESTAMP,
-        updated_timestamp if updated_metadata else datetime.datetime.now())
+        updated_timestamp if updated_timestamp else datetime_util.now())
     return updated_metadata

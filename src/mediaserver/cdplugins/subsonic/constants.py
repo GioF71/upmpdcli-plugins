@@ -14,11 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+from typing import Any
 
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.16.1"
+    PLUGIN_RELEASE = "0.9.17"
     PLUGIN_NAME = "subsonic"
 
 
@@ -89,16 +90,15 @@ class AlbumEntryType(Enum):
 class Defaults(Enum):
 
     SUBSONIC_API_MAX_RETURN_SIZE = 500  # API Hard Limit
-    CACHED_REQUEST_TIMEOUT_SEC = 30
     FALLBACK_TRANSCODE_CODEC = "ogg"
 
 
 # we should remove the Defaults enumerated and converge to this new enumerated
 class _ConfigParamData:
 
-    def __init__(self, key: str, default_value: any, description: str):
+    def __init__(self, key: str, default_value: Any, description: str):
         self.__key: str = key
-        self.__default_value: any = default_value
+        self.__default_value: Any = default_value
         self.__description: str = description
 
     @property
@@ -106,7 +106,7 @@ class _ConfigParamData:
         return self.__key
 
     @property
-    def default_value(self) -> any:
+    def default_value(self) -> Any:
         return self.__default_value
 
     @property
@@ -475,6 +475,11 @@ class ConfigParam(Enum):
         default_value=True,
         description=("Preload songs at plugin startup time, requires preloadalbums"))
 
+    ALLOW_DUPLICATE_ALBUMS = _ConfigParamData(
+        key="allowduplicatealbums",
+        default_value=True,
+        description=("Show entries that will display albums with the same title and same title/version, if any"))
+
     BROWSE_WITHOUT_CACHE = _ConfigParamData(
         key="browsewithoutcache",
         default_value=False,
@@ -501,7 +506,7 @@ class ConfigParam(Enum):
 
     PURGE_IDENTIFIER_CACHE = _ConfigParamData(
         key="purgeidentifiercache",
-        default_value=True,
+        default_value=False,
         description=("Purge the identifier cache records created by id caching"))
 
     EXECUTE_VACUUM = _ConfigParamData(
@@ -511,7 +516,7 @@ class ConfigParam(Enum):
 
     CACHED_REQUEST_TIMEOUT_SEC = _ConfigParamData(
         key="cachedrequesttimeoutsec",
-        default_value=Defaults.CACHED_REQUEST_TIMEOUT_SEC.value,
+        default_value=30,
         description=("Timeout for cached requests in seconds"))
 
     MAX_FAVORITE_SONGS_PER_PAGE = _ConfigParamData(
@@ -561,7 +566,7 @@ class ConfigParam(Enum):
         default_value=True,
         description=("Allow to mix songs from multiple versions of the same album, "
                      " instead of presenting multiple versions"))
-    
+
     STRIP_VERSION_FROM_TITLE = _ConfigParamData(
         "stripversionfromtitle",
         default_value=True,
@@ -602,7 +607,7 @@ class ConfigParam(Enum):
         return self.value.key
 
     @property
-    def default_value(self) -> any:
+    def default_value(self) -> Any:
         return self.value.default_value
 
     @property
@@ -614,7 +619,11 @@ config_param_dict: dict[str, ConfigParam] = {param.key: param for param in Confi
 
 class _TranscodingInfoData:
 
-    def __init__(self, codec: str, default_bitrate: int, default_bitdepth: int = None):
+    def __init__(
+            self,
+            codec: str,
+            default_bitrate: int,
+            default_bitdepth: int | None= None):
         self.__codec: str = codec
         self.__default_bitrate: int = default_bitrate
         self.__default_bitdepth: int = default_bitdepth
@@ -633,7 +642,6 @@ class _TranscodingInfoData:
 
 
 class TranscodingInfo(Enum):
-
     OPUS = _TranscodingInfoData(codec="opus", default_bitrate=512, default_bitdepth=0)
     OGG = _TranscodingInfoData(codec="ogg", default_bitrate=500, default_bitdepth=0)
     MP3 = _TranscodingInfoData(codec="mp3", default_bitrate=320, default_bitdepth=0)
@@ -652,7 +660,7 @@ class TranscodingInfo(Enum):
         return self.value.default_bitdepth
 
 
-def get_transcoding_information_by_coded(codec: str) -> TranscodingInfo | None:
+def __get_transcoding_information_by_codec(codec: str) -> TranscodingInfo | None:
     current: TranscodingInfo
     for current in TranscodingInfo:
         if current.codec.lower() == codec.lower():
@@ -662,12 +670,12 @@ def get_transcoding_information_by_coded(codec: str) -> TranscodingInfo | None:
 
 
 def get_default_bitrate_by_codec(codec: str) -> int | None:
-    info: TranscodingInfo = get_transcoding_information_by_coded(codec=codec)
+    info: TranscodingInfo = __get_transcoding_information_by_codec(codec=codec)
     return info.default_bitrate if info else None
 
 
 def get_default_bitdepth_by_codec(codec: str) -> int | None:
-    info: TranscodingInfo = get_transcoding_information_by_coded(codec=codec)
+    info: TranscodingInfo = __get_transcoding_information_by_codec(codec=codec)
     return info.default_bitdepth if info else None
 
 
@@ -709,7 +717,6 @@ class NameTranslatorData:
 
 
 class NameTranslator(Enum):
-
     ARTIST = NameTranslatorData(ThingName.ARTIST.value, "Artist")
     ALBUM_ARTIST = NameTranslatorData(ThingName.ALBUM_ARTIST.value, "Album Artist")
     PERFORMER = NameTranslatorData(ThingName.PERFORMER.value, "Performer")
@@ -746,13 +753,11 @@ class _ExplicitStatusData:
 
 
 class ExplicitDiplayMode:
-
     SHORT = 1
     LONG = 2
 
 
 class ExplicitStatus(Enum):
-
     EXPLICIT = _ExplicitStatusData("explicit", "E", "Explicit")
     CLEAN = _ExplicitStatusData("clean", "C", "Clean")
 
@@ -763,12 +768,10 @@ class UpnpMeta(Enum):
 
 
 class MetadataMaxLength(Enum):
-
     ALBUM_PATH = 128
 
 
 class Separator:
-
     DISC_NUMBER_SEPARATOR: str = ","
     GENRE_FOR_ARTIST_SEPARATOR: str = ","
 
@@ -792,7 +795,6 @@ class _SupportedImageTypeData:
 
 
 class SupportedImageType(Enum):
-
     JPG = _SupportedImageTypeData(extension_list=["jpg", "jpeg", "jpe"], content_type_list=["image/jpeg"])
     PNG = _SupportedImageTypeData(extension_list=["png"], content_type_list=["image/png"])
 

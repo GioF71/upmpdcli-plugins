@@ -13,22 +13,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import constants
+from typing import Any
 
 import upmplgutils
+from dotenv import dotenv_values
+from subsonic_connector.configuration import ConfigurationInterface
+
 # uncomment when py-sonic with useragent support is released
 from subsonic_connector.connector import Constants as SubsonicConnectorConstants
-from subsonic_connector.configuration import ConfigurationInterface
-from tag_type import TagType
-from dotenv import dotenv_values
+
+import constants
 from album_property_key import AlbumPropertyKey
+from tag_type import TagType
+
+
+class ConfigurationException(Exception):
+    """Raised for a tag is not found."""
 
 
 def get_plugin_config_variable_name(name: str) -> str:
     return f"{constants.PluginConstant.PLUGIN_NAME.value}{name}"
 
 
-def _get_option_value(nm, dflt: any = None):
+def _get_option_value(nm, dflt: Any = None):
     return upmplgutils.getOptionValue(get_plugin_config_variable_name(nm), dflt)
 
 
@@ -83,11 +90,11 @@ def is_tag_supported(tag: TagType) -> bool:
     return True
 
 
-def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> str:
+def get_config_param_as_str(configuration_parameter: constants.ConfigParam, allow_non_str: bool = False) -> str:
     dv: str | None = configuration_parameter.default_value
-    if dv is not None and not isinstance(dv, str):
-        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = _get_option_value(configuration_parameter.key, dv)
+    if dv is not None and not isinstance(dv, str) and not allow_non_str:
+        raise ConfigurationException(f"Invalid default value for [{configuration_parameter.key}]")
+    v: Any = _get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -100,8 +107,8 @@ def get_config_param_as_str(configuration_parameter: constants.ConfigParam) -> s
 def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> str:
     dv: int | None = configuration_parameter.default_value
     if dv is not None and not isinstance(dv, int):
-        raise Exception(f"Invalid default value for [{configuration_parameter.key}]")
-    v: any = _get_option_value(configuration_parameter.key, dv)
+        raise ConfigurationException(f"Invalid default value for [{configuration_parameter.key}]")
+    v: Any = _get_option_value(configuration_parameter.key, dv)
     if v is None:
         return None
     # v is set, check type!
@@ -113,7 +120,7 @@ def get_config_param_as_int(configuration_parameter: constants.ConfigParam) -> s
 
 def get_config_param_as_bool(configuration_parameter: constants.ConfigParam) -> bool:
     default_value_as_int: int = 0
-    dv: any = configuration_parameter.default_value
+    dv: Any = configuration_parameter.default_value
     if isinstance(dv, int):
         default_value_as_int = 1 if dv == 1 else 0
     elif isinstance(dv, bool):
@@ -198,7 +205,7 @@ class UpmpdcliSubsonicConfig(ConfigurationInterface):
     def getLegacyAuth(self) -> bool:
         legacy_auth_enabled_str: str = _get_option_value("legacyauth", "false")
         if legacy_auth_enabled_str.lower() not in ["true", "false", "1", "0"]:
-            raise Exception(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
+            raise ConfigurationException(f"Invalid value for SUBSONIC_LEGACYAUTH [{legacy_auth_enabled_str}]")
         return legacy_auth_enabled_str in ["true", "1"]
 
     def getSalt(self) -> str:

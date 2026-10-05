@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from typing import Optional
+from typing import Any
 
 import upmpdmeta
 import upmplgutils
@@ -64,7 +64,7 @@ def genre_artist_to_entry(
         genre: str,
         artist_id: str,
         artist_name: str,
-        album_cover_art: str = None) -> dict[str, any]:
+        album_cover_art: str | None = None) -> dict[str, Any]:
     msgproc.log(f"genre_artist_to_entry genre:[{genre}] artist_id:[{artist_id}] artist_name:[{artist_name}]")
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.GENRE_ARTIST.element_name,
@@ -78,7 +78,7 @@ def genre_artist_to_entry(
         objid,
         artist_name)
     if artist_id:
-        entry: dict[str, any] = artist_to_entry_raw(
+        entry: dict[str, Any] = artist_to_entry_raw(
             objid=objid,
             artist_id=artist_id,
             artist_entry_name=artist_name,
@@ -90,7 +90,7 @@ def album_to_navigable_entry(
         objid,
         album: Album,
         album_metadata: AlbumMetadata = None,
-        options: dict[str, any] = {}) -> dict[str, any]:
+        options: dict[str, Any] | None = None) -> dict[str, Any]:
     title: str = subsonic_util.get_album_title(album)
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album=album)
     if album_metadata is None:
@@ -104,11 +104,14 @@ def album_to_navigable_entry(
     album_quality_badge: str = album_metadata.quality_badge if album_metadata else None
     album_lossless_status: str = album_metadata.get_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS)
     album_avg_bitrate: int = album_metadata.get_value(AlbumMetadataModel.ALBUM_AVERAGE_BITRATE)
-    if album_quality_badge is not None and album_lossless_status is not None and album_avg_bitrate is not None:
-        # see if we need to add bitrate
-        if not audio_codec.get_lossless_status_by_value(v=album_lossless_status) == audio_codec.LosslessStatus.LOSSLESS:
-            # we add bitrate to badge
-            album_quality_badge = f"{album_quality_badge} ({album_avg_bitrate}kb/s)"
+    if (
+        album_quality_badge is not None
+        and album_lossless_status is not None
+        and album_avg_bitrate is not None
+        and audio_codec.get_lossless_status_by_value(v=album_lossless_status) != audio_codec.LosslessStatus.LOSSLESS
+    ):
+        # for lossy, we want to add bitrate to the quality badge
+        album_quality_badge = f"{album_quality_badge} ({album_avg_bitrate}kb/s)"
     album_version: str = subsonic_util.get_album_version(album)
     # explicit?
     title = subsonic_util.append_explicit_if_needed(title, album)
@@ -173,7 +176,7 @@ def album_to_navigable_entry(
                 entry_title = f"{entry_title} [mb:{album_mbid}]"
     # anomalies
     show_album_genre_information(album)
-    entry: dict[str, any] = upmplgutils.direntry(
+    entry: dict[str, Any] = upmplgutils.direntry(
         id=id,
         pid=objid,
         title=entry_title,
@@ -209,7 +212,7 @@ def show_album_genre_information(album: Album):
 
 def genre_to_entry(
         objid,
-        current_genre: Genre) -> dict[str, any]:
+        current_genre: Genre) -> dict[str, Any]:
     verbose: bool = config.get_verbose_logging()
     genre_name: str = current_genre.getName()
     genre_art: str = None
@@ -269,19 +272,19 @@ def maybe_append_roles(entry_name: str, artist: Artist) -> str:
 def artist_to_entry(
         objid,
         artist: Artist,
-        entry_name: str = None,
-        cover_art: str = None,
-        additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
-        options: dict[str, any] = {}) -> dict[str, any]:
+        entry_name: str | None = None,
+        cover_art: str | None = None,
+        additional_identifier_properties: dict[ItemIdentifierKey, Any] | None = None,
+        options: dict[str, Any] | None = None) -> dict[str, Any]:
     verbose: bool = config.get_verbose_logging()
-    cover_art: str = cover_art if cover_art else subsonic_util.get_artist_cover_art(artist)
+    cover_art: str | None = cover_art if cover_art else subsonic_util.get_artist_cover_art(artist)
     artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
     if verbose:
         msgproc.log(f"artist_to_entry artist [{artist.getId()}] [{artist.getName()}] -> "
                     f"roles [{artist_roles}] "
                     f"coverArt [{cover_art}]")
     select_artist_entry_name: str = entry_name if entry_name else maybe_append_roles(artist.getName(), artist)
-    artist_entry: dict[str, any] = artist_to_entry_raw(
+    artist_entry: dict[str, Any] = artist_to_entry_raw(
         objid=objid,
         artist_id=artist.getId(),
         artist_entry_name=select_artist_entry_name,
@@ -296,10 +299,10 @@ def artist_to_entry_raw(
         objid,
         artist_id: str,
         artist_entry_name: str,
-        artist_cover_art: str = None,
-        album_cover_art: str = None,
-        additional_identifier_properties: dict[ItemIdentifierKey, any] = {},
-        options: dict[str, any] = {}) -> dict[str, any]:
+        artist_cover_art: str | None = None,
+        album_cover_art: str | None = None,
+        additional_identifier_properties: dict[ItemIdentifierKey, Any] | None = None,
+        options: dict[str, Any] | None = None) -> dict[str, Any]:
     verbose: bool = config.get_verbose_logging()
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST.element_name,
@@ -361,8 +364,7 @@ def artist_to_entry_raw(
 
 def artist_initial_to_entry(
         objid,
-        artist_initial: str,
-        options: dict[str, any] = dict()) -> dict[str, any]:
+        artist_initial: str) -> dict[str, Any]:
     encoded_artist_initial: str = codec.base64_encode(artist_initial)
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_BY_INITIAL.element_name,
@@ -370,7 +372,7 @@ def artist_initial_to_entry(
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    entry: dict[str, any] = upmplgutils.direntry(id, objid, artist_initial)
+    entry: dict[str, Any] = upmplgutils.direntry(id, objid, artist_initial)
     return entry
 
 
@@ -407,7 +409,7 @@ def build_intermediate_url(track_id: str, suffix: str) -> str:
             max_bitrate=tr_bitrate)
 
 
-def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, any]):
+def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, Any]):
     verbose: bool = config.get_verbose_logging()
     # declaring channel count, bit depth, sample rate and bit rate
     cc: int = 2
@@ -442,7 +444,7 @@ def set_song_quality_flags(song: Song | PlaylistEntry, entry: dict[str, any]):
         bd = tr_bitdepth if tr_bitdepth else bd
         upnp_util.set_bit_depth(bd, entry)
         # guess mime type from suffx
-        guessed_mimetype: Optional[str] = subsonic_util.get_mime_type_from_extension(tr_format)
+        guessed_mimetype: str | None = subsonic_util.get_mime_type_from_extension(tr_format)
         if verbose:
             msgproc.log(f"set_song_quality_flags guessed_mimetype from tr_format [{tr_format}]: [{guessed_mimetype}]")
         mimetype = guessed_mimetype
@@ -463,7 +465,7 @@ def song_to_entry(
         objid,
         song: Song,
         force_cover_art_save: bool = False,
-        options: dict[str, any] = {}) -> dict:
+        options: dict[str, Any] | None = None) -> dict:
     verbose: bool = config.get_verbose_logging()
     entry = {}
     identifier: ItemIdentifier = ItemIdentifier(ElementType.SONG.element_name, song.getId())
@@ -480,7 +482,7 @@ def song_to_entry(
     if (MultiCodecAlbum.YES == multi_codec_album and
         config.get_config_param_as_bool(constants.ConfigParam.ALLOW_BLACKLIST_CODEC_IN_SONG) and
             (song.getSuffix().lower() not in config.get_whitelist_codecs())):
-        title = "{} [{}]".format(title, song.getSuffix())
+        title = f"{title} [{song.getSuffix()}]"
     upnp_util.set_track_title(title, entry)
     entry['tp'] = 'it'
     entry['discnumber'] = song.getDiscNumber()
@@ -491,16 +493,16 @@ def song_to_entry(
     upnp_util.set_track_number(track_num, entry)
     upnp_util.set_artist(subsonic_util.get_song_display_artist(song=song), entry)
     song_album_artist: str = subsonic_util.get_song_display_album_artist(song=song)
-    if song_album_artist:
-        if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_SONG_DIDL_ALBUMARTIST):
-            if verbose:
-                msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
-            upnp_util.set_didlfrag(
-                didlfrag=upnp_util.build_didlfrag(
-                    key="upnp:artist",
-                    role="AlbumArtist",
-                    value=song_album_artist),
-                target=entry)
+    if (song_album_artist and
+            config.get_config_param_as_bool(constants.ConfigParam.ALLOW_SONG_DIDL_ALBUMARTIST)):
+        if verbose:
+            msgproc.log(f"Setting didlfrag with [{song_album_artist}] ...")
+        upnp_util.set_didlfrag(
+            didlfrag=upnp_util.build_didlfrag(
+                key="upnp:artist",
+                role="AlbumArtist",
+                value=song_album_artist),
+            target=entry)
     entry['upnp:album'] = song.getAlbum()
     entry['upnp:genre'] = song.getGenre()
     album_art_uri: str = subsonic_util.build_cover_art_url(item_id=song.getCoverArt(), force_save=force_cover_art_save)
@@ -517,7 +519,7 @@ def song_to_entry(
 
 def playlist_to_entry(
         objid,
-        playlist: Playlist) -> dict[str, any]:
+        playlist: Playlist) -> dict[str, Any]:
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.PLAYLIST.element_name,
         playlist.getId())
@@ -536,7 +538,7 @@ def album_to_entry(
         objid,
         album: Album,
         album_metadata: AlbumMetadata = None,
-        options: dict[str, any] = {}) -> dict[str, any]:
+        options: dict[str, Any] | None = None) -> dict[str, Any]:
     verbose: bool = config.get_verbose_logging()
     if album_metadata is None:
         album_metadata = persistence.get_album_metadata(album_id=album.getId())
@@ -567,7 +569,7 @@ def album_to_entry(
                          if is_search_result
                          else config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW))
     if append_year and has_year(album):
-        title = "{} [{}]".format(title, get_album_year_str(album))
+        title = f"{title} [{get_album_year_str(album)}]"
     force_load_quality_info: bool = get_option(
         options=options,
         option_key=OptionKey.FORCE_RELOAD_ALBUM_QUALITY_INFO)
@@ -619,7 +621,7 @@ def album_to_entry(
                     whitelist_count += 1
         # show version count if count > 1
         if album_tracks.getAlbumVersionCount() > 1:
-            title = "{} [{} versions]".format(title, album_tracks.getAlbumVersionCount())
+            title = f"{title} [{album_tracks.getAlbumVersionCount()} versions]"
         # show or not?
         all_whitelisted: bool = len(codecs) == whitelist_count
         if len(codecs) > 1 or not all_whitelisted:
@@ -629,7 +631,7 @@ def album_to_entry(
             codecs_str: str = ",".join(codecs)
             # add codecs if more than one or there is no quality_badge
             if (len(codecs) > 1) or (not album_quality_badge or len(album_quality_badge) == 0):
-                title = "{} [{}]".format(title, codecs_str)
+                title = f"{title} [{codecs_str}]"
     # set badge
     if any_lossy:
         # add bitrate to quality badge
@@ -651,9 +653,10 @@ def album_to_entry(
     # musicbrainz?
     album_mbid: str = subsonic_util.get_album_musicbrainz_id(album)
     if verbose:
-        msgproc.log(f"Found album_mbid [{album_mbid}] "
-                    f"for album [{album.getId()}] "
-                    f"[{subsonic_util.get_album_title(album)}] "
+        msgproc.log(f"album_to_entry album [{album.getId()}] "
+                    f"qbadge [{album_quality_badge}] "
+                    f"with album_mbid [{album_mbid}] "
+                    f"title [{subsonic_util.get_album_title(album)}] "
                     f"by [{subsonic_util.get_album_display_artist(album=album)}]")
     show_mbid: bool = config.get_config_param_as_bool(
         constants.ConfigParam.SHOW_ALBUM_MBID_IN_ALBUM_SEARCH_RES
@@ -670,7 +673,7 @@ def album_to_entry(
     id: str = identifier_util.create_objid(
         objid=objid,
         id=identifier_util.create_id_from_identifier(identifier))
-    entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
+    entry: dict[str, Any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     didl_fragment: str = ""
     # add album artist
     if config.get_config_param_as_bool(constants.ConfigParam.SET_ALBUM_ARTIST_ROLE_ALBUMARTIST):
@@ -698,7 +701,7 @@ def album_to_entry(
 def _load_album_version_tracks(
         album: Album,
         album_version_path: str) -> list[Song]:
-    track_list: list[Song] = list()
+    track_list: list[Song] = []
     current_song: Song
     for current_song in album.getSongs():
         song_path: str = get_dir_from_path(current_song.getPath())
@@ -710,7 +713,7 @@ def _load_album_version_tracks(
 
 def album_id_to_album_focus(
         objid,
-        album: Album) -> dict[str, any]:
+        album: Album) -> dict[str, Any]:
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ALBUM_FOCUS.element_name,
         album.getId())
@@ -725,7 +728,7 @@ def album_id_to_album_focus(
 
 def artist_id_to_artist_focus(
         objid,
-        artist_id: str) -> dict[str, any]:
+        artist_id: str) -> dict[str, Any]:
     identifier: ItemIdentifier = ItemIdentifier(
         ElementType.ARTIST_FOCUS.element_name,
         artist_id)
@@ -741,7 +744,7 @@ def album_version_to_entry(
         current_album: Album,
         version_number: int,
         album_version_path: str,
-        codec_set: set[str]) -> dict[str, any]:
+        codec_set: set[str]) -> dict[str, Any]:
     identifier: ItemIdentifier = ItemIdentifier(ElementType.ALBUM_VERSION.element_name, current_album.getId())
     avp_encoded: str = codec.base64_encode(album_version_path)
     identifier.set(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, avp_encoded)
@@ -751,11 +754,11 @@ def album_version_to_entry(
     title: str = f"Version #{version_number}"
     if (config.get_config_param_as_bool(constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW) and
             has_year(current_album)):
-        title = "{} [{}]".format(title, get_album_year_str(current_album))
+        title = f"{title} [{get_album_year_str(current_album)}]"
     codecs_str: str = ",".join(codec_set)
-    title = "{} [{}]".format(title, codecs_str)
+    title = f"{title} [{codecs_str}]"
     last_path: str = get_last_path_element(album_version_path)
-    title = "{} [{}]".format(title, last_path)
+    title = f"{title} [{last_path}]"
     # album badge on the list of tracks
     track_list: list[Song] = _load_album_version_tracks(
         album=current_album,
@@ -767,7 +770,7 @@ def album_version_to_entry(
         msgproc.log(f"album_version_to_entry title [{title}]")
     artist = subsonic_util.get_album_display_artist(album=current_album)
     # cache_actions.on_album(current_album)
-    entry: dict[str, any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
+    entry: dict[str, Any] = upmplgutils.direntry(id, objid, title=title, artist=artist)
     current_album_cover_art: str = subsonic_util.build_cover_art_url(item_id=current_album.getCoverArt())
     upnp_util.set_album_art_from_uri(current_album_cover_art, entry)
     upnp_util.set_class_album(entry)

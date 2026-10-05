@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,12 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from item_identifier_key import ItemIdentifierKey
 import copy
 import random
 import string
-import constants
+from typing import Any
+
 import config
+import constants
+from item_identifier_key import ItemIdentifierKey
+
+
+class ItemIdentifierException(Exception):
+    """Raised when a ItemIdentifier error occurs."""
 
 
 class ItemIdentifier:
@@ -28,26 +34,26 @@ class ItemIdentifier:
         return ''.join(random.choice(letters) for i in range(length))
 
     @classmethod
-    def from_dict(cls, id_dict: dict[str, any]):
+    def from_dict(cls, id_dict: dict[str, Any]):
         thing_name: str = ItemIdentifier.__check_mandatory(id_dict, ItemIdentifierKey.THING_NAME)
-        thing_value: any = ItemIdentifier.__check_mandatory(id_dict, ItemIdentifierKey.THING_VALUE)
+        thing_value: Any = ItemIdentifier.__check_mandatory(id_dict, ItemIdentifierKey.THING_VALUE)
         id: ItemIdentifier = cls(thing_name, thing_value)
         for k, v in id_dict.items():
             if not id.__has_name(k):
                 id.__set(k, v)
         return id
 
-    def __check_mandatory(id_dict: dict[str, any], id_key: ItemIdentifierKey) -> any:
+    def __check_mandatory(id_dict: dict[str, Any], id_key: ItemIdentifierKey) -> Any:
         if id_key.identifier_name not in id_dict:
-            raise Exception("Mandatory [{id_key.identifier_name}] missing")
+            raise ItemIdentifierException(f"Mandatory [{id_key.identifier_name}] missing")
         return id_dict[id_key.identifier_name]
 
-    def __init__(self, name: str, value: any):
-        self.__dict: dict[str, any] = {}
+    def __init__(self, name: str, value: Any):
+        self.__dict: dict[str, Any] = {}
         if not name:
-            raise Exception("name cannot be empty")
+            raise ItemIdentifierException("name cannot be empty")
         if not value:
-            raise Exception("value cannot be empty")
+            raise ItemIdentifierException("value cannot be empty")
         self.set(ItemIdentifierKey.THING_NAME, name)
         self.set(ItemIdentifierKey.THING_VALUE, value)
         if config.get_config_param_as_bool(constants.ConfigParam.ENABLE_RANDOM_ID):
@@ -63,20 +69,20 @@ class ItemIdentifier:
     def __has_name(self, name: str):
         return name in self.__dict
 
-    def get(self, key: ItemIdentifierKey, defaultValue: any = None):
+    def get(self, key: ItemIdentifierKey, defaultValue: Any = None):
         return self.__get(key.identifier_name, defaultValue)
 
-    def __get(self, key_name: str, defaultValue: any = None):
-        return self.__dict[key_name] if key_name in self.__dict else defaultValue
+    def __get(self, key_name: str, defaultValue: Any = None):
+        return self.__dict.get(key_name, defaultValue)
 
     def set(self, key: ItemIdentifierKey, value):
         if not self.__valid_key(key):
-            raise Exception(f"Key {key.identifier_name if key else None} already set")
+            raise ItemIdentifierException(f"Key {key.identifier_name if key else None} already set")
         self.__set(key.identifier_name, value)
 
     def __set(self, key_name: str, value):
         if not self.__valid_key_name(key_name):
-            raise Exception(f"Key {key_name} already set")
+            raise ItemIdentifierException(f"Key {key_name} already set")
         self.__dict[key_name] = value
 
     def __valid_key(self, key: ItemIdentifierKey) -> bool:

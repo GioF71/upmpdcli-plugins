@@ -14,16 +14,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import datetime
+from typing import Any
+
+import datetime_util
 from metadata import Metadata
 from metadata_model import ArtistMetadataModel
-from typing import Optional
-from typing import Any
-import datetime
 
 
 class ArtistMetadata(Metadata):
 
-    def get_value(self, artist_metadata_model: ArtistMetadataModel) -> Optional[Any]:
+    def get_value(self, artist_metadata_model: ArtistMetadataModel) -> Any | None:
         return self._get(artist_metadata_model.column_name)
 
     def set_value(self, artist_metadata_model: ArtistMetadataModel, value: Any):
@@ -69,10 +70,10 @@ class ArtistMetadata(Metadata):
             self,
             artist_name: str,
             artist_musicbrainz_id: str,
-            artist_album_count: int = None,
-            artist_cover_art: str = None,
-            artist_media_type: str = None,
-            artist_sort_name: str = None):
+            artist_album_count: int | None = None,
+            artist_cover_art: str | None = None,
+            artist_media_type: str | None = None,
+            artist_sort_name: str | None = None):
         any_update: bool = False
         if artist_name and len(artist_name) > 0:
             self.set_value(ArtistMetadataModel.ARTIST_NAME, artist_name)
@@ -93,4 +94,4 @@ class ArtistMetadata(Metadata):
             self.set_value(ArtistMetadataModel.ARTIST_SORT_NAME, artist_sort_name)
             any_update = True
         if any_update:
-            self.set_value(ArtistMetadataModel.UPDATED_TIMESTAMP, datetime.datetime.now())
+            self.set_value(ArtistMetadataModel.UPDATED_TIMESTAMP, datetime_util.now())

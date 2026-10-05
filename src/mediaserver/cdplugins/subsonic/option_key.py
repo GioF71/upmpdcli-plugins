@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+from typing import Any
+
 from album_util import MultiCodecAlbum
+
+
+class OptionKeyException(Exception):
+    """Raised when an option key error occurs."""
 
 
 class OptionKey(Enum):
@@ -35,15 +41,15 @@ class OptionKey(Enum):
             self,
             num: int,
             element_name: str,
-            default_value: any):
+            default_value: Any):
         self.num: int = num
         self.element_name: str = element_name
-        self.default_value: any = default_value
+        self.default_value: Any = default_value
 
     def get_name(self) -> str:
         return self.element_name
 
-    def get_default_value(self) -> any:
+    def get_default_value(self) -> Any:
         return self.default_value
 
 
@@ -52,8 +58,8 @@ name_checker_set: set[str] = set()
 id_checker_set: set[int] = set()
 for v in OptionKey:
     if v.get_name() in name_checker_set:
-        raise Exception(f"Duplicated name [{v.get_name()}]")
+        raise OptionKeyException(f"Duplicated name [{v.get_name()}]")
     if v.value[0] in id_checker_set:
-        raise Exception(f"Duplicated id [{v.value[0]}]")
+        raise OptionKeyException(f"Duplicated id [{v.value[0]}]")
     name_checker_set.add(v.get_name())
     id_checker_set.add(v.value[0])

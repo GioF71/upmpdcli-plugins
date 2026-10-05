@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,64 +13,65 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from enum import Enum
+from enum import Enum, auto
+
 import idgenerator
+
 import config
 import constants
+
+
+class ItemIdentifierKeyException(Exception):
+    """Raised when a ItemIdentifierKey error occurs."""
 
 base_chars: str = "abcdefghijklmnopqrtuvwxyz0123456789"
 current_id: int = None
 
 
-class _ItemIdentifierKey:
-
-    def __init__(self):
-        global current_id
-        if current_id is None:
-            current_id = 0
-        else:
-            current_id += 1
-        self.__element_name: str = idgenerator.number_to_base_decoded(n=current_id, base_chars=base_chars)
-
-    @property
-    def identifier_name(self) -> str:
-        return self.__element_name
-
-
 class ItemIdentifierKey(Enum):
-    THING_NAME = _ItemIdentifierKey()
-    THING_VALUE = _ItemIdentifierKey()
-    GENRE_NAME = _ItemIdentifierKey()
-    PAGE_NUMBER = _ItemIdentifierKey()
-    ALBUM_ID = _ItemIdentifierKey()
-    OFFSET = _ItemIdentifierKey()
-    TAG_TYPE = _ItemIdentifierKey()
-    ALBUM_VERSION_PATH_BASE64 = _ItemIdentifierKey()
-    RADIO_NAME = _ItemIdentifierKey()
-    SONG_AS_NAVIGABLE_ENTRY = _ItemIdentifierKey()
-    RANDOM_VALUE = _ItemIdentifierKey()
-    SKIP_ARTIST_ID = _ItemIdentifierKey()
-    ALBUM_RELEASE_TYPE = _ItemIdentifierKey()
-    ALBUM_ID_REF_FOR_ARTIST = _ItemIdentifierKey()
-    ALBUM_DISC_NUMBERS = _ItemIdentifierKey()
-    ALBUM_IGNORE_DISCNUMBERS = _ItemIdentifierKey()
-    ARTIST_ROLE = _ItemIdentifierKey()
-    ALBUM_BROWSE_SELECTION_LIST = _ItemIdentifierKey()
-    ALBUM_BROWSE_FILTER_KEY = _ItemIdentifierKey()
-    ALBUM_TITLE = _ItemIdentifierKey()
-    ALBUM_VERSION = _ItemIdentifierKey()
+    THING_NAME = auto()
+    THING_VALUE = auto()
+    GENRE_NAME = auto()
+    PAGE_NUMBER = auto()
+    ALBUM_ID = auto()
+    OFFSET = auto()
+    TAG_TYPE = auto()
+    ALBUM_VERSION_PATH_BASE64 = auto()
+    RADIO_NAME = auto()
+    SONG_AS_NAVIGABLE_ENTRY = auto()
+    RANDOM_VALUE = auto()
+    SKIP_ARTIST_ID = auto()
+    ALBUM_RELEASE_TYPE = auto()
+    ALBUM_ID_REF_FOR_ARTIST = auto()
+    ALBUM_DISC_NUMBERS = auto()
+    ALBUM_IGNORE_DISCNUMBERS = auto()
+    ARTIST_ROLE = auto()
+    ALBUM_BROWSE_SELECTION_LIST = auto()
+    ALBUM_BROWSE_FILTER_KEY = auto()
+    ALBUM_TITLE = auto()
+    ALBUM_VERSION = auto()
+    LIMIT = auto()
+    ALBUM_ARTIST = auto()
+    INCLUDE_ALBUM_VERSION = auto()
+
+    def __init__(self, val):
+        self.__identifier_name: str = idgenerator.number_to_base_decoded(n=val, base_chars=base_chars)
 
     @property
     def identifier_name(self) -> str:
+        # if MINIMIZE_IDENTIFIER_LENGTH is True
+        # we return the name of the enum because it will be encoded anyway
+        # otherwise return the short __identifier_name which is a
+        # base encoded string of the auto() value
         if config.get_config_param_as_bool(constants.ConfigParam.MINIMIZE_IDENTIFIER_LENGTH):
             return self.name
         else:
-            return self.value.element_name
+            return self.__identifier_name
 
 
 # duplicate check
 name_checker_set: set[str] = set()
 for v in ItemIdentifierKey:
     if v.identifier_name in name_checker_set:
-        raise Exception(f"Duplicated name [{v.identifier_name}]")
+        raise ItemIdentifierKeyException(f"Duplicated name [{v.identifier_name}]")
     name_checker_set.add(v.identifier_name)

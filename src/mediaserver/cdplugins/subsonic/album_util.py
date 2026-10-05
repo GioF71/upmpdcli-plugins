@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ import re
 import time
 from enum import Enum
 from functools import cmp_to_key
+from typing import Any
 
 from subsonic_connector.album import Album
 from subsonic_connector.song import Song
@@ -98,8 +99,8 @@ class __Decorated_Song:
 
     def __init__(self, song: Song):
         self._song: Song = song
-        self._disc: int = song.getDiscNumber() if song.getDiscNumber() else 0
-        self._track: int = song.getTrack() if song.getTrack() else 0
+        self._disc: int = song.getDiscNumber() if song.getDiscNumber() else 1
+        self._track: int = song.getTrack() if song.getTrack() else 1
         path: str = get_dir_from_path(song.getPath())
         last_path = os.path.basename(os.path.normpath(path))
         last_path_ignorable: bool = _ignorable(last_path)
@@ -228,7 +229,7 @@ def __get_formatted_album_date(album: Album, item_key: constants.ItemKey) -> str
 
 
 def _get_album_release_year(album: Album, item_key: constants.ItemKey) -> int:
-    ord_dict: dict[str, any] = album.getItem().getByName(item_key.value)
+    ord_dict: dict[str, Any] = album.getItem().getByName(item_key.value)
     if ord_dict is None:
         return None
     # just return year.

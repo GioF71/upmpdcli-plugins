@@ -13,15 +13,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import random
+
 from subsonic_connector.album import Album
 from subsonic_connector.album_list import AlbumList
 from subsonic_connector.response import Response
-import request_cache
-import connector_provider
+
 import config
+import connector_provider
 import constants
+import request_cache
 from msgproc_provider import msgproc
-import random
 
 
 class TagToEntryContext:

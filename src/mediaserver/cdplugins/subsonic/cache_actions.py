@@ -27,24 +27,31 @@ import config
 import metadata_converter
 import persistence
 import subsonic_util
+from album_metadata import AlbumMetadata
 from album_property_key import AlbumPropertyKey
 from artist_from_album import ArtistFromAlbum
-from metadata_model import SongMetadataModel
+from metadata_model import AlbumMetadataModel, SongMetadataModel
 from msgproc_provider import msgproc
 from song_data_structures import SongArtist, SongArtistType, SongContributor
 from table_name import TableName
+
+
+class CacheActionException(Exception):
+    """Raised when a Cache Action error occurs."""
 
 
 def delete_key(cache_type: cache_type.CacheType, key: str) -> bool:
     return cache_manager_provider.get().delete_cached_element(cache_type.cache_name, key)
 
 
-def on_album(album: Album):
+def on_album(
+        album: Album,
+        album_metadata: AlbumMetadata | None = None):
     start: float = time.time()
     connection: sqlite3.Connection = persistence.get_working_connection()
     try:
-        __on_album(album=album, connection=connection)
-    except Exception as ex:
+        __on_album(album=album, album_metadata=album_metadata, connection=connection)
+    except CacheActionException as ex:
         msgproc.log(f"on_album failed due to [{type(ex)}] [{ex}]")
         connection.close()
     elapsed: float = time.time() - start
@@ -52,27 +59,34 @@ def on_album(album: Album):
         msgproc.log(f"on_album for album_id [{album.getId()}] executed in [{elapsed:.3f}]")
 
 
-def __on_album(album: Album, connection: sqlite3.Connection | None = None):
+def __on_album(
+        album: Album,
+        album_metadata: AlbumMetadata | None = None,
+        connection: sqlite3.Connection | None = None):
     if not album or not album.getId():
         # nothing to do
         return
     verbose: bool = config.get_verbose_logging()
     the_connection: sqlite3.Connection = persistence.get_working_connection(connection)
-    album_quality_badge: str = None
-    track_quality_summary: str = None
-    album_path_joined: str = None
+    album_quality_badge: str = album_metadata.quality_badge if album_metadata else None
+    track_quality_summary: str = album_metadata.get_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY) if album_metadata else None
+    album_path_joined: str = album_metadata.get_value(AlbumMetadataModel.ALBUM_PATH) if album_metadata else None
     song_list: list[Song] = album.getSongs()
     song_count: int = len(song_list) if song_list else 0
+    if verbose:
+        msgproc.log(f"__on_album [{album.getId()}] -> len(song_list) [{len(song_list if song_list else [])}]")
     if len(song_list) if song_list else 0:
         # we can calculate qualities and path
         album_quality_badge = subsonic_util.calc_song_list_quality_badge(song_list=song_list)
         track_quality_summary = subsonic_util.calc_song_quality_summary(song_list=song_list)
         album_path_joined = album_util.get_album_path_list_joined(song_list=song_list)
-        if verbose:
-            msgproc.log(f"__on_album [{album.getId()}] -> "
-                        f"badge [{album_quality_badge}] "
-                        f"summary [{track_quality_summary}] "
-                        f"path [{album_path_joined}]")
+        #if verbose:
+    if verbose:
+        msgproc.log(f"__on_album [{album.getId()}] -> "
+                    f"song_count [{song_count}] "
+                    f"badge [{album_quality_badge}] "
+                    f"summary [{track_quality_summary}] "
+                    f"path [{album_path_joined}]")
     # delete orphaned tracks
     # msgproc.log("delete_song_list_not_in")
     persistence.delete_song_list_not_in(

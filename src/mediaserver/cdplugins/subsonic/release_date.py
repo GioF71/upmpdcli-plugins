@@ -27,7 +27,7 @@ class ReleaseDate:
                 self.__dict[k.value] = obj_dict[k.value]
 
     def __or_none(self, dict_key: constants.DictKey) -> str | None:
-        return self.__dict[dict_key.value] if dict_key.value in self.__dict else None
+        return self.__dict.get(dict_key.value, None)
 
     def __or_none_as_int(self, dict_key: constants.DictKey) -> str | None:
         or_none: str | None = self.__or_none(dict_key=dict_key)

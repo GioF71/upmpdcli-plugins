@@ -14,12 +14,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
-import constants
+import sqlite3
+
 import config
-from msgproc_provider import msgproc
+import constants
 import persistence
 from cache_type import CacheType
-import sqlite3
+from msgproc_provider import msgproc
+
+
+class CodecException(Exception):
+    """Raised when a Codec error occurs."""
 
 
 __encoding: str = "utf-8"
@@ -34,7 +39,7 @@ def encode(data: str) -> str:
             value=encoded_name,
             connection=connection)
         if len(kv_list) > 1:
-            raise Exception(f"Duplicate entries for [{encoded_name}]")
+            raise CodecException(f"Duplicate entries for [{encoded_name}]")
         kv_item: persistence.KeyValueItem = kv_list[0] if len(kv_list) == 1 else None
         if kv_item:
             return kv_item.key
@@ -62,7 +67,7 @@ def decode(id: str) -> str:
             partition=CacheType.ITEM_IDENTIFIER_CODEC.cache_name,
             key=id)
         if encoded_kv is None:
-            raise Exception(f"codec.decode id [{id}] not found, please browse from the root of the plugin")
+            raise CodecException(f"codec.decode id [{id}] not found, please browse from the root of the plugin")
         # decode encoded value
         return base64_decode(encoded_kv.value)
     else:

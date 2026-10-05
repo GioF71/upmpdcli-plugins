@@ -1,4 +1,4 @@
-# Copyright (C) 2024,2025 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,21 +15,24 @@
 
 # this should contain all methods which interact directly with the subsonic server
 
-from subsonic_connector.response import Response
-from subsonic_connector.album_list import AlbumList
-from subsonic_connector.artists import Artists
-from subsonic_connector.genres import Genres
-from subsonic_connector.starred import Starred
-from subsonic_connector.playlists import Playlists
-from subsonic_connector.artist import Artist
-from subsonic_connector.search_result import SearchResult
-from subsonic_connector.list_type import ListType
-from msgproc_provider import msgproc
-import config
-import constants
-import connector_provider
 import datetime
 import time
+
+from subsonic_connector.album_list import AlbumList
+from subsonic_connector.artist import Artist
+from subsonic_connector.artists import Artists
+from subsonic_connector.genres import Genres
+from subsonic_connector.list_type import ListType
+from subsonic_connector.playlists import Playlists
+from subsonic_connector.response import Response
+from subsonic_connector.search_result import SearchResult
+from subsonic_connector.starred import Starred
+
+import config
+import connector_provider
+import constants
+import datetime_util
+from msgproc_provider import msgproc
 
 
 class CachedResponse:
@@ -56,7 +59,7 @@ cached_all_artist_list: CachedArtistList = CachedArtistList()
 def __is_older_than(date_time: datetime.datetime, delta_sec: int) -> bool:
     if date_time is None:
         return True
-    cutoff: datetime.datetime = datetime.datetime.now() - datetime.timedelta(seconds=delta_sec)
+    cutoff: datetime.datetime = datetime_util.now() - datetime.timedelta(seconds=delta_sec)
     return date_time < cutoff
 
 
@@ -91,7 +94,7 @@ def get_playlists() -> Response[Artists]:
         # store response along with timestamp
         cached_playlists = CachedResponse()
         cached_playlists.last_response_obj = res
-        cached_playlists.last_response_time = datetime.datetime.now()
+        cached_playlists.last_response_time = datetime_util.now()
         return res
     else:
         return cached_playlists.last_response_obj
@@ -110,7 +113,7 @@ def get_starred() -> Response[Starred]:
         # store response along with timestamp
         cached_starred = CachedResponse()
         cached_starred.last_response_obj = res
-        cached_starred.last_response_time = datetime.datetime.now()
+        cached_starred.last_response_time = datetime_util.now()
         if verbose:
             msgproc.log(f"request_cache.get_starred took [{(time.time() - start):.3f}] sec")
         return res
@@ -129,7 +132,7 @@ def get_all_artists() -> list[Artist]:
         all_artists: list[Artist] = _load_all_artists()
         cached_all_artist_list = CachedArtistList()
         cached_all_artist_list.last_Artist_List = all_artists
-        cached_all_artist_list.last_response_time = datetime.datetime.now()
+        cached_all_artist_list.last_response_time = datetime_util.now()
         return all_artists
     else:
         return cached_all_artist_list.last_Artist_List
@@ -170,7 +173,7 @@ def get_artists() -> Response[Artists]:
         # store response along with timestamp
         cached_response_artists = CachedResponse()
         cached_response_artists.last_response_obj = res
-        cached_response_artists.last_response_time = datetime.datetime.now()
+        cached_response_artists.last_response_time = datetime_util.now()
         msgproc.log("subsonic_util.get_artists artists have been loaded.")
         return res
     else:
@@ -218,7 +221,7 @@ def get_random_album_list(
                 musicFolderId=musicFolderId)
             cached_response_random_firstpage = CachedResponse()
             cached_response_random_firstpage.last_response_obj = res
-            cached_response_random_firstpage.last_response_time = datetime.datetime.now()
+            cached_response_random_firstpage.last_response_time = datetime_util.now()
             return res
         else:
             # use cached!
@@ -236,7 +239,7 @@ def get_genres() -> Response[Genres]:
         res: Response[Genres] = connector_provider.get().getGenres()
         cached_response_genres = CachedResponse()
         cached_response_genres.last_response_obj = res
-        cached_response_genres.last_response_time = datetime.datetime.now()
+        cached_response_genres.last_response_time = datetime_util.now()
         msgproc.log(f"subsonic_util.get_genres finished loading [{len(res.getObj().getGenres())}] genres")
         return res
     else:
@@ -254,12 +257,12 @@ def get_first_newest_album_list() -> list[AlbumList]:
         res: Response[AlbumList] = connector_provider.get().getAlbumList(
             ltype=ListType.BY_YEAR,
             size=config.get_items_per_page(),
-            fromYear=datetime.datetime.now().year,
+            fromYear=datetime_util.now().year,
             toYear=0,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         cached_response_newest = CachedResponse()
         cached_response_newest.last_response_obj = res
-        cached_response_newest.last_response_time = datetime.datetime.now()
+        cached_response_newest.last_response_time = datetime_util.now()
         msgproc.log(f"subsonic_util.get_first_newest_album_list finished loading [{len(res.getObj().getAlbums())}] albums")
         return res
     else:

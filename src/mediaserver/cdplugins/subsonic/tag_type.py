@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,18 +14,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
-import idgenerator
-import constants
-import config
 
+import idgenerator
+
+import config
+import constants
 
 base_chars: str = "abcdefghijklmnopqrtuvwxyz0123456789"
 current_id: int = None
 
 
+class TagTypeNotFoundException(Exception):
+    """Raised for a tag is not found."""
+
+
 class _TagTypeData:
 
-    def __init__(self, tag_title: str, query_type: str = None):
+    def __init__(self, tag_title: str, query_type: str | None = None):
         global current_id
         if current_id is None:
             current_id = 0
@@ -79,9 +84,15 @@ class TagType(Enum):
     PLAYLISTS = _TagTypeData("Playlists")
     INTERNET_RADIOS = _TagTypeData("Internet Radios")
     ALBUM_BROWSER = _TagTypeData("Album Browser")
+    DUPLICATE_ALBUMS_BY_TITLE = _TagTypeData("Duplicate by Title")
+    DUPLICATE_ALBUMS_BY_TITLE_VERSION = _TagTypeData("Duplicate by Title/Version")
 
     @property
     def tag_name(self) -> str:
+        # if MINIMIZE_IDENTIFIER_LENGTH is True
+        # we return the name of the enum because it will be encoded anyway
+        # otherwise return the short tag_name which is a
+        # base encoded string of the auto() value
         if config.get_config_param_as_bool(constants.ConfigParam.MINIMIZE_IDENTIFIER_LENGTH):
             return self.name
         else:
@@ -101,4 +112,4 @@ def get_tag_type_by_name(tag_name: str) -> TagType:
     for tag in TagType:
         if tag_name == tag.tag_name:
             return tag
-    raise Exception(f"get_tag_type_by_name with {tag_name} NOT found")
+    raise TagTypeNotFoundException(f"{TagType.__name__} with {tag_name} NOT found")

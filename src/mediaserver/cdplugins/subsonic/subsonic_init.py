@@ -37,19 +37,25 @@ from subsonic_connector.search_result import SearchResult
 from subsonic_connector.song import Song
 
 import album_util
-import artist_from_album as artist_from_album
+import artist_from_album
 import config
 import connector_provider
 import constants
+import datetime_util
 import metadata_converter
 import persistence
 import subsonic_util
 from album_metadata import AlbumMetadata
 from album_property_key import AlbumPropertyKey
+from element_type import ElementType
 from metadata_model import AlbumMetadataModel
 from msgproc_provider import msgproc
 from song_data_structures import SongArtistType
 from table_name import TableName
+
+
+class InitException(Exception):
+    """Raised when a Init error occurs."""
 
 
 def get_image_cache_path_for_pruning(www_image_path: list[str]) -> str:
@@ -65,7 +71,7 @@ def get_image_cache_path_for_pruning(www_image_path: list[str]) -> str:
         return None
     # is the provided argument a valid non-empty list?
     if not www_image_path or not isinstance(www_image_path, list) or len(www_image_path) == 0:
-        msgproc.log("www_image_path is not a valid list, cannot allow pruning.")
+        msgproc.log("Value for www_image_path [{www_image_path}] is not a valid list, cannot allow pruning.")
         return None
     return subsonic_util.ensure_directory(
         upmplgutils.getUpnpWebDocRoot(constants.PluginConstant.PLUGIN_NAME.value),
@@ -90,6 +96,14 @@ def prune_cache(images_static_dir: str):
 
 def subsonic_init():
     msgproc.log(f"Subsonic [{constants.PluginConstant.PLUGIN_RELEASE.value}] Initializing ...")
+    # display element_type(s)
+    et: ElementType
+    for et in ElementType:
+        msgproc.log(f"{ElementType.__name__} [{et.name}] -> [{et.element_name}]")
+    # display configuration
+    curr: constants.ConfigParam
+    for curr in sorted(constants.ConfigParam, key=lambda x: x.key):
+        msgproc.log(f"Config param [{curr.key}] -> [{config.get_config_param_as_str(curr, allow_non_str=True)}]")
     init_success: bool = False
     try:
         cache_dir: str = upmplgutils.getcachedir(constants.PluginConstant.PLUGIN_NAME.value)
@@ -113,7 +127,7 @@ def subsonic_init():
             curr: MusicFolder
             for curr in res_mf.getObj().getMusicFolders():
                 msgproc.log(f"Music Folder [{curr.getId()}] [{curr.getName()}]")
-        purge_id_cache()
+        maybe_purge_id_cache()
         check_supports()
         detect_anomalies()
         if config.get_config_param_as_bool(constants.ConfigParam.EXECUTE_VACUUM):
@@ -126,12 +140,12 @@ def subsonic_init():
             images_static_dir: str = subsonic_util.ensure_directory(
                 config.getWebServerDocumentRoot(),
                 path_images_static)
-            msgproc.log(f"Directory for static images [{images_static_dir}] created.")
+            msgproc.log(f"Directory for static images [{images_static_dir}] available.")
             path_images_subsonic: list[str] = config.get_webserver_path_images_cache()
             images_cached_dir: str = subsonic_util.ensure_directory(
                 config.getWebServerDocumentRoot(),
                 path_images_subsonic)
-            msgproc.log(f"Directory for cached images [{images_cached_dir}] created.")
+            msgproc.log(f"Directory for cached images [{images_cached_dir}] available.")
             pkg_datadir: str = upmplgutils.getOptionValue('pkgdatadir')
             msgproc.log(f"pkg_datadir: [{pkg_datadir}]")
             src_path: str = (f"{pkg_datadir}/cdplugins/{constants.PluginConstant.PLUGIN_NAME.value}")
@@ -242,7 +256,7 @@ class PreloadAlbumsResult:
         self.__albums[album.album_id] = album
 
     def get_album(self, album_id: str) -> PreloadedAlbum | None:
-        return self.__albums[album_id] if album_id in self.__albums else None
+        return self.__albums.get(album_id, None)
 
     @property
     def album_count(self) -> int:
@@ -250,7 +264,7 @@ class PreloadAlbumsResult:
 
 
 def get_loaded_song_list(loaded_by_album_id: dict[str, list[Song]], album_id: str) -> list[Song]:
-    existing: list[Song] = loaded_by_album_id[album_id] if album_id in loaded_by_album_id else None
+    existing: list[Song] = loaded_by_album_id.get(album_id, None)
     if existing is None:
         existing = []
         loaded_by_album_id[album_id] = existing
@@ -264,7 +278,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()
     enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
-    preload_start: datetime.datetime = datetime.datetime.now()
+    preload_start: datetime.datetime = datetime_util.now()
     song_offset: int = 0
     total_stored: int = 0
     req_count: int = constants.Defaults.SUBSONIC_API_MAX_RETURN_SIZE.value
@@ -292,17 +306,16 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
         cnt: int = 0
         for song in res.getSongs():
             album_exists: bool = song.getAlbumId() in album_id_set
-            if not album_exists:
-                if song.getAlbumId() not in missing_album_id_set:
-                    # try loading.
-                    album_md: AlbumMetadata = persistence.get_album_metadata(
-                        album_id=song.getAlbumId(),
-                        connection=connection)
-                    if album_md:
-                        album_id_set.add(song.getAlbumId())
-                        album_exists = True
-                    else:
-                        missing_album_id_set.add(song.getAlbumId())
+            if not album_exists and song.getAlbumId() not in missing_album_id_set:
+                # try loading.
+                album_md: AlbumMetadata = persistence.get_album_metadata(
+                    album_id=song.getAlbumId(),
+                    connection=connection)
+                if album_md:
+                    album_id_set.add(song.getAlbumId())
+                    album_exists = True
+                else:
+                    missing_album_id_set.add(song.getAlbumId())
             cnt += 1
             if not album_exists:
                 msgproc.log(f"Skipping song [{song.getId()}] (missing album [{song.getAlbumId()}])")
@@ -326,7 +339,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
             elif save_mode == persistence.SaveMode.UPDATED:
                 partial_update_count += 1
             else:
-                raise Exception(f"Invalid mode [{save_mode}]")
+                raise InitException(f"Invalid mode [{save_mode}]")
             persistence.save_song_album_artist_list(
                 song_id=song.getId(),
                 album_id=song.getAlbumId(),
@@ -430,7 +443,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
     preload_verbose_logging: bool = (verbose_logging and
                                      config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_VERBOSE_LOGGING))
     start: float = time.time()
-    preload_start: datetime.datetime = datetime.datetime.now()
+    preload_start: datetime.datetime = datetime_util.now()
     enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
     album_offset: int = 0
     total_stored: int = 0
@@ -450,9 +463,8 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
         album: Album
         partial_insert_count: int = 0
         partial_update_count: int = 0
-        cnt: int = 0
-        for album in res.getAlbums():
-            cnt += 1
+        cnt: int
+        for cnt, album in enumerate(res.getAlbums(), start=1):
             if preload_verbose_logging:
                 msgproc.log(f"preload_albums for [{album.getId()}] "
                             f"[{cnt}] of [{retrieved}] ([{cnt + album_offset}])...")
@@ -473,7 +485,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
             elif save_mode == persistence.SaveMode.UPDATED:
                 partial_update_count += 1
             else:
-                raise Exception(f"Invalid mode [{save_mode}]")
+                raise InitException(f"Invalid mode [{save_mode}]")
             album_properties = subsonic_util.build_album_properties(album=album)
             # filter properties based on enabled keys
             album_properties = {k: v for k, v in album_properties.items() if k in [x.property_key for x in enabled_album_property_key_list]}
@@ -573,7 +585,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
 def preload_artists(connection: sqlite3.Connection):
     msgproc.log("preload_artists starting ...")
     start: float = time.time()
-    preload_start: datetime.datetime = datetime.datetime.now()
+    preload_start: datetime.datetime = datetime_util.now()
     msgproc.log("preload_artists connection created ...")
     artist_offset: int = 0
     total_stored: int = 0
@@ -624,7 +636,7 @@ def preload_artists(connection: sqlite3.Connection):
 
 
 def initial_caching():
-    thread = threading.Thread(target=initial_caching_executor, args=tuple([]))
+    thread = threading.Thread(target=initial_caching_executor)
     # Start it
     thread.start()
 
@@ -632,7 +644,7 @@ def initial_caching():
 def initial_caching_executor():
     preload_success: bool = True
     preload_start: float = time.time()
-    initial_caching_start: datetime.datetime = datetime.datetime.fromtimestamp(preload_start)
+    initial_caching_start: datetime.datetime = datetime_util.now()
     preload_max_delta_sec: int = config.get_config_param_as_int(constants.ConfigParam.PRELOAD_MAX_DELTA_SEC)
     preload_artists_enabled: bool = config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ARTISTS)
     preload_albums_enabled: bool = preload_artists_enabled and config.get_config_param_as_bool(constants.ConfigParam.PRELOAD_ALBUMS)
@@ -702,6 +714,6 @@ def initial_caching_executor():
                     f"in [{preload_elapsed:.3f}]")
 
 
-def purge_id_cache():
+def maybe_purge_id_cache():
     if config.get_config_param_as_bool(constants.ConfigParam.PURGE_IDENTIFIER_CACHE):
         persistence.purge_id_cache()
