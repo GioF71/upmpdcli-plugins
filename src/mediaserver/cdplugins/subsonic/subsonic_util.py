@@ -26,30 +26,20 @@ import time
 from collections.abc import Callable
 from enum import Enum
 from functools import cmp_to_key
-from typing import Any, Optional
-
-import musicbrainzutils
-import requests
-import upmpdmeta
-from subsonic_connector.album import Album
-from subsonic_connector.album_list import AlbumList
-from subsonic_connector.artist import Artist
-from subsonic_connector.connector import Connector
-from subsonic_connector.list_type import ListType
-from subsonic_connector.playlist_entry import PlaylistEntry
-from subsonic_connector.response import Response
-from subsonic_connector.search_result import SearchResult
-from subsonic_connector.song import Song
+from typing import Any
 
 import album_util
 import audio_codec
-import cache_actions
 import cache_manager_provider
 import config
 import connector_provider
 import constants
+import datetime_util
+import musicbrainzutils
 import persistence
 import request_cache
+import requests
+import upmpdmeta
 import upnp_util
 from album_metadata import AlbumMetadata
 from album_property_key import AlbumPropertyKey
@@ -62,7 +52,20 @@ from msgproc_provider import msgproc
 from replay_gain import ReplayGain
 from song_data_structures import SongArtist, SongArtistType, SongContributor
 from song_info import SongInfo
+from subsonic_connector.album import Album
+from subsonic_connector.album_list import AlbumList
+from subsonic_connector.artist import Artist
+from subsonic_connector.connector import Connector
+from subsonic_connector.list_type import ListType
+from subsonic_connector.playlist_entry import PlaylistEntry
+from subsonic_connector.response import Response
+from subsonic_connector.search_result import SearchResult
+from subsonic_connector.song import Song
 from tag_type import TagType
+
+
+class UtilException(Exception):
+    """Raised when an Util error occurs."""
 
 
 class __StreamingDictKey(Enum):
@@ -121,7 +124,7 @@ def build_album_properties(album: Album) -> dict[str, list[Any]]:
     # suffixes and lossless status
     song_list: list[Song] = album.getSongs()
     if len(song_list if song_list else []) > 0:
-        song_properties: dict[str, any] = build_album_properties_from_songs(song_list=song_list)
+        song_properties: dict[str, Any] = build_album_properties_from_songs(song_list=song_list)
         # contribute to main dictionary
         res.update(song_properties)
     return res
@@ -191,10 +194,7 @@ def __is_multiple_of_2_8m(n: int) -> bool:
     # We use underscores for readability; Python treats 2_800_000 as 2800000
     target = 2_822_400
     # Check if the remainder is 0 and the number is not 0 (if 0 isn't desired)
-    if n != 0 and n % target == 0:
-        return True
-    else:
-        return False
+    return bool(n != 0 and n % target == 0)
 
 
 def calc_song_resolution(song: Song) -> audio_codec.ResolutionStatus:
@@ -221,11 +221,15 @@ def calc_song_resolution(song: Song) -> audio_codec.ResolutionStatus:
     return audio_codec.ResolutionStatus.LOW
 
 
-def calc_song_list_resolution(song_list: list[Song], list_identifier: str = None) -> list[str]:
+def calc_song_list_resolution(
+        song_list: list[Song],
+        list_identifier: str | None = None) -> list[str]:
     return list({calc_song_resolution(x).value for x in song_list})
 
 
-def calc_song_list_quality_badge(song_list: list[Song], list_identifier: str = None) -> str:
+def calc_song_list_quality_badge(
+        song_list: list[Song],
+        list_identifier: str | None = None) -> str:
     prop_dict: dict[str, list[int]] = _get_track_list_streaming_properties(song_list=song_list)
     song_info_list: list[SongInfo] = get_song_info_list(song_list=song_list)
     if not song_info_list or len(song_info_list) == 0:
@@ -288,9 +292,7 @@ def calc_song_list_quality_badge(song_list: list[Song], list_identifier: str = N
         sr: str = __get_readable_sampling_rate(best_sampling_rate)
         if best_bit_depth == 0:
             # lossy
-            suffix_list: list[str] = (prop_dict[__StreamingDictKey.DICT_KEY_SUFFIX.value]
-                                      if __StreamingDictKey.DICT_KEY_SUFFIX.value in prop_dict
-                                      else [])
+            suffix_list: list[str] = (prop_dict.get(__StreamingDictKey.DICT_KEY_SUFFIX.value, []))
             display_codec: str = (suffix_list[0]
                                   if len(suffix_list) == 1
                                   else "lossy")
@@ -364,7 +366,7 @@ def _get_unique_suffix(prop_dict: dict[str, list[int]]) -> str:
 
 
 def _get_track_list_streaming_properties(song_list: list[Song]) -> dict[str, list[int]]:
-    result: dict[str, list[int]] = dict()
+    result: dict[str, list[int]] = {}
     song: Song
     for song in song_list:
         # bit depth
@@ -384,7 +386,7 @@ def _get_track_list_streaming_properties(song_list: list[Song]) -> dict[str, lis
 
 def calc_lossless_status(song_info_list: list[SongInfo]) -> audio_codec.LosslessStatus:
     if not song_info_list:
-        raise Exception("calc_lossless_status requires a valid list of songs")
+        raise UtilException("calc_lossless_status requires a valid list of songs")
     lossy_count: int = 0
     lossless_count: int = 0
     curr: SongInfo
@@ -420,12 +422,12 @@ def __all_lossy(song_info_list: list[SongInfo]) -> bool:
 
 
 def __maybe_append_to_dict_list(
-        prop_dict: dict[str, list[any]],
+        prop_dict: dict[str, list[Any]],
         dict_key: str,
-        new_value: any):
+        new_value: Any):
     if new_value is None:
         return
-    item_list: list[any] = None
+    item_list: list[Any] = None
     if dict_key not in prop_dict:
         item_list = []
         # list was not there, safe to add
@@ -502,7 +504,7 @@ def try_get_album(
     except Exception as e:
         msgproc.log(f"Cannot find Album by album_id [{album_id}] due to [{type(e)}] [{e}]")
         if propagate_fail:
-            raise e
+            raise
 
 
 def try_get_artist(artist_id: str) -> Artist:
@@ -550,7 +552,6 @@ def get_album_tracks(album_id: str) -> tuple[Album, album_util.AlbumTracks]:
     if album:
         msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] "
                     f"artist [{get_album_display_artist(album=album)}] ...")
-        cache_actions.on_album(album=album)
         if verbose:
             msgproc.log(f"get_album_tracks executing on_album on album_id [{album_id}] completed.")
     else:
@@ -582,15 +583,7 @@ def get_albums(
             size=size,
             offset=offset,
             musicFolderId=music_folder_id)
-    elif TagType.NEWEST_ALBUMS.query_type == query_type:
-        albumListResponse = connector.getAlbumList(
-            ltype=ListType.BY_YEAR,
-            size=size,
-            offset=offset,
-            fromYear=fromYear,
-            toYear=toYear,
-            musicFolderId=music_folder_id)
-    elif TagType.OLDEST_ALBUMS.query_type == query_type:
+    elif TagType.NEWEST_ALBUMS.query_type == query_type or TagType.OLDEST_ALBUMS.query_type == query_type:
         albumListResponse = connector.getAlbumList(
             ltype=ListType.BY_YEAR,
             size=size,
@@ -639,8 +632,8 @@ def get_albums(
             size=size,
             offset=offset)
     if not albumListResponse.isOk():
-        raise Exception(f"Cannot execute query {query_type} "
-                        f"for size {size} offset {offset}")
+        raise UtilException(f"Cannot execute query {query_type} "
+                            f"for size {size} offset {offset}")
     return albumListResponse.getObj().getAlbums()
 
 
@@ -716,8 +709,8 @@ def get_album_list_by_artist_genre(
             genre=genre_name,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         if not album_list_response.isOk():
-            raise Exception(f"Failed to load albums for "
-                            f"genre {genre_name} offset {offset}")
+            raise UtilException(f"Failed to load albums for "
+                                f"genre {genre_name} offset {offset}")
         album_list: list[Album] = album_list_response.getObj().getAlbums()
         current_album: Album
         for current_album in album_list if album_list and len(album_list) > 0 else []:
@@ -778,11 +771,11 @@ def __get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurr
             role: str = current[constants.DictKey.ROLE.value]
             artist_dict: dict[str, str] = current[constants.DictKey.ARTIST.value]
             if not isinstance(artist_dict, dict):
-                raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
-                                f"{constants.DictKey.ARTIST.value} dict")
+                raise UtilException(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
+                                    f"{constants.DictKey.ARTIST.value} dict")
             if constants.DictKey.ID.value not in artist_dict or constants.DictKey.NAME.value not in artist_dict:
-                raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
-                                f"{constants.DictKey.ID.value} or {constants.DictKey.NAME.value} key")
+                raise UtilException(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the "
+                                    f"{constants.DictKey.ID.value} or {constants.DictKey.NAME.value} key")
             contributor: Contributor = Contributor(
                 role=role,
                 artist_reference=ArtistsOccurrence(
@@ -790,17 +783,17 @@ def __get_contributors_in_song_or_album(obj: Song | Album) -> list[ArtistsOccurr
                     name=artist_dict[constants.DictKey.NAME.value]))
             result.append(contributor)
         else:
-            raise Exception(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the expected keys")
+            raise UtilException(f"Item {constants.ItemKey.CONTRIBUTORS.value} does not contain the expected keys")
     return result
 
 
 def get_artists_in_song_or_album_by_artist_type(obj: Song | Album, item_key: constants.ItemKey) -> list[ArtistsOccurrence]:
     valid_object_types: list[type] = [Song, Album]
     if not obj or type(obj) not in valid_object_types:
-        raise Exception(f"obj must be in [{valid_object_types}]")
+        raise UtilException(f"obj must be in [{valid_object_types}]")
     valid_types: list[constants.ItemKey] = [constants.ItemKey.ARTISTS, constants.ItemKey.ALBUM_ARTISTS]
     if not item_key or item_key not in [constants.ItemKey.ARTISTS, constants.ItemKey.ALBUM_ARTISTS]:
-        raise Exception(f"item_key must be in [{valid_types}]")
+        raise UtilException(f"item_key must be in [{valid_types}]")
     artist_list: list[dict[str, str]] = obj.getItem().getListByName(item_key.value)
     result: list[ArtistsOccurrence] = []
     current: dict[str, str]
@@ -809,7 +802,7 @@ def get_artists_in_song_or_album_by_artist_type(obj: Song | Album, item_key: con
             occ: ArtistsOccurrence = ArtistsOccurrence(current[constants.DictKey.ID.value], current[constants.DictKey.NAME.value])
             result.append(occ)
         else:
-            raise Exception(f"Item {item_key.value} does not contain the expected keys")
+            raise UtilException(f"Item {item_key.value} does not contain the expected keys")
     return result
 
 
@@ -862,7 +855,10 @@ def is_artist_id_in_artist_occurrence_list(artist_id: str, lst: list[ArtistsOccu
     return False
 
 
-def __is_artist_id_in_contributor_list(artist_id: str, lst: list[Contributor], with_role: str = None) -> bool:
+def __is_artist_id_in_contributor_list(
+        artist_id: str,
+        lst: list[Contributor],
+        with_role: str | None = None) -> bool:
     curr: Contributor
     for curr in lst:
         if with_role and curr.role != with_role:
@@ -873,7 +869,10 @@ def __is_artist_id_in_contributor_list(artist_id: str, lst: list[Contributor], w
     return False
 
 
-def __is_authored_or_contributed_by_artist_id(obj: Song | Album, artist_id: str, with_role: str = None) -> bool:
+def __is_authored_or_contributed_by_artist_id(
+        obj: Song | Album,
+        artist_id: str,
+        with_role: str | None = None) -> bool:
     album_artist_list: list[ArtistsOccurrence] = get_artists_in_song_or_album_by_artist_type(obj, constants.ItemKey.ALBUM_ARTISTS)
     if is_artist_id_in_artist_occurrence_list(artist_id, album_artist_list):
         return True
@@ -1018,7 +1017,7 @@ def compareAlbumReleaseTypes(left: AlbumReleaseTypes, right: AlbumReleaseTypes) 
 
 
 def get_album_list_release_types(album_list: list[Album]) -> dict[str, int]:
-    result: dict[str, int] = dict()
+    result: dict[str, int] = {}
     current: Album
     for current in album_list if album_list else []:
         album_release_types: AlbumReleaseTypes = get_album_release_types(current)
@@ -1030,7 +1029,9 @@ def get_album_list_release_types(album_list: list[Album]) -> dict[str, int]:
     return result
 
 
-def release_type_to_album_list_label(release_type: str, album_count: int = None) -> str:
+def release_type_to_album_list_label(
+        release_type: str,
+        album_count: int | None = None) -> str:
     if album_count is not None:
         return f"Release Type: {release_type.title()} [{album_count}]"
     else:
@@ -1051,7 +1052,7 @@ def get_artists_by_same_name(artist: Artist) -> list[Artist]:
         if matching.getId() == artist.getId():
             # skip same artist of course
             continue
-        if not (matching.getName().lower() == artist.getName().lower()):
+        if matching.getName().lower() != artist.getName().lower():
             # skip artist which simply contain the artist name
             continue
         artist_list.append(matching)
@@ -1085,10 +1086,7 @@ def uncategorized_releases_only(release_types: dict[str, int]) -> bool:
     if rl == 0:
         return True
     # rl is 1
-    if "" in release_types:
-        return True
-    else:
-        return False
+    return "" in release_types
 
 
 def get_song_size(song: Song) -> str:
@@ -1131,7 +1129,7 @@ def get_explicit_status(obj: Album | Song) -> str:
 def get_explicit_status_display_value(
         explicit_status: str,
         display_mode: constants.ExplicitDiplayMode = constants.ExplicitDiplayMode.SHORT) -> str:
-    for _, v in constants.ExplicitStatus.__members__.items():
+    for v in constants.ExplicitStatus.__members__.values():
         explicit_info: constants._ExplicitStatusData = v.value
         if explicit_info.tag_value == explicit_status:
             return (explicit_info.display_value
@@ -1187,7 +1185,7 @@ def append_album_version_to_album_title(
         album_entry_type: constants.AlbumEntryType,
         is_search_result: bool) -> str:
     # don't append version if clean title ends with that already
-    if clean_album_title.endswith(f" ({album_version})") or clean_album_title.endswith(f" [{album_version}]"):
+    if clean_album_title.endswith((f" ({album_version})", f" [{album_version}]")):
         # do nothing, the clean title already contains the version
        return current_albumtitle
     return append_something_to_album_title(
@@ -1228,12 +1226,12 @@ def append_number_of_tracks_to_album_title(
 
 def get_genres_from_album(album: Album) -> list[str]:
     lst: list[str] = []
-    data_list: list[dict[str, any]] = album.getItem().getByName(
+    data_list: list[dict[str, Any]] = album.getItem().getByName(
         constants.ItemKey.GENRES.value,
         [])
-    itm: dict[str, any]
+    itm: dict[str, Any]
     for itm in data_list:
-        genre: str = itm[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in itm else None
+        genre: str = itm.get(constants.DictKey.NAME.value, None)
         if genre and len(genre) > 0:
             lst.append(genre)
     return lst
@@ -1241,13 +1239,13 @@ def get_genres_from_album(album: Album) -> list[str]:
 
 def get_disc_titles_from_album(album: Album) -> list[DiscTitle]:
     lst: list[DiscTitle] = []
-    disc_title_list: list[dict[str, any]] = album.getItem().getByName(
+    disc_title_list: list[dict[str, Any]] = album.getItem().getByName(
         constants.ItemKey.DISC_TITLES.value,
         [])
-    dt: dict[str, any]
+    dt: dict[str, Any]
     for dt in disc_title_list:
         disc_n: int = dt[constants.DictKey.DISC.value] if constants.DictKey.DISC.value in dt else len(lst) + 1
-        disc_t: int = dt[constants.DictKey.TITLE.value] if constants.DictKey.TITLE.value in dt else f"Disc {disc_n}"
+        disc_t: int = dt.get(constants.DictKey.TITLE.value, f"Disc {disc_n}")
         disc_title: DiscTitle = DiscTitle(disc_n, disc_t)
         lst.append(disc_title)
     return lst
@@ -1281,11 +1279,10 @@ def append_cached_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_
 
 
 def append_mb_id_to_artist_entry_name_if_allowed(entry_name: str, artist_mb_id: str) -> str:
-    if config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
-        if artist_mb_id:
-            as_ph: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER)
-            mb_val: str = ('mb' if as_ph else artist_mb_id)
-            entry_name = f"{entry_name} [{mb_val}]"
+    if artist_mb_id and config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID):
+        as_ph: bool = config.get_config_param_as_bool(constants.ConfigParam.SHOW_ARTIST_MB_ID_AS_PLACEHOLDER)
+        mb_val: str = ('mb' if as_ph else artist_mb_id)
+        entry_name = f"{entry_name} [{mb_val}]"
     return entry_name
 
 
@@ -1363,7 +1360,7 @@ def __parse_flexible(ts_str: str) -> datetime.datetime:
         return datetime.datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S%z")
     except ValueError:
         # Final fallback: Try without the timezone if it's missing
-        return datetime.datetime.strptime(ts_str.split('+')[0], "%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.strptime(ts_str.split('+')[0], "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime_util.get_default_timezone())
 
 
 def get_artist_starred(artist: Artist) -> datetime.datetime | None:
@@ -1404,9 +1401,9 @@ def get_song_starred(song: Song) -> datetime.datetime | None:
 def get_item_timestamp(
         obj: Album | Song,
         item_key: constants.ItemKey,
-        item_id_extractor: Callable[[any], str]) -> datetime.datetime | None:
+        item_id_extractor: Callable[[Any], str]) -> datetime.datetime | None:
     try:
-        v: any = obj.getItem().getByName(item_key.value) if obj else None
+        v: Any = obj.getItem().getByName(item_key.value) if obj else None
         as_str = v.decode('utf-8') if isinstance(v, bytes) else v
         return __parse_flexible(as_str) if as_str else None
     except Exception as ex:
@@ -1426,7 +1423,7 @@ def get_artist_cover_art(artist: Artist) -> str | None:
     if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_ARTIST_COVER_ART):
         return artist.getItem().getByName(constants.ItemKey.COVER_ART.value) if artist else None
     else:
-        None
+        return None
 
 
 def get_album_title(album: Album) -> str:
@@ -1572,13 +1569,13 @@ def get_artists_from_album(
     d: dict[str, str]
     id_set: set[str] = set()
     for d in lst:
-        artist_id: str = d[constants.DictKey.ID.value] if constants.DictKey.ID.value in d else None
-        artist_name: str = d[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in d else None
+        artist_id: str = d.get(constants.DictKey.ID.value, None)
+        artist_name: str = d.get(constants.DictKey.NAME.value, None)
         if not artist_id or not artist_name:
-            raise Exception(f"get_artists_from_album album_id [{album.getId()}] "
-                            f"[{get_album_title(album)}] by [{album.getArtist()}] "
-                            f"{item_key.value} keys "
-                            f"[{constants.DictKey.ID.value}, {constants.DictKey.NAME.value}] must be set")
+            raise UtilException(f"get_artists_from_album album_id [{album.getId()}] "
+                                f"[{get_album_title(album)}] by [{album.getArtist()}] "
+                                f"{item_key.value} keys "
+                                f"[{constants.DictKey.ID.value}, {constants.DictKey.NAME.value}] must be set")
         if (artist_id in id_set) and not allow_duplicate_artist_id:
             # skip, duplicate
             msgproc.log(f"get_artists_from_album album_id [{album.getId()}] "
@@ -1602,12 +1599,8 @@ def get_song_moods(song: Song) -> list[str]:
 
 
 def get_docroot_base_url() -> str:
-    host_port: str = (os.environ["UPMPD_UPNPHOSTPORT"]
-                      if "UPMPD_UPNPHOSTPORT" in os.environ
-                      else None)
-    doc_root: str = (os.environ["UPMPD_UPNPDOCROOT"]
-                     if "UPMPD_UPNPDOCROOT" in os.environ
-                     else None)
+    host_port: str = (os.environ.get("UPMPD_UPNPHOSTPORT", None))
+    doc_root: str = (os.environ.get("UPMPD_UPNPDOCROOT", None))
     if not host_port or not doc_root:
         return None
     return f"http://{host_port}"
@@ -1810,7 +1803,7 @@ def get_album_duration_display(album: Album) -> str:
 
 
 def get_album_disc_and_track_counters(album: Album) -> str:
-    disc_title_list: list[dict[str, any]] = album.getItem().getByName(
+    disc_title_list: list[dict[str, Any]] = album.getItem().getByName(
         constants.ItemKey.DISC_TITLES.value,
         [])
     return get_album_disc_and_track_counters_raw(
@@ -1831,7 +1824,7 @@ def get_songs_by_album_disc_numbers(album: Album) -> dict[int, list[Song]]:
     song: Song
     for song in album.getSongs():
         dn: int = song.getDiscNumber()
-        lst: list[Song] = res[dn] if dn in res else None
+        lst: list[Song] = res.get(dn, None)
         if not lst:
             # build and add to dict
             lst = []
@@ -1843,7 +1836,7 @@ def get_songs_by_album_disc_numbers(album: Album) -> dict[int, list[Song]]:
 
 def __get_name_list(song: Song, item_key: constants.ItemKey.ALBUM_ARTISTS) -> list[str]:
     result: list[str] = []
-    rl: list[dict[str, str]] = song.getItem().getListByName(item_key.value) if song else None
+    rl: list[dict[str, str]] = song.getItem().getListByName(item_key.value) if song else []
     current: dict[str, str]
     for current in rl:
         if constants.DictKey.NAME.value in current:
@@ -1860,7 +1853,7 @@ def get_song_artists_by_type(
         song_artist_type: SongArtistType,
         skip_duplicate_id: bool = True) -> list[SongArtist]:
     if song_artist_type is None or song_artist_type not in SongArtistType:
-        raise Exception("get_song_artists_by_type requires a valid song_artist_type")
+        raise UtilException("get_song_artists_by_type requires a valid song_artist_type")
     res: list[SongArtist] = []
     item_key: constants.ItemKey = (constants.ItemKey.ALBUM_ARTISTS
                                    if song_artist_type == SongArtistType.SONG_ALBUM_ARTIST
@@ -1869,8 +1862,8 @@ def get_song_artists_by_type(
     current: dict[str, str]
     id_set: set[str] = set()
     for current in lst:
-        id: str = current[constants.DictKey.ID.value] if constants.DictKey.ID.value in current else None
-        name: str = current[constants.DictKey.NAME.value] if constants.DictKey.NAME.value in current else None
+        id: str = current.get(constants.DictKey.ID.value, None)
+        name: str = current.get(constants.DictKey.NAME.value, None)
         if (not id or not name or id in id_set) and not skip_duplicate_id:
             continue
         id_set.add(id)
@@ -1886,9 +1879,9 @@ def get_song_contributors(song: Song) -> list[SongContributor]:
     lst: list[dict[str, str]] = song.getItem().getListByName(constants.ItemKey.CONTRIBUTORS.value) if song else None
     current: dict[str, str]
     for current in lst:
-        role: str = current[constants.DictKey.ROLE.value] if constants.DictKey.ROLE.value in current else None
-        sub_role: str = current[constants.DictKey.SUB_ROLE.value] if constants.DictKey.SUB_ROLE.value in current else None
-        artist: dict[str, str] = current[constants.DictKey.ARTIST.value] if constants.DictKey.ARTIST.value in current else None
+        role: str = current.get(constants.DictKey.ROLE.value, None)
+        sub_role: str = current.get(constants.DictKey.SUB_ROLE.value, None)
+        artist: dict[str, str] = current.get(constants.DictKey.ARTIST.value, None)
         artist_id: str = artist[constants.DictKey.ID.value] if artist and constants.DictKey.ID.value in artist else None
         artist_name: str = artist[constants.DictKey.NAME.value] if artist and constants.DictKey.NAME.value in artist else None
         if not role or not artist_id or not artist_name:
@@ -2048,7 +2041,7 @@ def set_album_metadata(
         target=target)
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_VERSION, album_metadata.album_version, target)
     formatted_album_played: str = "Never"
-    album_played: any = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
+    album_played: Any = album_metadata.get_value(AlbumMetadataModel.ALBUM_PLAYED)
     if album_played:
         if isinstance(album_played, datetime.datetime):
             formatted_album_played = album_played.strftime("%Y-%m-%d %H:%M:%S")
@@ -2127,10 +2120,6 @@ def set_album_metadata(
     upnp_util.set_upmpd_meta(upmpdmeta.UpMpdMeta.ALBUM_QUALITY, album_metadata.quality_badge, target)
 
 
-def __or_else(v: str, or_else: str) -> str:
-    return v if v and len(v) > 0 else or_else
-
-
 def calc_song_quality_summary(song_list: list[Song]) -> str:
     if song_list is None or len(song_list) == 0:
         # nothing to do as we don't have tracks available
@@ -2184,7 +2173,7 @@ def calc_song_quality_summary(song_list: list[Song]) -> str:
             display_result: str = join_with_comma(to_display)
         else:
             # use the unique value
-            display_result = list(q_dict.keys())[0]
+            display_result = next(iter(q_dict.keys()))
     return display_result
 
 
@@ -2210,7 +2199,7 @@ def cached_images_exist(image_file_name: str) -> list[str]:
     if document_root_dir:
         sub_dir_list: list[str] = get_cached_image_subdir_list()
         image_dir: str = ensure_directory(base_dir=document_root_dir, sub_dir_list=sub_dir_list)
-        cached_file_name_no_ext: str = f"{str(image_file_name)}"
+        cached_file_name_no_ext: str = f"{image_file_name!s}"
         cached_files: list[str] = __match_images_only(glob.glob(f"{os.path.join(image_dir, cached_file_name_no_ext)}.*"))
         return cached_files if cached_files else []
     return []
@@ -2224,7 +2213,7 @@ def id_list_split(id_list: str) -> list[str]:
     return id_list.split(",")
 
 
-def get_mime_type_from_extension(extension: str) -> Optional[str]:
+def get_mime_type_from_extension(extension: str) -> str | None:
     mimetypes.init()
     """
     Guesses the MIME type for a given file extension.

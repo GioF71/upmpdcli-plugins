@@ -16,6 +16,7 @@
 
 from enum import Enum
 
+
 class _ArtistRoleData:
 
     def __init__(

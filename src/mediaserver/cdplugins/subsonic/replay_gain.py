@@ -2,11 +2,11 @@ class ReplayGain:
 
     def __init__(
             self,
-            album_gain: float = None,
-            track_gain: float = None):
+            album_gain: float | None = None,
+            track_gain: float | None = None):
         self.__album_gain: float = album_gain
         self.__track_gain: float = track_gain
-    
+
     @property
     def album_gain(self) -> float | None:
         return self.__album_gain

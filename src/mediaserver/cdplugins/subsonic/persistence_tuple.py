@@ -15,6 +15,11 @@
 
 
 from enum import Enum
+from typing import NamedTuple
+
+
+class PersistenceTupleException(Exception):
+    """Raised when a PersistenceTuple error occurs."""
 
 
 class CoverSource(Enum):
@@ -28,7 +33,7 @@ def get_cover_source_by_name(name: str) -> CoverSource:
     for curr in CoverSource:
         if name == curr.value:
             return curr
-    raise Exception(f"Name {name} could not be found")
+    raise PersistenceTupleException(f"Name {name} could not be found")
 
 
 class ArtistAlbumCoverArt:
@@ -83,3 +88,24 @@ class AlbumPropertyValueSelection:
     @property
     def album_count(self) -> int:
         return self.__album_count
+
+
+class DuplicateAlbumInfo(NamedTuple):
+    occurrence_count: int
+    album_cover_art: str
+    album_artist: str
+    album_title: str
+    album_version: str | None = None
+
+
+class DuplicateAlbumOccurrence(NamedTuple):
+    album_id: str
+    album_artist: str
+    album_title: str
+    album_version: str | None = None
+    album_cover_art: str | None = None
+    lossless_status: str | None = None
+    quality_badge: str | None = None
+    album_release_date_year: int | None = None
+    album_release_date_month: int | None = None
+    album_release_date_day: int | None = None

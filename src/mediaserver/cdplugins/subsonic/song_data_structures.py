@@ -14,8 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from common_data_structures import ArtistIdName
 from enum import Enum
+
+from common_data_structures import ArtistIdName
 
 
 class SongArtistType(Enum):

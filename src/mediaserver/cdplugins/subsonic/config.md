@@ -88,12 +88,13 @@ preloadverboselogging|Verbose logging while preloading|False
 preloadartists|Preload artists at plugin startup time|True
 preloadalbums|Preload albums at plugin startup time, requires preloadartists|True
 preloadsongs|Preload songs at plugin startup time, requires preloadalbums|True
+allowduplicatealbums|Show entries that will display albums with the same title and same title/version, if any|True
 browsewithoutcache|Set value of no_cache when browsing the library|False
 searchwithoutcache|Set value of no_cache when browsing search results|True
 tracepersistenceoperations|Trace persistence operations|False
 minimizeidentifierlength|Set value to true/1 in order to minimize the length of identifiers, this might solve issues with some Denon AVR, but will create lots of database entries. If disabled, the identifier strings might be a lot longer but no dedicated entries will be created on the database|True
-purgeidentifiercache|Purge the identifier cache records created by id caching|True
-executevacuum|Execute VACUUM on startup (reduce db size)|True
+purgeidentifiercache|Purge the identifier cache records created by id caching|False
+executevacuum|Execute VACUUM on startup (reduce db size)|False
 cachedrequesttimeoutsec|Timeout for cached requests in seconds|30
 maxfavoritesongsperpage|Max favorite songs displayed as a list|250
 maxfavoritesongcontainersperpage|Max favorite song containers per page|100
@@ -108,3 +109,6 @@ stripversionfromtitle|Strip album version from title|True
 musicfolderid|Filter using the specified music folder id|None
 allowartistduplicatealbumtitle|Add an entry which will display albums with the same title, if any|True
 allowartistduplicatealbumtitleversion|Add an entry which will display albums with the same title and version, if any|True
+enablealbumpropertykeylabelinitial|Enable the album property key label initial|False
+enablealbumpropertykeyhascoverart|Enable the album property key 'Has Cover Art'|False
+enablealbumpropertykeyhasmusicbrainz|Enable the album property key 'Has MusicBrainz'|False

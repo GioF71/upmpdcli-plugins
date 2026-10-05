@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import upmplgmodels
+import html
+
 import upmpdmeta
+import upmplgmodels
+from subsonic_connector.album import Album
+
 import album_util
 import constants
-
-from subsonic_connector.album import Album
-import html
 
 
 def set_entry_value(key_name: str, key_value: str, target: dict):
@@ -52,7 +53,7 @@ def set_track_number(track_number: str, target: dict):
 
 
 def get_album_art_uri(entry: dict):
-    return entry["upnp:albumArtURI"] if "upnp:albumArtURI" in entry else None
+    return entry.get("upnp:albumArtURI", None)
 
 
 def set_album_art_from_uri(album_art_uri: str, target: dict):
@@ -81,12 +82,6 @@ def set_date_from_album(album: Album, target: dict):
 
 def set_date_str(date_str: str, target: dict):
     target['dc:date'] = date_str
-
-
-def get_as_int(entry_key: str, entry: dict) -> int:
-    v: str = (entry[entry_key]
-              if entry_key in entry else None)
-    return int(v) if v else None
 
 
 def set_bit_depth(bit_depth: int, target: dict):

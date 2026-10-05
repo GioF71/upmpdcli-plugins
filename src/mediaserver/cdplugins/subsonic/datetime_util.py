@@ -14,28 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import json
-
-import codec
+import datetime
 
 
-class ValueHolder:
+def now() -> datetime.datetime:
+    return datetime.datetime.now(tz=datetime.timezone.utc)
 
-    def __init__(self, value: str):
-        self.__value: str = value
+def fromtimestamp(timestamp: float) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
-    @property
-    def value(self) -> str:
-        return self.__value
-
-
-def encode_value_holder(value: str) -> str:
-    value_holder: ValueHolder = ValueHolder(value=value)
-    d: dict[str, str] = {"value": value_holder.value}
-    return codec.base64_encode(json.dumps(d))
-
-def decode_value_holder(encoded: str) -> str:
-    decoded: str = codec.base64_decode(encoded)
-    d: dict[str, str] = json.loads(decoded)
-    value_holder: ValueHolder = ValueHolder(value=d["value"])
-    return value_holder.value
+def get_default_timezone() -> datetime.timezone:
+    return datetime.timezone.utc

@@ -16,9 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import constants
 from pathlib import Path
 
+import constants
 
 header: list[str] = [
     "# Configuration Parameters",
@@ -42,9 +42,7 @@ def generate():
     script_dir = Path(__file__).parent.absolute()
     file_path = script_dir / "config.md"
     with open(file_path, "w", encoding="utf-8") as f:
-        curr: str
-        for curr in header:
-            f.write(f"{curr}\n")
+        f.writelines(f"{curr}\n" for curr in header)
     with open(file_path, "a", encoding="utf-8") as f:
         config_param: constants.ConfigParam
         for config_param in constants.ConfigParam:

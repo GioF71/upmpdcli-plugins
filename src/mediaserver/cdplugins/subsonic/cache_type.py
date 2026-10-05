@@ -1,4 +1,4 @@
-# Copyright (C) 2024,2025 Giovanni Fulco
+# Copyright (C) 2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from enum import Enum
+
+
+class CacheTypeException(Exception):
+    """Raised when a CacheType error occurs."""
 
 
 class _CacheTypeData:
@@ -41,6 +45,6 @@ name_checker_set: set[str] = set()
 id_checker_set: set[int] = set()
 for v in CacheType:
     if v.cache_name in name_checker_set:
-        raise Exception(f"Duplicated name [{v.cache_name}]")
+        raise CacheTypeException(f"Duplicated name [{v.cache_name}]")
     name_checker_set.add(v.cache_name)
     id_checker_set.add(v.cache_name)

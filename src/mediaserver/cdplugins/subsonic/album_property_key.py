@@ -17,6 +17,7 @@
 import copy
 from collections.abc import Callable
 from enum import Enum
+from typing import Any
 
 
 class KeySortType(Enum):
@@ -229,7 +230,7 @@ class AlbumPropertyKey(Enum):
         v_occ_dict_by_value: dict[str, AlbumPropertyValueOccurrence] = {occ.property_value: occ for occ in value_occurrence_list}
         key_value_list: list[str] = [occ.property_value for occ in value_occurrence_list]
         # convert to list of int if needed
-        values: list[any] = copy.deepcopy(
+        values: list[Any] = copy.deepcopy(
             key_value_list
             if sort_mode.sort_type == KeySortType.KEY_SORT_TYPE_STRING
             else [int(x) for x in key_value_list])

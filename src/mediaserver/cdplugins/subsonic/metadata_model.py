@@ -15,6 +15,7 @@
 
 
 from enum import Enum
+
 from column_name import ColumnName
 
 

@@ -17,17 +17,22 @@
 from enum import Enum
 
 
+class AudioCodecException(Exception):
+    """Raised for a audio codec related error."""
+
+
 class _AudioCodecData:
 
     def __init__(
             self,
             codec_name: str,
             lossless: bool,
-            suffixes: list[str] = None):
+            suffixes: list[str] | None = None):
         self.__codec_name: str = codec_name
         self.__lossless: bool = lossless
-        self.__suffixes: list[str] = (list(map(lambda x: x.lower(), suffixes))
-                                      if len(suffixes if suffixes else []) > 0 else codec_name.lower())
+        self.__suffixes: list[str] = ([x.lower() for x in suffixes]
+                                      if len(suffixes if suffixes else []) > 0
+                                      else [codec_name.lower()])
 
     @property
     def codec_name(self) -> str:
@@ -50,39 +55,48 @@ class AudioCodec(Enum):
         suffixes=["flac", "flc", "fla"])
     ALAC = _AudioCodecData(
         codec_name="alac",
-        lossless=True)
+        lossless=True,
+        suffixes=["alac"])
     APE = _AudioCodecData(
         codec_name="ape",
         lossless=True,
         suffixes=["ape"])
     DSF = _AudioCodecData(
         codec_name="dsf",
-        lossless=True)
+        lossless=True,
+        suffixes=["dsf"])
     DFF = _AudioCodecData(
         codec_name="dff",
-        lossless=True)
+        lossless=True,
+        suffixes=["dff"])
     WAV = _AudioCodecData(
         codec_name="wav",
-        lossless=True)
+        lossless=True,
+        suffixes=["wav"])
     AIFF = _AudioCodecData(
         codec_name="aiff",
         lossless=True,
         suffixes=["aiff", "aif"])
     M4A = _AudioCodecData(
         codec_name="m4a",
-        lossless=False)
+        lossless=False,
+        suffixes=["m4a"])
     MP3 = _AudioCodecData(
         codec_name="mp3",
-        lossless=False)
+        lossless=False,
+        suffixes=["mp3"])
     MP2 = _AudioCodecData(
         codec_name="mp2",
-        lossless=False)
+        lossless=False,
+        suffixes=["mp2"])
     OGG = _AudioCodecData(
         codec_name="ogg",
-        lossless=False)
+        lossless=False,
+        suffixes=["ogg"])
     OPUS = _AudioCodecData(
         codec_name="opus",
-        lossless=False)
+        lossless=False,
+        suffixes=["opus"])
 
     @property
     def codec_name(self) -> str:
@@ -113,17 +127,17 @@ class LosslessStatus(Enum):
 
 def get_lossless_status_by_value(v: str) -> LosslessStatus:
     if not v:
-        raise Exception("Provide a valid lossless_status_value")
+        raise AudioCodecException("Provide a valid lossless_status_value")
     curr: LosslessStatus
     for curr in LosslessStatus:
         if curr.value == v:
             return curr
-    raise Exception(f"get_lossless_status_by_value no match for [{v}]")
+    raise AudioCodecException(f"get_lossless_status_by_value no match for [{v}]")
 
 
 def is_lossless(suffix: str):
     if not suffix:
-        raise Exception("is_lossless requires a valid suffix")
+        raise AudioCodecException("is_lossless requires a valid suffix")
     lower_suffix: str = suffix.lower()
     audio_codec: AudioCodec
     for audio_codec in AudioCodec:

@@ -1,4 +1,4 @@
-# Copyright (C) 2023,2024,2025 Giovanni Fulco
+# Copyright (C) 2023,2024,2025,2026 Giovanni Fulco
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,9 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import cmdtalkplugin
-import datetime
+
 import config
 import constants
+import datetime_util
 
 # Func name to method mapper
 dispatcher = cmdtalkplugin.Dispatch()
@@ -30,7 +31,7 @@ class SimpleMsgProcessor(cmdtalkplugin.Processor):
 
     def log(self, s):
         if self.__append_timestamp:
-            super().log(f"{datetime.datetime.now()} {s}")
+            super().log(f"{datetime_util.now()} {s}")
         else:
             super().log(s)
 
