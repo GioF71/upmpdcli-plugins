@@ -1,3 +1,10 @@
+upmpdcli (1.10.0-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
+
+  * Media server: support custom icons for plugins
+  * Media server: Updates to Subsonic and Tidal plugins
+
+ -- Jean-Francois Dockes <jf@dockes.org>  Mon, 26 Oct 2026 17:08:00 +0100
+
 upmpdcli (1.9.18-1~ppaPPAVERS~SERIES1) SERIES; urgency=low
 
   * Renderer: openhome: fix crash switching from songcast-radio to radio

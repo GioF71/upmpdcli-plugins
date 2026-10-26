@@ -99,6 +99,8 @@ src/mediaserver/cdplugins/attic/mother-earth-radio/identifier_util.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/item_identifier.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/item_identifier_key.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/mother-earth-radio-app.py
+src/mediaserver/cdplugins/attic/mother-earth-radio/radio_scripts/
+src/mediaserver/cdplugins/attic/mother-earth-radio/radio_scripts/mother-earth-meta.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/radio_station_entry.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/radio_stations.py
 src/mediaserver/cdplugins/attic/mother-earth-radio/tag_type.py
@@ -123,6 +125,7 @@ src/mediaserver/cdplugins/attic/spotify/spotipy/util.py
 src/mediaserver/cdplugins/attic/spotify/upmspotid.py
 src/mediaserver/cdplugins/bbc/
 src/mediaserver/cdplugins/bbc/bbc-app.py
+src/mediaserver/cdplugins/bbc/bbc-icon.png
 src/mediaserver/cdplugins/bufxchange.h
 src/mediaserver/cdplugins/cdplugin.hxx
 src/mediaserver/cdplugins/cmdtalk.cpp
@@ -131,6 +134,7 @@ src/mediaserver/cdplugins/curlfetch.cpp
 src/mediaserver/cdplugins/curlfetch.h
 src/mediaserver/cdplugins/hra/
 src/mediaserver/cdplugins/hra/hra-app.py
+src/mediaserver/cdplugins/hra/hra-icon.png
 src/mediaserver/cdplugins/hra/hraapi.py
 src/mediaserver/cdplugins/hra/session.py
 src/mediaserver/cdplugins/netfetch.cpp
@@ -160,10 +164,12 @@ src/mediaserver/cdplugins/qobuz/api/__init__.py
 src/mediaserver/cdplugins/qobuz/api/bundle.py
 src/mediaserver/cdplugins/qobuz/api/raw.py
 src/mediaserver/cdplugins/qobuz/qobuz-app.py
+src/mediaserver/cdplugins/qobuz/qobuz-icon.jpg
 src/mediaserver/cdplugins/qobuz/qobuz-init-oauth.py
 src/mediaserver/cdplugins/qobuz/session.py
 src/mediaserver/cdplugins/radio-browser/
 src/mediaserver/cdplugins/radio-browser/radio-browser-app.py
+src/mediaserver/cdplugins/radio-browser/radio-browser-icon.png
 src/mediaserver/cdplugins/radio-paradise/
 src/mediaserver/cdplugins/radio-paradise/codec.py
 src/mediaserver/cdplugins/radio-paradise/constants.py
@@ -172,6 +178,7 @@ src/mediaserver/cdplugins/radio-paradise/identifier_util.py
 src/mediaserver/cdplugins/radio-paradise/item_identifier.py
 src/mediaserver/cdplugins/radio-paradise/item_identifier_key.py
 src/mediaserver/cdplugins/radio-paradise/radio-paradise-app.py
+src/mediaserver/cdplugins/radio-paradise/radio-paradise-icon.png
 src/mediaserver/cdplugins/radio-paradise/radio_station_entry.py
 src/mediaserver/cdplugins/radio-paradise/radio_stations.py
 src/mediaserver/cdplugins/radio-paradise/tag_type.py
@@ -200,6 +207,7 @@ src/mediaserver/cdplugins/subsonic/config.md
 src/mediaserver/cdplugins/subsonic/config.py
 src/mediaserver/cdplugins/subsonic/connector_provider.py
 src/mediaserver/cdplugins/subsonic/constants.py
+src/mediaserver/cdplugins/subsonic/datetime_util.py
 src/mediaserver/cdplugins/subsonic/disc_title.py
 src/mediaserver/cdplugins/subsonic/element_type.py
 src/mediaserver/cdplugins/subsonic/entry_creator.py
@@ -233,6 +241,7 @@ src/mediaserver/cdplugins/subsonic/song_data_structures.py
 src/mediaserver/cdplugins/subsonic/song_info.py
 src/mediaserver/cdplugins/subsonic/song_metadata.py
 src/mediaserver/cdplugins/subsonic/subsonic-app.py
+src/mediaserver/cdplugins/subsonic/subsonic-icon.png
 src/mediaserver/cdplugins/subsonic/subsonic_init.py
 src/mediaserver/cdplugins/subsonic/subsonic_util.py
 src/mediaserver/cdplugins/subsonic/table_name.py
@@ -271,6 +280,7 @@ src/mediaserver/cdplugins/tidal/streaming_info.py
 src/mediaserver/cdplugins/tidal/table_name.py
 src/mediaserver/cdplugins/tidal/tag_type.py
 src/mediaserver/cdplugins/tidal/tidal-app.py
+src/mediaserver/cdplugins/tidal/tidal-icon.png
 src/mediaserver/cdplugins/tidal/tidal_page_definition.py
 src/mediaserver/cdplugins/tidal/tidal_track_adapter.py
 src/mediaserver/cdplugins/tidal/tidal_util.py
@@ -281,6 +291,7 @@ src/mediaserver/cdplugins/tidal/track_metadata.py
 src/mediaserver/cdplugins/tidal/upnp_util.py
 src/mediaserver/cdplugins/upradios/
 src/mediaserver/cdplugins/upradios/upradios-app.py
+src/mediaserver/cdplugins/upradios/upradios-icon.png
 src/mediaserver/cdplugins/uprcl/
 src/mediaserver/cdplugins/uprcl/bottle.py
 src/mediaserver/cdplugins/uprcl/bottle/
@@ -298,6 +309,7 @@ src/mediaserver/cdplugins/uprcl/rclconfig-mimemap
 src/mediaserver/cdplugins/uprcl/rwlock.py
 src/mediaserver/cdplugins/uprcl/testrunuprcl.sh
 src/mediaserver/cdplugins/uprcl/uprcl-app.py
+src/mediaserver/cdplugins/uprcl/uprcl-icon.jpg
 src/mediaserver/cdplugins/uprcl/uprclfolders.py
 src/mediaserver/cdplugins/uprcl/uprclfolderscreate.py
 src/mediaserver/cdplugins/uprcl/uprclhttp.py
