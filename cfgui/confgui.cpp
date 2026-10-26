@@ -206,6 +206,11 @@ QWidget *ConfTabsW::addBlurb(int tabindex, const QString& txt)
     return explain;
 }
 
+ConfPanelW *ConfTabsW::getPanel(int idx)
+{
+    return (ConfPanelW*)tabWidget->widget(idx);
+}
+
 ConfParamW *ConfTabsW::addParam(
     int tabindex, ParamType tp, const QString& varname,
     const QString& label, const QString& tooltip,

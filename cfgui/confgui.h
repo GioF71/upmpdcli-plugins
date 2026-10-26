@@ -19,46 +19,47 @@
 /**
  * Utilities for a configuration/preferences settings user interface.
  * 
- * This file declares a number of data input Qt widgets (virtual base:
- * ConfParamW), with a well defined virtual interface to configuration storage,
- * which may be QSettings or something else (e.g. conftree).
+ * This file declares a number of data input Qt widgets (virtual base: ConfParamW), with a
+ * well defined virtual interface to configuration storage, which may be QSettings or
+ * something else (e.g. conftree).
  *
- * Subclasses are defined for entering different kind of data, e.g. a string,
- * a file name, an integer, etc.
+ * Subclasses are defined for entering different kind of data, e.g. a string, a file name,
+ * an integer, etc.
  *
- * Each GUI object is linked to the configuration data through
- * a "link" object which knows the details of interacting with the actual
- * configuration data, like the parameter name, the actual
- * configuration interface, etc.
+ * Each GUI object is linked to the configuration data through a "link" object which knows
+ * the details of interacting with the actual configuration data, like the parameter name,
+ * the actual configuration interface, etc.
  *
- * The link object is set when the input widget is created and cannot be
- * changed.
+ * The link object is set when the input widget is created and cannot be changed.
  *
  * The link object get() methods are called for reading the initial data.
  *
- * The set() methods for all the objects are normally called when the
- * user clicks "Accept", only if the current value() differs from the
- * value obtained by get() when the object was initialized. This can
- * be used to avoid cluttering the output with values which are
- * unmodified from the defaults.
+ * The set() methods for all the objects are normally called when the user clicks
+ * "Accept", only if the current value() differs from the value obtained by get() when the
+ * object was initialized. This can be used to avoid cluttering the output with values
+ * which are unmodified from the defaults.
  *
- * The setImmediate() method can be called on the individial controls
- * to ensure that set() is inconditionnaly called whenever the user
- * changes the related value. This can be especially useful if the
- * configuration state can't be fully represented in the GUI (for
- * example if the same parameter name can exist in different sections
- * depending on the value of another parameter). It allows using local
- * storage for the values, and flushing, for example, when
- * sig_prefsChanged() is emitted after the user clicks accept.
+ * The setImmediate() method can be called on the individial controls to ensure that set()
+ * is inconditionnaly called whenever the user changes the related value. This can be
+ * especially useful if the configuration state can't be fully represented in the GUI (for
+ * example if the same parameter name can exist in different sections depending on the
+ * value of another parameter). It allows using local storage for the values, and
+ * flushing, for example, when sig_prefsChanged() is emitted after the user clicks accept.
  *
- * The file also defines a multi-tabbed dialog container for the
- * parameter objects, with simple interface methods to add tabs and add
- * configuration elements to them.
+ * The file also defines a multi-tabbed dialog container for the parameter objects, with
+ * simple interface methods to add tabs and add configuration elements to them. Each tab 
+ * has a "panel" object, owning and displaying a list of parameter objects.
+ * - By default, all parameter link objects are created by a common factory method 
+ *   which takes a parameter name as input, and is set as an input to the dialog
+ *   constructor.
+ * - If a custom link is needed for a given param, it is still possible to override the 
+ *   common factory, by constructing the param object locally and adding it to one of the 
+ *   panels.
  *
- * Some of the tab widgets can be defined as "foreign", with specific internals.
- * They just need to implement a loadValues() to be called at
- * initialisation and a storeValues(), called when the user commits
- * the changes.
+ * Some of the tab widgets can be defined as "foreign", with specific internals.  They
+ * just need to implement a loadValues() to be called at initialisation and a
+ * storeValues(), called when the user commits the changes.
+ *
  */
 
 #include <string>
@@ -168,6 +169,10 @@ public:
 
     /** Find param widget associated with given variable name */
     ConfParamW *findParamW(const QString& varname);
+
+    /** Retrieve panel at index idx. Useful for adding a customized param with panel->addParam()
+        instead of doing it on the top object, which would use the common link factory */
+    ConfPanelW *getPanel(int idx);
 
     void hideButtons();
     bool modified();

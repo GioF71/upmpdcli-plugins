@@ -37,6 +37,10 @@ namespace MedocUtils {
 // Must be called in main thread before starting other threads
 extern void pathut_init_mt();
 
+/// In the following, a @param cross parameter set to true means that we try to process Windows
+/// paths on a Posix system. This generally only works in a context where paths are absolute or we
+/// are testing against completely something else (like a non-path prefix in the recoll index)
+
 /// Add a / at the end if none there yet.
 extern void path_catslash(std::string& s);
 /// Concatenate 2 paths
@@ -44,17 +48,17 @@ extern std::string path_cat(const std::string& s1, const std::string& s2);
 /// Concatenate 2 or more paths
 extern std::string path_cat(const std::string& s1, std::initializer_list<std::string> pathelts);
 /// Get the simple file name (get rid of any directory path prefix
-extern std::string path_getsimple(const std::string& s);
+extern std::string path_getsimple(const std::string& s, bool cross = false);
 /// Simple file name + optional suffix stripping
 extern std::string path_basename(const std::string& s, const std::string& suff = std::string());
 /// Component after last '.'
 extern std::string path_suffix(const std::string& s);
 /// Get the father directory
-extern std::string path_getfather(const std::string& s);
+extern std::string path_getfather(const std::string& s, bool cross=false);
 /// Test if path is absolute
-extern bool path_isabsolute(const std::string& s);
+extern bool path_isabsolute(const std::string& s, bool cross=false);
 /// Test if path is root (x:/). root is defined by root/.. == root
-extern bool path_isroot(const std::string& p);
+extern bool path_isroot(const std::string& p, bool cross=false);
 /// Test if sub is a subdirectory of top. This is a textual test,
 /// links not allowed. Uses path_canon to clean up paths.
 extern bool path_isdesc(const std::string& top, const std::string& sub);
@@ -65,6 +69,20 @@ extern bool path_isunc(const std::string& p, std::string& volume);
 /// Except for possibly obtaining the current directory, the processing
 /// is purely textual and does not deal with symbolic link or file existence.
 extern std::string path_canon(const std::string& s, const std::string *cwd = nullptr);
+/// Same as path_canon() but input may be a Windows path with drive. Will break
+/// on Posix if you call it with a relative path looking like c:/...
+/// If not on _WIN32 must be called with forward slashes and does not work with unc paths
+extern std::string path_canon_cross(const std::string& s, const std::string *cwd = nullptr);
+
+/// Compute the mount poing of a removable volume by finding the differing
+/// prefix between two paths to a file/dir on the volume. One path is the
+/// original one (e.g. when indexing), the other is for the currently mounted
+/// volume.
+/// @return an empty string for success, else an error string
+/// @param p1, p2 the two paths to the same location on the volume.
+/// @param[output] r1, r2 the differing stems, both empty if there is no difference.
+extern std::string path_diffstems(const std::string &p1, const std::string &p2,
+                                  std::string& r1, std::string& r2);
 
 /// Check that path refers to same file. Uses dev/ino on Linux,
 /// textual comparison on Windows.
@@ -96,6 +114,10 @@ bool path_exists(const std::string& path);
 /// Same but must be readable
 bool path_readable(const std::string& path);
 
+/// We enable this on all platforms because it is sometimes needed to process windows paths on ux
+bool path_isdriveabs(const std::string& path);
+bool path_hasdrive(const std::string& path);
+
 #ifdef _WIN32
 
 // Constants for _waccess()
@@ -118,8 +140,6 @@ void path_slashize(std::string& s);
 void path_backslashize(std::string& s);
 
 std::string path_shortpath(const std::string& path);
-bool path_hasdrive(const std::string& s);
-bool path_isdriveabs(const std::string& s);
 
 #else // !_WIN32 ->
 
@@ -155,7 +175,7 @@ struct PathStat {
     uint64_t pst_blksize;
     int64_t pst_btime;
 };
-extern int path_fileprops(const std::string path, struct PathStat *stp, bool follow = true);
+extern int path_fileprops(const std::string& path, struct PathStat *stp, bool follow = true);
 extern int path_fileprops(int fd, struct PathStat *stp);
 
 /// Return separator for PATH environment variable
@@ -165,7 +185,11 @@ extern const std::string& path_PATHsep();
 /// pathut_setargv0()
 extern void pathut_setargv0(const char *argv0);
 extern std::string path_thisexecdir();
-/// Determine the location for the program constant data (e.g. /usr/share/recoll)
+
+/// Determine the location for the program constant data (e.g.  /usr/share/recoll).
+/// Note that this is meant to return a constant value for a given program, actually computed only
+/// on the first call. The next calls return a static value.
+/// 
 /// @param progname the program name (e.g. "recoll")
 /// @param envname  an environment variable name (e.g. RECOLL_DATADIR). This overrides all.
 /// @param compiled compiled in value. May be empty.

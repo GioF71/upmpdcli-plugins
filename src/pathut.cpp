@@ -76,6 +76,7 @@
 
 
 #ifdef _WIN32
+static bool onwindows = true;
 
 #ifndef _MSC_VER
 #undef WINVER
@@ -83,11 +84,12 @@
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0601
 #define LOGFONTW void
-#endif
+#endif // _MSC_VER
 
 #ifndef NOMINMAX
 #define NOMINMAX
-#endif
+#endif // NOMINMAX
+
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
 #include <windows.h>
@@ -153,7 +155,7 @@
 typedef __int64    ssize_t;
 #else
 typedef int   ssize_t;
-#endif
+#endif // !_SSIZE_T_DEFINED
 #define _SSIZE_T_DEFINED
 #endif
 
@@ -214,6 +216,8 @@ void MapWinFindDataToStat(const WIN32_FIND_DATA *fd, struct PathStat *pstp)
 
 #else /* !_WIN32 -> */
 
+static bool onwindows = false;
+
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -269,25 +273,6 @@ void path_backslashize(std::string& s)
             s[i] = '\\';
         }
     }
-}
-static bool path_strlookslikedrive(const std::string& s)
-{
-    return s.size() == 2 && isalpha(s[0]) && s[1] == ':';
-}
-
-bool path_hasdrive(const std::string& s)
-{
-    if (s.size() >= 2 && isalpha(s[0]) && s[1] == ':') {
-        return true;
-    }
-    return false;
-}
-bool path_isdriveabs(const std::string& s)
-{
-    if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && (s[2] == '/' || s[2] == '\\')) {
-        return true;
-    }
-    return false;
 }
 
 /* Operations for the 'flock' call (same as Linux kernel constants).  */
@@ -469,6 +454,26 @@ static int win_wlstat(const wchar_t *wpath, struct _stati64 *buffer)
 
 #endif /* _WIN32 */
 
+static bool path_strlookslikedrive(const std::string& s)
+{
+    return s.size() == 2 && isalpha(s[0]) && s[1] == ':';
+}
+
+bool path_hasdrive(const std::string& s)
+{
+    if (s.size() >= 2 && isalpha(s[0]) && s[1] == ':') {
+        return true;
+    }
+    return false;
+}
+
+bool path_isdriveabs(const std::string& s)
+{
+    if (s.size() >= 3 && isalpha(s[0]) && s[1] == ':' && (s[2] == '/' || s[2] == '\\')) {
+        return true;
+    }
+    return false;
+}
 
 // Note: this is actually only used on Linux, but it's no big deal to
 // implement it everywhere to avoid more ifdefs.
@@ -661,13 +666,13 @@ const std::string& path_PATHsep()
 #endif
 }
 
-void path_catslash(std::string& s)
+void path_catslash(std::string& path)
 {
 #ifdef _WIN32
-    path_slashize(s);
+    path_slashize(path);
 #endif
-    if (s.empty() || s[s.length() - 1] != '/') {
-        s += '/';
+    if (path.empty() || path.back() != '/') {
+        path.push_back('/');
     }
 }
 
@@ -692,7 +697,7 @@ std::string path_cat(const std::string& s1, std::initializer_list<std::string> p
     return res;
 }
 
-std::string path_getfather(const std::string& s)
+std::string path_getfather(const std::string& s, bool cross)
 {
     std::string father = s;
 #ifdef _WIN32
@@ -704,26 +709,33 @@ std::string path_getfather(const std::string& s)
         return "./";
     }
 
-    if (path_isroot(father)) {
+    if (path_isroot(father, cross)) {
         return father;
     }
 
-    if (father[father.length() - 1] == '/') {
+    while (father.back() == '/' && father.size()) {
         // Input ends with /. Strip it, root special case was tested above
-        father.erase(father.length() - 1);
+        father.pop_back();
     }
 
     std::string::size_type slp = father.rfind('/');
     if (slp == std::string::npos) {
         return "./";
     }
-
+    if (slp == 0)
+        return "/";
     father.erase(slp);
-    path_catslash(father);
+    while (father.back() == '/' && father.size()) {
+        // Input ends with /. Strip it, root special case was tested above
+        father.pop_back();
+    }
     return father;
 }
 
-std::string path_getsimple(const std::string& s)
+// It used to be that path_getsimple("/tmp/toto/") returned empty. Changed because it did not make
+// sense, esp. becaus path_getfather("/toto/tutu/") returns /toto so that
+// path_getfather("/toto/tutu/") + path_getsimple("/toto/tutu/") did not return the original path.
+std::string path_getsimple(const std::string& s, bool cross)
 {
     std::string simple = s;
 #ifdef _WIN32
@@ -734,6 +746,12 @@ std::string path_getsimple(const std::string& s)
         return simple;
     }
 
+    while (simple.size() > 1 && simple.back() == '/')
+        simple.pop_back();
+
+    if (path_isroot(simple, cross))
+        return simple;
+    
     std::string::size_type slp = simple.rfind('/');
     if (slp == std::string::npos) {
         return simple;
@@ -743,7 +761,6 @@ std::string path_getsimple(const std::string& s)
     return simple;
 }
 
-// Unlike path_getsimple(), we ignore right-side '/' chars, like the basename command does.
 #ifdef _WIN32
 std::string path_basename(const std::string& _s, const std::string& suff)
 {
@@ -753,11 +770,7 @@ std::string path_basename(const std::string& _s, const std::string& suff)
 std::string path_basename(const std::string& s, const std::string& suff)
 {
 #endif
-    if (path_isroot(s))
-        return s;
-    std::string simple(s);
-    rtrimstring(simple, "/");
-    simple = path_getsimple(simple);
+    std::string simple = path_getsimple(s);
     std::string::size_type pos = std::string::npos;
     if (suff.length() && simple.length() > suff.length()) {
         pos = simple.rfind(suff);
@@ -982,17 +995,16 @@ std::string path_tildexpand(const std::string& s)
     return o;
 }
 
-bool path_isroot(const std::string& path)
+bool path_isroot(const std::string& path, bool cross)
 {
     if (path.size() == 1 && path[0] == '/') {
         return true;
     }
-#ifdef _WIN32
-    if (path.size() == 3 && isalpha(path[0]) && path[1] == ':' &&
-        (path[2] == '/' || path[2] == '\\')) {
-        return true;
+    if (onwindows || cross) {
+        if (path.size() == 3 && path_isdriveabs(path)) {
+            return true;
+        }
     }
-#endif
     return false;
 }
 
@@ -1002,8 +1014,6 @@ bool path_isdesc(const std::string& _top, const std::string& _sub)
         return false;
     std::string top = path_canon(_top);
     std::string sub = path_canon(_sub);
-    path_catslash(top);
-    path_catslash(sub);
     for (;;) {
         if (sub == top) {
             return true;
@@ -1021,17 +1031,17 @@ bool path_isdesc(const std::string& _top, const std::string& _sub)
     }
 }
 
-bool path_isabsolute(const std::string& path)
+bool path_isabsolute(const std::string& path, bool cross)
 {
-    if (!path.empty() && (path[0] == '/'
-#ifdef _WIN32
-                          || path_isdriveabs(path)
-#endif
-            )) {
+    if (path.empty()) {
+        return false;
+    }
+    if (path[0] == '/' || ((onwindows || cross) && path_isdriveabs(path))) {
         return true;
     }
     return false;
 }
+
 
 std::string path_absolute(const std::string& is)
 {
@@ -1051,10 +1061,11 @@ std::string path_absolute(const std::string& is)
     return s;
 }
 
-std::string path_canon(const std::string& is, const std::string* cwd)
+static std::string path_canon_maybe_cross(const std::string& is, const std::string* cwd, bool cross)
 {
     std::string s = is;
 #ifdef _WIN32
+    cross = true;
     path_slashize(s);
     std::string uncvolume;
     if (path_isunc(s, uncvolume)) {
@@ -1062,14 +1073,14 @@ std::string path_canon(const std::string& is, const std::string* cwd)
         if (s.empty())
             s = "/";
     } else {
-        // fix possible path from file: absolute url
+        // fix possible path from file:///c:/some/path -> /c:/some/path
         if (s.size() && s[0] == '/' && path_hasdrive(s.substr(1))) {
             s = s.substr(1);
         }
     }
 #endif
 
-    if (!path_isabsolute(s)) {
+    if (!path_isabsolute(s, cross)) {
         if (cwd) {
             s = path_cat(*cwd, s);
         } else {
@@ -1093,12 +1104,10 @@ std::string path_canon(const std::string& is, const std::string* cwd)
     if (!cleaned.empty()) {
         for (const auto& elem : cleaned) {
             ret += "/";
-#ifdef _WIN32
-            if (ret == "/" && path_strlookslikedrive(elem)) {
+            if (cross && ret == "/" && path_strlookslikedrive(elem)) {
                 // Get rid of just added initial "/"
                 ret.clear();
             }
-#endif
             ret += elem;
         }
     } else {
@@ -1108,13 +1117,23 @@ std::string path_canon(const std::string& is, const std::string* cwd)
 #ifdef _WIN32
     if (uncvolume.size()) {
         ret = uncvolume + ret;
-    } else if (path_strlookslikedrive(ret)) {
-        // Raw drive needs a final /
-        path_catslash(ret);
     }
 #endif
+    if (cross && path_strlookslikedrive(ret)) {
+        // Raw drive needs a final /
+        path_catslash(ret);
+    }        
 
     return ret;
+}
+
+std::string path_canon_cross(const std::string &is, const std::string *cwd)
+{
+  return path_canon_maybe_cross(is, cwd, true);
+}
+std::string path_canon(const std::string &is, const std::string *cwd)
+{
+  return path_canon_maybe_cross(is, cwd, false);
 }
 
 bool path_makepath(const std::string& ipath, int mode)
@@ -1416,7 +1435,7 @@ static void copystat(struct PathStat *stp, struct STATXSTRUCT& mst)
 #endif
 }
 
-int path_fileprops(const std::string path, struct PathStat *stp, bool follow)
+int path_fileprops(const std::string& path, struct PathStat *stp, bool follow)
 {
     if (nullptr == stp) {
         return -1;
@@ -1466,6 +1485,104 @@ bool path_access(const std::string& path, int mode)
     return ACCESS(syspath, mode) == 0;
 }
 
+enum PUPathType {PT_BAD, PT_UNIX, PT_WINDRIVE, PT_WINUNC};
+
+static PUPathType guessPathType(const std::string &path)
+{
+    if (path.empty())
+        return PT_BAD;
+    if (path[0] == '/') {
+        if (path[1] == '/') {
+            return PT_WINUNC;
+        }
+        return PT_UNIX;
+    } else {
+        if (path.size() >= 2 && isalpha(path[0]) && path[1] == ':') {
+            return PT_WINDRIVE;
+        }
+    }
+    return PT_BAD;
+}
+
+// This could be done more efficiently than by splitting into vectors, but
+// we only use it while building an rclconfig for a movable volume, so...
+std::string path_diffstems(const std::string &_p1, const std::string &_p2,
+                           std::string& r1, std::string& r2)
+{
+    std::string reason;
+    std::vector<std::string> v1, v2;
+
+    r1.clear();
+    r2.clear();
+
+    // Depending on path type we add or remove a starting / to make our job easier,
+    // then revert the change in the results
+    auto pt1 = guessPathType(_p1);
+    auto pt2 = guessPathType(_p2);
+    std::string p1, p2;
+    switch (pt1) {
+    case PT_BAD: return std::string("Bad path in input: [" + _p1 + "]");
+    case PT_UNIX: p1 = _p1; break;
+    case PT_WINDRIVE: p1 = std::string("/") + _p1; break;
+    case PT_WINUNC: p1 = _p1.substr(1); break;
+    }
+    switch (pt2) {
+    case PT_BAD: return std::string("Bad path in input: [" + _p2 + "]");
+    case PT_UNIX: p2 = _p2; break;
+    case PT_WINDRIVE: p2 = std::string("/") + _p2; break;
+    case PT_WINUNC: p2 = _p2.substr(1); break;
+    }
+    //std::cerr << "p1: [" << p1 << "] p2 [" << p2 << "]\n";
+
+    stringToTokens(p1, v1, "/");
+    stringToTokens(p2, v2, "/");
+    auto l1 = v1.size();
+    auto l2 = v2.size();
+        
+    // Search for common leaf part
+    unsigned int cl = 0;
+    for (; cl < MIN(l1, l2); cl++) {
+        if (v1[l1-cl-1] != v2[l2-cl-1]) {
+            break;
+        }
+    }
+    // std::cerr << "Common length = " << cl << "\n";
+    if (cl == 0) {
+        r1 = p1;
+        r2 = p2;
+        if (r1 == r2) {
+            // Pathologic but possible with '/' input
+            r1.clear();
+            r2.clear();
+        }
+        return reason;
+    }
+
+    // Rebuild the differing stems 
+    for (unsigned i = 0; i < l1 - cl; i++) {
+        r1 += "/" + v1[i];
+    }
+    for (unsigned i = 0; i < l2 - cl; i++) {
+        r2 += "/" + v2[i];
+    }
+
+    // Repair the change done when entering
+    switch (pt1) {
+    case PT_BAD: return std::string("Bad path in input: [" + _p1 + "]");//cant happen
+    case PT_UNIX: break;
+    case PT_WINDRIVE: ltrimstring(r1 , "/");; break;
+    case PT_WINUNC: r1 = std::string("/") + r1; break;
+    }
+    switch (pt2) {
+    case PT_BAD: return std::string("Bad path in input: [" + _p2 + "]");//cant happen
+    case PT_UNIX: break;
+    case PT_WINDRIVE: ltrimstring(r2 , "/");; break;
+    case PT_WINUNC: r2 = std::string("/") + r2; break;
+    }
+
+    // Empty reason -> success.
+    return reason;
+}
 
 /// Directory reading interface. UTF-8 on Windows.
 class PathDirContents::Internal {
@@ -1775,6 +1892,7 @@ int Pidfile::remove()
 void pathut_init_mt()
 {
     path_home();
+    path_cachedir();
 }
 
 } // End namespace MedocUtils
