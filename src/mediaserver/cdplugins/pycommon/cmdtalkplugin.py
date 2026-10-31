@@ -56,8 +56,8 @@ class Processor:
         self.em = cmdtalk.CmdTalk(outfile=outfile, infile=infile, exitfunc=exitfunc)
         self.dispatcher = dispatcher
 
-    def log(self, s, doexit=0, exitvalue=1):
-        self.em.log(s, doexit, exitvalue)
+    def log(self, s, level=2, doexit=0, exitvalue=1):
+        self.em.log(s, level, doexit, exitvalue)
 
     def process(self, params):
         # self.em.log(f"pCmdTalkProcessor.process: [{params}]")
