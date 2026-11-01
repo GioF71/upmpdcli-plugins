@@ -21,7 +21,6 @@ import shutil
 import sqlite3
 import threading
 import time
-from collections.abc import Callable
 from typing import Any
 
 import upmplgutils
@@ -214,21 +213,6 @@ def check_supports_internet_radios():
         config.internet_radio_stations_supported = False
 
 
-def wrap_action_with_connection(action: Callable[[sqlite3.Connection], Any], context: str):
-    connection: sqlite3.Connection = persistence.get_working_connection(provided=None)
-    res: Any = None
-    try:
-        res = action(connection)
-    except Exception as ex:
-        msgproc.log(f"{context} failed [{type(ex)}] [{ex}]")
-        # don't commit
-        connection.rollback()
-        connection.close()
-    persistence.commit(connection)
-    connection.close()
-    return res
-
-
 class PreloadedAlbum:
 
     def __init__(
@@ -271,7 +255,7 @@ def get_loaded_song_list(loaded_by_album_id: dict[str, list[Song]], album_id: st
     return existing
 
 
-def preload_songs(connection: sqlite3.Connection, preload_albums_result: PreloadAlbumsResult):
+def preload_songs(preload_albums_result: PreloadAlbumsResult, provided_connection: sqlite3.Connection | None = None):
     msgproc.log("preload_songs starting ...")
     verbose_logging: bool = config.get_verbose_logging()
     preload_verbose_logging: bool = (verbose_logging and
@@ -299,6 +283,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
             albumCount=0,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getSongs())
+        connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
         song: Song
         partial_insert_count: int = 0
         partial_update_count: int = 0
@@ -399,14 +384,17 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
                         do_commit=False)
                 # purge from loaded_by_album_id
                 del loaded_by_album_id[song.getAlbumId()]
-                # commit for every slice of entries
-                persistence.commit(connection=connection)
-                # allow main thread
-                time.sleep(0.001)
         total_stored += retrieved
         insert_count += partial_insert_count
         update_count += partial_update_count
         skip_count += partial_skip_count
+        # commit for every slice of entries
+        persistence.commit(connection=connection)
+        # close connection if it was not provided
+        if provided_connection == None:
+            connection.close()
+        # allow main thread
+        time.sleep(0.001)
         msgproc.log(f"preload_songs stored [{retrieved}] "
                     f"i:[{partial_insert_count}] "
                     f"u:[{partial_update_count}] "
@@ -419,7 +407,8 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
             # finished.
             break
         song_offset += retrieved
-    # get count after loading entries
+    # pruning phase
+    connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
     count_before_prune: int = persistence.get_table_count(
         table_name=TableName.ALBUM_METADATA_V1,
         connection=connection)
@@ -427,6 +416,11 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
         update_timestamp=preload_start,
         connection=connection,
         do_commit=False)
+    # commit latest cleanup operations
+    persistence.commit(connection=connection)
+    # close connection if it was not provided
+    if provided_connection == None:
+        connection.close()
     elapsed: float = time.time() - start
     per_sec: float = float(total_stored) / elapsed
     msgproc.log(f"preload_songs loaded [{total_stored}] "
@@ -436,7 +430,7 @@ def preload_songs(connection: sqlite3.Connection, preload_albums_result: Preload
                 f"[{per_sec:.3f}] songs/sec")
 
 
-def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
+def preload_albums(provided_connection: sqlite3.Connection | None = None) -> PreloadAlbumsResult:
     msgproc.log("preload_albums starting ...")
     result: PreloadAlbumsResult = PreloadAlbumsResult()
     verbose_logging: bool = config.get_verbose_logging()
@@ -460,6 +454,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
             songCount=0,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getAlbums())
+        connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
         album: Album
         partial_insert_count: int = 0
         partial_update_count: int = 0
@@ -555,15 +550,19 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
                     f"(total [{total_stored}] "
                     f"ins [{insert_count}] "
                     f"upd [{update_count}])")
+        # commit for every slice of entries
+        persistence.commit(connection=connection)
+        # close connection if it was not provided
+        if provided_connection == None:
+            connection.close()
         if (retrieved < req_count):
             # finished.
             break
         album_offset += retrieved
-        # commit for every slice of entries
-        persistence.commit(connection=connection)
         # allow main thread
         time.sleep(0.001)
     # get count after loading entries
+    connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
     count_before_prune: int = persistence.get_table_count(
         table_name=TableName.ALBUM_METADATA_V1,
         connection=connection)
@@ -572,6 +571,9 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
         update_timestamp=preload_start,
         connection=connection,
         do_commit=False)
+    persistence.commit(connection=connection)
+    if provided_connection == None:
+        connection.close()
     elapsed: float = time.time() - start
     per_sec: float = float(total_stored) / elapsed
     msgproc.log(f"preload_albums loaded [{total_stored}] "
@@ -582,7 +584,7 @@ def preload_albums(connection: sqlite3.Connection) -> PreloadAlbumsResult:
     return result
 
 
-def preload_artists(connection: sqlite3.Connection):
+def preload_artists(provided_connection: sqlite3.Connection | None = None):
     msgproc.log("preload_artists starting ...")
     start: float = time.time()
     preload_start: datetime.datetime = datetime_util.now()
@@ -599,6 +601,7 @@ def preload_artists(connection: sqlite3.Connection):
             songCount=0,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
         retrieved: int = len(res.getArtists())
+        connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
         artist: Artist
         for artist in res.getArtists():
             artist_roles: list[str] = subsonic_util.get_artist_roles(artist=artist)
@@ -614,19 +617,26 @@ def preload_artists(connection: sqlite3.Connection):
                 do_commit=False)
         total_stored += retrieved
         msgproc.log(f"preload_artists stored [{retrieved}] (total [{total_stored}])")
+        # commit for every slice of entries
+        persistence.commit(connection=connection)
+        # close connection if it was not provided
+        if provided_connection == None:
+            connection.close()
         if (retrieved < req_count):
             # finished.
             break
         artist_offset += retrieved
-        # commit for every slice of entries
-        persistence.commit(connection=connection)
         # allow main thread
         time.sleep(0.001)
     # prune
+    connection: sqlite3.Connection = persistence.get_working_connection(provided=provided_connection)
     prune_count: int = persistence.prune_artist_metadata(
         update_timestamp=preload_start,
         connection=connection,
         do_commit=False)
+    persistence.commit(connection=connection)
+    if provided_connection == None:
+        connection.close()
     elapsed: float = time.time() - start
     per_sec: float = float(total_stored) / elapsed
     msgproc.log(f"preload_artists loaded [{total_stored}] "
@@ -661,9 +671,7 @@ def initial_caching_executor():
                     f"oldest [{oldest}]")
         if oldest is None or (initial_caching_start - oldest).total_seconds() > preload_max_delta_sec:
             try:
-                wrap_action_with_connection(
-                    action=preload_artists,
-                    context="preload_artists")
+                preload_artists(provided_connection=None)
             except Exception as ex:
                 msgproc.log(f"preload_artists failed [{type(ex)}] [{ex}]")
         else:
@@ -679,9 +687,7 @@ def initial_caching_executor():
                     f"oldest [{oldest}]")
         if oldest is None or (initial_caching_start - oldest).total_seconds() > preload_max_delta_sec:
             try:
-                preload_albums_result = wrap_action_with_connection(
-                    action=preload_albums,
-                    context="preload_albums")
+                preload_albums(provided_connection=None)
                 preload_success = True
             except Exception as ex:
                 msgproc.log(f"preload_albums failed [{type(ex)}] [{ex}]")
@@ -699,9 +705,7 @@ def initial_caching_executor():
                     f"oldest [{oldest}]")
         if oldest is None or (initial_caching_start - oldest).total_seconds() > preload_max_delta_sec:
             try:
-                wrap_action_with_connection(
-                    action=lambda x: preload_songs(x, preload_albums_result),
-                    context="preload_songs")
+                preload_songs(preload_albums_result=preload_albums_result, provided_connection=None)
             except Exception as ex:
                 msgproc.log(f"preload_songs failed [{type(ex)}] [{ex}]")
         else:

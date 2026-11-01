@@ -15,6 +15,7 @@
 
 import base64
 import sqlite3
+from enum import Enum
 
 import config
 import constants
@@ -27,7 +28,8 @@ class CodecException(Exception):
     """Raised when a Codec error occurs."""
 
 
-__encoding: str = "utf-8"
+class _CodecConstants(Enum):
+    ENCODING = "utf-8"
 
 
 def encode(data: str) -> str:
@@ -41,8 +43,9 @@ def encode(data: str) -> str:
         if len(kv_list) > 1:
             raise CodecException(f"Duplicate entries for [{encoded_name}]")
         kv_item: persistence.KeyValueItem = kv_list[0] if len(kv_list) == 1 else None
+        k: str = None
         if kv_item:
-            return kv_item.key
+            k = kv_item.key
         else:
             persistence.lock_immediate(connection=connection)
             id_count: int = persistence.get_kv_partition_count(
@@ -55,8 +58,11 @@ def encode(data: str) -> str:
                 value=encoded_name),
                 connection=connection,
                 do_commit=True)
-            return str(new_id)
+            k = str(new_id)
+        connection.close()
+        return k
     else:
+        # not using any database
         return base64_encode(data)
 
 
@@ -71,13 +77,14 @@ def decode(id: str) -> str:
         # decode encoded value
         return base64_decode(encoded_kv.value)
     else:
+        # not using any database
         return base64_decode(id)
 
 
 def base64_encode(v: str) -> str:
-    message_bytes: bytes = v.encode(__encoding)
+    message_bytes: bytes = v.encode(_CodecConstants.ENCODING.value)
     base64_bytes: bytes = base64.b64encode(message_bytes)
-    id: str = base64_bytes.decode(__encoding)
+    id: str = base64_bytes.decode(_CodecConstants.ENCODING.value)
     return id
 
 
@@ -90,7 +97,7 @@ def base64_decode(encoded: str) -> str:
         if config.get_verbose_logging():
             msgproc.log(f"codec.base64_decode sanitized [{data}] "
                         f"(added [{4 - missing_padding}] padding characters)")
-    base64_bytes: bytes = data.encode(__encoding)
+    base64_bytes: bytes = data.encode(_CodecConstants.ENCODING.value)
     message_bytes: bytes = base64.b64decode(base64_bytes)
-    name: str = message_bytes.decode(__encoding)
+    name: str = message_bytes.decode(_CodecConstants.ENCODING.value)
     return name

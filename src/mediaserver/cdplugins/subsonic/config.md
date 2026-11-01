@@ -54,8 +54,8 @@ maxadditionalalbumartistsperpage|Max number of additional artists per page|10
 dumpstreamingproperties|Dump streaming properties to log|False
 appendcodecstoalbum|Show codec in album|True
 appendrolestoartist|Append roles to artist|False
-transcodecodec|Transcode codec to use|
-transcodemaxbitrate|Max bitrate to be used when transcoding|
+transcodecodec|Transcode codec to use|<< None >>
+transcodemaxbitrate|Max bitrate to be used when transcoding|<< None >>
 disablenavigablealbum|Disable navigability for albums|False
 dumpexplicitstatus|Dump explicit status to logs|False
 enableimagecaching|Enables the server to cache images locally|False
@@ -99,14 +99,14 @@ cachedrequesttimeoutsec|Timeout for cached requests in seconds|30
 maxfavoritesongsperpage|Max favorite songs displayed as a list|250
 maxfavoritesongcontainersperpage|Max favorite song containers per page|100
 enablefavoritesongspaginatedview|Enable legacy view to show a paginated view of favorite songs, this one has the advantage to give easier access to related artist(s)|False
-customheadersfilename|Location of a file with custom headers. Format should be same as an ENV file|
+customheadersfilename|Location of a file with custom headers. Format should be same as an ENV file|<< None >>
 redactcustomheaders|Redact custom headers if enabled|True
 recentlyplayedsongsmaxsongs|Maximum number of recently played songs to show|100
 recentlyplayedsongsmaxalbums|Maximum number of albums to be loaded in order to retrieve recently played songs|10
 recentlyplayedsongsbacklogprocafterlastalbum|Allow backlog processing after last loaded album, can lead to slightly inaccurate in the final results if enabled|False
 allowmixalbumversions|Allow to mix songs from multiple versions of the same album,  instead of presenting multiple versions|True
 stripversionfromtitle|Strip album version from title|True
-musicfolderid|Filter using the specified music folder id|None
+musicfolderid|Filter using the specified music folder id|<< None >>
 allowartistduplicatealbumtitle|Add an entry which will display albums with the same title, if any|True
 allowartistduplicatealbumtitleversion|Add an entry which will display albums with the same title and version, if any|True
 enablealbumpropertykeylabelinitial|Enable the album property key label initial|False

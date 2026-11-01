@@ -77,6 +77,7 @@ from album_property_key import (
     AlbumPropertyKeyOccurrence,
     AlbumPropertyKeyValue,
     AlbumPropertyValueOccurrence,
+    album_property_key_selection_req_dict,
     condition_list_contains_negative,
     condition_list_contains_positive,
     condition_list_positive_count,
@@ -549,7 +550,6 @@ def _load_albums_by_type(
                     option_key=OptionKey.PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE,
                     option_value=counter)
             current_caching_start: float = time.time()
-            # cache_actions.on_album(album=current_album)
             if tag_type and (not tag_cached) and (offset == 0):
                 cache_manager_provider.get().cache_element_value(
                     ElementType.TAG,
@@ -629,8 +629,6 @@ def _albums_by_artist_to_entries(
     counter: int = offset
     for current_album in album_list if album_list else []:
         counter += 1
-        # if current_album.getArtistId():
-        #    cache_actions.on_album(album=current_album)
         genre_list: list[str] = current_album.getGenres()
         for curr in genre_list:
             # TODO what do I do with these genres?
@@ -1436,10 +1434,10 @@ def handler_tag_album_browser(objid, item_identifier: ItemIdentifier, entries: l
     occ_dict: dict[str, AlbumPropertyKeyOccurrence] = {occ.property_key: occ for occ in occ_list}
     album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=album_id_list)
-    enabled_album_property_key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
+    enabled_album_property_key_list: list[AlbumPropertyKey] = _get_filtered_enabled_album_property_key_list()
     msgproc.log(f"handler_tag_album_browser enabled_album_property_key_list [{len(enabled_album_property_key_list)}]")
     curr_key: AlbumPropertyKey
-    for curr_key in config.get_enabled_album_property_key_list():
+    for curr_key in enabled_album_property_key_list:
         # match occurrence or continue
         occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
         if not occurrence:
@@ -1496,11 +1494,13 @@ def convert_selection_list(selection_list: list[list[str]]) -> list[AlbumPropert
 
 
 def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entries: list) -> list:
-    # verbose: bool = config.get_verbose_logging()
+    def msgproc_log(msg: str):
+        msgproc.log(f"handler_album_browse_filter_key {msg}")
+    verbose: bool = config.get_verbose_logging()
     album_property_key: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     album_property_key_matched: AlbumPropertyKey = get_album_property_key(property_key=album_property_key)
     if album_property_key_matched is None:
-        msgproc.log(f"handler_album_browse_filter_key no match for [{album_property_key}]")
+        msgproc_log(f"handler_album_browse_filter_key no match for [{album_property_key}]")
         return []
     offset: int = item_identifier.get(ItemIdentifierKey.OFFSET, 0)
     current_selection_list_str: str = item_identifier.get(ItemIdentifierKey.ALBUM_BROWSE_SELECTION_LIST, codec.base64_encode(json.dumps([])))
@@ -1549,13 +1549,15 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
             # regular
             match_count = curr_value.album_count
             representative_album_id = curr_value.representative_album_id
-            msgproc.log(f"handler_album_browse_filter_key [{curr_value.property_value}] -> repr [{representative_album_id}]")
+            if verbose:
+                msgproc_log(f"handler_album_browse_filter_key [{curr_value.property_value}] -> repr [{representative_album_id}]")
         else:
             # none
             none_condition_list: list[AlbumPropertyKeyValue] = condition_list + [AlbumPropertyKeyValue(key=album_property_key, value=None)]
             match_count: int = persistence.get_album_property_matching_count(condition_list=none_condition_list)
             representative_album_id: str = persistence.get_one_random_album_property_matching(condition_list=none_condition_list)
-            msgproc.log(f"handler_album_browse_filter_key [None] -> repr [{representative_album_id}]")
+            if verbose:
+                msgproc_log(f"handler_album_browse_filter_key [None] -> repr [{representative_album_id}]")
         title: str = f"{album_property_key_matched.format_key_value(curr_value.property_value) if curr_value else '[None]'} [{match_count}]"
         entry: dict[str, Any] = upmplgutils.direntry(
             id=id,
@@ -1586,7 +1588,7 @@ def handler_album_browse_filter_key(objid, item_identifier: ItemIdentifier, entr
         entry_list_dict_by_album_id[next_value.representative_album_id].append(next_entry)
         album_id_set.add(next_value.representative_album_id)
     # load album id list
-    msgproc.log(f"Loading [{len(album_id_set)}] albums ...")
+    msgproc_log(f"Loading [{len(album_id_set)}] albums ...")
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=list(album_id_set))
     # cycle through entries
     entry_album_id: str
@@ -1639,20 +1641,23 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
     occ_album_id_list: list[str] = [occ.representative_album_id for occ in occ_list]
     album_dict: dict[str, AlbumMetadata] = persistence.get_album_metadata_dict(album_id_list=occ_album_id_list)
     curr_key: AlbumPropertyKey
-    for curr_key in config.get_enabled_album_property_key_list():
+    for curr_key in _get_filtered_enabled_album_property_key_list(condition_list):
         # match occurrence or continue
         occurrence: AlbumPropertyKeyOccurrence = occ_dict.get(curr_key.property_key)
         if not occurrence:
+            msgproc.log(f"handler_album_browse_filter_value continuing for [{curr_key.property_key}] (no occurrence)")
             continue
         # we have the occurrence. Calculate if we need to show it or not
         # if there is already a "None" in filters for curr_key, we do not need to show the key
         if condition_list_contains_negative(condition_list=condition_list, album_property_key=curr_key.property_key):
+            msgproc.log(f"handler_album_browse_filter_value continuing for [{curr_key.property_key}] (contains_negative)")
             continue
         pos_filter_count: int = condition_list_positive_count(
                 condition_list=condition_list,
                 album_property_key=curr_key.property_key)
         # if missing is false and we have the same number of positives, we do not need to show the key
         if not occurrence.is_missing_for_some and occurrence.property_value_count == pos_filter_count:
+            msgproc.log(f"handler_album_browse_filter_value continuing for [{curr_key.property_key}] (pos_filter_count)")
             continue
         identifier: ItemIdentifier = ItemIdentifier(
             ElementType.ALBUM_BROWSE_FILTER_KEY.element_name,
@@ -1698,6 +1703,35 @@ def handler_album_browse_filter_value(objid, item_identifier: ItemIdentifier, en
         album_art_uri=subsonic_util.build_cover_art_url(item_id=random_album.album_cover_art if random_album else None),
         target=matching_entry)
     return entries
+
+
+def _get_filtered_enabled_album_property_key_list(condition_list: list[AlbumPropertyKeyValue] | None = None) -> list[AlbumPropertyKey]:
+    def msgproc_log(msg: str):
+        msgproc.log(f"_get_filtered_enabled_album_property_key_list {msg}")
+    key_list: list[AlbumPropertyKey] = config.get_enabled_album_property_key_list()
+    value_key_list: list[str] = [x.key for x in (condition_list if condition_list else [])]
+    msgproc_log(f"value_key_list = [{value_key_list}]")
+    res: list[AlbumPropertyKey] = []
+    # filter using requirements
+    curr: AlbumPropertyKey
+    for curr in key_list:
+        filtered_out: bool = False
+        # does the key have some requirements?
+        if curr in album_property_key_selection_req_dict:
+            msgproc_log(f"[{curr.property_key}] has requirements")
+            req_list: list[AlbumPropertyKey] = album_property_key_selection_req_dict[curr]
+            msgproc_log(f"[{curr.property_key}] req_count [{len(req_list)}]")
+            # verify that the required filters are set
+            req: AlbumPropertyKey
+            for req in req_list:
+                msgproc_log(f"[{curr.property_key}] verifying [{req.property_key}] to be in [{value_key_list}] ...")
+                if not req.property_key in value_key_list:
+                    msgproc_log(f"[{curr.property_key}] requires [{req.property_key}] -> filtered out")
+                    filtered_out = True
+        if not filtered_out:
+            res.append(curr)
+    msgproc_log(f"[{[x.property_key for x in key_list]}] -> [{[x.property_key for x in res]}]")
+    return res
 
 
 def __sort_matching_album_list(album_metadata_list: list[AlbumMetadata]):
@@ -1765,10 +1799,14 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
                             constants.ConfigParam.APPEND_YEAR_TO_ALBUM_VIEW
                             if not navigable
                             else constants.ConfigParam.APPEND_YEAR_TO_ALBUM_CONTAINER)
-    append_version: bool = config.get_config_param_as_bool(
-                            constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER
+    append_badge: bool = config.get_config_param_as_bool(
+                            constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_VIEW
                             if not navigable
-                            else constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW)
+                            else constants.ConfigParam.ALLOW_QUALITY_BADGE_IN_ALBUM_CONTAINER)
+    append_version: bool = config.get_config_param_as_bool(
+                            constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_VIEW
+                            if not navigable
+                            else constants.ConfigParam.ALLOW_ALBUM_VERSION_IN_ALBUM_CONTAINER)
     curr: AlbumMetadata
     for curr in to_display:
         album_identifier: ItemIdentifier = ItemIdentifier(
@@ -1778,6 +1816,14 @@ def handler_element_matching_albums(objid, item_identifier: ItemIdentifier, entr
             objid=objid,
             id=identifier_util.create_id_from_identifier(album_identifier))
         entry_title: str = curr.album_name
+        # badge
+        if append_badge:
+            # append the badge
+            entry_title = subsonic_util.append_album_badge_to_album_title(
+                current_albumtitle=entry_title,
+                album_quality_badge=curr.quality_badge,
+                album_entry_type=constants.AlbumEntryType.ALBUM_CONTAINER if navigable else constants.AlbumEntryType.ALBUM_VIEW,
+                is_search_result=False)
         # version
         if append_version:
             entry_title = subsonic_util.append_album_version_to_album_title(
@@ -1987,10 +2033,6 @@ def handler_element_song_entry(objid, item_identifier: ItemIdentifier, entries: 
     msgproc.log(f"handler_element_song_entry start song_id {song_id} go on with album")
     album: Album = subsonic_util.try_get_album(album_id=song.getAlbumId(), propagate_fail=True)
     options: dict[str, Any] = {}
-    option_util.set_option(
-        options=options,
-        option_key=OptionKey.FORCE_RELOAD_ALBUM_QUALITY_INFO,
-        option_value=True)
     entries.append(entry_creator.album_to_entry(
         objid=objid,
         album=album,
@@ -2202,7 +2244,8 @@ def handler_element_genre_artists(objid, item_identifier: ItemIdentifier, entrie
         needs_next = True
     if needs_next:
         next_offset: int = offset + config.get_config_param_as_int(constants.ConfigParam.MAX_ARTISTS_PER_PAGE)
-        msgproc.log(f"handler_element_genre_artists for [{genre}] next offset is [{next_offset}] ...")
+        msgproc.log(f"handler_element_genre_artists for [{genre}] next offset is [{next_offset}] "
+                    f"starting from [{next_artist.artist_id}] [{next_artist.artist_name}] ...")
         # add the next button
         next_identifier: ItemIdentifier = ItemIdentifier(ElementType.GENRE_ARTIST_LIST.element_name, genre)
         next_identifier.set(ItemIdentifierKey.OFFSET, next_offset)
@@ -2827,7 +2870,8 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     ref_album_id: str = item_identifier.get(ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST, None)
     if ref_album_id:
-        msgproc.log(f"Artist entry for artist_id [{artist_id}] created with reference to album_id [{ref_album_id}]")
+        msgproc.log(f"Artist entry for artist_id [{artist_id}] "
+                    f"created with reference to album_id [{ref_album_id}]")
         # create entry for album song selection
         songsel_identifier: ItemIdentifier = ItemIdentifier(
             name=ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.element_name,
@@ -2837,23 +2881,25 @@ def handler_element_artist(objid, item_identifier: ItemIdentifier, entries: list
             objid=objid,
             id=identifier_util.create_id_from_identifier(songsel_identifier))
         ref_album: Album = subsonic_util.try_get_album(album_id=ref_album_id)
-        contributed_songs: list[Song] = (subsonic_util.get_authored_or_contributed_songs(album=ref_album, artist_id=artist_id)
-                                         if ref_album
-                                         else [])
-        partial: bool = ((len(contributed_songs) > 0 and len(contributed_songs) < ref_album.getSongCount())
-                         if ref_album else False)
-        msgproc.log(f"Show song selection if partial: [{partial}]")
-        if ref_album and partial:
-            songsel_entry: dict[str, Any] = upmplgutils.direntry(
-                songsel_id,
-                objid,
-                f"Song selection in [{subsonic_util.get_album_with_version(ref_album)}]")
-            upnp_util.set_album_art_from_uri(
-                album_art_uri=subsonic_util.get_cover_art_url_by_album(album=ref_album),
-                target=songsel_entry)
-            entries.append(songsel_entry)
+        # can we find the referenced album?
+        if ref_album:
+            contributed_songs: list[Song] = subsonic_util.get_authored_or_contributed_songs(album=ref_album, artist_id=artist_id)
+            partial: bool = (len(contributed_songs) > 0 and len(contributed_songs) < ref_album.getSongCount())
+            msgproc.log(f"Show song selection if partial: [{partial}]")
+            if partial:
+                songsel_entry: dict[str, Any] = upmplgutils.direntry(
+                    songsel_id,
+                    objid,
+                    f"Song selection in [{subsonic_util.get_album_with_version(ref_album)}]")
+                upnp_util.set_album_art_from_uri(
+                    album_art_uri=subsonic_util.get_cover_art_url_by_album(album=ref_album),
+                    target=songsel_entry)
+                entries.append(songsel_entry)
+        else:
+            msgproc.log(f"Cannot retrieve referenced album by its id [{ref_album_id}]")
     artist: Artist = subsonic_util.try_get_artist(artist_id=artist_id)
     if not artist:
+        # this is a dealbreaker
         msgproc.log(f"Cannot retrieve artist by id {artist_id}")
         persistence.delete_artist_metadata(artist_id=artist_id)
         return entries
@@ -3305,6 +3351,7 @@ def create_artist_albums_entry_for_appearances(
 
 def handler_element_artist_focus(objid, item_identifier: ItemIdentifier, entries: list) -> list:
     artist_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
+    msgproc.log(f"handler_element_artist_focus for artist_id [{artist_id}]")
     artist: Artist = subsonic_util.try_get_artist(artist_id)
     if artist is None:
         return entries
@@ -3319,11 +3366,11 @@ def handler_element_artist_focus(objid, item_identifier: ItemIdentifier, entries
     similar_artists_entry: dict[str, Any] = create_similar_artists_entry(objid, artist_id)
     if similar_artists_entry:
         entries.append(similar_artists_entry)
-    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entry(
+    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entries(
         objid=objid,
         iid=artist.getId(),
         radio_entry_type=RadioEntryType.ARTIST_RADIO)
-    entries.append(radio_entry_list)
+    entries.extend(radio_entry_list)
     return entries
 
 
@@ -3406,7 +3453,7 @@ def handler_element_album_focus(
                     "not creating similar artists entry")
     get_radio_entry_list_start_time: float = time.time()
     get_radio_entry_list_elapsed_time: float = None
-    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entry(
+    radio_entry_list: list[dict[str, Any]] = create_artist_radio_entries(
         objid=objid,
         iid=album.getId(),
         radio_entry_type=RadioEntryType.ALBUM_RADIO)
@@ -3423,32 +3470,20 @@ def handler_element_album_focus(
     return entries
 
 
-def handler_element_navigable_album(
+def handler_element_album_navigable(
         objid,
         item_identifier: ItemIdentifier,
         entries: list) -> list:
+    def msgproc_log(msg: str):
+        msgproc.log(f"handler_element_album_navigable {msg}")
     verbose: bool = config.get_verbose_logging()
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     album: Album = subsonic_util.try_get_album(album_id=album_id)
     if not album:
-        msgproc.log(f"Album [{album_id}] not found")
+        msgproc_log(f"Album [{album_id}] not found")
         persistence.delete_album_metadata(album_id=album_id)
         return entries
-    album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album.getId())
-    # reload quality badges. We are displaying one album, so we can do this
-    quality_badge: str = subsonic_util.calc_song_list_quality_badge(
-        song_list=album.getSongs(),
-        list_identifier=album.getId())
-    song_quality_summary: str = subsonic_util.calc_song_quality_summary(song_list=album.getSongs())
-    # Save it
-    # if album_metadata is None:
-    album_metadata, _ = persistence.save_album_metadata(
-        album_metadata=metadata_converter.build_album_metadata(
-            album=album,
-            quality_badge=quality_badge,
-            song_quality_summary=song_quality_summary),
-        context="handler_element_navigable_album",
-        force_insert=album_metadata is None)
+    album_metadata: AlbumMetadata = cache_actions.on_album(album=album)
     clean_title: str = subsonic_util.get_album_title(album)
     album_mb_id: str = subsonic_util.get_album_musicbrainz_id(album)
     media_type: str = subsonic_util.get_media_type(album)
@@ -3458,14 +3493,14 @@ def handler_element_navigable_album(
     album_last_played: str = subsonic_util.get_album_played(album)
     record_label_names: list[str] = subsonic_util.get_album_record_label_names(album)
     if verbose:
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> artist_id: [{album.getArtistId()}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> album_mbid: [{album_mb_id}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> media type [{media_type}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> release types [{release_types}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> genres [{genres}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> version [{album_version}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> last played [{album_last_played}]")
-        msgproc.log(f"handler_element_navigable_album album [{album_id}] -> record label names [{record_label_names}]")
+        msgproc_log(f"album [{album_id}] -> artist_id: [{album.getArtistId()}]")
+        msgproc_log(f"album [{album_id}] -> album_mbid: [{album_mb_id}]")
+        msgproc_log(f"album [{album_id}] -> media type [{media_type}]")
+        msgproc_log(f"album [{album_id}] -> release types [{release_types}]")
+        msgproc_log(f"album [{album_id}] -> genres [{genres}]")
+        msgproc_log(f"album [{album_id}] -> version [{album_version}]")
+        msgproc_log(f"album [{album_id}] -> last played [{album_last_played}]")
+        msgproc_log(f"album [{album_id}] -> record label names [{record_label_names}]")
     album_entry: dict[str, Any] = entry_creator.album_to_entry(
         objid=objid,
         album=album,
@@ -3481,11 +3516,7 @@ def handler_element_navigable_album(
         album=album,
         config_getter=(lambda: config.get_config_param_as_bool(constants.ConfigParam.ALLOW_GENRE_IN_ALBUM_VIEW)))
     # badge if available
-    album_quality_badge: str = (album_metadata.quality_badge
-                                if album_metadata
-                                else subsonic_util.calc_song_list_quality_badge(
-                                    song_list=album.getSongs(),
-                                    list_identifier=album.getId()))
+    album_quality_badge: str | None = album_metadata.quality_badge if album_metadata else None
     title = subsonic_util.append_album_badge_to_album_title(
         current_albumtitle=title,
         album_quality_badge=album_quality_badge,
@@ -3509,19 +3540,14 @@ def handler_element_navigable_album(
         target=album_entry)
     entries.append(album_entry)
     # add artist if needed
-    skip_artist_id: str = item_identifier.get(ItemIdentifierKey.SKIP_ARTIST_ID)
-    if skip_artist_id:
-        msgproc.log(f"handler_element_navigable_album skip_artist_id: [{skip_artist_id}]")
     skip_artist_id_set: set[str] = set()
-    if skip_artist_id:
-        skip_artist_id_set.add(skip_artist_id)
     # additional...
     inline_additional_artists_for_album: bool = True
     additional: list[subsonic_util.ArtistsOccurrence] = subsonic_util.get_all_artists_in_album(album=album)
     additional_artist_len: int = len(additional)
     additional_artists_max: int = config.get_config_param_as_int(constants.ConfigParam.MAX_ADDITIONAL_ARTISTS)
     if additional_artist_len > additional_artists_max:
-        msgproc.log("handler_element_navigable_album Suppressing additional artists because there are too many "
+        msgproc_log("Suppressing additional artists because there are too many "
                     f"for album [{album.getId()}], "
                     f"limit is [{additional_artists_max}], "
                     f"but we have [{additional_artist_len}]")
@@ -3529,20 +3555,20 @@ def handler_element_navigable_album(
         inline_additional_artists_for_album = False
     curr_additional: subsonic_util.ArtistsOccurrence
     for curr_additional in additional:
-        msgproc.log(f"handler_element_navigable_album for album_id [{album.getId()}] "
+        msgproc_log(f"for album_id [{album.getId()}] "
                     f"found artist_id:[{curr_additional.artist_id}] "
                     f"name:[{curr_additional.artist_name}]")
     if inline_additional_artists_for_album and len(additional) > 0:
-        msgproc.log(f"handler_element_navigable_album adding {len(additional)} additional artists "
+        msgproc_log(f"adding {len(additional)} additional artists "
                     f"[{[c.artist_id for c in additional]}] "
                     f"skip_artist_id_set [{skip_artist_id_set}] ...")
-        msgproc.log("before create_entries_for_album_additional_artists")
+        msgproc_log("before create_entries_for_album_additional_artists")
         additional_artist_entries: list[dict, str] = create_entries_for_album_additional_artists(
             objid=objid,
             album_id=album_id,
             additional=additional,
             skip_artist_id_set=skip_artist_id_set)
-        msgproc.log("after create_entries_for_album_additional_artists")
+        msgproc_log("after create_entries_for_album_additional_artists")
         entries.extend(additional_artist_entries)
     elif len(additional) > 0:
         # create main artist entry if album has artist id
@@ -3554,10 +3580,10 @@ def handler_element_navigable_album(
                         objid=objid,
                         artist=main_artist))
             else:
-                msgproc.log(f"handler_element_navigable_album cannot load main artist [{album.getArtistId()}] "
+                msgproc_log(f"cannot load main artist [{album.getArtistId()}] "
                             f"for album_id [{album.getId()}]")
         # create dedicated entry for additional album artists
-        msgproc.log(f"handler_element_navigable_album creating entry for {len(additional)} additional artists ...")
+        msgproc_log(f"creating entry for {len(additional)} additional artists ...")
         additional_album_artists_identifier: ItemIdentifier = ItemIdentifier(
             name=ElementType.ADDITIONAL_ALBUM_ARTISTS.element_name,
             value=album_id)
@@ -3570,7 +3596,7 @@ def handler_element_navigable_album(
             title="Additional Artists")
         # select random artist
         select_random_artist: subsonic_util.ArtistsOccurrence = secrets.choice(additional)
-        msgproc.log("handler_element_navigable_album selected for additional artist entry "
+        msgproc_log("selected for additional artist entry "
                     f"[{select_random_artist.artist_name}] "
                     f"[{select_random_artist.artist_id}]")
         random_artist_cover_art_uri: str = art_retriever.get_album_cover_art_url_by_artist_id(select_random_artist.artist_id)
@@ -3580,7 +3606,6 @@ def handler_element_navigable_album(
         entries.append(additional_album_artists_entry)
     entry: dict[str, Any] = entry_creator.album_id_to_album_focus(objid=objid, album=album)
     entries.append(entry)
-    cache_actions.on_album(album=album, album_metadata=album_metadata)
     return entries
 
 
@@ -3653,7 +3678,8 @@ def create_entries_for_album_additional_artists(
         objid: Any,
         album_id: str,
         additional: list[subsonic_util.ArtistsOccurrence],
-        skip_artist_id_set: set[str]) -> list[dict[str, Any]]:
+        skip_artist_id_set: set[str] | None) -> list[dict[str, Any]]:
+    unique_artist_id_set: set[str] = set()
     artist_entries: list[dict[str, Any]] = []
     artist_id_list: list[str] = [x.artist_id for x in additional]
     cover_dict: dict[str, list[ArtistAlbumCoverArt]] = persistence.get_cover_art_list_by_artist_id_list(
@@ -3661,7 +3687,10 @@ def create_entries_for_album_additional_artists(
     curr_artist: subsonic_util.ArtistsOccurrence
     for curr_artist in additional:
         msgproc.log(f"Processing curr_artist [{curr_artist.artist_id}] [{curr_artist.artist_name}] ...")
-        add_current: bool = curr_artist.artist_id not in skip_artist_id_set
+        # avoid to present the same artist multiple times
+        add_current: bool = curr_artist.artist_id not in unique_artist_id_set
+        # avoid to present artist id in the skip_artist_id_set
+        add_current = add_current and (skip_artist_id_set is None or curr_artist.artist_id not in skip_artist_id_set)
         msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.artist_id}] [{curr_artist.artist_name}] "
                     f"adding [{'yes' if add_current else 'no'}]")
         if add_current:
@@ -3686,7 +3715,7 @@ def create_entries_for_album_additional_artists(
                         msgproc.log(f"Cannot find mbid for artist_id [{curr_artist.artist_id}]")
             msgproc.log(f"Adding artist entry: [{entry_name}] for artist_id: [{curr_artist.artist_id}] ...")
             additional_identifier_properties: dict[ItemIdentifierKey, Any] = {}
-            if curr_artist.artist_id not in skip_artist_id_set:
+            if skip_artist_id_set is None or curr_artist.artist_id not in skip_artist_id_set:
                 additional_identifier_properties[ItemIdentifierKey.ALBUM_ID_REF_FOR_ARTIST] = album_id
             # load the artist
             cover_lst: list[ArtistAlbumCoverArt] = (cover_dict.get(curr_artist.artist_id, []))
@@ -3698,16 +3727,16 @@ def create_entries_for_album_additional_artists(
                 artist_entry_name=curr_artist.artist_name,
                 artist_cover_art=cover_art,
                 additional_identifier_properties=additional_identifier_properties))
-            msgproc.log(f"Adding artist_id: [{curr_artist.artist_id}] to skip set ...")
-            skip_artist_id_set.add(curr_artist.artist_id)
+            msgproc.log(f"Adding artist_id: [{curr_artist.artist_id}] to unique_artist_id_set ...")
+            unique_artist_id_set.add(curr_artist.artist_id)
         else:
             msgproc.log(f"create_entries_for_album_additional_artists handling [{curr_artist.artist_id}] "
                         f"[{curr_artist.artist_name}] -> not adding!")
     return artist_entries
 
 
-def create_artist_radio_entry(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, Any]]:
-    msgproc.log(f"create_artist_radio_entry for {iid} [{radio_entry_type}]")
+def create_artist_radio_entries(objid, iid: str, radio_entry_type: RadioEntryType) -> list[dict[str, Any]]:
+    msgproc.log(f"create_artist_radio_entries for {iid} [{radio_entry_type}]")
     radio_identifier: ItemIdentifier = ItemIdentifier(ElementType.RADIO.element_name, iid)
     radio_id: str = identifier_util.create_objid(
         objid=objid,
@@ -3899,38 +3928,42 @@ def handler_element_album_disc(objid, item_identifier: ItemIdentifier, entries: 
     return entries
 
 
-def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+def handler_element_album_simple(objid, item_identifier: ItemIdentifier, entries: list) -> list:
+    def msgproc_log(msg: str):
+        msgproc.log(f"handler_element_album_simple {msg}")
     verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     album_id: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
     avp_enc: str = item_identifier.get(ItemIdentifierKey.ALBUM_VERSION_PATH_BASE64, None)
-    msgproc.log(f"handler_element_album for album_id [{album_id}] avp_enc [{avp_enc}]")
+    msgproc_log(f"for album_id [{album_id}] avp_enc [{avp_enc}]")
     album_version_path: str = codec.base64_decode(avp_enc) if avp_enc else None
-    msgproc.log(f"handler_element_album for album_id [{album_id}] "
+    msgproc_log(f"for album_id [{album_id}] "
                 f"album_version_path [{album_version_path}]")
     album: Album
     album_tracks: AlbumTracks
     album, album_tracks = get_album_tracks(album_id) if not album_version_path else (None, None)
     if not album:
-        msgproc.log(f"Album [{album_id}] not found")
+        msgproc_log(f"Album [{album_id}] not found")
+        # remove from local database!
         persistence.delete_album_metadata(album_id=album_id)
         return entries
-    # update metadata
-    album_metadata: AlbumMetadata = persistence.get_album_metadata(album_id=album_id)
-    cache_actions.on_album(album=album, album_metadata=album_metadata)
+    # update metadata using on_album
+    # we don't need the resulting AlbumMetadata here
+    cache_actions.on_album(album=album)
     # mix tracks?
     if config.get_config_param_as_bool(constants.ConfigParam.ALLOW_MIX_ALBUM_VERSIONS):
         # we always present tracks, otherwise we fall back to presenting versions (if there are multiple versions)
         if verbose:
-            msgproc.log(f"handler_element_album preparing mixed content for album_id [{album_id}] ...")
+            msgproc_log(f"preparing mixed content for album_id [{album_id}] ...")
         # collect by disc number and track
         song_dict: dict[tuple[int, int, str], Song] = defaultdict(list)
         curr: Song
-        for curr in album_tracks.getSongList():
+        # we can mix songs from the same album
+        for curr in album.getSongs():
             if verbose:
-                msgproc.log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> "
+                msgproc_log(f"{album_id} [{curr.getDiscNumber()}].[{curr.getTrack()}] -> "
                             f"adding song [{curr.getTitle()}] ...")
             clean_title: str = curr.getTitle().upper().replace("’", "'")
-            # msgproc.log(f"handler_element_album adding tuple({curr.getDiscNumber()}, {curr.getTrack()}, {clean_title}) ...")
+            # msgproc_log(f"adding tuple({curr.getDiscNumber()}, {curr.getTrack()}, {clean_title}) ...")
             dn: int | None = curr.getDiscNumber()
             tn: int | None = curr.getTrack()
             song_dict[(
@@ -3945,7 +3978,7 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
             song_versions: list[Song] = song_dict[curr_key]
             best_version: Song = subsonic_util.choose_best_track_by_format(song_versions)
             if len(song_versions) > 1:
-                msgproc.log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] [{curr_key[2]}] -> select best from [{len(song_versions)}] "
+                msgproc_log(f"{album_id} [{curr_key[0]}].[{curr_key[1]}] [{curr_key[2]}] -> select best from [{len(song_versions)}] "
                             f"[{sorted([s.getId() for s in song_versions])}] -> "
                             f"[{best_version.getId() if best_version else ''}]")
             if best_version:
@@ -3960,7 +3993,7 @@ def handler_element_album(objid, item_identifier: ItemIdentifier, entries: list)
                     options=options))
         return entries
     if album_tracks and album_tracks.getAlbumVersionCount() > 1:
-        msgproc.log(f"handler_element_album for album_id [{album_id}] -> [{album_tracks.getAlbumVersionCount()}] versions")
+        msgproc_log(f"album_id [{album_id}] -> [{album_tracks.getAlbumVersionCount()}] versions")
         version_counter: int
         album_version_path: str
         codec_set: set[str]
@@ -4230,11 +4263,11 @@ __elem_action_dict: dict = {
     ElementType.ARTIST_ROLE_INITIAL.element_name: handler_element_artist_role_initial,
     ElementType.ARTIST_FOCUS.element_name: handler_element_artist_focus,
     ElementType.GENRE_ARTIST.element_name: handler_element_genre_artist,
-    ElementType.ALBUM.element_name: handler_element_album,
+    ElementType.ALBUM.element_name: handler_element_album_simple,
     ElementType.ALBUM_VERSION.element_name: handler_element_album_version,
     ElementType.ALBUM_DISC.element_name: handler_element_album_disc,
     ElementType.ALBUM_SONG_SELECTION_BY_ARTIST.element_name: handler_album_song_selection_by_artist,
-    ElementType.NAVIGABLE_ALBUM.element_name: handler_element_navigable_album,
+    ElementType.NAVIGABLE_ALBUM.element_name: handler_element_album_navigable,
     ElementType.ADDITIONAL_ALBUM_ARTISTS.element_name: handler_additional_album_artists,
     ElementType.ALBUM_FOCUS.element_name: handler_element_album_focus,
     ElementType.GENRE_ARTIST_LIST.element_name: handler_element_genre_artists,
@@ -4361,6 +4394,7 @@ def create_missing_objid_entry(objid: Any) -> dict[str, any]:
 @dispatcher.record('browse')
 def browse(a):
     start: float = time.time()
+    verbose: bool = config.get_config_param_as_bool(constants.ConfigParam.VERBOSE_LOGGING)
     without_cache: bool = config.get_config_param_as_bool(constants.ConfigParam.BROWSE_WITHOUT_CACHE)
     msgproc.log(f"browse: args: --{a}--")
     # possibly remove this
@@ -4400,7 +4434,8 @@ def browse(a):
         thing_value: str = item_identifier.get(ItemIdentifierKey.THING_VALUE)
         msgproc.log(f"browse: item_identifier name: [{thing_name}] value: [{thing_value}]")
         if ElementType.TAG.element_name == thing_name:
-            msgproc.log(f"browse: should serve tag: [{thing_value}]")
+            if verbose:
+                msgproc.log(f"browse: should serve tag: [{thing_value}]")
             tag_handler = __tag_action_dict.get(thing_value, None)
             if tag_handler:
                 current_tag: TagType = get_tag_type_by_name(thing_value)
@@ -4763,7 +4798,6 @@ def search(a):
                 # looking for albums by artist
                 album_list: list[Album] = search_albums_by_artist(artist_name=value)
                 for current_album in album_list:
-                    # cache_actions.on_album(album=current_album)
                     if album_as_container:
                         entries.append(entry_creator.album_to_navigable_entry(
                             objid=objid,
@@ -4863,7 +4897,6 @@ def search(a):
             filters: dict[str, str] = {}
             msgproc.log(f"search: filters = {filters}")
             for current_album in album_list:
-                # cache_actions.on_album(album=current_album)
                 if album_as_container:
                     entries.append(entry_creator.album_to_navigable_entry(
                         objid=objid,

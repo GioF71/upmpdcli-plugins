@@ -16,6 +16,7 @@
 import datetime
 from enum import Enum
 from typing import Protocol
+
 import sqlhelper
 
 
@@ -76,14 +77,14 @@ class KeyValueItem:
             partition: str,
             key: str,
             value: str,
-            created_timestamp: datetime.datetime = None,
-            updated_timestamp: datetime.datetime = None):
+            created_timestamp: datetime.datetime | None = None,
+            updated_timestamp: datetime.datetime | None = None):
         self.__partition: str = partition
         self.__key: str = key
         self.__value: str = value
         self.__created_timestamp: datetime.datetime = (created_timestamp
                                                        if created_timestamp
-                                                       else datetime.datetime.now())
+                                                       else datetime.datetime.now(tz=datetime.timezone.utc))
         self.__updated_timestamp: datetime.datetime = (updated_timestamp
                                                        if updated_timestamp
                                                        else self.created_timestamp)
@@ -110,7 +111,7 @@ class KeyValueItem:
 
     def update(self, value: str):
         self.__value = value
-        self.__updated_timestamp = datetime.datetime.now()
+        self.__updated_timestamp = datetime.datetime.now(tz=datetime.timezone.utc)
 
 
 def insert_kv_item_v1(
@@ -255,7 +256,7 @@ def put_key_value_item(
         kv_loader=loader)
     if existing:
         # update persistent data
-        now: datetime.datetime = datetime.datetime.now()
+        now: datetime.datetime = datetime.datetime.now(tz=datetime.timezone.utc)
         updater(
             partition=key_value_item.partition,
             key=key_value_item.key,
@@ -268,5 +269,5 @@ def put_key_value_item(
         # insert
         creator(
             key_value_item=key_value_item,
-            creation_timestamp=datetime.datetime.now(),
+            creation_timestamp=datetime.datetime.now(tz=datetime.timezone.utc),
             do_commit=do_commit)

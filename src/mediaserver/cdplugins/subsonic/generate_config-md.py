@@ -46,7 +46,17 @@ def generate():
     with open(file_path, "a", encoding="utf-8") as f:
         config_param: constants.ConfigParam
         for config_param in constants.ConfigParam:
-            f.write(f"{config_param.key}|{config_param.description}|{config_param.default_value}\n")
+            v: any = config_param.default_value
+            v_display_value: str = "<< None >>"
+            if v is not None:
+                # string?
+                if isinstance(v, str) and len(v) > 0:
+                    v_display_value = v
+                elif isinstance(v, bool):
+                    v_display_value = str(v)
+                elif isinstance(v, int):
+                    v_display_value = str(v)
+            f.write(f"{config_param.key}|{config_param.description}|{v_display_value}\n")
             cnt += 1
     print(f"Generation complete [{cnt} entries])")
 

@@ -247,7 +247,7 @@ def get_genres() -> Response[Genres]:
         return cached_response_genres.last_response_obj
 
 
-def get_first_newest_album_list() -> list[AlbumList]:
+def get_first_newest_album_list() -> Response[AlbumList]:
     global cached_response_newest
     if __cached_response_is_expired(
             cached=cached_response_newest,
@@ -260,12 +260,16 @@ def get_first_newest_album_list() -> list[AlbumList]:
             fromYear=datetime_util.now().year,
             toYear=0,
             musicFolderId=config.get_config_param_as_str(constants.ConfigParam.MUSIC_FOLDER_ID))
+        msgproc.log(f"subsonic_util.get_first_newest_album_list finished loading [{len(res.getObj().getAlbums())}] "
+                    "albums, storing in cache ...")
         cached_response_newest = CachedResponse()
         cached_response_newest.last_response_obj = res
         cached_response_newest.last_response_time = datetime_util.now()
-        msgproc.log(f"subsonic_util.get_first_newest_album_list finished loading [{len(res.getObj().getAlbums())}] albums")
+        msgproc.log(f"subsonic_util.get_first_newest_album_list finished for [{len(res.getObj().getAlbums())}] albums")
         return res
     else:
-        # use cached!
-        msgproc.log("subsonic_util.get_first_newest_album_list using cached response")
+        # use cached response
+        # if we are here, the cached response has a list of albums
+        sz: int = len(cached_response_newest.last_response_obj.getObj().getAlbums())
+        msgproc.log(f"subsonic_util.get_first_newest_album_list using cached response with [{sz}] albums")
         return cached_response_newest.last_response_obj

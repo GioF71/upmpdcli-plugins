@@ -13,37 +13,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-class ArtistIdName:
-
-    def __init__(
-            self,
-            artist_id: str,
-            artist_name: str):
-        self.__artist_id: str = artist_id
-        self.__artist_name: str = artist_name
-
-    @property
-    def artist_id(self) -> str:
-        return self.__artist_id
-
-    @property
-    def artist_name(self) -> str:
-        return self.__artist_name
+from typing import NamedTuple
 
 
-class ArtistIdNameCoverArt(ArtistIdName):
+class ArtistIdName(NamedTuple):
+    artist_id: str
+    artist_name: str
 
-    def __init__(
-            self,
-            artist_id: str,
-            artist_name: str,
-            cover_art: str | None = None):
-        super().__init__(
-            artist_id=artist_id,
-            artist_name=artist_name)
-        self.__cover_art: str = cover_art
 
-    @property
-    def cover_art(self) -> str:
-        return self.__cover_art
+class ArtistIdNameCoverArt(NamedTuple):
+    artist_id: str
+    artist_name: str
+    cover_art: str | None = None

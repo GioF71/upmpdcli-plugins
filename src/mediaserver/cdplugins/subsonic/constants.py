@@ -19,7 +19,7 @@ from typing import Any
 
 class PluginConstant(Enum):
 
-    PLUGIN_RELEASE = "0.9.17"
+    PLUGIN_RELEASE = "0.9.18"
     PLUGIN_NAME = "subsonic"
 
 
@@ -112,6 +112,10 @@ class _ConfigParamData:
     @property
     def description(self) -> str:
         return self.__description
+
+
+class MiscConstant(Enum):
+    ENABLE_ALBUM_PROPERTY_KEY = "enablealbumpropertykey"
 
 
 class ConfigParam(Enum):
@@ -304,7 +308,7 @@ class ConfigParam(Enum):
         "dumpstreamingproperties",
         default_value=False,
         description="Dump streaming properties to log")
-    APPEND_CODEC_TO_ALBUM = _ConfigParamData(
+    APPEND_CODECS_TO_ALBUM = _ConfigParamData(
         "appendcodecstoalbum",
         default_value=True,
         description="Show codec in album")
@@ -760,6 +764,16 @@ class ExplicitDiplayMode:
 class ExplicitStatus(Enum):
     EXPLICIT = _ExplicitStatusData("explicit", "E", "Explicit")
     CLEAN = _ExplicitStatusData("clean", "C", "Clean")
+
+
+def get_explicit_status_by_display_value_short(short_explicit_status: str | None) -> ExplicitStatus | None:
+    if not short_explicit_status:
+        return None
+    es: ExplicitStatus
+    for es in ExplicitStatus:
+        if es.value.display_value == short_explicit_status:
+            return es
+    return None
 
 
 class UpnpMeta(Enum):

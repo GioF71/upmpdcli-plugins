@@ -33,121 +33,121 @@ class AlbumMetadata(Metadata):
         return self._set(album_metadata_model.column_name, value)
 
     @property
-    def album_id(self) -> str:
+    def album_id(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_ID)
 
     @property
-    def quality_badge(self) -> str:
+    def quality_badge(self) -> str | None:
         return self.get_value(AlbumMetadataModel.QUALITY_BADGE)
 
     @property
-    def album_media_type(self) -> str:
+    def album_media_type(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_MEDIA_TYPE)
 
     @property
-    def album_lossless_status(self) -> str:
+    def album_lossless_status(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_LOSSLESS_STATUS)
 
     @property
-    def album_average_bitrate(self) -> int:
+    def album_average_bitrate(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_AVERAGE_BITRATE)
 
     @property
-    def album_musicbrainz_id(self) -> str:
+    def album_musicbrainz_id(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_MB_ID)
 
     @property
-    def album_artist_id(self) -> str:
+    def album_artist_id(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_ARTIST_ID)
 
     @property
-    def album_path(self) -> str:
+    def album_path(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_PATH)
 
     @property
-    def album_artist(self) -> str:
+    def album_artist(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_ARTIST)
 
     @property
-    def album_version(self) -> str:
+    def album_version(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_VERSION)
 
     @property
-    def album_cover_art(self) -> str:
+    def album_cover_art(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_COVER_ART)
 
     @property
-    def album_name(self) -> str:
+    def album_name(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_NAME)
 
     @property
-    def album_disc_count(self) -> int:
+    def album_disc_count(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_DISC_COUNT)
 
     @property
-    def album_song_count(self) -> int:
+    def album_song_count(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_SONG_COUNT)
 
     @property
-    def album_duration(self) -> int:
+    def album_duration(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_DURATION)
 
     @property
-    def album_created(self) -> datetime.datetime:
+    def album_created(self) -> datetime.datetime | None:
         return self.get_value(AlbumMetadataModel.ALBUM_CREATED)
 
     @property
-    def album_year(self) -> int:
+    def album_year(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_YEAR)
 
     @property
-    def album_genre(self) -> str:
+    def album_genre(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_GENRE)
 
     @property
-    def album_genre_list(self) -> str:
+    def album_genre_list(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_GENRE_LIST)
 
     @property
-    def album_mood_list(self) -> str:
+    def album_mood_list(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_MOOD_LIST)
 
     @property
-    def album_record_label_list(self) -> str:
+    def album_record_label_list(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_RECORD_LABEL_LIST)
 
     @property
-    def album_release_type_list(self) -> str:
+    def album_release_type_list(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_RELEASE_TYPE_LIST)
 
     @property
-    def album_user_rating(self) -> int:
+    def album_user_rating(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_USER_RATING)
 
     @property
-    def album_display_artist(self) -> int:
+    def album_display_artist(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_DISPLAY_ARTIST, "")
 
     @property
-    def album_explicit_status(self) -> int:
+    def album_explicit_status(self) -> int | None:
         return self.get_value(AlbumMetadataModel.ALBUM_EXPLICIT_STATUS)
 
     @property
-    def album_track_quality_summary(self) -> str:
+    def album_track_quality_summary(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY)
 
     @property
-    def album_release_date_str(self) -> str:
+    def album_release_date_str(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_RELEASE_DATE_STR, "")
 
     @property
-    def album_original_release_date_str(self) -> str:
+    def album_original_release_date_str(self) -> str | None:
         return self.get_value(AlbumMetadataModel.ALBUM_ORIGINAL_RELEASE_DATE_STR, "")
 
     @property
-    def created_timestamp(self) -> datetime.datetime:
+    def created_timestamp(self) -> datetime.datetime | None:
         return self.get_value(AlbumMetadataModel.CREATED_TIMESTAMP)
 
     @property
-    def updated_timestamp(self) -> datetime.datetime:
+    def updated_timestamp(self) -> datetime.datetime | None:
         return self.get_value(AlbumMetadataModel.UPDATED_TIMESTAMP)

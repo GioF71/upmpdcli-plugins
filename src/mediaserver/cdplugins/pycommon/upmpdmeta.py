@@ -48,6 +48,10 @@ class UpMpdMeta(Enum):
     DISC_NUMBER = "discnumber"
     COPYRIGHT = "copyright"
     UNIVERSAL_PRODUCT_NUMBER = "universalproductnumber"
+    BITRATE = "bitrate"
+    BIT_DEPTH = "bitdepth"
+    SAMPLE_RATE = "samplerate"
+    SUFFIX = "suffix"
     TRACK_QUALITY = "trackquality"
     ALBUM_QUALITY_OF_TRACKS = "albumqualityoftracks"
     ALBUM_LAST_PLAYED = "albumlastplayed"
@@ -55,6 +59,7 @@ class UpMpdMeta(Enum):
     ALBUM_AVERAGE_BITRATE = "albumaveragebitrate"
     ALBUM_GAIN = "albumgain"
     TRACK_GAIN = "trackgain"
+    TRACK_EXPLICIT_STATUS = "trackexplicitstatus"
 
 
 def get_duration_display_from_sec(duration_sec: int) -> str:

@@ -140,12 +140,13 @@ def get_enabled_album_property_key_list() -> list[AlbumPropertyKey]:
     enabled_list: list[AlbumPropertyKey] = []
     curr: AlbumPropertyKey
     for curr in AlbumPropertyKey:
+        k: str = constants.MiscConstant.ENABLE_ALBUM_PROPERTY_KEY.value + curr.property_key_raw
         # get config param if exists.
-        config_param: constants.ConfigParam | None = constants.config_param_dict.get("enablealbumpropertykey" + curr.property_key_raw)
+        config_param: constants.ConfigParam | None = constants.config_param_dict.get(k)
         # get default value. if there is no declaration, we assume it's enabled
         prop_key_default_value: bool = config_param.default_value if config_param else True
         # read the value considering the default value
-        if _get_option_value_as_bool("enablealbumpropertykey" + curr.property_key_raw, 1 if prop_key_default_value else 0) == 0:
+        if not _get_option_value_as_bool(nm=k, default_value=1 if prop_key_default_value else 0):
             # skip this
             continue
         # all other cases, we add it to the list

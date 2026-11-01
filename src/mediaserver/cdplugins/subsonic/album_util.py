@@ -95,7 +95,7 @@ def get_album_base_path(path: str) -> str:
     return path
 
 
-class __Decorated_Song:
+class _Decorated_Song:
 
     def __init__(self, song: Song):
         self._song: Song = song
@@ -115,7 +115,7 @@ class __Decorated_Song:
     def getTrack(self) -> int: return self._track
 
 
-def __compare_decorated_song(left: __Decorated_Song, right: __Decorated_Song) -> int:
+def __compare_decorated_song(left: _Decorated_Song, right: _Decorated_Song) -> int:
     cmp: int
     left_album: str = left.getSong().getAlbum() if left.getSong().getAlbum() else ""
     right_album: str = right.getSong().getAlbum() if right.getSong().getAlbum() else ""
@@ -237,12 +237,12 @@ def _get_album_release_year(album: Album, item_key: constants.ItemKey) -> int:
 
 
 def sort_song_list(song_list: list[Song]) -> SortSongListResult:
-    dec_list: list[__Decorated_Song] = []
+    dec_list: list[_Decorated_Song] = []
     codec_dict: dict[str, int] = {}
     multi_codec: MultiCodecAlbum = MultiCodecAlbum.NO
     codec_set_by_path: dict[str, set[str]] = {}
     for song in song_list:
-        dec: __Decorated_Song = __Decorated_Song(song)
+        dec: _Decorated_Song = _Decorated_Song(song)
         dec_list.append(dec)
         if dec.getPath() not in codec_set_by_path:
             codec_set_by_path[dec.getPath()] = set()
@@ -256,7 +256,7 @@ def sort_song_list(song_list: list[Song]) -> SortSongListResult:
     multi_codec = MultiCodecAlbum.YES if len(codec_dict) > 1 else MultiCodecAlbum.NO
     dec_list.sort(key=cmp_to_key(__compare_decorated_song))
     result: list[Song] = []
-    current: __Decorated_Song
+    current: _Decorated_Song
     for current in dec_list:
         result.append(current.getSong())
     return SortSongListResult(
@@ -349,8 +349,8 @@ def strip_codec_from_album(album_title: str, codecs: set[str]) -> str:
         style: CodecDelimiterStyle
         for style in CodecDelimiterStyle:
             codec_pattern: str = to_codec_pattern(
-                codecs_str,
-                CodecDelimiterStyle.ROUND)
+                codec=codecs_str,
+                style=style)
             if not album_title.startswith(codec_pattern):
                 stripped_title = strip_substring(album_title, codec_pattern)
     return stripped_title

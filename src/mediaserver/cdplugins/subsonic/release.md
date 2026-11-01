@@ -1,5 +1,27 @@
 # Subsonic Plugin Release Notes
 
+## Release 0.9.18
+
+- Avoid to replicate artist name when already set in 'dc:title'
+- Initial caching does not keep an open connection during all the process
+- Fixed caching issue with list of newest albums
+- Metadata: add explicit status, suffix, bitrate, bit depth & sample rate to track
+- Album Property Key now allows sorting by number of occurrences (used in "Quality Badge" and "Suffix")
+- Album Property Key now allows a conversion to be applied before sorting (used in "Resolution" and "Lossless")
+- Album browser: show badge in matching albums
+- Album Property Key: add album_version, album_title, album_mb_id
+- Album Property Key: add requirements so some keys appear only when there is a selection on other keys
+- Album Property Key: album version is splitted by the "/" separator (this needs configurability)
+- Album Property Key: channel count sorted by occurrencies descending
+- Album Property Key: channel count formatted to stereo, mono when appropriate
+- Album Property Key: year is available when decade is selected
+- Album browser: corrected show version in matching albums (use correct configuration key)
+- Artists from a genre: fix use of set which does not guarantee insertion order (so we got mixed elements after first page)
+- Artist Focus: fix application crash when clicking Focus from an artist
+- Avoid to hide the artist we started navigation from when showing Appearances (was really confusing)
+- Fix wrong Lossless status when album has both lossless and lossy tracks in some cases
+- General code cleanup, fixes and optimizations
+
 ## Release 0.9.17
 
 - BREAKING: Changed default for `purgeidentifiercache` to False
@@ -407,7 +429,7 @@
 
 ## Release 0.7.4
 
-- Remove unnecessary check for null album on handler_element_album
+- Remove unnecessary check for null album on handler_element_album_simple
 
 ## Release 0.7.3
 

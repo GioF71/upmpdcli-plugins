@@ -27,12 +27,15 @@ class OptionKey(Enum):
     SKIP_TRACK_NUMBER = 0, "skip-track-number", False
     APPEND_ARTIST_IN_ALBUM_TITLE = 1, "append-artist-in-album-title", True
     FORCE_TRACK_NUMBER = 2, "force-track-number", None
+    # number 3 already used. Don't recreated so we avoid to break id caching
     MULTI_CODEC_ALBUM = 4, "multi-codec-album", MultiCodecAlbum.NO
     SKIP_ART = 5, "skip-art", False
     OFFSET = 6, "offset", 0
+    # number 8 already used. Don't recreated so we avoid to break id caching
     # integer to prepend e.g. pass 3 -> [03] album_title instead of album_title
     PREPEND_ENTRY_NUMBER_IN_ALBUM_TITLE = 8, "prepend-entry-number-in-album-title", None
-    FORCE_RELOAD_ALBUM_QUALITY_INFO = 9, "force-load-quality-badge", False
+    # number 9 already used. Don't recreated so we avoid to break id caching
+    # number 10 already used. Don't recreated so we avoid to break id caching
     USE_LAST_FOR_NEXT = 11, "use-last-for-next", False
     SKIP_ARTIST_ID = 12, "skip-artist-id", None
     SEARCH_RESULT = 13, "search-result", False

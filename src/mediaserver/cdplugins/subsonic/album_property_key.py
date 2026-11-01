@@ -17,13 +17,16 @@
 import copy
 from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
+
+from audio_codec import LosslessStatus, ResolutionStatus
 
 
 class KeySortType(Enum):
     KEY_SORT_TYPE_NONE = 0
     KEY_SORT_TYPE_STRING = 1
     KEY_SORT_TYPE_INTEGER = 2
+    KEY_SORT_TYPE_OCCURRENCE = 3
 
 
 class _KeySortModeData:
@@ -31,7 +34,7 @@ class _KeySortModeData:
     def __init__(self, sort_type: KeySortType, reverse: bool):
         self.__sort_type: KeySortType = sort_type
         self.__reverse: bool = reverse
-    
+
     @property
     def sort_type(self) -> KeySortType:
         return self.__sort_type
@@ -48,6 +51,8 @@ class KeySortMode(Enum):
     SORT_REVERSE = _KeySortModeData(sort_type=KeySortType.KEY_SORT_TYPE_STRING, reverse=True)
     SORT_INTEGER = _KeySortModeData(sort_type=KeySortType.KEY_SORT_TYPE_INTEGER, reverse=False)
     SORT_INTEGER_REVERSE = _KeySortModeData(sort_type=KeySortType.KEY_SORT_TYPE_INTEGER, reverse=True)
+    SORT_OCCURRENCE = _KeySortModeData(sort_type=KeySortType.KEY_SORT_TYPE_OCCURRENCE, reverse=False)
+    SORT_OCCURRENCE_REVERSE = _KeySortModeData(sort_type=KeySortType.KEY_SORT_TYPE_OCCURRENCE, reverse=True)
 
     @property
     def data(self) -> _KeySortModeData:
@@ -60,35 +65,35 @@ class _AlbumPropertyKeyData:
             self,
             property_key: str | None = None,
             display_value: str | None = None,
-            unique_value: bool = False,
             max_items: int = 100,
-            key_value_formatter: Callable[[str], str] | None = None,
+            key_value_sort_mapper: Callable[[str], Any] | None = None,
+            key_value_formatter: Callable[[str], str | None] | None = None,
             key_sort_mode: KeySortMode = KeySortMode.SORT_NONE):
-        self.__property_key: str = property_key
-        self.__display_value: str = display_value
-        self.__unique_value: bool = unique_value
+        self.__property_key: str | None = property_key
+        self.__display_value: str | None = display_value
         self.__max_items: int = max_items
-        self.__key_value_formatter: Callable[[str], str] | None = key_value_formatter
+        self.__key_value_sort_mapper: Callable[[str], Any] | None = key_value_sort_mapper
+        self.__key_value_formatter: Callable[[str], str | None] | None = key_value_formatter
         self.__key_sort_mode: KeySortMode = key_sort_mode
 
     @property
-    def property_key(self) -> str:
+    def property_key(self) -> str | None:
         return self.__property_key
 
     @property
-    def display_value(self) -> str:
+    def display_value(self) -> str | None:
         return self.__display_value
-
-    @property
-    def unique_value(self) -> bool:
-        return self.__unique_value
 
     @property
     def max_items(self) -> int:
         return self.__max_items
 
     @property
-    def key_value_formatter(self) -> Callable[[str], str]:
+    def key_value_sort_mapper(self) -> Callable[[str], str] | None:
+        return self.__key_value_sort_mapper
+
+    @property
+    def key_value_formatter(self) -> Callable[[str], str] | None:
         return self.__key_value_formatter
 
     @property
@@ -98,23 +103,39 @@ class _AlbumPropertyKeyData:
 
 class _BitDepthPropertyKeyHelper:
 
-    def __init__(self):
-        self.__d: dict[str, str] = {
+    _d: ClassVar[dict[str, str]] = {
             "0": "Lossy",
             "1": "DSD",
+            "4": "4 bit",
+            "8": "8 bit",
             "16": "16 bit",
             "24": "24 bit",
-            "32": "32 bit"
-        }
+            "32": "32 bit"}
 
-    def format_value(self, v: str) -> str:
+    def format_value(v: str) -> str | None:
         if not v:
             return None
-        return self.__d.get(v, "")
+        return _BitDepthPropertyKeyHelper._d.get(v, "")
 
 
-def _bit_depth_formatter(v: str) -> str:
-    return _BitDepthPropertyKeyHelper().format_value(v)
+class _ChannelCountPropertyKeyHelper:
+
+    _d: ClassVar[dict[str, str]] = {
+            "1": "Mono",
+            "2": "Stereo"}
+
+    def format_value(v: str) -> str | None:
+        if not v:
+            return None
+        return _ChannelCountPropertyKeyHelper._d.get(v, f"{v} channels")
+
+
+def _bit_depth_formatter(v: str) -> str | None:
+    return _BitDepthPropertyKeyHelper.format_value(v)
+
+
+def _channel_count_formatter(v: str) -> str | None:
+    return _ChannelCountPropertyKeyHelper.format_value(v)
 
 
 def _sampling_rate_formatter(v: str) -> str:
@@ -123,7 +144,6 @@ def _sampling_rate_formatter(v: str) -> str:
         hz = float(v)
     except (ValueError, TypeError):
         return "Invalid Input"
-
     if hz >= 1_000_000:
         # Convert to MHz
         return f"{hz / 1_000_000:g}MHz"
@@ -165,23 +185,96 @@ class AlbumPropertyValueOccurrence:
         return self.__representative_album_id
 
 
+class _ResolutionPropertyKeyHelper:
+
+    _d: ClassVar[dict[str, tuple[int, str]]] = {
+            ResolutionStatus.HIRES.value: (2, "HiRes"),
+            ResolutionStatus.STD.value: (1, "Standard"),
+            ResolutionStatus.LOW.value: (0, "Low")}
+
+    _fallback: tuple[int, str] = _d.get(ResolutionStatus.LOW.value)
+
+    def get_sort_value(v: str) -> int:
+        return _ResolutionPropertyKeyHelper._d.get(
+            v,
+            _ResolutionPropertyKeyHelper._fallback)[0]
+
+    def format_value(v: str) -> int:
+        return _ResolutionPropertyKeyHelper._d.get(
+            v,
+            _ResolutionPropertyKeyHelper._fallback)[1]
+
+# gives a value to the resolution status str
+# so we can sort it more precisely
+def _resolution_status_sort_mapper(v: str) -> int:
+    return _ResolutionPropertyKeyHelper.get_sort_value(v)
+
+
+def _resolution_status_formatter(v: str) -> str | None:
+    return _ResolutionPropertyKeyHelper.format_value(v)
+
+
+class _LosslessPropertyKeyHelper:
+
+    _d: ClassVar[dict[str, tuple[int, str]]] = {
+            LosslessStatus.LOSSLESS.value: (2, "Lossless"),
+            LosslessStatus.MIXED.value: (1, "Mixed"),
+            LosslessStatus.LOSSY.value: (0, "Lossy")}
+
+    _fallback: tuple[int, str] = _d.get(LosslessStatus.LOSSY.value)
+
+    def get_sort_value(v: str) -> int:
+        return _LosslessPropertyKeyHelper._d.get(
+            v,
+            _LosslessPropertyKeyHelper._fallback)[0]
+
+    def format_value(v: str) -> int:
+        return _LosslessPropertyKeyHelper._d.get(
+            v,
+            _LosslessPropertyKeyHelper._fallback)[1]
+
+# gives a value to the resolution status str
+# so we can sort it more precisely
+def _lossless_status_sort_mapper(v: str) -> int:
+    return _LosslessPropertyKeyHelper.get_sort_value(v)
+
+
+def _lossless_status_formatter(v: str) -> str | None:
+    return _LosslessPropertyKeyHelper.format_value(v)
+
+
 class AlbumPropertyKey(Enum):
 
     GENRE = _AlbumPropertyKeyData(display_value="Genre")
     MOOD = _AlbumPropertyKeyData(display_value="Mood")
     LABEL_INITIAL = _AlbumPropertyKeyData(display_value="Label (Initial)")
     LABEL = _AlbumPropertyKeyData(display_value="Label")
-    DECADE = _AlbumPropertyKeyData(display_value="Decade", unique_value=True)
-    YEAR = _AlbumPropertyKeyData(display_value="Year", unique_value=True)
+    DECADE = _AlbumPropertyKeyData(display_value="Decade")
+    YEAR = _AlbumPropertyKeyData(display_value="Year")
     ALBUM_ARTIST = _AlbumPropertyKeyData(display_value="Album Artist")
+    ALBUM_TITLE = _AlbumPropertyKeyData(display_value="Album Title")
+    ALBUM_VERSION = _AlbumPropertyKeyData(display_value="Album Version")
+    ALBUM_MB_ID = _AlbumPropertyKeyData(display_value="MusicBrainz Id")
     ARTIST = _AlbumPropertyKeyData(display_value="Artist")
     ARTIST_CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Artist/Contributor")
     CONTRIBUTOR = _AlbumPropertyKeyData(display_value="Contributor")
     RELEASE_TYPE = _AlbumPropertyKeyData(display_value="Release Type")
-    SUFFIX = _AlbumPropertyKeyData(display_value="Suffix")
-    LOSSLESS_STATUS = _AlbumPropertyKeyData(display_value="Compression Type", unique_value=True)
-    RESOLUTION_STATUS = _AlbumPropertyKeyData(display_value="Resolution")
-    QUALITY_BADGE = _AlbumPropertyKeyData(display_value="Quality Badge", unique_value=True)
+    QUALITY_BADGE = _AlbumPropertyKeyData(
+        display_value="Quality Badge",
+        key_sort_mode=KeySortMode.SORT_OCCURRENCE_REVERSE)
+    SUFFIX = _AlbumPropertyKeyData(
+        display_value="Suffix",
+        key_sort_mode=KeySortMode.SORT_OCCURRENCE_REVERSE)
+    LOSSLESS_STATUS = _AlbumPropertyKeyData(
+        display_value="Compression Type",
+        key_value_formatter=_lossless_status_formatter,
+        key_sort_mode=KeySortMode.SORT_INTEGER_REVERSE,
+        key_value_sort_mapper=_lossless_status_sort_mapper)
+    RESOLUTION_STATUS = _AlbumPropertyKeyData(
+        display_value="Resolution",
+        key_value_formatter=_resolution_status_formatter,
+        key_sort_mode=KeySortMode.SORT_INTEGER_REVERSE,
+        key_value_sort_mapper=_resolution_status_sort_mapper)
     BIT_DEPTH = _AlbumPropertyKeyData(
         display_value="Bit Depth",
         key_value_formatter=_bit_depth_formatter,
@@ -190,7 +283,10 @@ class AlbumPropertyKey(Enum):
         display_value="Sampling Rate",
         key_value_formatter=_sampling_rate_formatter,
         key_sort_mode=KeySortMode.SORT_INTEGER_REVERSE)
-    CHANNEL_COUNT = _AlbumPropertyKeyData(display_value="Channel Count")
+    CHANNEL_COUNT = _AlbumPropertyKeyData(
+        display_value="Channel Count",
+        key_sort_mode=KeySortMode.SORT_OCCURRENCE_REVERSE,
+        key_value_formatter=_channel_count_formatter)
     HAS_MUSICBRAINZ = _AlbumPropertyKeyData(display_value="MusicBrainz Album Id")
     HAS_COVER_ART = _AlbumPropertyKeyData(display_value="Cover Art")
 
@@ -208,16 +304,20 @@ class AlbumPropertyKey(Enum):
         return self.value.display_value if self.value.display_value else self.name
 
     @property
-    def unique_value(self) -> bool:
-        return self.value.unique_value
-
-    @property
     def max_items(self) -> int:
         return self.value.max_items
-    
+
     @property
     def key_sort_mode(self) -> KeySortMode:
         return self.value.key_sort_mode
+
+    @property
+    def key_value_formatter(self) -> Callable[[str], str] | None:
+        return self.value.key_value_formatter
+
+    @property
+    def key_value_sort_mapper(self) -> Callable[[str], Any] | None:
+        return self.value.key_value_sort_mapper
 
     def format_key_value(self, key_value: str) -> str:
         return key_value if self.value.key_value_formatter is None else self.value.key_value_formatter(key_value)
@@ -228,19 +328,28 @@ class AlbumPropertyKey(Enum):
             # return as-is
             return value_occurrence_list
         v_occ_dict_by_value: dict[str, AlbumPropertyValueOccurrence] = {occ.property_value: occ for occ in value_occurrence_list}
-        key_value_list: list[str] = [occ.property_value for occ in value_occurrence_list]
-        # convert to list of int if needed
-        values: list[Any] = copy.deepcopy(
-            key_value_list
+        # key_value_list will be a list of tuples (two values)
+        # first element of tuple is property_value itself
+        # second element is the one that will be used by sorting anyway
+        # second element is the album count if requested (KeySortType.KEY_SORT_TYPE_OCCURRENCE), or
+        # second element is translated using key_value_sort_mapper if available
+        # otherwise it's the same as the first element
+        key_value_list: list[tuple[str, Any]] = [(
+            occ.property_value,
+            (occ.album_count if self.key_sort_mode.data.sort_type == KeySortType.KEY_SORT_TYPE_OCCURRENCE else
+            (self.key_value_sort_mapper(occ.property_value) if self.key_value_sort_mapper else occ.property_value)))
+            for occ in value_occurrence_list]
+        # convert second element to int if requested, before sorting
+        values: list[tuple[str, Any]] = copy.deepcopy(
+            [(x[0], x[1]) for x in key_value_list]
             if sort_mode.sort_type == KeySortType.KEY_SORT_TYPE_STRING
-            else [int(x) for x in key_value_list])
+            else [(x[0], int(x[1])) for x in key_value_list])
         # apply sorting
-        values.sort(reverse=sort_mode.reverse)
-        # return [str(x) for x in values]
-        return [v_occ_dict_by_value[str(x)] for x in values]
+        values.sort(reverse=sort_mode.reverse, key=lambda x: x[1])
+        return [v_occ_dict_by_value[str(x[0])] for x in values]
 
 
-def get_album_property_key(property_key: str) -> AlbumPropertyKey:
+def get_album_property_key(property_key: str) -> AlbumPropertyKey | None:
     apk: AlbumPropertyKey
     for apk in AlbumPropertyKey:
         if property_key == apk.property_key:
@@ -323,3 +432,53 @@ def condition_list_contains_positive(
         if curr.key == album_property_key and curr.value == album_property_value:
             return True
     return False
+
+
+class _AlbumPropertyKeySelectionRequirementData:
+
+    def __init__(self, property_key: AlbumPropertyKey, req_value_on_keys: list[AlbumPropertyKey]):
+        self._property_key: AlbumPropertyKey = property_key
+        self._req_value_on_keys: list[AlbumPropertyKey] = req_value_on_keys
+
+    @property
+    def property_key(self) -> AlbumPropertyKey:
+        return self._property_key
+
+    @property
+    def req_value_on_keys(self) -> list[AlbumPropertyKey]:
+        return self._req_value_on_keys
+
+
+class AlbumPropertyKeySelectionRequirement(Enum):
+
+    ALBUM_TITLE_REQUIRES_ALBUM_ARTIST = _AlbumPropertyKeySelectionRequirementData(
+        property_key=AlbumPropertyKey.ALBUM_TITLE,
+        req_value_on_keys=[AlbumPropertyKey.ALBUM_ARTIST])
+
+    ALBUM_VERSION_REQUIRES_ALBUM_ARTIST = _AlbumPropertyKeySelectionRequirementData(
+        property_key=AlbumPropertyKey.ALBUM_VERSION,
+        req_value_on_keys=[AlbumPropertyKey.ALBUM_ARTIST])
+
+    ALBUM_MB_ID_REQUIRES_ALBUM_ARTIST_TITLE = _AlbumPropertyKeySelectionRequirementData(
+        property_key=AlbumPropertyKey.ALBUM_MB_ID,
+        req_value_on_keys=[
+            AlbumPropertyKey.ALBUM_ARTIST,
+            AlbumPropertyKey.ALBUM_TITLE])
+
+    YEAR_REQUIRES_DECADE = _AlbumPropertyKeySelectionRequirementData(
+        property_key=AlbumPropertyKey.YEAR,
+        req_value_on_keys=[AlbumPropertyKey.DECADE])
+
+    @property
+    def property_key(self) -> AlbumPropertyKey:
+        return self.value.property_key
+
+    @property
+    def req_value_on_keys(self) -> list[AlbumPropertyKey]:
+        return self.value.req_value_on_keys
+
+
+album_property_key_selection_req_dict: dict[AlbumPropertyKey, list[AlbumPropertyKey]] = {
+    member.property_key: member.req_value_on_keys
+    for member in AlbumPropertyKeySelectionRequirement
+}

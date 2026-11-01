@@ -40,6 +40,8 @@ class ItemIdentifierKey(Enum):
     RADIO_NAME = auto()
     SONG_AS_NAVIGABLE_ENTRY = auto()
     RANDOM_VALUE = auto()
+    # this one is deprecated. keeping it here
+    # so we won't break any cache database
     SKIP_ARTIST_ID = auto()
     ALBUM_RELEASE_TYPE = auto()
     ALBUM_ID_REF_FOR_ARTIST = auto()

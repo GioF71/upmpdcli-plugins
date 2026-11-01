@@ -168,17 +168,28 @@ def build_artist_metadata(
 
 def build_album_metadata(
         album: Album,
+        current_metadata: AlbumMetadata | None = None,
         quality_badge: str | None = None,
-        song_quality_summary: str | None = None,
+        track_quality_summary: str | None = None,
         album_path: str | None = None,
         created_timestamp: datetime.datetime | None = None,
         updated_timestamp: datetime.datetime | None = None) -> AlbumMetadata:
     updated_metadata: AlbumMetadata = AlbumMetadata()
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ID, album.getId())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MEDIA_TYPE, subsonic_util.get_media_type(album))
-    # quality badge to initial value
-    updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, quality_badge)
-    updated_metadata.set_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY, song_quality_summary)
+    # use fallback values if provided through current_metadata
+    if current_metadata is not None:
+        updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, current_metadata.quality_badge)
+        updated_metadata.set_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY, current_metadata.album_track_quality_summary)
+        updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, current_metadata.album_path)
+    # update with provided values, if available
+    if quality_badge:
+        updated_metadata.set_value(AlbumMetadataModel.QUALITY_BADGE, quality_badge)
+    if track_quality_summary:
+        updated_metadata.set_value(AlbumMetadataModel.ALBUM_TRACK_QUALITY_SUMMARY, track_quality_summary)
+    if album_path:
+        updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, album_path)
+    # other values from the album itself
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_MB_ID, subsonic_util.get_album_musicbrainz_id(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST_ID, album.getArtistId())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_ARTIST, album.getArtist())
@@ -188,7 +199,6 @@ def build_album_metadata(
     disc_count: int = len(disc_title_list) if disc_title_list and len(disc_title_list) > 1 else 1
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_DISC_COUNT, disc_count)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_SONG_COUNT, subsonic_util.get_album_song_count(album))
-    updated_metadata.set_value(AlbumMetadataModel.ALBUM_PATH, album_path)
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_DURATION, album.getDuration())
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_CREATED, subsonic_util.get_album_created(album))
     updated_metadata.set_value(AlbumMetadataModel.ALBUM_YEAR, album.getYear())
