@@ -138,8 +138,9 @@ if get_option('scctl')
   scctl_sources = files(
     'scctl_src/scctl.cpp',
     'src/netcon.cpp',
+    'src/readfile.cpp',
     'src/smallut.cpp',
-    'src/upmpdutils.cxx',
+    'src/pathut.cpp',
   )
 
   scctl_includes = include_directories(
