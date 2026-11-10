@@ -441,7 +441,7 @@ int main(int argc, char *argv[])
     // line option (see the enum comments near the top of the file):
     bool inprocessms{false};
     bool msonly{false};
-    // Call with testonly=false: no FS modifications (the necessary data is not
+    // Call with testonly==true: no FS modifications (the necessary data is not
     // there yet), just check if there are enabled plugins.
     bool enableMediaServer = ContentDirectory::mediaServerNeeded(true);
     switch (arg_msmode) {
